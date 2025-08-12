@@ -186,3 +186,23 @@ Licensed under either of
 - MIT license
 
 at your option.
+
+---
+
+<div align="center">
+<h2 id='donations'  style="text-align: center;">DONATIONS</h2>
+</div>
+
+> [!NOTE]
+> If you find this helpful and would like to support its development, you can buy me a coffee through the following platforms:
+
+<div align="center">
+
+[![ko-fi](https://www.ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/rozanov)
+
+[![buymeacoffee](https://img.buymeacoffee.com/button-api/?username=YOUR_BMC_USERNAME&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000)](https://www.buymeacoffee.com/raprogramm)
+
+**_Your support is greatly appreciated!_**
+
+</div>
+
