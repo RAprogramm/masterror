@@ -1,0 +1,167 @@
+# Makefile.toml for cargo-make
+# Usage examples:
+#   cargo make ci
+#   TAG=v0.1.1 cargo make release
+#   CARGO_REGISTRY_TOKEN=... TAG=v0.1.1 cargo make publish
+
+[config]
+# Default target when you run plain `cargo make`
+default_task = "ci"
+
+[env]
+# Toggle for building with all features. You can override: ALL_FEATURES=false cargo make ci
+ALL_FEATURES = "true"
+
+# ------- Core checks -------
+
+[tasks.fmt]
+clear = true
+command = "cargo"
+args = ["fmt", "--all", "--", "--check"]
+description = "Check rustfmt formatting for the entire workspace"
+
+[tasks.clippy]
+clear = true
+script = ['''
+  #!/usr/bin/env bash
+  set -euo pipefail
+  if [ "${ALL_FEATURES}" = "true" ]; then
+    cargo clippy --all-targets --all-features -- -D warnings
+  else
+    cargo clippy --all-targets -- -D warnings
+  fi
+  ''']
+description = "Run clippy for all targets; fail on warnings"
+
+[tasks.test]
+clear = true
+script = ['''
+  #!/usr/bin/env bash
+  set -euo pipefail
+  if [ "${ALL_FEATURES}" = "true" ]; then
+    cargo test --all-features --no-fail-fast
+  else
+    cargo test --no-fail-fast
+  fi
+  ''']
+description = "Run tests (optionally with all features)"
+
+
+[tasks.package]
+command = "cargo"
+args = ["package", "--locked"]
+description = "Verify that the crate can be packaged cleanly"
+
+# Convenient meta-task for local/CI checks
+[tasks.ci]
+dependencies = ["fmt", "clippy", "test", "package"]
+description = "Run fmt, clippy, tests, and packaging checks"
+
+# ------- Release gatekeeping -------
+
+[tasks.check_tag_env]
+script = ['''
+  #!/usr/bin/env bash
+  set -euo pipefail
+  if [ -z "${TAG:-}" ]; then
+    echo "TAG env var is required, e.g. TAG=v0.1.1"
+    exit 1
+  fi
+  ''']
+description = "Ensure TAG env var is provided (e.g. TAG=v1.2.3)"
+
+[tasks.ensure_tag_matches_version]
+# Compare TAG with Cargo.toml version via cargo metadata.
+# Prefers jq, falls back to a sed-based parse if jq is missing.
+script = [
+  '''
+  #!/usr/bin/env bash
+  set -euo pipefail
+  TAG="${TAG#refs/tags/}"
+
+  # Try jq first
+  if command -v jq >/dev/null 2>&1; then
+    FILE_VER="$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')"
+  else
+    # Fallback parser (best effort, no jq)
+    FILE_VER="$(cargo metadata --no-deps --format-version=1 | sed -n 's/.*\"version\":\"\\([^\"]*\\)\".*/\\1/p' | head -n1)"
+  fi
+
+  if [ -z "${FILE_VER}" ]; then
+    echo "Unable to parse version from cargo metadata."
+    exit 1
+  fi
+
+  if [ "${TAG}" != "v${FILE_VER}" ]; then
+    echo "Tag ${TAG} != Cargo.toml version v${FILE_VER}"
+    exit 1
+  fi
+
+  echo "Tag ${TAG} matches Cargo.toml version v${FILE_VER}"
+  ''',
+]
+dependencies = ["check_tag_env"]
+description = "Ensure git tag matches Cargo.toml version"
+
+[tasks.check_token]
+script = ['''
+  #!/usr/bin/env bash
+  set -euo pipefail
+  if [ -z "${CARGO_REGISTRY_TOKEN:-}" ]; then
+    echo "CARGO_REGISTRY_TOKEN is required to publish."
+    exit 1
+  fi
+  ''']
+description = "Ensure crates.io token is present in env"
+
+# ------- Publish & Release -------
+
+[tasks.publish]
+# Do not use --allow-dirty; CI and local publish should be clean.
+script = ['''
+  #!/usr/bin/env bash
+  set -euo pipefail
+  cargo publish --locked --token "${CARGO_REGISTRY_TOKEN}"
+  ''']
+dependencies = ["check_token", "ensure_tag_matches_version", "ci"]
+description = "Publish crate to crates.io after checks and tag/version verification"
+
+[tasks.tag]
+# Create and push git tag matching Cargo.toml version.
+# Useful locally: cargo make tag && git push origin vX.Y.Z
+script = [
+  '''
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  # Extract version (prefer jq)
+  if command -v jq >/dev/null 2>&1; then
+    VER="$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')"
+  else
+    VER="$(cargo metadata --no-deps --format-version=1 | sed -n 's/.*\"version\":\"\\([^\"]*\\)\".*/\\1/p' | head -n1)"
+  fi
+
+  if [ -z "${VER}" ]; then
+    echo "Unable to extract version from Cargo metadata."
+    exit 1
+  fi
+
+  TAG="v${VER}"
+
+  if git rev-parse "${TAG}" >/dev/null 2>&1; then
+    echo "Tag ${TAG} already exists."
+    exit 1
+  fi
+
+  git tag "${TAG}"
+  echo "Created tag ${TAG}. You can push it with: git push origin ${TAG}"
+  ''',
+]
+description = "Create git tag vX.Y.Z from Cargo.toml version (does not push)"
+
+[tasks.release]
+# Full release pipeline for local usage or CI:
+# 1) checks, 2) tag/version check, 3) publish
+# Requires TAG=vX.Y.Z and CARGO_REGISTRY_TOKEN in env.
+dependencies = ["publish"]
+description = "Run checks and publish the crate (requires TAG and token)"

@@ -71,9 +71,9 @@ use crate::kind::AppErrorKind;
 #[error("{kind}")]
 pub struct AppError {
     /// Semantic category of the error.
-    pub kind:    AppErrorKind,
+    pub kind: AppErrorKind,
     /// Optional, public-friendly message.
-    pub message: Option<String>
+    pub message: Option<String>,
 }
 
 /// Conventional result alias for application code.
@@ -103,7 +103,7 @@ impl AppError {
     pub fn with(kind: AppErrorKind, msg: impl Into<String>) -> Self {
         Self {
             kind,
-            message: Some(msg.into())
+            message: Some(msg.into()),
         }
     }
 
@@ -113,7 +113,7 @@ impl AppError {
     pub fn bare(kind: AppErrorKind) -> Self {
         Self {
             kind,
-            message: None
+            message: None,
         }
     }
 
@@ -133,7 +133,7 @@ impl AppError {
     pub fn log(&self) {
         match &self.message {
             Some(m) => error!(kind = ?self.kind, message = %m),
-            None => error!(kind = ?self.kind)
+            None => error!(kind = ?self.kind),
         }
     }
 
@@ -188,8 +188,8 @@ impl AppError {
     /// when you may or may not have a safe-to-print string at hand.
     pub fn database(msg: Option<impl Into<String>>) -> Self {
         Self {
-            kind:    AppErrorKind::Database,
-            message: msg.map(|m| m.into())
+            kind: AppErrorKind::Database,
+            message: msg.map(|m| m.into()),
         }
     }
     /// Build a `Config` error.

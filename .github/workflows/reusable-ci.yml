@@ -1,0 +1,45 @@
+name: Reusable CI
+
+on:
+  workflow_call:
+    inputs:
+      all-features:
+        type: boolean
+        default: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (nightly + rustfmt)
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          components: rustfmt
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo +nightly fmt --all -- --check
+
+      - name: Clippy
+        run: |
+          if [ "${{ inputs.all-features }}" = "true" ]; then
+            cargo clippy --all-targets --all-features -- -D warnings
+          else
+            cargo clippy --all-targets -- -D warnings
+          fi
+
+      - name: Tests
+        run: |
+          if [ "${{ inputs.all-features }}" = "true" ]; then
+            cargo test --all-features --no-fail-fast
+          else
+            cargo test --no-fail-fast
+          fi
+
+      - name: Package (dry)
+        run: cargo package --locked

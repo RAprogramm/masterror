@@ -197,7 +197,7 @@ pub enum AppErrorKind {
     ///
     /// Maps to **500 Internal Server Error**.
     #[error("Cache error")]
-    Cache
+    Cache,
 }
 
 impl AppErrorKind {
@@ -233,7 +233,7 @@ impl AppErrorKind {
             | AppErrorKind::Service
             | AppErrorKind::Config
             | AppErrorKind::Turnkey
-            | AppErrorKind::Internal => 500
+            | AppErrorKind::Internal => 500,
         }
     }
 
