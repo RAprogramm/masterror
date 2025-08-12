@@ -85,7 +85,7 @@ use utoipa::ToSchema;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ErrorResponse {
     /// HTTP status code (e.g. 404, 422, 500)
-    pub status: u16,
+    pub status:  u16,
     /// Human-oriented, non-sensitive message
     pub message: String,
 
@@ -97,7 +97,7 @@ pub struct ErrorResponse {
     /// Optional textual details (no JSON feature)
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg(not(feature = "serde_json"))]
-    pub details: Option<String>,
+    pub details: Option<String>
 }
 
 impl ErrorResponse {
@@ -106,7 +106,7 @@ impl ErrorResponse {
         Self {
             status,
             message: message.into(),
-            details: None,
+            details: None
         }
     }
 
@@ -138,7 +138,7 @@ impl From<&crate::app_error::AppError> for ErrorResponse {
         // err.message: Option<String> → String with safe default
         let message: String = match &err.message {
             Some(m) => m.clone(),
-            None => "An error occurred".to_string(),
+            None => "An error occurred".to_string()
         };
 
         #[cfg(feature = "serde_json")]
@@ -147,7 +147,7 @@ impl From<&crate::app_error::AppError> for ErrorResponse {
             Self {
                 status,
                 message,
-                details: None,
+                details: None
             }
         }
 
@@ -157,7 +157,7 @@ impl From<&crate::app_error::AppError> for ErrorResponse {
             Self {
                 status,
                 message,
-                details: None,
+                details: None
             }
         }
     }
@@ -173,7 +173,7 @@ mod axum_impl {
     use axum::{
         Json,
         http::StatusCode,
-        response::{IntoResponse, Response},
+        response::{IntoResponse, Response}
     };
 
     use super::ErrorResponse;

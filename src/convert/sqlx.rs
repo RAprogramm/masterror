@@ -45,7 +45,7 @@ impl From<SqlxError> for AppError {
     fn from(err: SqlxError) -> Self {
         match err {
             SqlxError::RowNotFound => AppError::not_found("Record not found"),
-            other => AppError::database(Some(other.to_string())),
+            other => AppError::database(Some(other.to_string()))
         }
     }
 }
