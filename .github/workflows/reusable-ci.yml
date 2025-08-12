@@ -10,22 +10,39 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        toolchain: [1.89.0, stable] # MSRV + latest stable
     steps:
       - uses: actions/checkout@v4
 
-      # Устанавливаем нужный тулчейн для сборки/Clippy/Tests
-      - name: Install Rust (${{ matrix.toolchain }})
+      # 1) Достаём rust-version из Cargo.toml (через cargo metadata)
+      - name: Read MSRV from Cargo.toml
+        id: msrv
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update -y && sudo apt-get install -y jq
+          fi
+          RV=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].rust_version // empty')
+          if [ -z "$RV" ]; then
+            echo "rust-version is not set in Cargo.toml"
+            exit 1
+          fi
+          # Нормализуем до 1.xx.0 если патча нет
+          if [[ "$RV" =~ ^[0-9]+\.[0-9]+$ ]]; then
+            RV="${RV}.0"
+          fi
+          echo "msrv=${RV}" >> "$GITHUB_OUTPUT"
+          echo "Using MSRV: $RV"
+
+      # 2) Ставим ровно этот тулчейн для clippy/tests/package
+      - name: Install Rust (${{ steps.msrv.outputs.msrv }})
         uses: dtolnay/rust-toolchain@v1
         with:
-          toolchain: ${{ matrix.toolchain }}
+          toolchain: ${{ steps.msrv.outputs.msrv }}
           components: clippy
 
-      # Устанавливаем nightly rustfmt один раз для проверки форматирования
+      # 3) Ставим nightly только для rustfmt (из-за unstable_features в .rustfmt.toml)
       - name: Install nightly rustfmt
-        if: matrix.toolchain == 'stable'
         uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: nightly
@@ -36,26 +53,29 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      # Fmt гоняем только на stable, nightly берём только для форматтера
+      # 4) Fmt на nightly (требуется для unstable_features = true)
       - name: Check formatting (nightly rustfmt)
-        if: matrix.toolchain == 'stable'
         run: cargo +nightly fmt --all -- --check
 
-      - name: Clippy
+      - name: Clippy (${{ steps.msrv.outputs.msrv }})
+        shell: bash
         run: |
+          set -euo pipefail
           if [ "${{ inputs.all-features }}" = "true" ]; then
-            cargo clippy --all-targets --all-features -- -D warnings
+            cargo +${{ steps.msrv.outputs.msrv }} clippy --workspace --all-targets --all-features -- -D warnings
           else
-            cargo clippy --all-targets -- -D warnings
+            cargo +${{ steps.msrv.outputs.msrv }} clippy --workspace --all-targets -- -D warnings
           fi
 
-      - name: Tests
+      - name: Tests (${{ steps.msrv.outputs.msrv }})
+        shell: bash
         run: |
+          set -euo pipefail
           if [ "${{ inputs.all-features }}" = "true" ]; then
-            cargo test --all-features --no-fail-fast
+            cargo +${{ steps.msrv.outputs.msrv }} test --workspace --all-features --no-fail-fast
           else
-            cargo test --no-fail-fast
+            cargo +${{ steps.msrv.outputs.msrv }} test --workspace --no-fail-fast
           fi
 
-      - name: Package (dry-run)
-        run: cargo package --locked
+      - name: Package (dry-run) (${{ steps.msrv.outputs.msrv }})
+        run: cargo +${{ steps.msrv.outputs.msrv }} package --locked
