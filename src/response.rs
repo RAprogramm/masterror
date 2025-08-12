@@ -171,9 +171,9 @@ mod axum_impl {
     //! status code derived from `AppErrorKind`.
 
     use axum::{
+        Json,
         http::StatusCode,
-        response::{IntoResponse, Response},
-        Json
+        response::{IntoResponse, Response}
     };
 
     use super::ErrorResponse;

@@ -113,7 +113,3 @@ pub mod prelude;
 pub use app_error::{AppError, AppResult};
 pub use kind::AppErrorKind;
 pub use response::ErrorResponse;
-// Re-export feature-gated integration details for docs.rs discoverability.
-#[cfg(feature = "axum")]
-#[cfg_attr(docsrs, doc(cfg(feature = "axum")))]
-pub use response::*; // exposes IntoResponse impl in docs when enabled

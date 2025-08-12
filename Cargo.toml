@@ -28,15 +28,17 @@ reqwest = ["dep:reqwest"]
 thiserror = "2"
 tracing = "0.1"
 
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true, optional = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", optional = true }
 
 # опциональные интеграции
 axum = { version = "0.8", optional = true, default-features = false, features = [
   "json",
   "multipart",
 ] }
-sqlx = { version = "0.8", optional = true, default-features = false }
+sqlx = { version = "0.8", optional = true, default-features = false, features = [
+  "migrate",
+] }
 redis = { version = "0.32", optional = true, default-features = false }
 validator = { version = "0.20", optional = true }
 config = { version = "0.15", optional = true }

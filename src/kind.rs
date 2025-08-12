@@ -40,61 +40,162 @@ use axum::http::StatusCode;
 
 /// Canonical application error taxonomy.
 ///
-/// Keep it small, stable, and framework-agnostic. Each variant should have a
-/// clear, documented meaning and a predictable mapping to an HTTP status code.
+/// Keep it small, stable, and framework-agnostic. Each variant has a clear,
+/// documented meaning and a predictable mapping to an HTTP status code.
 #[derive(Debug, thiserror::Error, Clone, Copy, PartialEq, Eq)]
 pub enum AppErrorKind {
-    // Generic, client-visible failures
+    // ── Generic, client-visible failures (4xx/5xx) ────────────────────────────
+    /// Resource does not exist or is not visible to the caller.
+    ///
+    /// Maps to **404 Not Found**.
     #[error("Not found")]
     NotFound,
+
+    /// Input failed validation (shape, constraints, business rules).
+    ///
+    /// Prefer this over `BadRequest` when you validate structured input.
+    /// Maps to **422 Unprocessable Entity**.
     #[error("Validation error")]
     Validation,
+
+    /// State conflict with an existing resource or concurrent update.
+    ///
+    /// Typical cases: unique key violation, version mismatch (ETag).
+    /// Maps to **409 Conflict**.
     #[error("Conflict")]
     Conflict,
+
+    /// Authentication required or failed (missing/invalid credentials).
+    ///
+    /// Maps to **401 Unauthorized**.
     #[error("Unauthorized")]
     Unauthorized,
+
+    /// Authenticated but not allowed to perform the operation.
+    ///
+    /// Maps to **403 Forbidden**.
     #[error("Forbidden")]
     Forbidden,
+
+    /// Operation is not implemented or not supported by this deployment.
+    ///
+    /// Maps to **501 Not Implemented**.
     #[error("Not implemented")]
     NotImplemented,
+
+    /// Unexpected server-side failure not captured by more specific kinds.
+    ///
+    /// Use sparingly; prefer a more precise category when possible.
+    /// Maps to **500 Internal Server Error**.
     #[error("Internal server error")]
     Internal,
+
+    /// Malformed request or missing required parameters.
+    ///
+    /// Prefer `Validation` for structured input with field-level issues.
+    /// Maps to **400 Bad Request**.
     #[error("Bad request")]
     BadRequest,
 
-    // Domain-specific categories (map conservatively)
+    // ── Domain-specific categories (map conservatively) ───────────────────────
+    /// Telegram authentication flow failed (signature, timestamp, or payload).
+    ///
+    /// Treated as an authentication failure.
+    /// Maps to **401 Unauthorized**.
     #[error("Telegram authentication error")]
     TelegramAuth,
+
+    /// Provided JWT is invalid (expired, malformed, wrong signature/claims).
+    ///
+    /// Treated as an authentication failure.
+    /// Maps to **401 Unauthorized**.
     #[error("Invalid JWT")]
     InvalidJwt,
+
+    /// Database-related failure (query, connection, migration, etc.).
+    ///
+    /// Keep driver-specific details out of the public contract.
+    /// Maps to **500 Internal Server Error**.
     #[error("Database error")]
     Database,
+
+    /// Generic service-layer failure (business logic or internal
+    /// orchestration).
+    ///
+    /// Use when no more specific category applies.
+    /// Maps to **500 Internal Server Error**.
     #[error("Service error")]
     Service,
+
+    /// Configuration error (missing/invalid environment or runtime config).
+    ///
+    /// Maps to **500 Internal Server Error**.
     #[error("Configuration error")]
     Config,
+
+    /// Failure in the Turnkey subsystem/integration.
+    ///
+    /// Maps to **500 Internal Server Error**.
     #[error("Turnkey error")]
     Turnkey,
 
-    // Infrastructure / network
+    // ── Infrastructure / network ──────────────────────────────────────────────
+    /// Operation did not complete within the allotted time.
+    ///
+    /// Typically returned by timeouts around I/O or remote calls.
+    /// Maps to **504 Gateway Timeout**.
     #[error("Operation timed out")]
     Timeout,
+
+    /// Network-level error (DNS, connect, TLS, request build).
+    ///
+    /// For upstream HTTP status failures use `ExternalApi` instead.
+    /// Maps to **503 Service Unavailable**.
     #[error("Network error")]
     Network,
+
+    /// Client exceeded rate limits or quota.
+    ///
+    /// Maps to **429 Too Many Requests**.
     #[error("Rate limit exceeded")]
     RateLimited,
+
+    /// External dependency is unavailable or degraded.
+    ///
+    /// Examples: cache down, message broker unreachable, third-party outage.
+    /// Maps to **503 Service Unavailable**.
     #[error("External dependency unavailable")]
     DependencyUnavailable,
 
-    // Serialization / external API / infra subsystems
+    // ── Serialization / external API / infra subsystems ───────────────────────
+    /// Failed to serialize data (encode).
+    ///
+    /// Maps to **500 Internal Server Error**.
     #[error("Serialization error")]
     Serialization,
+
+    /// Failed to deserialize data (decode).
+    ///
+    /// Maps to **500 Internal Server Error**.
     #[error("Deserialization error")]
     Deserialization,
+
+    /// Upstream API returned an error or the call failed at protocol level.
+    ///
+    /// Use `Network` for connect/build failures; use this for HTTP status
+    /// errors. Maps to **500 Internal Server Error** by default.
     #[error("External API error")]
     ExternalApi,
+
+    /// Queue processing failure (publish/consume/ack).
+    ///
+    /// Maps to **500 Internal Server Error**.
     #[error("Queue processing error")]
     Queue,
+
+    /// Cache subsystem failure (read/write/encoding).
+    ///
+    /// Maps to **500 Internal Server Error**.
     #[error("Cache error")]
     Cache
 }
