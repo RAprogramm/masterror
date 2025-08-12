@@ -165,3 +165,21 @@ description = "Create git tag vX.Y.Z from Cargo.toml version (does not push)"
 # Requires TAG=vX.Y.Z and CARGO_REGISTRY_TOKEN in env.
 dependencies = ["publish"]
 description = "Run checks and publish the crate (requires TAG and token)"
+
+[tasks.format]
+description = "Форматирует код с помощью cargo fmt (nightly)"
+script_runner = "bash"
+script = ['cargo +nightly fmt --']
+
+[tasks.install-hooks]
+workspace = false
+description = "🔗 Установить git pre-commit хук из .hooks/"
+script_runner = "bash"
+script = [
+  'if [ ! -f .hooks/pre-commit ]; then echo "❌ .hooks/pre-commit не найден!"; exit 1; fi',
+  'echo "🔗 Linking .hooks/pre-commit to .git/hooks/pre-commit..."',
+  'mkdir -p .git/hooks',
+  'ln -sf ../../.hooks/pre-commit .git/hooks/pre-commit',
+  'chmod +x .hooks/pre-commit',
+  'echo "✅ pre-commit hook установлен."',
+]

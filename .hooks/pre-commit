@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "🧹 Running cargo fmt check..."
+cargo +nightly fmt --all -- --check || exit 1
+
+echo "🧐 Running cargo clippy..."
+cargo clippy --all --all-targets --all-features -- -D warnings || exit 1
+
+# echo "📦 Running sqlx prepare..."
+# cargo sqlx prepare --check --workspace
+
+echo "✅ All checks passed!"
