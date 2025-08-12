@@ -5,6 +5,8 @@ rust-version = "1.89"
 edition = "2024"
 description = "Application error types and response mapping"
 license = "MIT OR Apache-2.0"
+license-file = "LICENSE"
+documentation = "https://docs.rs/masterror"
 repository = "https://github.com/RAprogramm/masterror-rs"
 readme = "README.md"
 categories = ["rust-patterns", "web-programming"]
@@ -53,3 +55,6 @@ reqwest = { version = "0.12", optional = true, default-features = false }
 
 [dev-dependencies]
 serde_json = "1"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
