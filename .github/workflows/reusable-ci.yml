@@ -10,19 +10,35 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain: [1.89.0, stable] # MSRV + latest stable
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust (nightly + rustfmt)
-        uses: actions-rs/toolchain@v1
+      # Устанавливаем нужный тулчейн для сборки/Clippy/Tests
+      - name: Install Rust (${{ matrix.toolchain }})
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: clippy
+
+      # Устанавливаем nightly rustfmt один раз для проверки форматирования
+      - name: Install nightly rustfmt
+        if: matrix.toolchain == 'stable'
+        uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: nightly
           components: rustfmt
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Check formatting
+      # Fmt гоняем только на stable, nightly берём только для форматтера
+      - name: Check formatting (nightly rustfmt)
+        if: matrix.toolchain == 'stable'
         run: cargo +nightly fmt --all -- --check
 
       - name: Clippy
@@ -41,5 +57,5 @@ jobs:
             cargo test --no-fail-fast
           fi
 
-      - name: Package (dry)
+      - name: Package (dry-run)
         run: cargo package --locked
