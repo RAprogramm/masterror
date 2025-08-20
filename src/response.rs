@@ -187,9 +187,9 @@ mod axum_impl {
     //! status derived from `AppErrorKind`.
 
     use axum::{
+        Json,
         http::StatusCode,
-        response::{IntoResponse, Response},
-        Json
+        response::{IntoResponse, Response}
     };
 
     use super::ErrorResponse;
@@ -208,7 +208,7 @@ mod axum_impl {
 mod actix_impl {
     //! Actix `Responder` implementation for `ErrorResponse`.
 
-    use actix_web::{body::BoxBody, http::StatusCode, HttpRequest, HttpResponse, Responder};
+    use actix_web::{HttpRequest, HttpResponse, Responder, body::BoxBody, http::StatusCode};
 
     use super::ErrorResponse;
 
