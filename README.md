@@ -6,10 +6,12 @@
 ![MSRV](https://img.shields.io/badge/MSRV-1.89-blue)
 ![License](https://img.shields.io/badge/License-MIT%20or%20Apache--2.0-informational)
 
-Small, pragmatic error model for API-heavy Rust services. Core is framework-agnostic; integrations are opt-in via feature flags. Stable categories, conservative HTTP mapping, no `unsafe`.
+Small, pragmatic error model for API-heavy Rust services.  
+Core is framework-agnostic; integrations are opt-in via feature flags.  
+Stable categories, conservative HTTP mapping, no `unsafe`.
 
 - Core types: `AppError`, `AppErrorKind`, `AppResult`, `ErrorResponse`
-- Optional Axum `IntoResponse`
+- Optional Axum/Actix integration
 - Optional OpenAPI schema (via `utoipa`)
 - Conversions from `sqlx`, `reqwest`, `redis`, `validator`, `config`, `tokio`
 
@@ -21,6 +23,7 @@ Small, pragmatic error model for API-heavy Rust services. Core is framework-agno
 - **Framework-agnostic core.** No web framework assumptions. No `unsafe`. MSRV pinned. Works in libraries and binaries alike.
 - **Opt-in integrations.** Zero default features. You pull only what you need:
   - `axum` (HTTP `IntoResponse`)
+  - `actix` (ready-to-use integration)
   - `serde_json` (JSON details)
   - `openapi` (schemas via `utoipa`)
   - `sqlx`, `reqwest`, `redis`, `validator`, `config`, `tokio`, `multipart` (error conversions)
@@ -36,12 +39,12 @@ Small, pragmatic error model for API-heavy Rust services. Core is framework-agno
 ```toml
 [dependencies]
 # lean core, no extra deps
-masterror = { version = "0.1", default-features = false }
+masterror = { version = "0.2", default-features = false }
 
 # Or with features:
-# JSON + Axum + common integrations
-# masterror = { version = "0.1", features = [
-#   "axum", "serde_json", "openapi",
+# JSON + Axum/Actix + common integrations
+# masterror = { version = "0.2", features = [
+#   "axum", "actix", "serde_json", "openapi",
 #   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 # ] }
 ```
@@ -87,7 +90,11 @@ let resp: ErrorResponse = (&app_err).into();
 assert_eq!(resp.status, 404);
 ```
 
-### Axum integration
+---
+
+## Web framework integrations
+
+### Axum
 
 Enable `axum` (and usually `serde_json`) to return errors directly from handlers:
 
@@ -103,43 +110,35 @@ async fn handler() -> AppResult<&'static str> {
 let app = Router::new().route("/demo", get(handler));
 ```
 
-> Note: for JSON bodies you typically need both `axum` and `serde_json` features enabled.
+### Actix
 
-### Actix integration
-
-Enable `actix` (и обычно `serde_json`) чтобы возвращать ошибки и готовый `ErrorResponse`:
+Enable `actix` (and usually `serde_json`) to return errors directly from handlers:
 
 ```rust
 // requires: features = ["actix", "serde_json"]
 use actix_web::{get, App, HttpServer, Responder};
-use masterror::{AppError, AppErrorKind, ErrorResponse};
+use masterror::prelude::*;
 
 #[get("/err")]
-async fn err() -> Result<&'static str, AppError> {
-    Err(AppError::new(AppErrorKind::Forbidden, "No access"))
+async fn err() -> AppResult<&'static str> {
+    Err(AppError::forbidden("No access"))
 }
 
 #[get("/payload")]
 async fn payload() -> impl Responder {
     ErrorResponse::new(422, "Validation failed")
 }
-
-# #[actix_web::main]
-# async fn main() -> std::io::Result<()> {
-#     HttpServer::new(|| App::new().service(err).service(payload))
-#         .bind(("127.0.0.1", 8080))?
-#         .run()
-#         .await
-# }
 ```
 
-### OpenAPI
+---
+
+## OpenAPI
 
 Enable `openapi` to derive an OpenAPI schema for `ErrorResponse` (via `utoipa`).
 
 ```toml
 [dependencies]
-masterror = { version = "0.1", features = ["openapi", "serde_json"] }
+masterror = { version = "0.2", features = ["openapi", "serde_json"] }
 utoipa = "5"
 ```
 
@@ -148,6 +147,7 @@ utoipa = "5"
 ## Feature flags
 
 - `axum` — `IntoResponse` for `AppError` and JSON responses  
+- `actix` — `ResponseError`/`Responder` integration  
 - `openapi` — schema for `ErrorResponse` via `utoipa`  
 - `serde_json` — JSON details support  
 - `sqlx` — `From<sqlx::Error>`  
@@ -156,7 +156,7 @@ utoipa = "5"
 - `config` — `From<config::ConfigError>`  
 - `tokio` — `From<tokio::time::error::Elapsed>`  
 - `reqwest` — `From<reqwest::Error>`  
-- `multipart` — compatibility flag for projects using multipart in Axum
+- `multipart` — compatibility flag for projects using multipart in Axum  
 
 ---
 
@@ -164,28 +164,39 @@ utoipa = "5"
 
 All mappings are conservative and avoid leaking internals:
 
-- `std::io::Error` → `Internal`
-- `String` → `BadRequest`
-- `sqlx::Error` → `NotFound` (for `RowNotFound`) or `Database`
-- `redis::RedisError` → `Service`
-- `reqwest::Error` → `Timeout` / `Network` / `ExternalApi`
-- `validator::ValidationErrors` → `Validation`
-- `config::ConfigError` → `Config`
-- `tokio::time::error::Elapsed` → `Timeout`
+- `std::io::Error` → `Internal`  
+- `String` → `BadRequest`  
+- `sqlx::Error` → `NotFound` (for `RowNotFound`) or `Database`  
+- `redis::RedisError` → `Service`  
+- `reqwest::Error` → `Timeout` / `Network` / `ExternalApi`  
+- `validator::ValidationErrors` → `Validation`  
+- `config::ConfigError` → `Config`  
+- `tokio::time::error::Elapsed` → `Timeout`  
 
 ---
 
 ## Typical setups
 
 Minimal core:
+
 ```toml
-masterror = { version = "0.1", default-features = false }
+masterror = { version = "0.2", default-features = false }
 ```
 
 API service (Axum + JSON + common deps):
+
 ```toml
-masterror = { version = "0.1", features = [
+masterror = { version = "0.2", features = [
   "axum", "serde_json", "openapi",
+  "sqlx", "reqwest", "redis", "validator", "config", "tokio"
+] }
+```
+
+API service (Actix + JSON + common deps):
+
+```toml
+masterror = { version = "0.2", features = [
+  "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
 ```
@@ -195,14 +206,14 @@ masterror = { version = "0.1", features = [
 ## Versioning and MSRV
 
 - Semantic versioning. Breaking API or wire-contract changes bump the major version.  
-- MSRV: 1.89 (may be raised in a **minor** release with a changelog note, never in a patch).
+- MSRV: 1.89 (may be raised in a **minor** release with a changelog note, never in a patch).  
 
 ---
 
 ## Non-goals
 
 - Not a general-purpose error aggregator like `anyhow` for CLIs.  
-- Not a replacement for your domain errors. Use it as the public API surface and transport mapping.
+- Not a replacement for your domain errors. Use it as the public API surface and transport mapping.  
 
 ---
 
@@ -210,8 +221,7 @@ masterror = { version = "0.1", features = [
 
 Licensed under either of
 
-- Apache License, Version 2.0
-- MIT license
+- Apache License, Version 2.0  
+- MIT license  
 
 at your option.
-
