@@ -1,6 +1,6 @@
 [package]
 name = "masterror"
-version = "0.1.1"
+version = "0.2.0"
 rust-version = "1.89"
 edition = "2024"
 description = "Application error types and response mapping"
@@ -14,13 +14,14 @@ keywords = ["error", "api", "framework"]
 
 [features]
 default = []
-axum = ["dep:axum", "dep:serde_json"] # IntoResponse + JSON body
+axum = ["dep:axum", "dep:serde_json"]       # IntoResponse + JSON body
+actix = ["dep:actix-web", "dep:serde_json"]
 sqlx = ["dep:sqlx"]
 redis = ["dep:redis"]
 validator = ["dep:validator"]
 serde_json = ["dep:serde_json"]
-config = ["dep:config"]               # config::ConfigError -> AppError
-openapi = ["dep:utoipa"]              # <-- новая фича для схем
+config = ["dep:config"]                     # config::ConfigError -> AppError
+openapi = ["dep:utoipa"]                    # <-- новая фича для схем
 multipart = ["axum"]
 tokio = ["dep:tokio"]
 reqwest = ["dep:reqwest"]
@@ -36,6 +37,9 @@ serde_json = { version = "1", optional = true }
 axum = { version = "0.8", optional = true, default-features = false, features = [
   "json",
   "multipart",
+] }
+actix-web = { version = "4", optional = true, default-features = false, features = [
+  "macros",
 ] }
 sqlx = { version = "0.8", optional = true, default-features = false, features = [
   "migrate",

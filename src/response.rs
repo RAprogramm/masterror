@@ -7,8 +7,8 @@
 //! - `details`: optional structured payload (JSON if the `serde_json` feature
 //!   is enabled, otherwise a plain string)
 //!
-//! The crate keeps internal error sources for logs only. Do not leak internals
-//! into `message` or `details`.
+//! Internal error sources (the `std::error::Error` chain) are for logs only.
+//! Do not leak internals into `message` or `details`.
 //!
 //! ## Construction
 //!
@@ -18,7 +18,7 @@
 //! let resp = ErrorResponse::new(404, "User not found");
 //! ```
 //!
-//! With `serde_json` feature you can attach structured details:
+//! With the `serde_json` feature you can attach structured details:
 //!
 //! ```rust
 //! # #[cfg(feature = "serde_json")]
@@ -31,7 +31,7 @@
 //! # }
 //! ```
 //!
-//! Without `serde_json`, attach a plain text detail:
+//! Without `serde_json`, attach a plain-text detail:
 //!
 //! ```rust
 //! #[cfg(not(feature = "serde_json"))]
@@ -55,8 +55,8 @@
 //!
 //! ## Axum integration
 //!
-//! With the `axum` feature enabled, `AppError` implements `IntoResponse`.
-//! If you need to return a pre-built `ErrorResponse`, you can do it too:
+//! With the `axum` feature enabled, [`AppError`] implements `IntoResponse`.
+//! You can also return a pre-built `ErrorResponse` directly:
 //!
 //! ```rust,ignore
 //! # #[cfg(feature = "axum")]
@@ -64,6 +64,22 @@
 //! use masterror::ErrorResponse;
 //!
 //! fn handler() -> impl IntoResponse {
+//!     ErrorResponse::new(403, "Forbidden")
+//! }
+//! ```
+//!
+//! ## Actix integration
+//!
+//! With the `actix` feature enabled, [`ErrorResponse`] implements
+//! `actix_web::Responder`, so you can return it directly from handlers:
+//!
+//! ```rust,ignore
+//! # #[cfg(feature = "actix")]
+//! use actix_web::{get, App, HttpServer, Responder};
+//! use masterror::ErrorResponse;
+//!
+//! # #[get("/forbidden")]
+//! async fn forbidden() -> impl Responder {
 //!     ErrorResponse::new(403, "Forbidden")
 //! }
 //! ```
@@ -136,14 +152,14 @@ impl From<&crate::app_error::AppError> for ErrorResponse {
         let status = err.kind.http_status();
 
         // err.message: Option<String> → String with safe default
-        let message: String = match &err.message {
-            Some(m) => m.clone(),
-            None => "An error occurred".to_string()
-        };
+        let message = err
+            .message
+            .clone()
+            .unwrap_or_else(|| "An error occurred".to_string());
 
         #[cfg(feature = "serde_json")]
         {
-            // AppError.details в твоём типе нет → всегда None
+            // AppError does not expose structured details yet.
             Self {
                 status,
                 message,
@@ -153,7 +169,7 @@ impl From<&crate::app_error::AppError> for ErrorResponse {
 
         #[cfg(not(feature = "serde_json"))]
         {
-            // Нет serde_json → и пытаться сериализовать нечего
+            // No serde_json → textual details only; none by default.
             Self {
                 status,
                 message,
@@ -167,13 +183,13 @@ impl From<&crate::app_error::AppError> for ErrorResponse {
 mod axum_impl {
     //! Axum `IntoResponse` implementations.
     //!
-    //! `AppError` maps to an `ErrorResponse` with JSON body and appropriate
-    //! status code derived from `AppErrorKind`.
+    //! `AppError` maps to an `ErrorResponse` with JSON body and an HTTP
+    //! status derived from `AppErrorKind`.
 
     use axum::{
-        Json,
         http::StatusCode,
-        response::{IntoResponse, Response}
+        response::{IntoResponse, Response},
+        Json
     };
 
     use super::ErrorResponse;
@@ -198,6 +214,26 @@ mod axum_impl {
 
             let body = ErrorResponse::from(&self);
             (status, Json(body)).into_response()
+        }
+    }
+}
+
+#[cfg(feature = "actix")]
+mod actix_impl {
+    //! Actix `Responder` implementation for `ErrorResponse`.
+
+    use actix_web::{body::BoxBody, http::StatusCode, HttpRequest, HttpResponse, Responder};
+
+    use super::ErrorResponse;
+
+    impl Responder for ErrorResponse {
+        type Body = BoxBody;
+
+        fn respond_to(self, _req: &HttpRequest) -> HttpResponse {
+            // Build response with the provided status code.
+            let status =
+                StatusCode::from_u16(self.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+            HttpResponse::build(status).json(self)
         }
     }
 }

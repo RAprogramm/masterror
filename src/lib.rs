@@ -26,6 +26,8 @@
 //! Enable only what you need:
 //!
 //! - `axum` — implements `IntoResponse` for [`AppError`] and uses JSON body.
+//! - `actix` — implements `actix_web::ResponseError` for [`AppError`] and
+//!   JSON-response.
 //! - `openapi` — derives OpenAPI schema for [`ErrorResponse`] (via `utoipa`).
 //! - `sqlx` — `From<sqlx::Error>` mapping.
 //! - `redis` — `From<redis::RedisError>` mapping.

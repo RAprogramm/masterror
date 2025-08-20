@@ -105,6 +105,34 @@ let app = Router::new().route("/demo", get(handler));
 
 > Note: for JSON bodies you typically need both `axum` and `serde_json` features enabled.
 
+### Actix integration
+
+Enable `actix` (и обычно `serde_json`) чтобы возвращать ошибки и готовый `ErrorResponse`:
+
+```rust
+// requires: features = ["actix", "serde_json"]
+use actix_web::{get, App, HttpServer, Responder};
+use masterror::{AppError, AppErrorKind, ErrorResponse};
+
+#[get("/err")]
+async fn err() -> Result<&'static str, AppError> {
+    Err(AppError::new(AppErrorKind::Forbidden, "No access"))
+}
+
+#[get("/payload")]
+async fn payload() -> impl Responder {
+    ErrorResponse::new(422, "Validation failed")
+}
+
+# #[actix_web::main]
+# async fn main() -> std::io::Result<()> {
+#     HttpServer::new(|| App::new().service(err).service(payload))
+#         .bind(("127.0.0.1", 8080))?
+#         .run()
+#         .await
+# }
+```
+
 ### OpenAPI
 
 Enable `openapi` to derive an OpenAPI schema for `ErrorResponse` (via `utoipa`).
