@@ -3,6 +3,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.1] - 2025-08-20
+### Changed
+- Cleanup of feature flags: clarified `openapi` vs `openapi-*`.
+- Simplified error DTOs (`ErrorResponse`) with proper `ToSchema` support.
+- Minor code cleanup in Actix and SQLx integration.
+
+### Notes
+- MSRV: 1.89
+- No unsafe
+
 ## [0.2.0] - 2025-08-20
 ### Added
 - Actix integration:
@@ -19,5 +29,6 @@ All notable changes to this project will be documented in this file.
 - **MSRV:** 1.89
 - **No unsafe:** the crate forbids `unsafe`.
 
+[0.2.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.2.1
 [0.2.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.2.0
 
