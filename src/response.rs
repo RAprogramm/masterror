@@ -203,19 +203,6 @@ mod axum_impl {
             (status, Json(self)).into_response()
         }
     }
-
-    impl IntoResponse for AppError {
-        fn into_response(self) -> Response {
-            // Log once at the boundary.
-            self.log();
-
-            let status = StatusCode::from_u16(self.kind.http_status())
-                .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-
-            let body = ErrorResponse::from(&self);
-            (status, Json(body)).into_response()
-        }
-    }
 }
 
 #[cfg(feature = "actix")]
