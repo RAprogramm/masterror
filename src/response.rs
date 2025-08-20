@@ -187,13 +187,12 @@ mod axum_impl {
     //! status derived from `AppErrorKind`.
 
     use axum::{
-        Json,
         http::StatusCode,
-        response::{IntoResponse, Response}
+        response::{IntoResponse, Response},
+        Json
     };
 
     use super::ErrorResponse;
-    use crate::app_error::AppError;
 
     impl IntoResponse for ErrorResponse {
         fn into_response(self) -> Response {
@@ -209,7 +208,7 @@ mod axum_impl {
 mod actix_impl {
     //! Actix `Responder` implementation for `ErrorResponse`.
 
-    use actix_web::{HttpRequest, HttpResponse, Responder, body::BoxBody, http::StatusCode};
+    use actix_web::{body::BoxBody, http::StatusCode, HttpRequest, HttpResponse, Responder};
 
     use super::ErrorResponse;
 
