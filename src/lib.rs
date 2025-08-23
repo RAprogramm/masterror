@@ -2,47 +2,52 @@
 //!
 //! # Overview
 //!
-//! This crate provides a small, pragmatic error model for API-heavy services:
+//! A small, pragmatic error model designed for API-heavy services.  
+//! The core is framework-agnostic; integrations are optional and enabled via
+//! feature flags.
 //!
-//! - Core types: [`AppError`], [`AppErrorKind`], [`AppResult`],
-//!   [`ErrorResponse`].
-//! - Strictly framework-agnostic core with optional integrations behind feature
-//!   flags.
-//! - Optional Axum integration (`IntoResponse`) behind the `axum` feature.
-//! - Optional OpenAPI schema for the wire error payload behind the `openapi`
-//!   feature.
+//! Core types:
+//! - [`AppError`] — thin wrapper around a semantic error kind and optional
+//!   message
+//! - [`AppErrorKind`] — stable internal taxonomy of application errors
+//! - [`AppResult`] — convenience alias `Result<T, AppError>`
+//! - [`ErrorResponse`] — stable wire-level JSON payload for HTTP APIs
+//! - [`AppCode`] — public, machine-readable error code for clients
 //!
-//! The design favors stable, machine-readable categories ([`AppErrorKind`]) and
-//! conservative HTTP mappings. Internals are never leaked into wire payloads;
-//! messages are public-friendly; sources are logged only.
+//! Key properties:
+//! - Stable, predictable error categories (`AppErrorKind`).
+//! - Conservative and stable HTTP mappings.
+//! - Internal error sources are never serialized to clients (only logged).
+//! - Messages are safe to expose (human-oriented, non-sensitive).
 //!
 //! # Minimum Supported Rust Version (MSRV)
 //!
-//! MSRV is **1.89**. New minor releases may raise MSRV with a changelog note,
-//! but not in a patch release.
+//! MSRV is **1.89**. New minor releases may increase MSRV with a changelog
+//! note, but never in a patch release.
 //!
 //! # Feature flags
 //!
 //! Enable only what you need:
 //!
-//! - `axum` — implements `IntoResponse` for [`AppError`] and uses JSON body.
-//! - `actix` — implements `actix_web::ResponseError` for [`AppError`] and
-//!   JSON-response.
-//! - `openapi` — derives OpenAPI schema for [`ErrorResponse`] (via `utoipa`).
-//! - `sqlx` — `From<sqlx::Error>` mapping.
-//! - `redis` — `From<redis::RedisError>` mapping.
-//! - `validator` — `From<validator::ValidationErrors>` mapping.
-//! - `config` — `From<config::ConfigError>` mapping.
-//! - `tokio` — `From<tokio::time::error::Elapsed>` mapping.
-//! - `reqwest` — `From<reqwest::Error>` mapping.
-//! - `serde_json` — opt-in for JSON details; also pulled transitively by
-//!   `axum`.
-//! - `multipart` — kept for projects compiling Axum with multipart.
+//! - `axum` — implements `IntoResponse` for [`AppError`] and [`ErrorResponse`]
+//!   with JSON body
+//! - `actix` — implements `Responder` for [`ErrorResponse`] (and Actix
+//!   integration for [`AppError`])
+//! - `openapi` — derives an OpenAPI schema for [`ErrorResponse`] (via `utoipa`)
+//! - `sqlx` — `From<sqlx::Error>` mapping
+//! - `redis` — `From<redis::RedisError>` mapping
+//! - `validator` — `From<validator::ValidationErrors>` mapping
+//! - `config` — `From<config::ConfigError>` mapping
+//! - `tokio` — `From<tokio::time::error::Elapsed>` mapping
+//! - `reqwest` — `From<reqwest::Error>` mapping
+//! - `serde_json` — support for structured JSON details in [`ErrorResponse`];
+//!   also pulled transitively by `axum`
+//! - `multipart` — compatibility flag for Axum multipart
 //!
 //! # Error taxonomy
 //!
-//! Applications convert domain and infrastructure failures into [`AppError`]
-//! with an [`AppErrorKind`] and an optional human-readable message:
+//! Applications convert domain/infrastructure failures into [`AppError`] with a
+//! semantic [`AppErrorKind`] and optional public message:
 //!
 //! ```rust
 //! use masterror::{AppError, AppErrorKind};
@@ -51,12 +56,44 @@
 //! assert!(matches!(err.kind, AppErrorKind::BadRequest));
 //! ```
 //!
-//! [`AppErrorKind`] controls the default HTTP status (when the `axum` feature
-//! is enabled).
+//! [`AppErrorKind`] controls the default HTTP status mapping.  
+//! [`AppCode`] provides a stable machine-readable code for clients.  
+//! Together, they form the wire contract in [`ErrorResponse`].
+//!
+//! # Wire payload: [`ErrorResponse`]
+//!
+//! The stable JSON payload for HTTP APIs contains:
+//! - `status: u16` — HTTP status code
+//! - `code: AppCode` — stable machine-readable error code
+//! - `message: String` — human-friendly, safe-to-expose text
+//! - `details` — optional details (JSON if `serde_json`, otherwise string)
+//! - `retry` — optional retry advice (`Retry-After`)
+//! - `www_authenticate` — optional authentication challenge
+//!
+//! Example construction:
+//!
+//! ```rust
+//! use masterror::{AppCode, ErrorResponse};
+//!
+//! let resp = ErrorResponse::new(404, AppCode::NotFound, "User not found");
+//! ```
+//!
+//! Conversion from [`AppError`]:
+//!
+//! ```rust
+//! use masterror::{AppCode, AppError, AppErrorKind, ErrorResponse};
+//!
+//! let app_err = AppError::new(AppErrorKind::NotFound, "user_not_found");
+//! let resp: ErrorResponse = (&app_err).into();
+//! assert_eq!(resp.status, 404);
+//! assert!(matches!(resp.code, AppCode::NotFound));
+//! ```
 //!
 //! # Axum integration
 //!
-//! Enable `axum` to return errors directly from handlers:
+//! With the `axum` feature enabled, you can return [`AppError`] directly from
+//! handlers. It is automatically converted into an [`ErrorResponse`] JSON
+//! payload.
 //!
 //! ```rust,ignore
 //! use axum::{routing::get, Router};
@@ -69,18 +106,16 @@
 //! let app = Router::new().route("/demo", get(handler));
 //! ```
 //!
-//! The wire payload is [`ErrorResponse`]. The internal source chain (if any)
-//! is logged, but not serialized. This avoids leaking internals to clients.
+//! # OpenAPI integration
 //!
-//! # OpenAPI
-//!
-//! With `openapi`, [`ErrorResponse`] derives a schema and can be referenced
-//! in your operation responses.
+//! With the `openapi` feature enabled, [`ErrorResponse`] derives
+//! `utoipa::ToSchema` and can be referenced in OpenAPI operation responses.
 //!
 //! # Versioning policy
 //!
-//! The crate follows semantic versioning. Changing wire contract semantics
-//! or public API is considered a breaking change.
+//! This crate follows semantic versioning. Any change to the public API
+//! or wire contract is considered a **breaking change** and requires a major
+//! version bump.
 //!
 //! # Safety
 //!
@@ -95,6 +130,7 @@
 //! at your option.
 
 #![forbid(unsafe_code)]
+#![deny(rustdoc::broken_intra_doc_links)]
 #![warn(
     missing_docs,
     missing_debug_implementations,
@@ -105,13 +141,15 @@
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
 mod app_error;
+mod code;
 mod convert;
 mod kind;
 mod response;
 
-/// Minimal prelude re-exporting core types used in handlers/services.
+/// Minimal prelude re-exporting core types for handler signatures.
 pub mod prelude;
 
 pub use app_error::{AppError, AppResult};
+pub use code::AppCode;
 pub use kind::AppErrorKind;
-pub use response::ErrorResponse;
+pub use response::{ErrorResponse, RetryAdvice};
