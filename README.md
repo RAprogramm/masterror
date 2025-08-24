@@ -5,7 +5,7 @@
 [![Downloads](https://img.shields.io/crates/d/masterror)](https://crates.io/crates/masterror)
 ![MSRV](https://img.shields.io/badge/MSRV-1.89-blue)
 ![License](https://img.shields.io/badge/License-MIT%20or%20Apache--2.0-informational)
-[![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml)
+[![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
 
 Small, pragmatic error model for API-heavy Rust services.  
 Core is framework-agnostic; integrations are opt-in via feature flags.  
@@ -18,60 +18,70 @@ Stable categories, conservative HTTP mapping, no `unsafe`.
 
 ---
 
-## Why this crate?
+### TL;DR
 
-- **Stable, predictable taxonomy.** A small set of error categories (`AppErrorKind`) that map conservatively to HTTP. Easy to reason about, safe to expose, and consistent across services.
-- **Framework-agnostic core.** No web framework assumptions. No `unsafe`. MSRV pinned. Works in libraries and binaries alike.
-- **Opt-in integrations.** Zero default features. You pull only what you need:
-  - `axum` (HTTP `IntoResponse`)
-  - `actix` (ready-to-use integration)
-  - `serde_json` (JSON details)
-  - `openapi` (schemas via `utoipa`)
-  - `sqlx`, `reqwest`, `redis`, `validator`, `config`, `tokio`, `multipart` (error conversions)
-- **Clean wire contract.** A small `ErrorResponse { status, code, message, details?, retry?, www_authenticate? }` payload for HTTP, with optional OpenAPI schema. No leaking of internal sources.
-- **One log at the boundary.** Use `tracing` once when converting to HTTP, avoiding duplicate logs and keeping fields stable (`kind`, `status`, `message`).
-- **Less boilerplate.** Built-in `From<...>` conversions for common libs and a compact prelude for handler signatures.
-- **Consistent across a workspace.** Share the same error surface between services and crates, making clients and tests simpler.
-
-> *Since v0.3.0: stable AppCode enum and extended ErrorResponse with retry/authentication metadata*
-
-
----
-
-## Installation
-
-```toml
+~~~toml
 [dependencies]
-# lean core, no extra deps
 masterror = { version = "0.3", default-features = false }
-
-# Or with features:
-# JSON + Axum/Actix + common integrations
+# or with features:
 # masterror = { version = "0.3", features = [
 #   "axum", "actix", "serde_json", "openapi",
 #   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 # ] }
-```
+~~~
 
-**MSRV:** 1.89  
-**No unsafe:** this crate forbids `unsafe`.
+*Since v0.3.0: stable `AppCode` enum and extended `ErrorResponse` with retry/authentication metadata.*
 
 ---
 
-## Quick start
+<details>
+  <summary><b>Why this crate?</b></summary>
 
-Create an error with a semantic kind and an optional public message:
+- **Stable taxonomy.** Small set of `AppErrorKind` categories mapping conservatively to HTTP.
+- **Framework-agnostic.** No assumptions, no `unsafe`, MSRV pinned.
+- **Opt-in integrations.** Zero default features; you enable what you need.
+- **Clean wire contract.** `ErrorResponse { status, code, message, details?, retry?, www_authenticate? }`.
+- **One log at boundary.** Log once with `tracing`.
+- **Less boilerplate.** Built-in conversions, compact prelude.
+- **Consistent workspace.** Same error surface across crates.
 
-```rust
+</details>
+
+<details>
+  <summary><b>Installation</b></summary>
+
+~~~toml
+[dependencies]
+# lean core
+masterror = { version = "0.3", default-features = false }
+
+# with Axum/Actix + JSON + integrations
+# masterror = { version = "0.3", features = [
+#   "axum", "actix", "serde_json", "openapi",
+#   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
+# ] }
+~~~
+
+**MSRV:** 1.89  
+**No unsafe:** forbidden by crate.
+
+</details>
+
+<details>
+  <summary><b>Quick start</b></summary>
+
+Create an error:
+
+~~~rust
 use masterror::{AppError, AppErrorKind};
 
 let err = AppError::new(AppErrorKind::BadRequest, "Flag must be set");
 assert!(matches!(err.kind, AppErrorKind::BadRequest));
-```
+~~~
 
-Use the prelude to keep signatures tidy:
+With prelude:
 
-```rust
+~~~rust
 use masterror::prelude::*;
 
 fn do_work(flag: bool) -> AppResult<()> {
@@ -80,14 +90,14 @@ fn do_work(flag: bool) -> AppResult<()> {
     }
     Ok(())
 }
-```
+~~~
 
-### Error response payload
+</details>
 
-`ErrorResponse` is a wire-level payload for HTTP APIs. You can build it directly or convert from `AppError`:
+<details>
+  <summary><b>Error response payload</b></summary>
 
-
-```rust
+~~~rust
 use masterror::{AppError, AppErrorKind, AppCode, ErrorResponse};
 
 let app_err = AppError::new(AppErrorKind::Unauthorized, "Token expired");
@@ -96,19 +106,18 @@ let resp: ErrorResponse = (&app_err).into()
     .with_www_authenticate(r#"Bearer realm="api", error="invalid_token""#);
 
 assert_eq!(resp.status, 401);
-```
+~~~
 
+</details>
 
----
+<details>
+  <summary><b>Web framework integrations</b></summary>
 
-## Web framework integrations
+<details>
+  <summary>Axum</summary>
 
-### Axum
-
-Enable `axum` (and usually `serde_json`) to return errors directly from handlers:
-
-```rust
-// requires: features = ["axum", "serde_json"]
+~~~rust
+// features = ["axum", "serde_json"]
 use masterror::{AppError, AppResult};
 use axum::{routing::get, Router};
 
@@ -117,14 +126,15 @@ async fn handler() -> AppResult<&'static str> {
 }
 
 let app = Router::new().route("/demo", get(handler));
-```
+~~~
 
-### Actix
+</details>
 
-Enable `actix` (and usually `serde_json`) to return errors directly from handlers:
+<details>
+  <summary>Actix</summary>
 
-```rust
-// requires: features = ["actix", "serde_json"]
+~~~rust
+// features = ["actix", "serde_json"]
 use actix_web::{get, App, HttpServer, Responder};
 use masterror::prelude::*;
 
@@ -133,117 +143,109 @@ async fn err() -> AppResult<&'static str> {
     Err(AppError::forbidden("No access"))
 }
 
-
 #[get("/payload")]
 async fn payload() -> impl Responder {
     ErrorResponse::new(422, AppCode::Validation, "Validation failed")
 }
+~~~
 
-```
+</details>
 
----
+</details>
 
-## OpenAPI
+<details>
+  <summary><b>OpenAPI</b></summary>
 
-Enable `openapi` to derive an OpenAPI schema for `ErrorResponse` (via `utoipa`).
-
-```toml
+~~~toml
 [dependencies]
 masterror = { version = "0.3", features = ["openapi", "serde_json"] }
 utoipa = "5"
-```
+~~~
 
----
+</details>
 
-## Feature flags
+<details>
+  <summary><b>Feature flags</b></summary>
 
-- `axum` — `IntoResponse` for `AppError` and JSON responses  
-- `actix` — `ResponseError`/`Responder` integration  
-- `openapi` — schema for `ErrorResponse` via `utoipa`  
-- `serde_json` — JSON details support  
-- `sqlx` — `From<sqlx::Error>`  
-- `redis` — `From<redis::RedisError>`  
-- `validator` — `From<validator::ValidationErrors>`  
-- `config` — `From<config::ConfigError>`  
-- `tokio` — `From<tokio::time::error::Elapsed>`  
-- `reqwest` — `From<reqwest::Error>`  
-- `multipart` — compatibility flag for projects using multipart in Axum  
+- `axum` — IntoResponse  
+- `actix` — ResponseError/Responder  
+- `openapi` — utoipa schema  
+- `serde_json` — JSON details  
+- `sqlx`, `redis`, `reqwest`, `validator`, `config`, `tokio`, `multipart`
 
----
+</details>
 
-## Conversions
+<details>
+  <summary><b>Conversions</b></summary>
 
-All mappings are conservative and avoid leaking internals:
+- `std::io::Error` → Internal  
+- `String` → BadRequest  
+- `sqlx::Error` → NotFound/Database  
+- `redis::RedisError` → Service  
+- `reqwest::Error` → Timeout/Network/ExternalApi  
+- `validator::ValidationErrors` → Validation  
+- `config::ConfigError` → Config  
+- `tokio::time::error::Elapsed` → Timeout  
 
-- `std::io::Error` → `Internal`  
-- `String` → `BadRequest`  
-- `sqlx::Error` → `NotFound` (for `RowNotFound`) or `Database`  
-- `redis::RedisError` → `Service`  
-- `reqwest::Error` → `Timeout` / `Network` / `ExternalApi`  
-- `validator::ValidationErrors` → `Validation`  
-- `config::ConfigError` → `Config`  
-- `tokio::time::error::Elapsed` → `Timeout`  
+</details>
 
----
-
-## Typical setups
+<details>
+  <summary><b>Typical setups</b></summary>
 
 Minimal core:
 
-```toml
+~~~toml
 masterror = { version = "0.3", default-features = false }
-```
+~~~
 
-API service (Axum + JSON + common deps):
+API (Axum + JSON + deps):
 
-```toml
+~~~toml
 masterror = { version = "0.3", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
-```
+~~~
 
-API service (Actix + JSON + common deps):
+API (Actix + JSON + deps):
 
-```toml
+~~~toml
 masterror = { version = "0.3", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
-```
+~~~
 
----
+</details>
 
-## Migration from 0.2.x to 0.3.0
+<details>
+  <summary><b>Migration 0.2 → 0.3</b></summary>
 
-- Replace `ErrorResponse::new(status, "msg")` with
-  `ErrorResponse::new(status, AppCode::<Variant>, "msg")`
-- Use `.with_retry_after_secs(...)` and `.with_www_authenticate(...)`
-  if you want to surface HTTP headers.
-- `ErrorResponse::new_legacy` is provided temporarily as a deprecated shim.
+- Use `ErrorResponse::new(status, AppCode::..., "msg")` instead of legacy  
+- New helpers: `.with_retry_after_secs`, `.with_www_authenticate`  
+- `ErrorResponse::new_legacy` is temporary shim  
 
+</details>
 
----
+<details>
+  <summary><b>Versioning & MSRV</b></summary>
 
-## Versioning and MSRV
+Semantic versioning. Breaking API/wire contract → major bump.  
+MSRV = 1.89 (may raise in minor, never in patch).
 
-- Semantic versioning. Breaking API or wire-contract changes bump the major version.  
-- MSRV: 1.89 (may be raised in a **minor** release with a changelog note, never in a patch).  
+</details>
 
----
+<details>
+  <summary><b>Non-goals</b></summary>
 
-## Non-goals
+- Not a general-purpose error aggregator like `anyhow`  
+- Not a replacement for your domain errors  
 
-- Not a general-purpose error aggregator like `anyhow` for CLIs.  
-- Not a replacement for your domain errors. Use it as the public API surface and transport mapping.  
+</details>
 
----
+<details>
+  <summary><b>License</b></summary>
 
-## License
+Apache-2.0 OR MIT, at your option.
 
-Licensed under either of
-
-- Apache License, Version 2.0  
-- MIT license  
-
-at your option.
+</details>
