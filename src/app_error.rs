@@ -241,3 +241,279 @@ impl AppError {
         Self::with(AppErrorKind::Cache, msg)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{AppError, AppErrorKind, AppResult};
+
+    // --- Helpers -------------------------------------------------------------
+
+    /// Assert helper: kind matches and message is Some(s).
+    fn assert_err_with_msg(err: AppError, expected: AppErrorKind, msg: &str) {
+        assert!(
+            matches!(err.kind, k if k == expected),
+            "expected kind {:?}, got {:?}",
+            expected,
+            err.kind
+        );
+        assert_eq!(err.message.as_deref(), Some(msg));
+    }
+
+    /// Assert helper: kind matches and message is None.
+    fn assert_err_bare(err: AppError, expected: AppErrorKind) {
+        assert!(
+            matches!(err.kind, k if k == expected),
+            "expected kind {:?}, got {:?}",
+            expected,
+            err.kind
+        );
+        assert!(err.message.is_none(), "expected no message");
+    }
+
+    // --- Constructors: generic ----------------------------------------------
+
+    #[test]
+    fn new_and_with_attach_message() {
+        let e1 = AppError::new(AppErrorKind::BadRequest, "invalid payload");
+        assert_err_with_msg(e1, AppErrorKind::BadRequest, "invalid payload");
+
+        let e2 = AppError::with(AppErrorKind::Forbidden, "no access");
+        assert_err_with_msg(e2, AppErrorKind::Forbidden, "no access");
+    }
+
+    #[test]
+    fn bare_sets_only_kind() {
+        let e = AppError::bare(AppErrorKind::NotFound);
+        assert_err_bare(e, AppErrorKind::NotFound);
+    }
+
+    // --- Display formatting --------------------------------------------------
+
+    #[test]
+    fn display_prints_kind_only() {
+        // AppError's Display is "{kind}", message must not appear.
+        let e = AppError::new(AppErrorKind::Validation, "email invalid");
+        let shown = format!("{}", e);
+        // AppErrorKind::Validation Display text is defined on the enum via
+        // `thiserror::Error`. We only assert that message is not leaked.
+        assert!(
+            !shown.contains("email invalid"),
+            "Display must not include the public message"
+        );
+
+        // Spot-check kind text presence: should include "Validation".
+        assert!(
+            shown.to_lowercase().contains("validation"),
+            "Display should include kind name text"
+        );
+    }
+
+    // --- Named helpers: 4xx --------------------------------------------------
+
+    #[test]
+    fn not_found() {
+        assert_err_with_msg(
+            AppError::not_found("missing"),
+            AppErrorKind::NotFound,
+            "missing"
+        );
+    }
+
+    #[test]
+    fn validation() {
+        assert_err_with_msg(
+            AppError::validation("bad email"),
+            AppErrorKind::Validation,
+            "bad email"
+        );
+    }
+
+    #[test]
+    fn unauthorized() {
+        assert_err_with_msg(
+            AppError::unauthorized("no token"),
+            AppErrorKind::Unauthorized,
+            "no token"
+        );
+    }
+
+    #[test]
+    fn forbidden() {
+        assert_err_with_msg(
+            AppError::forbidden("no access"),
+            AppErrorKind::Forbidden,
+            "no access"
+        );
+    }
+
+    #[test]
+    fn conflict() {
+        assert_err_with_msg(
+            AppError::conflict("version mismatch"),
+            AppErrorKind::Conflict,
+            "version mismatch"
+        );
+    }
+
+    #[test]
+    fn bad_request() {
+        assert_err_with_msg(
+            AppError::bad_request("malformed"),
+            AppErrorKind::BadRequest,
+            "malformed"
+        );
+    }
+
+    #[test]
+    fn rate_limited() {
+        assert_err_with_msg(
+            AppError::rate_limited("slow down"),
+            AppErrorKind::RateLimited,
+            "slow down"
+        );
+    }
+
+    #[test]
+    fn telegram_auth() {
+        assert_err_with_msg(
+            AppError::telegram_auth("bad hash"),
+            AppErrorKind::TelegramAuth,
+            "bad hash"
+        );
+    }
+
+    // --- Named helpers: 5xx and infra ---------------------------------------
+
+    #[test]
+    fn internal() {
+        assert_err_with_msg(AppError::internal("boom"), AppErrorKind::Internal, "boom");
+    }
+
+    #[test]
+    fn service() {
+        assert_err_with_msg(
+            AppError::service("failed pipeline"),
+            AppErrorKind::Service,
+            "failed pipeline"
+        );
+    }
+
+    #[test]
+    fn database_some_message() {
+        let e = AppError::database(Some("unique violation"));
+        assert_err_with_msg(e, AppErrorKind::Database, "unique violation");
+    }
+
+    #[test]
+    fn database_no_message() {
+        let e = AppError::database(None::<String>);
+        assert_err_bare(e, AppErrorKind::Database);
+    }
+
+    #[test]
+    fn config() {
+        assert_err_with_msg(AppError::config("bad env"), AppErrorKind::Config, "bad env");
+    }
+
+    #[test]
+    fn turnkey() {
+        assert_err_with_msg(
+            AppError::turnkey("provider down"),
+            AppErrorKind::Turnkey,
+            "provider down"
+        );
+    }
+
+    #[test]
+    fn timeout() {
+        assert_err_with_msg(
+            AppError::timeout("deadline exceeded"),
+            AppErrorKind::Timeout,
+            "deadline exceeded"
+        );
+    }
+
+    #[test]
+    fn network() {
+        assert_err_with_msg(AppError::network("dns"), AppErrorKind::Network, "dns");
+    }
+
+    #[test]
+    fn dependency_unavailable_and_alias() {
+        let e = AppError::dependency_unavailable("cache down");
+        assert_err_with_msg(e, AppErrorKind::DependencyUnavailable, "cache down");
+
+        // Alias must map to the same kind.
+        let alias = AppError::service_unavailable("cache down");
+        assert_err_with_msg(alias, AppErrorKind::DependencyUnavailable, "cache down");
+    }
+
+    #[test]
+    fn serialization() {
+        assert_err_with_msg(
+            AppError::serialization("encode fail"),
+            AppErrorKind::Serialization,
+            "encode fail"
+        );
+    }
+
+    #[test]
+    fn deserialization() {
+        assert_err_with_msg(
+            AppError::deserialization("decode fail"),
+            AppErrorKind::Deserialization,
+            "decode fail"
+        );
+    }
+
+    #[test]
+    fn external_api() {
+        assert_err_with_msg(
+            AppError::external_api("upstream 502"),
+            AppErrorKind::ExternalApi,
+            "upstream 502"
+        );
+    }
+
+    #[test]
+    fn queue() {
+        assert_err_with_msg(AppError::queue("nack"), AppErrorKind::Queue, "nack");
+    }
+
+    #[test]
+    fn cache() {
+        assert_err_with_msg(AppError::cache("miss"), AppErrorKind::Cache, "miss");
+    }
+
+    // --- AppResult alias -----------------------------------------------------
+
+    #[test]
+    fn app_result_alias_compiles_and_matches() {
+        fn ok() -> AppResult<u8> {
+            Ok(1)
+        }
+        fn err() -> AppResult<u8> {
+            Err(AppError::internal("x"))
+        }
+
+        let a: AppResult<u8> = ok();
+        let b: AppResult<u8> = err();
+
+        assert_eq!(a.unwrap(), 1);
+        assert!(b.is_err());
+        if let Err(e) = b {
+            assert!(matches!(e.kind, AppErrorKind::Internal));
+        }
+    }
+
+    // --- Logging path sanity check -------------------------------------------
+
+    #[test]
+    fn log_does_not_panic() {
+        // We cannot assert on tracing output here, but we can ensure no panics happen.
+        let e1 = AppError::internal("boom");
+        e1.log();
+        let e2 = AppError::bare(AppErrorKind::BadRequest);
+        e2.log();
+    }
+}

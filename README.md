@@ -10,7 +10,7 @@ Small, pragmatic error model for API-heavy Rust services.
 Core is framework-agnostic; integrations are opt-in via feature flags.  
 Stable categories, conservative HTTP mapping, no `unsafe`.
 
-- Core types: `AppError`, `AppErrorKind`, `AppResult`, `ErrorResponse`
+- Core types: `AppError`, `AppErrorKind`, `AppResult`, `AppCode`, `ErrorResponse`
 - Optional Axum/Actix integration
 - Optional OpenAPI schema (via `utoipa`)
 - Conversions from `sqlx`, `reqwest`, `redis`, `validator`, `config`, `tokio`
@@ -27,10 +27,13 @@ Stable categories, conservative HTTP mapping, no `unsafe`.
   - `serde_json` (JSON details)
   - `openapi` (schemas via `utoipa`)
   - `sqlx`, `reqwest`, `redis`, `validator`, `config`, `tokio`, `multipart` (error conversions)
-- **Clean wire contract.** A small `ErrorResponse { status, message, details? }` payload for HTTP, with optional OpenAPI schema. No leaking of internal sources into the response.
+- **Clean wire contract.** A small `ErrorResponse { status, code, message, details?, retry?, www_authenticate? }` payload for HTTP, with optional OpenAPI schema. No leaking of internal sources.
 - **One log at the boundary.** Use `tracing` once when converting to HTTP, avoiding duplicate logs and keeping fields stable (`kind`, `status`, `message`).
 - **Less boilerplate.** Built-in `From<...>` conversions for common libs and a compact prelude for handler signatures.
 - **Consistent across a workspace.** Share the same error surface between services and crates, making clients and tests simpler.
+
+> *Since v0.3.0: stable AppCode enum and extended ErrorResponse with retry/authentication metadata*
+
 
 ---
 
@@ -39,11 +42,11 @@ Stable categories, conservative HTTP mapping, no `unsafe`.
 ```toml
 [dependencies]
 # lean core, no extra deps
-masterror = { version = "0.2", default-features = false }
+masterror = { version = "0.3", default-features = false }
 
 # Or with features:
 # JSON + Axum/Actix + common integrations
-# masterror = { version = "0.2", features = [
+# masterror = { version = "0.3", features = [
 #   "axum", "actix", "serde_json", "openapi",
 #   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 # ] }
@@ -82,13 +85,18 @@ fn do_work(flag: bool) -> AppResult<()> {
 
 `ErrorResponse` is a wire-level payload for HTTP APIs. You can build it directly or convert from `AppError`:
 
-```rust
-use masterror::{AppError, AppErrorKind, ErrorResponse};
 
-let app_err = AppError::new(AppErrorKind::NotFound, "User not found");
-let resp: ErrorResponse = (&app_err).into();
-assert_eq!(resp.status, 404);
+```rust
+use masterror::{AppError, AppErrorKind, AppCode, ErrorResponse};
+
+let app_err = AppError::new(AppErrorKind::Unauthorized, "Token expired");
+let resp: ErrorResponse = (&app_err).into()
+    .with_retry_after_secs(30)
+    .with_www_authenticate(r#"Bearer realm="api", error="invalid_token""#);
+
+assert_eq!(resp.status, 401);
 ```
+
 
 ---
 
@@ -124,10 +132,12 @@ async fn err() -> AppResult<&'static str> {
     Err(AppError::forbidden("No access"))
 }
 
+
 #[get("/payload")]
 async fn payload() -> impl Responder {
-    ErrorResponse::new(422, "Validation failed")
+    ErrorResponse::new(422, AppCode::Validation, "Validation failed")
 }
+
 ```
 
 ---
@@ -138,7 +148,7 @@ Enable `openapi` to derive an OpenAPI schema for `ErrorResponse` (via `utoipa`).
 
 ```toml
 [dependencies]
-masterror = { version = "0.2", features = ["openapi", "serde_json"] }
+masterror = { version = "0.3", features = ["openapi", "serde_json"] }
 utoipa = "5"
 ```
 
@@ -180,13 +190,13 @@ All mappings are conservative and avoid leaking internals:
 Minimal core:
 
 ```toml
-masterror = { version = "0.2", default-features = false }
+masterror = { version = "0.3", default-features = false }
 ```
 
 API service (Axum + JSON + common deps):
 
 ```toml
-masterror = { version = "0.2", features = [
+masterror = { version = "0.3", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -195,11 +205,22 @@ masterror = { version = "0.2", features = [
 API service (Actix + JSON + common deps):
 
 ```toml
-masterror = { version = "0.2", features = [
+masterror = { version = "0.3", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
 ```
+
+---
+
+## Migration from 0.2.x to 0.3.0
+
+- Replace `ErrorResponse::new(status, "msg")` with
+  `ErrorResponse::new(status, AppCode::<Variant>, "msg")`
+- Use `.with_retry_after_secs(...)` and `.with_www_authenticate(...)`
+  if you want to surface HTTP headers.
+- `ErrorResponse::new_legacy` is provided temporarily as a deprecated shim.
+
 
 ---
 

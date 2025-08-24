@@ -75,24 +75,83 @@ impl IntoResponse for AppError {
             "AppError -> HTTP response"
         );
 
-        // JSON payload when `serde_json` is enabled.
         #[cfg(feature = "serde_json")]
         {
-            let body = ErrorResponse {
-                status:  status.as_u16(),
-                // Prefer specific message if present, otherwise kind text.
-                message: self
-                    .message
-                    .clone()
-                    .unwrap_or_else(|| self.kind.to_string()),
-                // You can wire structured details later if you add them to AppError.
-                details: None
-            };
+            // Build the stable wire contract (includes `code`).
+            let body: ErrorResponse = (&self).into();
             return (status, Json(body)).into_response();
         }
 
-        // Fallback: status-only, empty body (content-type left to Axum).
         #[allow(unreachable_code)]
         (status, ()).into_response()
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{AppErrorKind, AppCode};
+    use axum::http::StatusCode;
+
+    // --- http_status mapping -------------------------------------------------
+
+    #[test]
+    fn http_status_maps_from_kind() {
+        let e = AppError::forbidden("nope");
+        // sanity: kind -> 403
+        assert_eq!(e.http_status(), StatusCode::FORBIDDEN);
+
+        let e = AppError::validation("bad");
+        assert_eq!(e.http_status(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    // --- IntoResponse with JSON body (serde_json enabled) --------------------
+
+    #[cfg(feature = "serde_json")]
+    #[tokio::test]
+    async fn into_response_builds_json_error_with_code_and_message() {
+        use axum::response::IntoResponse;
+        use axum::body::to_bytes;
+
+        let app_err = AppError::unauthorized("missing token");
+        let resp = app_err.into_response();
+
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+
+        let bytes = to_bytes(resp.into_body(), usize::MAX).await.expect("read body");
+        // Deserialize via our own type to ensure wire contract matches
+        let body: crate::response::ErrorResponse =
+            serde_json::from_slice(&bytes).expect("json body");
+
+        assert_eq!(body.status, 401);
+        assert!(matches!(body.code, AppCode::Unauthorized));
+        assert_eq!(body.message, "missing token");
+
+        // Optional fields are absent by default
+        #[cfg(feature = "serde_json")]
+        {
+            assert!(body.details.is_none());
+        }
+        assert!(body.retry.is_none());
+        assert!(body.www_authenticate.is_none());
+    }
+
+    // --- IntoResponse without JSON body (serde_json disabled) ----------------
+
+    #[cfg(not(feature = "serde_json"))]
+    #[tokio::test]
+    async fn into_response_without_json_has_empty_body() {
+        use axum::response::IntoResponse;
+        use axum::body::to_bytes;
+
+        let app_err = AppError::not_found("nope");
+        let resp = app_err.into_response();
+
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+
+        let bytes = to_bytes(resp.into_body(), usize::MAX).await.expect("read body");
+        assert_eq!(bytes.len(), 0, "body should be empty without serde_json");
+    }
+}
+

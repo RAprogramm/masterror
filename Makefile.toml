@@ -1,14 +1,19 @@
 # Makefile.toml for cargo-make
 # Usage:
-#   cargo make ci
-#   TAG=v0.1.1 cargo make release
-#   CARGO_REGISTRY_TOKEN=... TAG=v0.1.1 cargo make publish
-
-[config]
-default_task = "ci"
+#   cargo make             # pretty help (default)
+#   cargo make ci          # fmt, clippy, tests, package
+#   TAG=v0.3.0 cargo make release
+#   CARGO_REGISTRY_TOKEN=... TAG=v0.3.0 cargo make publish
 
 [env]
-ALL_FEATURES = "true"
+ALL_FEATURES = "true" # toggle --all-features for clippy/test
+
+# ------- Default task (no root 'default_task' key) -------
+
+[tasks.default]
+category = "Meta"
+description = "Default task -> help"
+run_task = "help"
 
 # ------- Core checks -------
 
@@ -22,29 +27,29 @@ description = "Check rustfmt formatting for the entire workspace"
 [tasks.clippy]
 category = "Lint"
 clear = true
+script_runner = "bash"
 script = ['''
-  #!/usr/bin/env bash
   set -euo pipefail
   if [ "${ALL_FEATURES}" = "true" ]; then
     cargo clippy --workspace --all-targets --all-features -- -D warnings
   else
     cargo clippy --workspace --all-targets -- -D warnings
   fi
-  ''']
+''']
 description = "Run clippy for all targets; fail on warnings"
 
 [tasks.test]
 category = "Test"
 clear = true
+script_runner = "bash"
 script = ['''
-  #!/usr/bin/env bash
   set -euo pipefail
   if [ "${ALL_FEATURES}" = "true" ]; then
     cargo test --workspace --all-features --no-fail-fast
   else
     cargo test --workspace --no-fail-fast
   fi
-  ''']
+''']
 description = "Run tests (optionally with all features)"
 
 [tasks.package]
@@ -63,28 +68,28 @@ description = "Run fmt, clippy, tests, and packaging checks"
 
 [tasks.check_tag_env]
 clear = true
+script_runner = "bash"
 script = ['''
-  #!/usr/bin/env bash
   set -euo pipefail
   if [ -z "${TAG:-}" ]; then
-    echo "TAG env var is required, e.g. TAG=v0.1.1"
+    echo "TAG env var is required, e.g. TAG=v0.3.0"
     exit 1
   fi
-  ''']
+''']
 description = "Ensure TAG env var is provided (e.g. TAG=v1.2.3)"
 
 [tasks.ensure_tag_matches_version]
 clear = true
+script_runner = "bash"
 script = [
   '''
-  #!/usr/bin/env bash
   set -euo pipefail
   TAG="${TAG#refs/tags/}"
 
   if command -v jq >/dev/null 2>&1; then
     FILE_VER="$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')"
   else
-    FILE_VER="$(cargo metadata --no-deps --format-version=1 | sed -n 's/.*\"version\":\"\\([^\"]*\\)\".*/\\1/p' | head -n1)"
+    FILE_VER="$(cargo metadata --no-deps --format-version=1 | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' | head -n1)"
   fi
 
   if [ -z "${FILE_VER}" ]; then
@@ -98,21 +103,21 @@ script = [
   fi
 
   echo "Tag ${TAG} matches Cargo.toml version v${FILE_VER}"
-  ''',
+''',
 ]
 dependencies = ["check_tag_env"]
 description = "Ensure git tag matches Cargo.toml version"
 
 [tasks.check_token]
 clear = true
+script_runner = "bash"
 script = ['''
-  #!/usr/bin/env bash
   set -euo pipefail
   if [ -z "${CARGO_REGISTRY_TOKEN:-}" ]; then
     echo "CARGO_REGISTRY_TOKEN is required to publish."
     exit 1
   fi
-  ''']
+''']
 description = "Ensure crates.io token is present in env"
 
 # ------- Publish & Release -------
@@ -120,26 +125,26 @@ description = "Ensure crates.io token is present in env"
 [tasks.publish]
 category = "Release"
 clear = true
+script_runner = "bash"
 script = ['''
-  #!/usr/bin/env bash
   set -euo pipefail
   cargo publish --locked --token "${CARGO_REGISTRY_TOKEN}"
-  ''']
+''']
 dependencies = ["check_token", "ensure_tag_matches_version", "ci"]
 description = "Publish crate to crates.io after checks and tag/version verification"
 
 [tasks.tag]
 category = "Release"
 clear = true
+script_runner = "bash"
 script = [
   '''
-  #!/usr/bin/env bash
   set -euo pipefail
 
   if command -v jq >/dev/null 2>&1; then
     VER="$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')"
   else
-    VER="$(cargo metadata --no-deps --format-version=1 | sed -n 's/.*\"version\":\"\\([^\"]*\\)\".*/\\1/p' | head -n1)"
+    VER="$(cargo metadata --no-deps --format-version=1 | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' | head -n1)"
   fi
 
   if [ -z "${VER}" ]; then
@@ -156,7 +161,7 @@ script = [
 
   git tag "${TAG}"
   echo "Created tag ${TAG}. You can push it with: git push origin ${TAG}"
-  ''',
+''',
 ]
 description = "Create git tag vX.Y.Z from Cargo.toml version (does not push)"
 
@@ -190,20 +195,15 @@ description = "Install git pre-commit hook from .hooks/"
 script_runner = "bash"
 script = [
   'set -euo pipefail',
-  'if [ ! -f .hooks/pre-commit ]; then echo "❌ .hooks/pre-commit не найден!"; exit 1; fi',
+  'if [ ! -f .hooks/pre-commit ]; then echo "❌ .hooks/pre-commit not found!"; exit 1; fi',
   'echo "🔗 Linking .hooks/pre-commit to .git/hooks/pre-commit..."',
   'mkdir -p .git/hooks',
   'ln -sf ../../.hooks/pre-commit .git/hooks/pre-commit',
   'chmod +x .hooks/pre-commit',
-  'echo "✅ pre-commit hook установлен."',
+  'echo "✅ pre-commit hook installed."',
 ]
 
 # ------- Pretty Help -------
-
-[tasks.default]
-category = "Meta"
-description = "Default task -> ci"
-run_task = "ci"
 
 [tasks.help]
 clear = true
@@ -214,7 +214,6 @@ script = [
   '''
   set -euo pipefail
 
-  # Enable colors if terminal supports it and NO_COLOR is not set
   if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
     BOLD="\033[1m"; DIM="\033[2m"; RESET="\033[0m"
     BLUE="\033[34m"; CYAN="\033[36m"; GREEN="\033[32m"; YELLOW="\033[33m"; MAGENTA="\033[35m"
@@ -223,14 +222,13 @@ script = [
   fi
 
   hr() { printf "%s\n" "──────────────────────────────────────────────────────────────────────────────"; }
-  pad() { printf "%-*s" "$2" "$1"; }
   row() { printf "  %b%s%b  %b%s%b\n" "$GREEN" "$1" "$RESET" "$DIM" "$2" "$RESET"; }
 
-  # Extract crate info
   if command -v jq >/dev/null 2>&1; then
-    VER="$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')"
-    MSRV="$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].rust_version // "unknown"')"
-    NAME="$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].name')"
+    META="$(cargo metadata --no-deps --format-version=1)"
+    VER="$(printf "%s" "$META" | jq -r '.packages[0].version')"
+    MSRV="$(printf "%s" "$META" | jq -r '.packages[0].rust_version // "unknown"')"
+    NAME="$(printf "%s" "$META" | jq -r '.packages[0].name')"
   else
     META="$(cargo metadata --no-deps --format-version=1)"
     VER="$(printf "%s" "$META" | sed -n 's/.*\"version\":\"\\([^\"]*\\)\".*/\\1/p' | head -n1)"
@@ -255,7 +253,7 @@ script = [
 
   printf "%b%s%b\n" "$BOLD$MAGENTA" "Formatting" "$RESET"
   row "cargo make fmt"                 "Check formatting (stable)"
-  row "cargo make format"              "Format with nightly rustfmt (unstable_features)"
+  row "cargo make format"              "Format with nightly rustfmt (unstable features)"
   echo
 
   printf "%b%s%b\n" "$BOLD$MAGENTA" "Lint & Tests" "$RESET"
@@ -279,15 +277,15 @@ script = [
   echo
 
   printf "%b%s%b\n" "$BOLD$DIM" "Tips:" "$RESET"
-  printf "  • Keep %bCargo.lock%b committed (CI uses %bCARGO_LOCKED=1%b)\n" "$BOLD" "$RESET" "$BOLD" "$RESET"
+  printf "  • Keep %bCargo.lock%b committed\n" "$BOLD" "$RESET"
   printf "  • Tag must exactly match version: %bv%s%b\n" "$BOLD" "${VER}" "$RESET"
   echo
-  ''',
+''',
 ]
 
-
+# Alias
 [tasks.h]
 clear = true
 run_task = "help"
-description = "Alias: help"
 category = "Meta"
+description = "Alias: help"

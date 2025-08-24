@@ -157,3 +157,34 @@ impl From<String> for AppError {
         AppError::bad_request(value)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{AppError, AppErrorKind};
+
+    // --- std::io::Error -> AppError -----------------------------------------
+
+    #[test]
+    fn io_error_maps_to_internal_and_preserves_message() {
+        use std::io::Error;
+
+        let src = Error::other("disk said nope");
+        let app: AppError = src.into();
+
+        // kind must be Internal
+        assert!(matches!(app.kind, AppErrorKind::Internal));
+
+        // message should be preserved for logs/public payload
+        assert_eq!(app.message.as_deref(), Some("disk said nope"));
+    }
+
+    // --- String -> AppError --------------------------------------------------
+
+    #[test]
+    fn string_maps_to_bad_request_and_preserves_text() {
+        let app: AppError = String::from("name must not be empty").into();
+
+        assert!(matches!(app.kind, AppErrorKind::BadRequest));
+        assert_eq!(app.message.as_deref(), Some("name must not be empty"));
+    }
+}
