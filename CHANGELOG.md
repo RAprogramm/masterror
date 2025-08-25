@@ -1,6 +1,14 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2025-08-25
+### Added
+- Implemented `axum::response::IntoResponse` for `AppError` (behind the `axum` feature).
+  This allows using `AppError` directly as a rejection type in Axum extractors and handlers.
+
+### Notes
+- The implementation delegates to `ErrorResponse` to ensure a single, stable wire contract.
+
 ## [0.3.0] - 2025-08-24
 ### Added
 - `AppCode` — stable machine-readable error code (part of the wire contract).
@@ -42,6 +50,7 @@ All notable changes to this project will be documented in this file.
 - **MSRV:** 1.89
 - **No unsafe:** the crate forbids `unsafe`.
 
+[0.3.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.1
 [0.3.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.0
 [0.2.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.2.1
 [0.2.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.2.0
