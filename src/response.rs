@@ -228,6 +228,7 @@ mod axum_impl {
     };
 
     use super::ErrorResponse;
+    use crate::AppError;
 
     impl IntoResponse for ErrorResponse {
         fn into_response(self) -> Response {
@@ -251,6 +252,16 @@ mod axum_impl {
             // Explicitly consume self to satisfy ownership.
             let _ = self;
             response
+        }
+    }
+
+    /// Convert `AppError` into the stable wire model and reuse its
+    /// `IntoResponse`.
+    impl IntoResponse for AppError {
+        fn into_response(self) -> Response {
+            // Use the canonical mapping defined in `From<&AppError> for ErrorResponse`
+            let wire: ErrorResponse = (&self).into();
+            wire.into_response()
         }
     }
 }
@@ -480,5 +491,17 @@ mod tests {
         // Retry advice is serialized as nested object
         assert!(s.contains("\"retry\""));
         assert!(s.contains("\"after_seconds\":1"));
+    }
+
+    #[cfg(feature = "axum")]
+    #[test]
+    fn app_error_into_response_maps_status() {
+        use axum::response::IntoResponse;
+
+        use crate::AppErrorKind;
+
+        let app = crate::AppError::new(AppErrorKind::Unauthorized, "no token");
+        let resp = app.into_response();
+        assert_eq!(resp.status(), 401);
     }
 }
