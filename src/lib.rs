@@ -43,6 +43,43 @@
 //! - `serde_json` — support for structured JSON details in [`ErrorResponse`];
 //!   also pulled transitively by `axum`
 //! - `multipart` — compatibility flag for Axum multipart
+//! - `turnkey` — domain taxonomy and conversions for Turnkey errors, exposed in
+//!   the [`turnkey`] module
+//!
+//! # Domain integrations: Turnkey
+//!
+//! With the `turnkey` feature enabled, the crate exports a [`turnkey`] module
+//! that provides:
+//!
+//! - [`turnkey::TurnkeyErrorKind`] — stable categories for Turnkey-specific
+//!   failures
+//! - [`turnkey::TurnkeyError`] — a container with `kind` and safe, public
+//!   message
+//! - [`turnkey::classify_turnkey_error`] — heuristic classifier for raw
+//!   SDK/provider strings
+//! - conversions: `From<TurnkeyError>` → [`AppError`] and
+//!   `From<TurnkeyErrorKind>` → [`AppErrorKind`]
+//!
+//! ## Example
+//!
+//! ```rust
+//! # #[cfg(feature = "turnkey")]
+//! # {
+//! use masterror::{
+//!     AppError, AppErrorKind,
+//!     turnkey::{TurnkeyError, TurnkeyErrorKind, classify_turnkey_error}
+//! };
+//!
+//! // Classify a raw provider message
+//! let kind = classify_turnkey_error("429 Too Many Requests");
+//! assert!(matches!(kind, TurnkeyErrorKind::RateLimited));
+//!
+//! // Build and convert into AppError
+//! let e = TurnkeyError::new(TurnkeyErrorKind::RateLimited, "throttled by upstream");
+//! let app: AppError = e.into();
+//! assert_eq!(app.kind, AppErrorKind::RateLimited);
+//! # }
+//! ```
 //!
 //! # Error taxonomy
 //!
@@ -145,6 +182,10 @@ mod code;
 mod convert;
 mod kind;
 mod response;
+
+#[cfg(feature = "turnkey")]
+#[cfg_attr(docsrs, doc(cfg(feature = "turnkey")))]
+pub mod turnkey;
 
 /// Minimal prelude re-exporting core types for handler signatures.
 pub mod prelude;

@@ -29,13 +29,23 @@
 //! - This keeps the public surface small, predictable, and easy to reason
 //!   about.
 
-/// Re-export the stable machine-readable error code.
+/// Stable machine-readable error code used in wire contracts.
 pub use crate::AppCode;
-/// Re-export the core application error type.
+/// Core application error type (`kind` + optional message).
 pub use crate::AppError;
-/// Re-export the high-level error taxonomy (stable categories).
+/// High-level taxonomy of application errors (stable categories).
 pub use crate::AppErrorKind;
-/// Re-export the conventional result alias used in handlers/services.
+/// Convenience alias `Result<T, AppError>` used in handlers/services.
 pub use crate::AppResult;
-/// Re-export the stable wire-level error payload for HTTP APIs.
+/// Stable wire-level error payload for HTTP APIs.
 pub use crate::ErrorResponse;
+/// Turnkey-specific error taxonomy and helpers (enabled with the `turnkey`
+/// feature).
+///
+/// Re-exports:
+/// - [`TurnkeyErrorKind`] — stable categories for Turnkey-specific failures
+/// - [`TurnkeyError`] — error container with kind + public message
+/// - [`classify_turnkey_error`] — heuristic classifier for raw SDK/provider
+///   strings
+#[cfg(feature = "turnkey")]
+pub use crate::turnkey::{TurnkeyError, TurnkeyErrorKind, classify_turnkey_error};

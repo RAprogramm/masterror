@@ -1,6 +1,6 @@
 [package]
 name = "masterror"
-version = "0.3.1"
+version = "0.3.2"
 rust-version = "1.89"
 edition = "2024"
 description = "Application error types and response mapping"
@@ -24,6 +24,7 @@ config = ["dep:config"]                     # config::ConfigError -> AppError
 multipart = ["axum"]
 tokio = ["dep:tokio"]
 reqwest = ["dep:reqwest"]
+turnkey = []
 
 openapi = ["dep:utoipa"]
 

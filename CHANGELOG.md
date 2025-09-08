@@ -1,6 +1,17 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.3.2] - 2025-09-08
+### Added
+- New feature flag `turnkey`:
+  - Provides `TurnkeyErrorKind` (stable taxonomy of Turnkey-specific failures).
+  - Provides `TurnkeyError` (kind + public message).
+  - Adds `classify_turnkey_error` helper for mapping raw SDK/provider messages.
+  - Includes conversions into `AppError` / `AppErrorKind`.
+
+### Notes
+- Feature is framework-agnostic; no extra dependencies are pulled.
+
 ## [0.3.1] - 2025-08-25
 ### Added
 - Implemented `axum::response::IntoResponse` for `AppError` (behind the `axum` feature).
@@ -50,6 +61,7 @@ All notable changes to this project will be documented in this file.
 - **MSRV:** 1.89
 - **No unsafe:** the crate forbids `unsafe`.
 
+[0.3.2]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.2
 [0.3.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.1
 [0.3.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.0
 [0.2.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.2.1

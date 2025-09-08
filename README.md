@@ -172,6 +172,7 @@ utoipa = "5"
 - `openapi` — utoipa schema  
 - `serde_json` — JSON details  
 - `sqlx`, `redis`, `reqwest`, `validator`, `config`, `tokio`, `multipart`
+- `turnkey` — domain taxonomy and conversions for Turnkey errors
 
 </details>
 
@@ -214,6 +215,26 @@ masterror = { version = "0.3", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
+~~~
+
+</details>
+
+<details>
+  <summary><b>Turnkey</b></summary>
+
+~~~rust
+// features = ["turnkey"]
+use masterror::turnkey::{classify_turnkey_error, TurnkeyError, TurnkeyErrorKind};
+use masterror::{AppError, AppErrorKind};
+
+// Classify a raw SDK/provider error
+let kind = classify_turnkey_error("429 Too Many Requests");
+assert!(matches!(kind, TurnkeyErrorKind::RateLimited));
+
+// Wrap into AppError
+let e = TurnkeyError::new(TurnkeyErrorKind::RateLimited, "throttled upstream");
+let app: AppError = e.into();
+assert_eq!(app.kind, AppErrorKind::RateLimited);
 ~~~
 
 </details>
