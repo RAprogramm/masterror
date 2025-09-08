@@ -17,13 +17,6 @@ run_task = "help"
 
 # ------- Core checks -------
 
-[tasks.fmt]
-category = "Format"
-clear = true
-command = "cargo"
-args = ["fmt", "--all", "--", "--check"]
-description = "Check rustfmt formatting for the entire workspace"
-
 [tasks.clippy]
 category = "Lint"
 clear = true
@@ -61,7 +54,7 @@ description = "Verify that the crate can be packaged cleanly"
 
 [tasks.ci]
 category = "Meta"
-dependencies = ["fmt", "clippy", "test", "package"]
+dependencies = ["format", "clippy", "test", "package"]
 description = "Run fmt, clippy, tests, and packaging checks"
 
 # ------- Release gatekeeping -------
@@ -252,7 +245,6 @@ script = [
   echo
 
   printf "%b%s%b\n" "$BOLD$MAGENTA" "Formatting" "$RESET"
-  row "cargo make fmt"                 "Check formatting (stable)"
   row "cargo make format"              "Format with nightly rustfmt (unstable features)"
   echo
 
