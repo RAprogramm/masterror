@@ -60,7 +60,7 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serde_json")]
-use serde_json::Value as JsonValue;
+use serde_json::{Value as JsonValue, to_value};
 #[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 
@@ -151,6 +151,43 @@ impl ErrorResponse {
     pub fn with_details_json(mut self, details: JsonValue) -> Self {
         self.details = Some(details);
         self
+    }
+
+    /// Serialize and attach structured details from any [`Serialize`] value.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AppError`] if serialization fails.
+    ///
+    /// # Examples
+    /// ```
+    /// # #[cfg(feature = "serde_json")]
+    /// # {
+    /// use masterror::{AppCode, ErrorResponse};
+    /// use serde::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// struct Extra {
+    ///     reason: String
+    /// }
+    ///
+    /// let payload = Extra {
+    ///     reason: "missing".into()
+    /// };
+    /// let resp = ErrorResponse::new(404, AppCode::NotFound, "no user")
+    ///     .expect("status")
+    ///     .with_details(payload)
+    ///     .expect("details");
+    /// assert!(resp.details.is_some());
+    /// # }
+    /// ```
+    #[cfg(feature = "serde_json")]
+    pub fn with_details<T>(self, payload: T) -> AppResult<Self>
+    where
+        T: Serialize
+    {
+        let details = to_value(payload).map_err(|e| AppError::bad_request(e.to_string()))?;
+        Ok(self.with_details_json(details))
     }
 
     /// Attach retry advice (number of seconds).
@@ -398,6 +435,50 @@ mod tests {
         assert_eq!(e.status, 422);
         assert!(e.details.is_some());
         assert_eq!(e.details.unwrap(), payload);
+    }
+
+    #[cfg(feature = "serde_json")]
+    #[test]
+    fn with_details_serializes_custom_struct() {
+        use serde::Serialize;
+        use serde_json::json;
+
+        #[derive(Serialize)]
+        struct Extra {
+            value: i32
+        }
+
+        let resp = ErrorResponse::new(400, AppCode::BadRequest, "bad")
+            .expect("status")
+            .with_details(Extra {
+                value: 7
+            })
+            .expect("details");
+
+        assert_eq!(resp.details.unwrap(), json!({"value": 7}));
+    }
+
+    #[cfg(feature = "serde_json")]
+    #[test]
+    fn with_details_propagates_serialization_errors() {
+        use serde::{Serialize, Serializer};
+
+        struct Failing;
+
+        impl Serialize for Failing {
+            fn serialize<S>(&self, _: S) -> Result<S::Ok, S::Error>
+            where
+                S: Serializer
+            {
+                Err(serde::ser::Error::custom("nope"))
+            }
+        }
+
+        let err = ErrorResponse::new(400, AppCode::BadRequest, "bad")
+            .expect("status")
+            .with_details(Failing)
+            .expect_err("serialization should fail");
+        assert!(matches!(err.kind, AppErrorKind::BadRequest));
     }
 
     #[cfg(not(feature = "serde_json"))]
