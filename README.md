@@ -179,14 +179,14 @@ utoipa = "5"
 <details>
   <summary><b>Conversions</b></summary>
 
-- `std::io::Error` → Internal  
-- `String` → BadRequest  
-- `sqlx::Error` → NotFound/Database  
-- `redis::RedisError` → Service  
-- `reqwest::Error` → Timeout/Network/ExternalApi  
-- `validator::ValidationErrors` → Validation  
-- `config::ConfigError` → Config  
-- `tokio::time::error::Elapsed` → Timeout  
+- `std::io::Error` → Internal
+- `String` → BadRequest
+- `sqlx::Error` → NotFound/Database
+- `redis::RedisError` → Cache
+- `reqwest::Error` → Timeout/Network/ExternalApi
+- `validator::ValidationErrors` → Validation
+- `config::ConfigError` → Config
+- `tokio::time::error::Elapsed` → Timeout
 
 </details>
 
