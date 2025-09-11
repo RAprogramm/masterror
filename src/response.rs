@@ -29,8 +29,9 @@
 //! ```rust
 //! use masterror::{AppCode, ErrorResponse};
 //!
-//! let resp =
-//!     ErrorResponse::new(404, AppCode::NotFound, "User not found").with_retry_after_secs(30);
+//! let resp = ErrorResponse::new(404, AppCode::NotFound, "User not found")
+//!     .expect("status")
+//!     .with_retry_after_secs(30);
 //! ```
 //!
 //! With `serde_json` enabled:
@@ -42,6 +43,7 @@
 //! use serde_json::json;
 //!
 //! let resp = ErrorResponse::new(422, AppCode::Validation, "Invalid input")
+//!     .expect("status")
 //!     .with_details_json(json!({"field": "email", "error": "invalid"}));
 //! # }
 //! ```
@@ -62,7 +64,10 @@ use serde_json::Value as JsonValue;
 #[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 
-use crate::{app_error::AppError, code::AppCode};
+use crate::{
+    app_error::{AppError, AppResult},
+    code::AppCode
+};
 
 /// Retry advice intended for API clients.
 ///
@@ -115,16 +120,21 @@ pub struct ErrorResponse {
 impl ErrorResponse {
     /// Construct a new [`ErrorResponse`] with a status code, a stable
     /// [`AppCode`], and a public message.
-    #[must_use]
-    pub fn new(status: u16, code: AppCode, message: impl Into<String>) -> Self {
-        Self {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AppError`] if `status` is not a valid HTTP status code.
+    pub fn new(status: u16, code: AppCode, message: impl Into<String>) -> AppResult<Self> {
+        StatusCode::from_u16(status)
+            .map_err(|_| AppError::bad_request(format!("invalid HTTP status: {status}")))?;
+        Ok(Self {
             status,
             code,
             message: message.into(),
             details: None,
             retry: None,
             www_authenticate: None
-        }
+        })
     }
 
     /// Attach plain-text details (available when `serde_json` is disabled).
@@ -194,7 +204,15 @@ impl ErrorResponse {
     /// ease migration from versions prior to 0.3.0.
     #[must_use]
     pub fn new_legacy(status: u16, message: impl Into<String>) -> Self {
-        Self::new(status, AppCode::Internal, message)
+        let msg = message.into();
+        Self::new(status, AppCode::Internal, msg.clone()).unwrap_or(Self {
+            status:           500,
+            code:             AppCode::Internal,
+            message:          msg,
+            details:          None,
+            retry:            None,
+            www_authenticate: None
+        })
     }
 }
 
@@ -330,7 +348,7 @@ mod tests {
 
     #[test]
     fn new_sets_status_code_and_message() {
-        let e = ErrorResponse::new(404, AppCode::NotFound, "missing");
+        let e = ErrorResponse::new(404, AppCode::NotFound, "missing").expect("status");
         assert_eq!(e.status, 404);
         assert!(matches!(e.code, AppCode::NotFound));
         assert_eq!(e.message, "missing");
@@ -339,8 +357,15 @@ mod tests {
     }
 
     #[test]
+    fn new_rejects_invalid_status() {
+        let err = ErrorResponse::new(0, AppCode::Internal, "boom").expect_err("invalid");
+        assert!(matches!(err.kind, AppErrorKind::BadRequest));
+    }
+
+    #[test]
     fn with_retry_and_www_authenticate_attach_metadata() {
         let e = ErrorResponse::new(401, AppCode::Unauthorized, "auth required")
+            .expect("status")
             .with_retry_after_secs(15)
             .with_www_authenticate(r#"Bearer realm="api""#);
         assert_eq!(e.status, 401);
@@ -366,6 +391,7 @@ mod tests {
     fn details_json_are_attached() {
         let payload = serde_json::json!({"field": "email", "error": "invalid"});
         let e = ErrorResponse::new(422, AppCode::Validation, "invalid")
+            .expect("status")
             .with_details_json(payload.clone());
         assert_eq!(e.status, 422);
         assert!(e.details.is_some());
@@ -376,6 +402,7 @@ mod tests {
     #[test]
     fn details_text_are_attached() {
         let e = ErrorResponse::new(503, AppCode::DependencyUnavailable, "down")
+            .expect("status")
             .with_details_text("retry later");
         assert_eq!(e.status, 503);
         assert_eq!(e.details.as_deref(), Some("retry later"));
@@ -406,7 +433,7 @@ mod tests {
 
     #[test]
     fn display_is_concise_and_does_not_leak_details() {
-        let e = ErrorResponse::new(400, AppCode::BadRequest, "bad");
+        let e = ErrorResponse::new(400, AppCode::BadRequest, "bad").expect("status");
         let s = format!("{}", e);
         assert!(s.contains("400"), "status should be present");
         assert!(
@@ -440,6 +467,7 @@ mod tests {
         };
 
         let resp = ErrorResponse::new(401, AppCode::Unauthorized, "no token")
+            .expect("status")
             .with_retry_after_secs(7)
             .with_www_authenticate(r#"Bearer realm="api", error="invalid_token""#)
             .into_response();
@@ -469,6 +497,7 @@ mod tests {
 
         // Build ErrorResponse with both headers
         let resp = ErrorResponse::new(429, AppCode::RateLimited, "slow down")
+            .expect("status")
             .with_retry_after_secs(42)
             .with_www_authenticate("Bearer");
 
@@ -493,7 +522,7 @@ mod tests {
             test::TestRequest
         };
 
-        let resp = ErrorResponse::new(500, AppCode::Internal, "boom");
+        let resp = ErrorResponse::new(500, AppCode::Internal, "boom").expect("status");
         let req = TestRequest::default().to_http_request();
         let http = resp.respond_to(&req);
 
@@ -507,7 +536,9 @@ mod tests {
     #[cfg(feature = "serde_json")]
     #[test]
     fn serialized_json_contains_core_fields() {
-        let e = ErrorResponse::new(404, AppCode::NotFound, "nope").with_retry_after_secs(1);
+        let e = ErrorResponse::new(404, AppCode::NotFound, "nope")
+            .expect("status")
+            .with_retry_after_secs(1);
         let s = serde_json::to_string(&e).expect("serialize");
         // Fast contract sanity checks without tying to exact field order
         assert!(s.contains("\"status\":404"));
