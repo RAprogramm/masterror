@@ -169,11 +169,11 @@ utoipa = "5"
 <details>
   <summary><b>Feature flags</b></summary>
 
-- `axum` — IntoResponse  
-- `actix` — ResponseError/Responder  
-- `openapi` — utoipa schema  
-- `serde_json` — JSON details  
-- `sqlx`, `redis`, `reqwest`, `validator`, `config`, `tokio`, `multipart`
+- `axum` — IntoResponse
+- `actix` — ResponseError/Responder
+- `openapi` — utoipa schema
+- `serde_json` — JSON details
+- `sqlx`, `redis`, `reqwest`, `validator`, `config`, `tokio`, `multipart`, `telegram-webapp-sdk`
 - `turnkey` — domain taxonomy and conversions for Turnkey errors
 
 </details>
@@ -190,6 +190,7 @@ utoipa = "5"
 - `validator::ValidationErrors` → Validation
 - `config::ConfigError` → Config
 - `tokio::time::error::Elapsed` → Timeout
+- `telegram_webapp_sdk::utils::validate_init_data::ValidationError` → TelegramAuth
 
 </details>
 

@@ -2,8 +2,11 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+## [0.3.4] - 2025-09-12
 ### Added
 - `ErrorResponse::with_retry_after_duration` helper for specifying retry advice via `Duration`.
+- Conversion from `telegram_webapp_sdk::utils::validate_init_data::ValidationError` into `AppError` (feature `telegram-webapp-sdk`).
 
 ### Changed
 - `AppError::log` now includes the stable `code` field alongside `kind`.
@@ -18,6 +21,7 @@ All notable changes to this project will be documented in this file.
 - Added Axum test asserting `MultipartError` becomes `AppErrorKind::BadRequest` and preserves the message.
 - Expanded Actix test to check JSON body and `Retry-After`/`WWW-Authenticate` headers.
 - Covered fallback classification of unknown messages as `TurnkeyErrorKind::Service`.
+- Expanded coverage of `telegram_webapp_sdk` mapping across all `ValidationError` variants.
 
 ## [0.3.3] - 2025-09-11
 ### Added
@@ -95,6 +99,7 @@ All notable changes to this project will be documented in this file.
 - **MSRV:** 1.89
 - **No unsafe:** the crate forbids `unsafe`.
 
+[0.3.4]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.4
 [0.3.3]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.3
 [0.3.2]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.2
 [0.3.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.1
