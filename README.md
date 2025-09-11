@@ -146,6 +146,7 @@ async fn err() -> AppResult<&'static str> {
 #[get("/payload")]
 async fn payload() -> impl Responder {
     ErrorResponse::new(422, AppCode::Validation, "Validation failed")
+        .expect("status")
 }
 ~~~
 
