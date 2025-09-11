@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ### Added
 - `ErrorResponse::with_retry_after_duration` helper for specifying retry advice via `Duration`.
 
+### Changed
+- `AppError::log` now includes the stable `code` field alongside `kind`.
+- `AppError` stores messages as `Cow<'static, str>` to avoid unnecessary allocations.
+
 ## [0.3.3] - 2025-09-11
 ### Added
 - `ErrorResponse::status_code()` exposing validated `StatusCode`.
