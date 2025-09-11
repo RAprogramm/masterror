@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 ### Added
 - `ErrorResponse::with_retry_after_duration` helper for specifying retry advice via `Duration`.
+- Conversion from `telegram_webapp_sdk::utils::validate_init_data::ValidationError` into `AppError` (feature `telegram-webapp-sdk`).
 
 ### Changed
 - `AppError::log` now includes the stable `code` field alongside `kind`.

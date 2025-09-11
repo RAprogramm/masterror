@@ -40,6 +40,9 @@
 //! - `config` — `From<config::ConfigError>` mapping
 //! - `tokio` — `From<tokio::time::error::Elapsed>` mapping
 //! - `reqwest` — `From<reqwest::Error>` mapping
+//! - `telegram-webapp-sdk` —
+//!   `From<telegram_webapp_sdk::utils::validate_init_data::ValidationError>`
+//!   mapping
 //! - `serde_json` — support for structured JSON details in [`ErrorResponse`];
 //!   also pulled transitively by `axum`
 //! - `multipart` — compatibility flag for Axum multipart
