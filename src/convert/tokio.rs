@@ -49,3 +49,21 @@ impl From<Elapsed> for AppError {
         AppError::timeout("Operation timed out")
     }
 }
+
+#[cfg(all(test, feature = "tokio"))]
+mod tests {
+    use tokio::time::{Duration, sleep, timeout};
+
+    use super::*;
+    use crate::AppErrorKind;
+
+    #[tokio::test]
+    async fn elapsed_maps_to_timeout() {
+        let fut = sleep(Duration::from_millis(20));
+        let err = timeout(Duration::from_millis(1), fut)
+            .await
+            .expect_err("expect timeout");
+        let app_err: AppError = err.into();
+        assert!(matches!(app_err.kind, AppErrorKind::Timeout));
+    }
+}

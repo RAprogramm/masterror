@@ -61,3 +61,24 @@ impl From<MigrateError> for AppError {
         AppError::database(Some(err.to_string()))
     }
 }
+
+#[cfg(all(test, feature = "sqlx"))]
+mod tests {
+    use std::io;
+
+    use super::*;
+    use crate::AppErrorKind;
+
+    #[test]
+    fn row_not_found_maps_to_not_found() {
+        let err: AppError = SqlxError::RowNotFound.into();
+        assert!(matches!(err.kind, AppErrorKind::NotFound));
+    }
+
+    #[test]
+    fn other_error_maps_to_database() {
+        let io_err = io::Error::new(io::ErrorKind::Other, "boom");
+        let err: AppError = SqlxError::Io(io_err).into();
+        assert!(matches!(err.kind, AppErrorKind::Database));
+    }
+}
