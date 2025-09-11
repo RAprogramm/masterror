@@ -44,18 +44,17 @@
 //!   also pulled transitively by `axum`
 //! - `multipart` — compatibility flag for Axum multipart
 //! - `turnkey` — domain taxonomy and conversions for Turnkey errors, exposed in
-//!   the [`turnkey`] module
+//!   the `turnkey` module
 //!
 //! # Domain integrations: Turnkey
 //!
-//! With the `turnkey` feature enabled, the crate exports a [`turnkey`] module
+//! With the `turnkey` feature enabled, the crate exports a `turnkey` module
 //! that provides:
 //!
-//! - [`turnkey::TurnkeyErrorKind`] — stable categories for Turnkey-specific
+//! - `turnkey::TurnkeyErrorKind` — stable categories for Turnkey-specific
 //!   failures
-//! - [`turnkey::TurnkeyError`] — a container with `kind` and safe, public
-//!   message
-//! - [`turnkey::classify_turnkey_error`] — heuristic classifier for raw
+//! - `turnkey::TurnkeyError` — a container with `kind` and safe, public message
+//! - `turnkey::classify_turnkey_error` — heuristic classifier for raw
 //!   SDK/provider strings
 //! - conversions: `From<TurnkeyError>` → [`AppError`] and
 //!   `From<TurnkeyErrorKind>` → [`AppErrorKind`]
@@ -112,7 +111,7 @@
 //! ```rust
 //! use masterror::{AppCode, ErrorResponse};
 //!
-//! let resp = ErrorResponse::new(404, AppCode::NotFound, "User not found");
+//! let resp = ErrorResponse::new(404, AppCode::NotFound, "User not found").expect("status");
 //! ```
 //!
 //! Conversion from [`AppError`]:

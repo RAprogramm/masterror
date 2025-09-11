@@ -22,7 +22,7 @@
 //! ```rust
 //! use masterror::{AppCode, ErrorResponse};
 //!
-//! let resp = ErrorResponse::new(404, AppCode::NotFound, "User not found");
+//! let resp = ErrorResponse::new(404, AppCode::NotFound, "User not found").expect("status");
 //! ```
 //!
 //! Convert from internal taxonomy (`AppErrorKind`) to a public code:
