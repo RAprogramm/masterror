@@ -99,10 +99,11 @@ fn do_work(flag: bool) -> AppResult<()> {
 
 ~~~rust
 use masterror::{AppError, AppErrorKind, AppCode, ErrorResponse};
+use std::time::Duration;
 
 let app_err = AppError::new(AppErrorKind::Unauthorized, "Token expired");
 let resp: ErrorResponse = (&app_err).into()
-    .with_retry_after_secs(30)
+    .with_retry_after_duration(Duration::from_secs(30))
     .with_www_authenticate(r#"Bearer realm="api", error="invalid_token""#);
 
 assert_eq!(resp.status, 401);
@@ -244,7 +245,7 @@ assert_eq!(app.kind, AppErrorKind::RateLimited);
   <summary><b>Migration 0.2 → 0.3</b></summary>
 
 - Use `ErrorResponse::new(status, AppCode::..., "msg")` instead of legacy  
-- New helpers: `.with_retry_after_secs`, `.with_www_authenticate`  
+- New helpers: `.with_retry_after_secs`, `.with_retry_after_duration`, `.with_www_authenticate`
 - `ErrorResponse::new_legacy` is temporary shim  
 
 </details>

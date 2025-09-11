@@ -16,7 +16,9 @@
 //!   (`serde_json::Value` if the `serde_json` feature is enabled, otherwise
 //!   plain text)
 //! - [`retry`](ErrorResponse::retry): optional retry advice, rendered as the
-//!   `Retry-After` header in HTTP adapters
+//!   `Retry-After` header in HTTP adapters; set via
+//!   [`with_retry_after_secs`](ErrorResponse::with_retry_after_secs) or
+//!   [`with_retry_after_duration`](ErrorResponse::with_retry_after_duration)
 //! - [`www_authenticate`](ErrorResponse::www_authenticate): optional
 //!   authentication challenge string, rendered as the `WWW-Authenticate` header
 //!
@@ -27,11 +29,13 @@
 //! # Example
 //!
 //! ```rust
+//! use std::time::Duration;
+//!
 //! use masterror::{AppCode, ErrorResponse};
 //!
 //! let resp = ErrorResponse::new(404, AppCode::NotFound, "User not found")
 //!     .expect("status")
-//!     .with_retry_after_secs(30);
+//!     .with_retry_after_duration(Duration::from_secs(30));
 //! ```
 //!
 //! With `serde_json` enabled:
@@ -63,7 +67,7 @@ use std::{
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serde_json")]
-use serde_json::Value as JsonValue;
+use serde_json::{Value as JsonValue, to_value};
 #[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 
@@ -156,15 +160,76 @@ impl ErrorResponse {
         self
     }
 
+    /// Serialize and attach structured details from any [`Serialize`] value.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AppError`] if serialization fails.
+    ///
+    /// # Examples
+    /// ```
+    /// # #[cfg(feature = "serde_json")]
+    /// # {
+    /// use masterror::{AppCode, ErrorResponse};
+    /// use serde::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// struct Extra {
+    ///     reason: String
+    /// }
+    ///
+    /// let payload = Extra {
+    ///     reason: "missing".into()
+    /// };
+    /// let resp = ErrorResponse::new(404, AppCode::NotFound, "no user")
+    ///     .expect("status")
+    ///     .with_details(payload)
+    ///     .expect("details");
+    /// assert!(resp.details.is_some());
+    /// # }
+    /// ```
+    #[cfg(feature = "serde_json")]
+    pub fn with_details<T>(self, payload: T) -> AppResult<Self>
+    where
+        T: Serialize
+    {
+        let details = to_value(payload).map_err(|e| AppError::bad_request(e.to_string()))?;
+        Ok(self.with_details_json(details))
+    }
+
     /// Attach retry advice (number of seconds).
     ///
-    /// When present, integrations set the `Retry-After` header automatically.
+    /// See [`with_retry_after_duration`](Self::with_retry_after_duration) for
+    /// using a [`Duration`]. When present, integrations set the `Retry-After`
+    /// header automatically.
     #[must_use]
     pub fn with_retry_after_secs(mut self, secs: u64) -> Self {
         self.retry = Some(RetryAdvice {
             after_seconds: secs
         });
         self
+    }
+
+    /// Attach retry advice as a [`Duration`].
+    ///
+    /// Equivalent to [`with_retry_after_secs`](Self::with_retry_after_secs).
+    /// When present, integrations set the `Retry-After` header automatically.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use masterror::{AppCode, ErrorResponse};
+    ///
+    /// let resp = ErrorResponse::new(503, AppCode::Internal, "retry later")
+    ///     .expect("status")
+    ///     .with_retry_after_duration(Duration::from_secs(60));
+    /// assert_eq!(resp.retry.expect("retry").after_seconds, 60);
+    /// ```
+    #[must_use]
+    pub fn with_retry_after_duration(self, dur: Duration) -> Self {
+        self.with_retry_after_secs(dur.as_secs())
     }
 
     /// Attach an authentication challenge string.
@@ -372,6 +437,16 @@ mod tests {
     }
 
     #[test]
+    fn with_retry_after_duration_attaches_advice() {
+        use std::time::Duration;
+
+        let e = ErrorResponse::new(429, AppCode::RateLimited, "slow down")
+            .expect("status")
+            .with_retry_after_duration(Duration::from_secs(42));
+        assert_eq!(e.retry.unwrap().after_seconds, 42);
+    }
+
+    #[test]
     fn status_code_maps_invalid_to_internal_server_error() {
         use http::StatusCode;
 
@@ -401,6 +476,50 @@ mod tests {
         assert_eq!(e.status, 422);
         assert!(e.details.is_some());
         assert_eq!(e.details.unwrap(), payload);
+    }
+
+    #[cfg(feature = "serde_json")]
+    #[test]
+    fn with_details_serializes_custom_struct() {
+        use serde::Serialize;
+        use serde_json::json;
+
+        #[derive(Serialize)]
+        struct Extra {
+            value: i32
+        }
+
+        let resp = ErrorResponse::new(400, AppCode::BadRequest, "bad")
+            .expect("status")
+            .with_details(Extra {
+                value: 7
+            })
+            .expect("details");
+
+        assert_eq!(resp.details.unwrap(), json!({"value": 7}));
+    }
+
+    #[cfg(feature = "serde_json")]
+    #[test]
+    fn with_details_propagates_serialization_errors() {
+        use serde::{Serialize, Serializer};
+
+        struct Failing;
+
+        impl Serialize for Failing {
+            fn serialize<S>(&self, _: S) -> Result<S::Ok, S::Error>
+            where
+                S: Serializer
+            {
+                Err(serde::ser::Error::custom("nope"))
+            }
+        }
+
+        let err = ErrorResponse::new(400, AppCode::BadRequest, "bad")
+            .expect("status")
+            .with_details(Failing)
+            .expect_err("serialization should fail");
+        assert!(matches!(err.kind, AppErrorKind::BadRequest));
     }
 
     #[cfg(not(feature = "serde_json"))]
