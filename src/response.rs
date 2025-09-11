@@ -180,17 +180,18 @@ impl ErrorResponse {
     ///
     /// # Examples
     ///
-/// ```
-/// use http::StatusCode;
-/// use masterror::{AppCode, ErrorResponse};
-///
-/// let resp = ErrorResponse::new(404, AppCode::NotFound, "missing").expect("status");
-/// assert_eq!(resp.status_code(), StatusCode::NOT_FOUND);
-/// ```
-#[must_use]
-pub fn status_code(&self) -> StatusCode {
-    StatusCode::from_u16(self.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
-}
+
+    /// ```
+    /// use http::StatusCode;
+    /// use masterror::{AppCode, ErrorResponse};
+    ///
+    /// let resp = ErrorResponse::new(404, AppCode::NotFound, "missing").expect("status");
+    /// assert_eq!(resp.status_code(), StatusCode::NOT_FOUND);
+    /// ```
+    #[must_use]
+    pub fn status_code(&self) -> StatusCode {
+        StatusCode::from_u16(self.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
+    }
 }
 
 /// Legacy constructor retained for migration purposes.
@@ -328,8 +329,9 @@ mod actix_impl {
         type Body = BoxBody;
 
         fn respond_to(self, _req: &HttpRequest) -> HttpResponse {
-            let status =
-                ActixStatus::from_u16(self.status).unwrap_or(ActixStatus::INTERNAL_SERVER_ERROR);
+            let status = self.status_code();
+            let status = ActixStatus::from_u16(status.as_u16())
+                .unwrap_or(ActixStatus::INTERNAL_SERVER_ERROR);
 
             let mut builder = HttpResponse::build(status);
             if let Some(retry) = self.retry {
@@ -381,11 +383,18 @@ mod tests {
     #[test]
     fn status_code_maps_invalid_to_internal_server_error() {
         use http::StatusCode;
+
         let valid = ErrorResponse::new(404, AppCode::NotFound, "missing").expect("status");
         assert_eq!(valid.status_code(), StatusCode::NOT_FOUND);
 
-        let mut invalid = valid.clone();
-        invalid.status = 1000;
+        let invalid = ErrorResponse {
+            status:           1000,
+            code:             AppCode::Internal,
+            message:          "oops".into(),
+            details:          None,
+            retry:            None,
+            www_authenticate: None
+        };
         assert_eq!(invalid.status_code(), StatusCode::INTERNAL_SERVER_ERROR);
     }
 
