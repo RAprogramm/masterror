@@ -257,7 +257,7 @@ mod axum_impl {
     use axum::{
         Json,
         http::{
-            HeaderValue, StatusCode as AxumStatus,
+            HeaderValue,
             header::{RETRY_AFTER, WWW_AUTHENTICATE}
         },
         response::{IntoResponse, Response}
@@ -268,8 +268,7 @@ mod axum_impl {
 
     impl IntoResponse for ErrorResponse {
         fn into_response(self) -> Response {
-            let status =
-                AxumStatus::from_u16(self.status).unwrap_or(AxumStatus::INTERNAL_SERVER_ERROR);
+            let status = self.status_code();
 
             // Serialize JSON body first (borrow self for payload).
             let mut response = (status, Json(&self)).into_response();
@@ -315,10 +314,7 @@ mod actix_impl {
     use actix_web::{
         HttpRequest, HttpResponse, Responder,
         body::BoxBody,
-        http::{
-            StatusCode as ActixStatus,
-            header::{RETRY_AFTER, WWW_AUTHENTICATE}
-        }
+        http::header::{RETRY_AFTER, WWW_AUTHENTICATE}
     };
 
     use super::ErrorResponse;
@@ -328,9 +324,6 @@ mod actix_impl {
 
         fn respond_to(self, _req: &HttpRequest) -> HttpResponse {
             let status = self.status_code();
-            let status = ActixStatus::from_u16(status.as_u16())
-                .unwrap_or(ActixStatus::INTERNAL_SERVER_ERROR);
-
             let mut builder = HttpResponse::build(status);
             if let Some(retry) = self.retry {
                 builder.insert_header((RETRY_AFTER, retry.after_seconds.to_string()));
