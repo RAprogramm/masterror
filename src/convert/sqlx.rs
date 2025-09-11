@@ -77,7 +77,8 @@ mod tests {
 
     #[test]
     fn other_error_maps_to_database() {
-        let io_err = io::Error::new(io::ErrorKind::Other, "boom");
+        // Prefer modern constructor; avoids clippy::io-other-error
+        let io_err = io::Error::other("boom");
         let err: AppError = SqlxError::Io(io_err).into();
         assert!(matches!(err.kind, AppErrorKind::Database));
     }

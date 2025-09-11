@@ -100,8 +100,7 @@ mod actix_tests {
     use actix_web::{
         ResponseError,
         body::to_bytes,
-        http::header::{RETRY_AFTER, WWW_AUTHENTICATE},
-        rt::System
+        http::header::{RETRY_AFTER, WWW_AUTHENTICATE}
     };
 
     use crate::{AppCode, AppError, AppErrorKind, ErrorResponse};
@@ -112,8 +111,8 @@ mod actix_tests {
         assert_eq!(e.status_code().as_u16(), 422);
     }
 
-    #[test]
-    fn error_response_sets_body_and_headers() {
+    #[actix_web::test] // ← вот это
+    async fn error_response_sets_body_and_headers() -> Result<(), Box<dyn std::error::Error>> {
         let err = AppError::unauthorized("no token")
             .with_retry_after_secs(7)
             .with_www_authenticate("Bearer");
@@ -122,14 +121,20 @@ mod actix_tests {
         assert_eq!(resp.status().as_u16(), 401);
 
         let headers = resp.headers().clone();
-        assert_eq!(headers.get(RETRY_AFTER).unwrap(), "7");
-        assert_eq!(headers.get(WWW_AUTHENTICATE).unwrap(), "Bearer");
+        assert_eq!(
+            headers.get(RETRY_AFTER).and_then(|v| v.to_str().ok()),
+            Some("7")
+        );
+        assert_eq!(
+            headers.get(WWW_AUTHENTICATE).and_then(|v| v.to_str().ok()),
+            Some("Bearer")
+        );
 
-        let bytes = System::new()
-            .block_on(async { to_bytes(resp.into_body(), usize::MAX).await.expect("body") });
-        let body: ErrorResponse = serde_json::from_slice(&bytes).expect("json body");
+        let bytes = to_bytes(resp.into_body()).await?;
+        let body: ErrorResponse = serde_json::from_slice(&bytes)?;
         assert_eq!(body.status, 401);
         assert!(matches!(body.code, AppCode::Unauthorized));
         assert_eq!(body.message, "no token");
+        Ok(())
     }
 }
