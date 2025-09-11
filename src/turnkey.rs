@@ -168,8 +168,8 @@ pub fn classify_turnkey_error(msg: &str) -> TurnkeyErrorKind {
     }
 }
 
-/// ASCII case-insensitive `haystack.contains(needle)` without allocation.
-/// comments in English
+/// Returns true if `haystack` contains `needle` ignoring ASCII case.
+/// Performs the search without allocating.
 #[inline]
 fn contains_nocase(haystack: &str, needle: &str) -> bool {
     // Fast path: empty needle always matches.
@@ -192,8 +192,7 @@ fn contains_any_nocase(haystack: &str, needles: &[&str]) -> bool {
     needles.iter().any(|n| contains_nocase(haystack, n))
 }
 
-/// Lowercase for ASCII bytes only; leaves non-ASCII untouched.
-/// comments in English
+/// Converts ASCII letters to lowercase and leaves other bytes unchanged.
 #[inline]
 const fn ascii_lower(b: u8) -> u8 {
     // ASCII-only fold without RangeInclusive to keep const-friendly on MSRV 1.89
