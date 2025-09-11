@@ -53,14 +53,14 @@
 //!
 //! ## Logging
 //!
-//! [`AppError::log`] emits a single structured `tracing::error!` event. Prefer
-//! calling it at the transport boundary (e.g. in `IntoResponse`) to avoid
-//! duplicate logs.
+//! [`AppError::log`] emits a single structured `tracing::error!` event with
+//! `kind`, `code` and optional `message` fields. Prefer calling it at the
+//! transport boundary (e.g. in `IntoResponse`) to avoid duplicate logs.
 
 use thiserror::Error;
 use tracing::error;
 
-use crate::kind::AppErrorKind;
+use crate::{code::AppCode, kind::AppErrorKind};
 
 /// Thin error wrapper: kind + optional message.
 ///
@@ -119,7 +119,7 @@ impl AppError {
 
     /// Log the error once at the boundary with stable fields.
     ///
-    /// Emits a `tracing::error!` with `kind` and optional `message`.
+    /// Emits a `tracing::error!` with `kind`, `code` and optional `message`.
     /// No internals or sources are leaked.
     ///
     /// # Examples
@@ -131,9 +131,10 @@ impl AppError {
     /// err.log();
     /// ```
     pub fn log(&self) {
+        let code = AppCode::from(self.kind);
         match &self.message {
-            Some(m) => error!(kind = ?self.kind, message = %m),
-            None => error!(kind = ?self.kind)
+            Some(m) => error!(kind = ?self.kind, code = %code, message = %m),
+            None => error!(kind = ?self.kind, code = %code)
         }
     }
 
@@ -515,5 +516,72 @@ mod tests {
         e1.log();
         let e2 = AppError::bare(AppErrorKind::BadRequest);
         e2.log();
+    }
+
+    #[test]
+    fn log_emits_code_field() {
+        use std::{
+            fmt,
+            sync::{Arc, Mutex}
+        };
+
+        use tracing::{
+            Event, Metadata,
+            field::{Field, Visit},
+            span::{Attributes, Id, Record},
+            subscriber::{Interest, Subscriber, with_default}
+        };
+
+        #[derive(Default)]
+        struct Collector {
+            codes: Arc<Mutex<Vec<String>>>
+        }
+
+        impl Subscriber for Collector {
+            fn register_callsite(&self, _: &Metadata<'_>) -> Interest {
+                Interest::always()
+            }
+
+            fn enabled(&self, _: &Metadata<'_>) -> bool {
+                true
+            }
+
+            fn new_span(&self, _: &Attributes<'_>) -> Id {
+                Id::from_u64(0)
+            }
+
+            fn record(&self, _: &Id, _: &Record<'_>) {}
+            fn record_follows_from(&self, _: &Id, _: &Id) {}
+
+            fn event(&self, event: &Event<'_>) {
+                struct CodeVisitor<'a>(&'a Arc<Mutex<Vec<String>>>);
+                impl<'a> Visit for CodeVisitor<'a> {
+                    fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
+                        if field.name() == "code" {
+                            self.0.lock().unwrap().push(format!("{value:?}"));
+                        }
+                    }
+                    fn record_str(&mut self, field: &Field, value: &str) {
+                        if field.name() == "code" {
+                            self.0.lock().unwrap().push(value.to_owned());
+                        }
+                    }
+                }
+                let mut visitor = CodeVisitor(&self.codes);
+                event.record(&mut visitor);
+            }
+
+            fn enter(&self, _: &Id) {}
+            fn exit(&self, _: &Id) {}
+        }
+
+        let collector = Collector::default();
+        let codes = collector.codes.clone();
+        with_default(collector, || {
+            AppError::internal("boom").log();
+        });
+
+        let captured = codes.lock().unwrap();
+        assert!(captured.iter().any(|c| c.contains("INTERNAL")));
     }
 }
