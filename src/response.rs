@@ -284,8 +284,6 @@ mod axum_impl {
                 response.headers_mut().insert(WWW_AUTHENTICATE, hv);
             }
 
-            // Explicitly consume self to satisfy ownership.
-            let _ = self;
             response
         }
     }
@@ -323,8 +321,7 @@ mod actix_impl {
         type Body = BoxBody;
 
         fn respond_to(self, _req: &HttpRequest) -> HttpResponse {
-            let status = self.status_code();
-            let mut builder = HttpResponse::build(status);
+            let mut builder = HttpResponse::build(self.status_code());
             if let Some(retry) = self.retry {
                 builder.insert_header((RETRY_AFTER, retry.after_seconds.to_string()));
             }
