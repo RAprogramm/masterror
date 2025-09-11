@@ -24,6 +24,7 @@ config = ["dep:config"]                     # config::ConfigError -> AppError
 multipart = ["axum"]
 tokio = ["dep:tokio"]
 reqwest = ["dep:reqwest"]
+telegram-webapp-sdk = ["dep:telegram-webapp-sdk"]
 turnkey = []
 
 openapi = ["dep:utoipa"]
@@ -54,6 +55,7 @@ config = { version = "0.15", optional = true }
 utoipa = { version = "5.3", optional = true }
 tokio = { version = "1", optional = true, features = ["time"] }
 reqwest = { version = "0.12", optional = true, default-features = false }
+telegram-webapp-sdk = { git = "https://github.com/RAprogramm/telegram-webapp-sdk", rev = "0c5a1d557e1cefe2b37a190c9359be05fe48d41a", optional = true }
 
 [dev-dependencies]
 serde_json = "1"
