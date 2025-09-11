@@ -62,7 +62,7 @@ use std::borrow::Cow;
 use thiserror::Error;
 use tracing::error;
 
-use crate::{code::AppCode, kind::AppErrorKind};
+use crate::{RetryAdvice, code::AppCode, kind::AppErrorKind};
 
 /// Thin error wrapper: kind + optional message.
 ///
@@ -73,9 +73,13 @@ use crate::{code::AppCode, kind::AppErrorKind};
 #[error("{kind}")]
 pub struct AppError {
     /// Semantic category of the error.
-    pub kind:    AppErrorKind,
+    pub kind:             AppErrorKind,
     /// Optional, public-friendly message.
-    pub message: Option<Cow<'static, str>>
+    pub message:          Option<Cow<'static, str>>,
+    /// Optional retry advice rendered as `Retry-After`.
+    pub retry:            Option<RetryAdvice>,
+    /// Optional authentication challenge for `WWW-Authenticate`.
+    pub www_authenticate: Option<String>
 }
 
 /// Conventional result alias for application code.
@@ -105,7 +109,9 @@ impl AppError {
     pub fn with(kind: AppErrorKind, msg: impl Into<Cow<'static, str>>) -> Self {
         Self {
             kind,
-            message: Some(msg.into())
+            message: Some(msg.into()),
+            retry: None,
+            www_authenticate: None
         }
     }
 
@@ -115,8 +121,28 @@ impl AppError {
     pub fn bare(kind: AppErrorKind) -> Self {
         Self {
             kind,
-            message: None
+            message: None,
+            retry: None,
+            www_authenticate: None
         }
+    }
+
+    /// Attach retry advice to the error.
+    ///
+    /// When mapped to HTTP, this becomes the `Retry-After` header.
+    #[must_use]
+    pub fn with_retry_after_secs(mut self, secs: u64) -> Self {
+        self.retry = Some(RetryAdvice {
+            after_seconds: secs
+        });
+        self
+    }
+
+    /// Attach a `WWW-Authenticate` challenge string.
+    #[must_use]
+    pub fn with_www_authenticate(mut self, value: impl Into<String>) -> Self {
+        self.www_authenticate = Some(value.into());
+        self
     }
 
     /// Log the error once at the boundary with stable fields.
@@ -191,8 +217,10 @@ impl AppError {
     /// when you may or may not have a safe-to-print string at hand.
     pub fn database(msg: Option<impl Into<Cow<'static, str>>>) -> Self {
         Self {
-            kind:    AppErrorKind::Database,
-            message: msg.map(Into::into)
+            kind:             AppErrorKind::Database,
+            message:          msg.map(Into::into),
+            retry:            None,
+            www_authenticate: None
         }
     }
     /// Build a `Config` error.
