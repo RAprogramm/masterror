@@ -180,6 +180,7 @@ impl ErrorResponse {
     ///
     /// # Examples
     ///
+
     /// ```
     /// use http::StatusCode;
     /// use masterror::{AppCode, ErrorResponse};
@@ -258,7 +259,7 @@ mod axum_impl {
     use axum::{
         Json,
         http::{
-            HeaderValue,
+            HeaderValue, StatusCode as AxumStatus,
             header::{RETRY_AFTER, WWW_AUTHENTICATE}
         },
         response::{IntoResponse, Response}
@@ -269,7 +270,8 @@ mod axum_impl {
 
     impl IntoResponse for ErrorResponse {
         fn into_response(self) -> Response {
-            let status = self.status_code();
+            let status =
+                AxumStatus::from_u16(self.status).unwrap_or(AxumStatus::INTERNAL_SERVER_ERROR);
 
             // Serialize JSON body first (borrow self for payload).
             let mut response = (status, Json(&self)).into_response();
