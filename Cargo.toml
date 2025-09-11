@@ -34,6 +34,7 @@ tracing = "0.1"
 
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", optional = true }
+
 http = "1"
 
 # опциональные интеграции
