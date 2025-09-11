@@ -56,7 +56,7 @@ use crate::AppError;
 impl From<ReqwestError> for AppError {
     fn from(err: ReqwestError) -> Self {
         if err.is_timeout() {
-            AppError::timeout("Request timeout")
+            AppError::timeout(format!("Request timeout: {err}"))
         } else if err.is_connect() || err.is_request() {
             AppError::network(format!("Network error: {err}"))
         } else if err.is_status() {
@@ -64,5 +64,48 @@ impl From<ReqwestError> for AppError {
         } else {
             AppError::external_api(format!("Upstream error: {err}"))
         }
+    }
+}
+
+#[cfg(all(test, feature = "reqwest", feature = "tokio"))]
+mod tests {
+    use std::time::Duration;
+
+    use reqwest::Client;
+    use tokio::{net::TcpListener, time::sleep};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn timeout_message_includes_original_error() {
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind listener");
+        let addr = listener.local_addr().expect("listener addr");
+
+        let server = tokio::spawn(async move {
+            let (_socket, _) = listener.accept().await.expect("accept");
+            sleep(Duration::from_secs(5)).await;
+        });
+
+        let client = Client::builder()
+            .timeout(Duration::from_millis(50))
+            .build()
+            .expect("client");
+
+        let err = client
+            .get(format!("http://{addr}"))
+            .send()
+            .await
+            .expect_err("expected timeout");
+
+        assert!(err.is_timeout());
+
+        let err_str = err.to_string();
+        let app_err: AppError = err.into();
+        let msg = app_err.message.expect("app error message");
+        assert!(msg.contains(&err_str), "{msg} does not contain {err_str}");
+
+        server.abort();
     }
 }
