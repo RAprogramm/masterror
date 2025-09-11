@@ -1,6 +1,22 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.3.3] - 2025-09-11
+### Added
+- `ErrorResponse::status_code()` exposing validated `StatusCode`.
+- `ErrorResponse::new` now checks the supplied status code.
+
+### Changed
+- Preserve original `reqwest` timeout error text.
+- Redis errors map to `AppErrorKind::Cache`.
+- Dependencies updated.
+
+### Fixed
+- Axum and Actix adapters reuse `status_code()` to avoid type mismatches.
+
+### Documentation
+- Clarified `contains_nocase` and `ascii_lower` comments.
+
 ## [0.3.2] - 2025-09-08
 ### Added
 - New feature flag `turnkey`:
@@ -61,6 +77,7 @@ All notable changes to this project will be documented in this file.
 - **MSRV:** 1.89
 - **No unsafe:** the crate forbids `unsafe`.
 
+[0.3.3]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.3
 [0.3.2]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.2
 [0.3.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.1
 [0.3.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.0
