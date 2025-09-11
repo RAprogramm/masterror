@@ -60,8 +60,8 @@
 //! provided as a deprecated shim.
 
 use std::{
-    fmt::{Display, Formatter, Result as FmtResult},
-    time::Duration
+    borrow::Cow,
+    fmt::{Display, Formatter, Result as FmtResult}
 };
 
 use http::StatusCode;
@@ -297,9 +297,9 @@ impl From<&AppError> for ErrorResponse {
 
         let message = err
             .message
-            .as_deref()
-            .unwrap_or("An error occurred")
-            .to_owned();
+            .clone()
+            .unwrap_or(Cow::Borrowed("An error occurred"))
+            .into_owned();
 
         Self {
             status,

@@ -104,7 +104,10 @@ mod tests {
         let err_str = err.to_string();
         let app_err: AppError = err.into();
         let msg = app_err.message.expect("app error message");
-        assert!(msg.contains(&err_str), "{msg} does not contain {err_str}");
+        assert!(
+            msg.contains(err_str.as_str()),
+            "{msg} does not contain {err_str}"
+        );
 
         server.abort();
     }
