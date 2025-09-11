@@ -9,6 +9,16 @@ All notable changes to this project will be documented in this file.
 - `AppError::log` now includes the stable `code` field alongside `kind`.
 - `AppError` stores messages as `Cow<'static, str>` to avoid unnecessary allocations.
 
+### Documentation
+- Clarified how `config::ConfigError` converts into `AppErrorKind::Config`.
+- Documented that `MultipartError` maps to `AppErrorKind::BadRequest` in the Axum adapter.
+
+### Tests
+- Added unit test verifying `config::ConfigError` mapping.
+- Added Axum test asserting `MultipartError` becomes `AppErrorKind::BadRequest` and preserves the message.
+- Expanded Actix test to check JSON body and `Retry-After`/`WWW-Authenticate` headers.
+- Covered fallback classification of unknown messages as `TurnkeyErrorKind::Service`.
+
 ## [0.3.3] - 2025-09-11
 ### Added
 - `ErrorResponse::status_code()` exposing validated `StatusCode`.

@@ -186,6 +186,7 @@ utoipa = "5"
 - `sqlx::Error` → NotFound/Database
 - `redis::RedisError` → Cache
 - `reqwest::Error` → Timeout/Network/ExternalApi
+- `axum::extract::multipart::MultipartError` → BadRequest
 - `validator::ValidationErrors` → Validation
 - `config::ConfigError` → Config
 - `tokio::time::error::Elapsed` → Timeout
