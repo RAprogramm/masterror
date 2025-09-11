@@ -56,3 +56,26 @@ impl From<ValidationErrors> for AppError {
         AppError::validation(err.to_string())
     }
 }
+
+#[cfg(all(test, feature = "validator"))]
+mod tests {
+    use validator::Validate;
+
+    use super::*;
+    use crate::AppErrorKind;
+
+    #[derive(Validate)]
+    struct Payload {
+        #[validate(range(min = 1))]
+        val: i32
+    }
+
+    #[test]
+    fn validation_errors_map_to_validation_kind() {
+        let bad = Payload {
+            val: 0
+        };
+        let err: AppError = bad.validate().unwrap_err().into();
+        assert!(matches!(err.kind, AppErrorKind::Validation));
+    }
+}
