@@ -307,8 +307,8 @@ impl From<&AppError> for ErrorResponse {
             code,
             message,
             details: None,
-            retry: None,
-            www_authenticate: None
+            retry: err.retry,
+            www_authenticate: err.www_authenticate.clone()
         }
     }
 }
@@ -390,7 +390,10 @@ mod actix_impl {
         type Body = BoxBody;
 
         fn respond_to(self, _req: &HttpRequest) -> HttpResponse {
-            let mut builder = HttpResponse::build(self.status_code());
+            let mut builder = HttpResponse::build(
+                actix_web::http::StatusCode::from_u16(self.status)
+                    .unwrap_or(actix_web::http::StatusCode::INTERNAL_SERVER_ERROR)
+            );
             if let Some(retry) = self.retry {
                 builder.insert_header((RETRY_AFTER, retry.after_seconds.to_string()));
             }

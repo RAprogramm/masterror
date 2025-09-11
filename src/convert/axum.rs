@@ -42,14 +42,13 @@
 
 use axum::{
     http::StatusCode,
-    response::{IntoResponse, Response},
-    Json
+    response::{IntoResponse, Response}
 };
 use tracing::error;
 
+use crate::AppError;
 #[cfg(feature = "serde_json")]
 use crate::response::ErrorResponse;
-use crate::AppError;
 
 impl AppError {
     /// Map this error to an HTTP status derived from its [`AppErrorKind`].
@@ -79,7 +78,7 @@ impl IntoResponse for AppError {
         {
             // Build the stable wire contract (includes `code`).
             let body: ErrorResponse = (&self).into();
-            return (status, Json(body)).into_response();
+            return body.into_response();
         }
 
         #[allow(unreachable_code)]
@@ -87,12 +86,12 @@ impl IntoResponse for AppError {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::{AppErrorKind, AppCode};
     use axum::http::StatusCode;
+
+    use super::*;
+    use crate::{AppCode, AppErrorKind};
 
     // --- http_status mapping -------------------------------------------------
 
@@ -111,15 +110,16 @@ mod tests {
     #[cfg(feature = "serde_json")]
     #[tokio::test]
     async fn into_response_builds_json_error_with_code_and_message() {
-        use axum::response::IntoResponse;
-        use axum::body::to_bytes;
+        use axum::{body::to_bytes, response::IntoResponse};
 
         let app_err = AppError::unauthorized("missing token");
         let resp = app_err.into_response();
 
         assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
 
-        let bytes = to_bytes(resp.into_body(), usize::MAX).await.expect("read body");
+        let bytes = to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .expect("read body");
         // Deserialize via our own type to ensure wire contract matches
         let body: crate::response::ErrorResponse =
             serde_json::from_slice(&bytes).expect("json body");
@@ -142,16 +142,16 @@ mod tests {
     #[cfg(not(feature = "serde_json"))]
     #[tokio::test]
     async fn into_response_without_json_has_empty_body() {
-        use axum::response::IntoResponse;
-        use axum::body::to_bytes;
+        use axum::{body::to_bytes, response::IntoResponse};
 
         let app_err = AppError::not_found("nope");
         let resp = app_err.into_response();
 
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 
-        let bytes = to_bytes(resp.into_body(), usize::MAX).await.expect("read body");
+        let bytes = to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .expect("read body");
         assert_eq!(bytes.len(), 0, "body should be empty without serde_json");
     }
 }
-

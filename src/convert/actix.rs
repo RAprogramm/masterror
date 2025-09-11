@@ -61,7 +61,13 @@
 //! See also: Axum integration in [`convert::axum`].
 
 #[cfg(feature = "actix")]
-use actix_web::{HttpResponse, ResponseError, http::StatusCode as ActixStatus};
+use actix_web::{
+    HttpResponse, ResponseError,
+    http::{
+        StatusCode as ActixStatus,
+        header::{RETRY_AFTER, WWW_AUTHENTICATE}
+    }
+};
 
 #[cfg(feature = "actix")]
 use crate::{AppError, ErrorResponse};
@@ -78,19 +84,52 @@ impl ResponseError for AppError {
     /// Produce JSON body with `ErrorResponse`. Does not leak sources.
     fn error_response(&self) -> HttpResponse {
         let body = ErrorResponse::from(self);
-        HttpResponse::build(self.status_code()).json(body)
+        let mut builder = HttpResponse::build(self.status_code());
+        if let Some(retry) = body.retry {
+            builder.insert_header((RETRY_AFTER, retry.after_seconds.to_string()));
+        }
+        if let Some(ref ch) = body.www_authenticate {
+            builder.insert_header((WWW_AUTHENTICATE, ch.as_str()));
+        }
+        builder.json(body)
     }
 }
 
 #[cfg(all(test, feature = "actix"))]
 mod actix_tests {
-    use actix_web::ResponseError;
+    use actix_web::{
+        ResponseError,
+        body::to_bytes,
+        http::header::{RETRY_AFTER, WWW_AUTHENTICATE},
+        rt::System
+    };
 
-    use crate::{AppError, AppErrorKind};
+    use crate::{AppCode, AppError, AppErrorKind, ErrorResponse};
 
     #[test]
     fn maps_status_consistently() {
         let e = AppError::new(AppErrorKind::Validation, "bad");
         assert_eq!(e.status_code().as_u16(), 422);
+    }
+
+    #[test]
+    fn error_response_sets_body_and_headers() {
+        let err = AppError::unauthorized("no token")
+            .with_retry_after_secs(7)
+            .with_www_authenticate("Bearer");
+
+        let resp = err.error_response();
+        assert_eq!(resp.status().as_u16(), 401);
+
+        let headers = resp.headers().clone();
+        assert_eq!(headers.get(RETRY_AFTER).unwrap(), "7");
+        assert_eq!(headers.get(WWW_AUTHENTICATE).unwrap(), "Bearer");
+
+        let bytes = System::new()
+            .block_on(async { to_bytes(resp.into_body(), usize::MAX).await.expect("body") });
+        let body: ErrorResponse = serde_json::from_slice(&bytes).expect("json body");
+        assert_eq!(body.status, 401);
+        assert!(matches!(body.code, AppCode::Unauthorized));
+        assert_eq!(body.message, "no token");
     }
 }
