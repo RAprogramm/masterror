@@ -16,7 +16,9 @@
 //!   (`serde_json::Value` if the `serde_json` feature is enabled, otherwise
 //!   plain text)
 //! - [`retry`](ErrorResponse::retry): optional retry advice, rendered as the
-//!   `Retry-After` header in HTTP adapters
+//!   `Retry-After` header in HTTP adapters; set via
+//!   [`with_retry_after_secs`](ErrorResponse::with_retry_after_secs) or
+//!   [`with_retry_after_duration`](ErrorResponse::with_retry_after_duration)
 //! - [`www_authenticate`](ErrorResponse::www_authenticate): optional
 //!   authentication challenge string, rendered as the `WWW-Authenticate` header
 //!
@@ -27,11 +29,13 @@
 //! # Example
 //!
 //! ```rust
+//! use std::time::Duration;
+//!
 //! use masterror::{AppCode, ErrorResponse};
 //!
 //! let resp = ErrorResponse::new(404, AppCode::NotFound, "User not found")
 //!     .expect("status")
-//!     .with_retry_after_secs(30);
+//!     .with_retry_after_duration(Duration::from_secs(30));
 //! ```
 //!
 //! With `serde_json` enabled:
@@ -55,7 +59,10 @@
 //! stable machine-readable code. A temporary [`ErrorResponse::new_legacy`] is
 //! provided as a deprecated shim.
 
-use std::fmt::{Display, Formatter, Result as FmtResult};
+use std::{
+    fmt::{Display, Formatter, Result as FmtResult},
+    time::Duration
+};
 
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -155,13 +162,37 @@ impl ErrorResponse {
 
     /// Attach retry advice (number of seconds).
     ///
-    /// When present, integrations set the `Retry-After` header automatically.
+    /// See [`with_retry_after_duration`](Self::with_retry_after_duration) for
+    /// using a [`Duration`]. When present, integrations set the `Retry-After`
+    /// header automatically.
     #[must_use]
     pub fn with_retry_after_secs(mut self, secs: u64) -> Self {
         self.retry = Some(RetryAdvice {
             after_seconds: secs
         });
         self
+    }
+
+    /// Attach retry advice as a [`Duration`].
+    ///
+    /// Equivalent to [`with_retry_after_secs`](Self::with_retry_after_secs).
+    /// When present, integrations set the `Retry-After` header automatically.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use masterror::{AppCode, ErrorResponse};
+    ///
+    /// let resp = ErrorResponse::new(503, AppCode::Internal, "retry later")
+    ///     .expect("status")
+    ///     .with_retry_after_duration(Duration::from_secs(60));
+    /// assert_eq!(resp.retry.expect("retry").after_seconds, 60);
+    /// ```
+    #[must_use]
+    pub fn with_retry_after_duration(self, dur: Duration) -> Self {
+        self.with_retry_after_secs(dur.as_secs())
     }
 
     /// Attach an authentication challenge string.
@@ -366,6 +397,16 @@ mod tests {
         assert_eq!(e.status, 401);
         assert_eq!(e.retry.unwrap().after_seconds, 15);
         assert_eq!(e.www_authenticate.as_deref(), Some(r#"Bearer realm="api""#));
+    }
+
+    #[test]
+    fn with_retry_after_duration_attaches_advice() {
+        use std::time::Duration;
+
+        let e = ErrorResponse::new(429, AppCode::RateLimited, "slow down")
+            .expect("status")
+            .with_retry_after_duration(Duration::from_secs(42));
+        assert_eq!(e.retry.unwrap().after_seconds, 42);
     }
 
     #[test]

@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+### Added
+- `ErrorResponse::with_retry_after_duration` helper for specifying retry advice via `Duration`.
+
 ## [0.3.3] - 2025-09-11
 ### Added
 - `ErrorResponse::status_code()` exposing validated `StatusCode`.
