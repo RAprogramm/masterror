@@ -55,6 +55,7 @@
 
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
+use http::StatusCode;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serde_json")]
 use serde_json::Value as JsonValue;
@@ -162,6 +163,24 @@ impl ErrorResponse {
         self.www_authenticate = Some(value.into());
         self
     }
+
+    /// Convert numeric [`status`](ErrorResponse::status) into [`StatusCode`].
+    ///
+    /// Invalid codes default to `StatusCode::INTERNAL_SERVER_ERROR`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use http::StatusCode;
+    /// use masterror::{AppCode, ErrorResponse};
+    ///
+    /// let resp = ErrorResponse::new(404, AppCode::NotFound, "missing");
+    /// assert_eq!(resp.status_code(), StatusCode::NOT_FOUND);
+    /// ```
+    #[must_use]
+    pub fn status_code(&self) -> StatusCode {
+        StatusCode::from_u16(self.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
+    }
 }
 
 /// Legacy constructor retained for migration purposes.
@@ -221,7 +240,7 @@ mod axum_impl {
     use axum::{
         Json,
         http::{
-            HeaderValue, StatusCode,
+            HeaderValue,
             header::{RETRY_AFTER, WWW_AUTHENTICATE}
         },
         response::{IntoResponse, Response}
@@ -232,8 +251,7 @@ mod axum_impl {
 
     impl IntoResponse for ErrorResponse {
         fn into_response(self) -> Response {
-            let status =
-                StatusCode::from_u16(self.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+            let status = self.status_code();
 
             // Serialize JSON body first (borrow self for payload).
             let mut response = (status, Json(&self)).into_response();
@@ -279,10 +297,7 @@ mod actix_impl {
     use actix_web::{
         HttpRequest, HttpResponse, Responder,
         body::BoxBody,
-        http::{
-            StatusCode,
-            header::{RETRY_AFTER, WWW_AUTHENTICATE}
-        }
+        http::header::{RETRY_AFTER, WWW_AUTHENTICATE}
     };
 
     use super::ErrorResponse;
@@ -291,8 +306,7 @@ mod actix_impl {
         type Body = BoxBody;
 
         fn respond_to(self, _req: &HttpRequest) -> HttpResponse {
-            let status =
-                StatusCode::from_u16(self.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+            let status = self.status_code();
 
             let mut builder = HttpResponse::build(status);
             if let Some(retry) = self.retry {
@@ -332,6 +346,17 @@ mod tests {
         assert_eq!(e.status, 401);
         assert_eq!(e.retry.unwrap().after_seconds, 15);
         assert_eq!(e.www_authenticate.as_deref(), Some(r#"Bearer realm="api""#));
+    }
+
+    #[test]
+    fn status_code_maps_invalid_to_internal_server_error() {
+        use http::StatusCode;
+
+        let valid = ErrorResponse::new(404, AppCode::NotFound, "missing");
+        assert_eq!(valid.status_code(), StatusCode::NOT_FOUND);
+
+        let invalid = ErrorResponse::new(1000, AppCode::Internal, "oops");
+        assert_eq!(invalid.status_code(), StatusCode::INTERNAL_SERVER_ERROR);
     }
 
     // --- Details: JSON vs text ----------------------------------------------

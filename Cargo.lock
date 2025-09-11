@@ -1224,6 +1224,7 @@ dependencies = [
  "actix-web",
  "axum",
  "config",
+ "http 0.2.12",
  "redis",
  "reqwest",
  "serde",
