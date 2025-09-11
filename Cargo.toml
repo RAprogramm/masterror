@@ -1,6 +1,6 @@
 [package]
 name = "masterror"
-version = "0.3.2"
+version = "0.3.3"
 rust-version = "1.89"
 edition = "2024"
 description = "Application error types and response mapping"
@@ -57,7 +57,12 @@ reqwest = { version = "0.12", optional = true, default-features = false }
 
 [dev-dependencies]
 serde_json = "1"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "time"], default-features = false }
+tokio = { version = "1", features = [
+  "macros",
+  "rt-multi-thread",
+  "net",
+  "time",
+], default-features = false }
 
 [lib]
 crate-type = ["cdylib", "rlib"]

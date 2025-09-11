@@ -179,8 +179,6 @@ impl ErrorResponse {
     /// Invalid codes default to `StatusCode::INTERNAL_SERVER_ERROR`.
     ///
     /// # Examples
-    ///
-
     /// ```
     /// use http::StatusCode;
     /// use masterror::{AppCode, ErrorResponse};
