@@ -61,7 +61,8 @@
 
 use std::{
     borrow::Cow,
-    fmt::{Display, Formatter, Result as FmtResult}
+    fmt::{Display, Formatter, Result as FmtResult},
+    time::Duration
 };
 
 use http::StatusCode;
