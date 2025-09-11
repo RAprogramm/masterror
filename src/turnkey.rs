@@ -326,6 +326,14 @@ mod tests {
     }
 
     #[test]
+    fn classifier_service_fallback() {
+        assert!(matches!(
+            classify_turnkey_error("unrecognized issue"),
+            TurnkeyErrorKind::Service
+        ));
+    }
+
+    #[test]
     fn contains_nocase_works_without_alloc() {
         assert!(contains_nocase("ABCdef", "cDe"));
         assert!(contains_any_nocase("hello world", &["nope", "WORLD"]));
