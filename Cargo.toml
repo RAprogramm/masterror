@@ -1,6 +1,6 @@
 [package]
 name = "masterror"
-version = "0.3.3"
+version = "0.3.4"
 rust-version = "1.89"
 edition = "2024"
 description = "Application error types and response mapping"

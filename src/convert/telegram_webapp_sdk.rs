@@ -18,6 +18,9 @@
 //!
 //! ## Example
 //!
+//! ```rust
+//! # #[cfg(feature = "telegram-webapp-sdk")]
+//! # {
 //! ```rust,ignore
 //! use masterror::{AppError, AppErrorKind};
 //! use telegram_webapp_sdk::utils::validate_init_data::ValidationError;
@@ -28,6 +31,8 @@
 //!
 //! let e = convert(ValidationError::SignatureMismatch);
 //! assert!(matches!(e.kind, AppErrorKind::TelegramAuth));
+//! assert_eq!(e.message.as_deref(), Some("signature mismatch"));
+//! # }
 //! ```
 
 #[cfg(feature = "telegram-webapp-sdk")]
@@ -53,6 +58,21 @@ mod tests {
     use crate::AppErrorKind;
 
     #[test]
+    fn all_variants_map_to_telegram_auth_and_preserve_message() {
+        let cases = vec![
+            ValidationError::MissingField("hash"),
+            ValidationError::InvalidEncoding,
+            ValidationError::InvalidSignatureEncoding,
+            ValidationError::SignatureMismatch,
+            ValidationError::InvalidPublicKey,
+        ];
+
+        for case in cases {
+            let msg = case.to_string();
+            let app: AppError = case.into();
+            assert!(matches!(app.kind, AppErrorKind::TelegramAuth));
+            assert_eq!(app.message.as_deref(), Some(msg.as_str()));
+        }
     fn validation_error_maps_to_telegram_auth() {
         let err: AppError = ValidationError::SignatureMismatch.into();
         assert!(matches!(err.kind, AppErrorKind::TelegramAuth));
