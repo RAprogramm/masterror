@@ -21,6 +21,7 @@
 //! ```rust
 //! # #[cfg(feature = "telegram-webapp-sdk")]
 //! # {
+//! ```rust,ignore
 //! use masterror::{AppError, AppErrorKind};
 //! use telegram_webapp_sdk::utils::validate_init_data::ValidationError;
 //!
@@ -72,5 +73,8 @@ mod tests {
             assert!(matches!(app.kind, AppErrorKind::TelegramAuth));
             assert_eq!(app.message.as_deref(), Some(msg.as_str()));
         }
+    fn validation_error_maps_to_telegram_auth() {
+        let err: AppError = ValidationError::SignatureMismatch.into();
+        assert!(matches!(err.kind, AppErrorKind::TelegramAuth));
     }
 }

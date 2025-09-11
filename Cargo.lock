@@ -1355,6 +1355,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "masterror"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e7c3a243a6f697e05d0b971c22d0ac029b9080c20b2bbc5f4a3f43ea6024a60"
+dependencies = [
+ "http 1.3.1",
+ "serde",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
 name = "matchit"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2372,7 +2384,7 @@ dependencies = [
  "hex",
  "hmac-sha256",
  "js-sys",
- "masterror 0.3.3",
+ "masterror 0.3",
  "once_cell",
  "percent-encoding",
  "serde",
