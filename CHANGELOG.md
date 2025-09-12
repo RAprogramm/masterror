@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.5] - 2025-09-12
+### Added
+- Conversion from `teloxide_core::RequestError` into `AppError` (feature `teloxide`).
+
 ## [0.3.4] - 2025-09-12
 ### Added
 - `ErrorResponse::with_retry_after_duration` helper for specifying retry advice via `Duration`.
@@ -99,6 +103,7 @@ All notable changes to this project will be documented in this file.
 - **MSRV:** 1.89
 - **No unsafe:** the crate forbids `unsafe`.
 
+[0.3.5]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.5
 [0.3.4]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.4
 [0.3.3]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.3
 [0.3.2]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.2

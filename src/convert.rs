@@ -26,6 +26,7 @@
 //!   manually)
 //! - `sqlx`: database driver errors
 //! - `tokio`: timeouts from `tokio::time::error::Elapsed`
+//! - `teloxide`: Telegram request errors
 //! - `validator`: input DTO validation errors
 //!
 //! ## Design notes
@@ -112,6 +113,10 @@ mod tokio;
 #[cfg(feature = "validator")]
 #[cfg_attr(docsrs, doc(cfg(feature = "validator")))]
 mod validator;
+
+#[cfg(feature = "teloxide")]
+#[cfg_attr(docsrs, doc(cfg(feature = "teloxide")))]
+mod teloxide;
 
 #[cfg(feature = "telegram-webapp-sdk")]
 #[cfg_attr(docsrs, doc(cfg(feature = "telegram-webapp-sdk")))]
