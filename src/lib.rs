@@ -40,6 +40,7 @@
 //! - `config` — `From<config::ConfigError>` mapping
 //! - `tokio` — `From<tokio::time::error::Elapsed>` mapping
 //! - `reqwest` — `From<reqwest::Error>` mapping
+//! - `teloxide` — `From<teloxide_core::RequestError>` mapping
 //! - `telegram-webapp-sdk` —
 //!   `From<telegram_webapp_sdk::utils::validate_init_data::ValidationError>`
 //!   mapping

@@ -26,7 +26,7 @@ masterror = { version = "0.3", default-features = false }
 # or with features:
 # masterror = { version = "0.3", features = [
 #   "axum", "actix", "serde_json", "openapi",
-#   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
+#   "sqlx", "reqwest", "redis", "validator", "config", "tokio", "teloxide"
 # ] }
 ~~~
 
@@ -58,7 +58,7 @@ masterror = { version = "0.3", default-features = false }
 # with Axum/Actix + JSON + integrations
 # masterror = { version = "0.3", features = [
 #   "axum", "actix", "serde_json", "openapi",
-#   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
+#   "sqlx", "reqwest", "redis", "validator", "config", "tokio", "teloxide"
 # ] }
 ~~~
 
@@ -173,7 +173,7 @@ utoipa = "5"
 - `actix` — ResponseError/Responder
 - `openapi` — utoipa schema
 - `serde_json` — JSON details
-- `sqlx`, `redis`, `reqwest`, `validator`, `config`, `tokio`, `multipart`, `telegram-webapp-sdk`
+- `sqlx`, `redis`, `reqwest`, `validator`, `config`, `tokio`, `multipart`, `teloxide`, `telegram-webapp-sdk`
 - `turnkey` — domain taxonomy and conversions for Turnkey errors
 
 </details>
@@ -190,6 +190,7 @@ utoipa = "5"
 - `validator::ValidationErrors` → Validation
 - `config::ConfigError` → Config
 - `tokio::time::error::Elapsed` → Timeout
+- `teloxide_core::RequestError` → RateLimited/Network/ExternalApi/Deserialization/Internal
 - `telegram_webapp_sdk::utils::validate_init_data::ValidationError` → TelegramAuth
 
 </details>
