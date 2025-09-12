@@ -53,11 +53,11 @@ sqlx = { version = "0.8", optional = true, default-features = false, features = 
 redis = { version = "0.32", optional = true, default-features = false }
 validator = { version = "0.20", optional = true, features = ["derive"] }
 config = { version = "0.15", optional = true }
-utoipa = { version = "5.3", optional = true }
+utoipa = { version = "5.4", optional = true }
 tokio = { version = "1", optional = true, features = ["time"] }
 reqwest = { version = "0.12", optional = true, default-features = false }
 teloxide-core = { version = "0.13", optional = true, default-features = false }
-telegram-webapp-sdk = { git = "https://github.com/RAprogramm/telegram-webapp-sdk", rev = "0c5a1d557e1cefe2b37a190c9359be05fe48d41a", optional = true }
+telegram-webapp-sdk = { version = "0.1", optional = true }
 
 [dev-dependencies]
 serde_json = "1"

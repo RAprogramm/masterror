@@ -2689,10 +2689,11 @@ checksum = "20f34339676cdcab560c9a82300c4c2581f68b9369aedf0fae86f2ff9565ff3e"
 
 [[package]]
 name = "telegram-webapp-sdk"
-version = "0.1.0"
-source = "git+https://github.com/RAprogramm/telegram-webapp-sdk?rev=0c5a1d557e1cefe2b37a190c9359be05fe48d41a#0c5a1d557e1cefe2b37a190c9359be05fe48d41a"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "80632ebd5e273b42ddff5f444be5d6e2d7976a283008853a3b3af6a183f936e3"
 dependencies = [
- "base64 0.21.7",
+ "base64 0.22.1",
  "ed25519-dalek",
  "hex",
  "hmac-sha256",
