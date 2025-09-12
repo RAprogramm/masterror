@@ -18,10 +18,10 @@
 //!
 //! ## Example
 //!
-//! ```rust
+//! '''rust
 //! # #[cfg(feature = "telegram-webapp-sdk")]
 //! # {
-//! ```rust,ignore
+//! '''rust,ignore
 //! use masterror::{AppError, AppErrorKind};
 //! use telegram_webapp_sdk::utils::validate_init_data::ValidationError;
 //!
@@ -33,7 +33,7 @@
 //! assert!(matches!(e.kind, AppErrorKind::TelegramAuth));
 //! assert_eq!(e.message.as_deref(), Some("signature mismatch"));
 //! # }
-//! ```
+//! '''
 
 #[cfg(feature = "telegram-webapp-sdk")]
 use telegram_webapp_sdk::utils::validate_init_data::ValidationError;

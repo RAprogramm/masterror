@@ -14,13 +14,13 @@ keywords = ["error", "api", "framework"]
 
 [features]
 default = []
-axum = ["dep:axum", "dep:serde_json"]       # IntoResponse + JSON body
+axum = ["dep:axum", "dep:serde_json"]             # IntoResponse + JSON body
 actix = ["dep:actix-web", "dep:serde_json"]
 sqlx = ["dep:sqlx"]
 redis = ["dep:redis"]
 validator = ["dep:validator"]
 serde_json = ["dep:serde_json"]
-config = ["dep:config"]                     # config::ConfigError -> AppError
+config = ["dep:config"]                           # config::ConfigError -> AppError
 multipart = ["axum"]
 tokio = ["dep:tokio"]
 reqwest = ["dep:reqwest"]
