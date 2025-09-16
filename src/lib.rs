@@ -44,6 +44,8 @@
 //! - `telegram-webapp-sdk` —
 //!   `From<telegram_webapp_sdk::utils::validate_init_data::ValidationError>`
 //!   mapping
+//! - `frontend` — convert errors into `wasm_bindgen::JsValue` and emit
+//!   `console.error` logs in WASM/browser contexts
 //! - `serde_json` — support for structured JSON details in [`ErrorResponse`];
 //!   also pulled transitively by `axum`
 //! - `multipart` — compatibility flag for Axum multipart
@@ -185,6 +187,10 @@ mod code;
 mod convert;
 mod kind;
 mod response;
+
+#[cfg(feature = "frontend")]
+#[cfg_attr(docsrs, doc(cfg(feature = "frontend")))]
+pub mod frontend;
 
 #[cfg(feature = "turnkey")]
 #[cfg_attr(docsrs, doc(cfg(feature = "turnkey")))]

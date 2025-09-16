@@ -22,14 +22,15 @@ Stable categories, conservative HTTP mapping, no `unsafe`.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.3", default-features = false }
+masterror = { version = "0.4", default-features = false }
 # or with features:
-# masterror = { version = "0.3", features = [
+# masterror = { version = "0.4", features = [
 #   "axum", "actix", "serde_json", "openapi",
 #   "sqlx", "reqwest", "redis", "validator", "config", "tokio", "teloxide"
 # ] }
 ~~~
 
+*Since v0.4.0: optional `frontend` feature for WASM/browser console logging.*
 *Since v0.3.0: stable `AppCode` enum and extended `ErrorResponse` with retry/authentication metadata.*
 
 ---
@@ -53,10 +54,10 @@ masterror = { version = "0.3", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.3", default-features = false }
+masterror = { version = "0.4", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.3", features = [
+# masterror = { version = "0.4", features = [
 #   "axum", "actix", "serde_json", "openapi",
 #   "sqlx", "reqwest", "redis", "validator", "config", "tokio", "teloxide"
 # ] }
@@ -160,9 +161,34 @@ async fn payload() -> impl Responder {
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.3", features = ["openapi", "serde_json"] }
+masterror = { version = "0.4", features = ["openapi", "serde_json"] }
 utoipa = "5"
 ~~~
+
+</details>
+
+<details>
+  <summary><b>Browser (WASM)</b></summary>
+
+~~~rust
+// features = ["frontend"]
+use masterror::{AppError, AppErrorKind};
+use masterror::frontend::{BrowserConsoleError, BrowserConsoleExt};
+
+fn report() -> Result<(), BrowserConsoleError> {
+    let err = AppError::bad_request("missing field");
+    let payload = err.to_js_value()?;
+    assert!(payload.is_object());
+
+    #[cfg(target_arch = "wasm32")]
+    err.log_to_browser_console()?;
+
+    Ok(())
+}
+~~~
+
+- On non-WASM targets `log_to_browser_console` returns
+  `BrowserConsoleError::UnsupportedTarget`.
 
 </details>
 
@@ -174,6 +200,7 @@ utoipa = "5"
 - `openapi` — utoipa schema
 - `serde_json` — JSON details
 - `sqlx`, `redis`, `reqwest`, `validator`, `config`, `tokio`, `multipart`, `teloxide`, `telegram-webapp-sdk`
+- `frontend` — convert errors into `JsValue` and log via `console.error` (WASM)
 - `turnkey` — domain taxonomy and conversions for Turnkey errors
 
 </details>
@@ -201,13 +228,13 @@ utoipa = "5"
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.3", default-features = false }
+masterror = { version = "0.4", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.3", features = [
+masterror = { version = "0.4", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -216,7 +243,7 @@ masterror = { version = "0.3", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.3", features = [
+masterror = { version = "0.4", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }

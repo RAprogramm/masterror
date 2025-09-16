@@ -3,6 +3,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-09-15
+### Added
+- Optional `frontend` feature:
+  - Converts [`AppError`] and [`ErrorResponse`] into `wasm_bindgen::JsValue` for browser contexts.
+  - Logs structured errors to the browser console via `console.error`.
+- `BrowserConsoleError` and `BrowserConsoleExt` API for WASM front-ends.
+
+### Documentation
+- Documented browser/WASM support and console logging workflow in the README and crate docs.
+
 ## [0.3.5] - 2025-09-12
 ### Added
 - Conversion from `teloxide_core::RequestError` into `AppError` (feature `teloxide`).
@@ -111,4 +121,5 @@ All notable changes to this project will be documented in this file.
 [0.3.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.0
 [0.2.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.2.1
 [0.2.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.2.0
+[0.4.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.4.0
 
