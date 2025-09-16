@@ -10,7 +10,7 @@
 //! - [`AppError`] — thin wrapper around a semantic error kind and optional
 //!   message
 //! - [`AppErrorKind`] — stable internal taxonomy of application errors
-//! - [`AppResult`] — convenience alias `Result<T, AppError>`
+//! - [`AppResult`] — convenience alias for returning [`AppError`]
 //! - [`ErrorResponse`] — stable wire-level JSON payload for HTTP APIs
 //! - [`AppCode`] — public, machine-readable error code for clients
 //!
@@ -44,6 +44,8 @@
 //! - `telegram-webapp-sdk` —
 //!   `From<telegram_webapp_sdk::utils::validate_init_data::ValidationError>`
 //!   mapping
+//! - `frontend` — convert errors into `wasm_bindgen::JsValue` and emit
+//!   `console.error` logs in WASM/browser contexts
 //! - `serde_json` — support for structured JSON details in [`ErrorResponse`];
 //!   also pulled transitively by `axum`
 //! - `multipart` — compatibility flag for Axum multipart
@@ -185,6 +187,10 @@ mod code;
 mod convert;
 mod kind;
 mod response;
+
+#[cfg(feature = "frontend")]
+#[cfg_attr(docsrs, doc(cfg(feature = "frontend")))]
+pub mod frontend;
 
 #[cfg(feature = "turnkey")]
 #[cfg_attr(docsrs, doc(cfg(feature = "turnkey")))]

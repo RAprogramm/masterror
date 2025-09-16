@@ -46,9 +46,9 @@
 //! ```rust
 //! use std::io::{self, ErrorKind};
 //!
-//! use masterror::{AppError, AppErrorKind};
+//! use masterror::{AppError, AppErrorKind, AppResult};
 //!
-//! fn open() -> Result<(), AppError> {
+//! fn open() -> AppResult<()> {
 //!     let _ = io::Error::new(ErrorKind::Other, "boom");
 //!     Err(io::Error::from(ErrorKind::Other).into())
 //! }
@@ -61,9 +61,9 @@
 //! feature):
 //!
 //! ```rust
-//! use masterror::{AppError, AppErrorKind};
+//! use masterror::{AppError, AppErrorKind, AppResult};
 //!
-//! fn validate(x: i32) -> Result<(), AppError> {
+//! fn validate(x: i32) -> AppResult<()> {
 //!     if x < 0 {
 //!         return Err(String::from("must be non-negative").into());
 //!     }
@@ -149,9 +149,9 @@ impl From<IoError> for AppError {
 /// Prefer structured validation for complex DTOs, but this covers simple cases.
 ///
 /// ```rust
-/// use masterror::{AppError, AppErrorKind};
+/// use masterror::{AppError, AppErrorKind, AppResult};
 ///
-/// fn check(name: &str) -> Result<(), AppError> {
+/// fn check(name: &str) -> AppResult<()> {
 ///     if name.is_empty() {
 ///         return Err(String::from("name must not be empty").into());
 ///     }

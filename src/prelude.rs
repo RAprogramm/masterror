@@ -35,7 +35,7 @@ pub use crate::AppCode;
 pub use crate::AppError;
 /// High-level taxonomy of application errors (stable categories).
 pub use crate::AppErrorKind;
-/// Convenience alias `Result<T, AppError>` used in handlers/services.
+/// Convenience alias for returning [`AppError`] from handlers/services.
 pub use crate::AppResult;
 /// Stable wire-level error payload for HTTP APIs.
 pub use crate::ErrorResponse;

@@ -19,7 +19,7 @@
 //! ## Example
 //!
 //! ```rust,ignore
-//! use masterror::{AppError, AppErrorKind};
+//! use masterror::{AppError, AppErrorKind, AppResult};
 //! use validator::{Validate, ValidationError};
 //!
 //! #[derive(Validate)]
@@ -28,7 +28,7 @@
 //!     name: String,
 //! }
 //!
-//! fn validate_payload(p: Payload) -> Result<(), AppError> {
+//! fn validate_payload(p: Payload) -> AppResult<()> {
 //!     p.validate()?;
 //!     Ok(())
 //! }
