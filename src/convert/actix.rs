@@ -5,7 +5,7 @@
 //!
 //! ## What it does
 //! - Implements `actix_web::ResponseError` for [`AppError`].
-//!   - This lets you `return Result<_, AppError>` from Actix handlers.
+//!   - This lets you `return AppResult<_>` from Actix handlers.
 //!   - On error, Actix automatically builds an `HttpResponse` with the right
 //!     status code and JSON body (when the `serde_json` feature is enabled).
 //! - Provides stable mapping from [`AppErrorKind`] to
