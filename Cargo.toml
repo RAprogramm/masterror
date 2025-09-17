@@ -19,13 +19,13 @@ members = ["masterror-derive"]
 
 [features]
 default = []
-axum = ["dep:axum", "dep:serde_json"]             # IntoResponse + JSON body
+axum = ["dep:axum", "dep:serde_json"]                                   # IntoResponse + JSON body
 actix = ["dep:actix-web", "dep:serde_json"]
 sqlx = ["dep:sqlx"]
 redis = ["dep:redis"]
 validator = ["dep:validator"]
 serde_json = ["dep:serde_json"]
-config = ["dep:config"]                           # config::ConfigError -> AppError
+config = ["dep:config"]                                                 # config::ConfigError -> AppError
 multipart = ["axum"]
 tokio = ["dep:tokio"]
 reqwest = ["dep:reqwest"]
@@ -63,7 +63,7 @@ utoipa = { version = "5.4", optional = true }
 tokio = { version = "1", optional = true, features = ["time"] }
 reqwest = { version = "0.12", optional = true, default-features = false }
 teloxide-core = { version = "0.13", optional = true, default-features = false }
-telegram-webapp-sdk = { version = "0.1", optional = true }
+telegram-webapp-sdk = { version = "0.2", optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 js-sys = { version = "0.3", optional = true }
 serde-wasm-bindgen = { version = "0.6", optional = true }
@@ -77,7 +77,7 @@ tokio = { version = "1", features = [
   "time",
 ], default-features = false }
 
-toml = "0.8"
+toml = "0.9"
 
 [build-dependencies]
 serde = { version = "1", features = ["derive"] }

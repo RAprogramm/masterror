@@ -14,8 +14,9 @@ fn readme_is_in_sync() -> Result<(), Box<dyn Error>> {
     let actual = fs::read_to_string(&readme_path)?;
 
     if actual != generated {
-        let message = "README.md is out of date; run `cargo build` to regenerate";
-        return Err(io::Error::new(io::ErrorKind::Other, message).into());
+        // Use std::io::Error::other to satisfy clippy::io-other-error
+        let msg = "README.md is out of date; run `cargo build` to regenerate";
+        return Err(io::Error::other(msg).into());
     }
 
     Ok(())

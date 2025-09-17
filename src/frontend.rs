@@ -1,3 +1,5 @@
+#![allow(unused_variables)]
+
 //! Browser/WASM helpers for converting application errors into JavaScript
 //! values.
 //!
