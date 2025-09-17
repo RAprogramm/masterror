@@ -13,10 +13,6 @@ categories = ["rust-patterns", "web-programming"]
 keywords = ["error", "api", "framework"]
 
 
-[workspace]
-members = ["masterror-derive"]
-
-
 [features]
 default = []
 axum = ["dep:axum", "dep:serde_json"]                                   # IntoResponse + JSON body
@@ -37,7 +33,7 @@ turnkey = []
 openapi = ["dep:utoipa"]
 
 [dependencies]
-masterror-derive = { path = "masterror-derive", version = "0.1.0" }
+thiserror = "1"
 tracing = "0.1"
 
 serde = { version = "1", features = ["derive"] }
