@@ -63,7 +63,7 @@ jobs:
             exit 1
           fi
 
-      # ---------- README: regenerate early, normalize, then check ----------
+      # ---------- README: regenerate early, normalize, then handle drift ----------
       - name: Regenerate README via build.rs (MSRV, deterministic)
         shell: bash
         run: |
@@ -75,19 +75,23 @@ jobs:
           export SOURCE_DATE_EPOCH=0
           cargo +${{ steps.msrv.outputs.msrv }} build --workspace -q || cargo +${{ steps.msrv.outputs.msrv }} build -q
 
-      - name: Normalize README (ensure trailing newline)
+      - name: Normalize README (ensure trailing newline) — bash only
         if: hashFiles('README.md') != ''
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-            from pathlib import Path
-            p = Path("README.md")
-            if p.exists():
-              s = p.read_text(encoding="utf-8")
-              if not s.endswith("\n"):
-                p.write_text(s + "\n", encoding="utf-8")
-            PY
+          if [ -f README.md ]; then
+            # If file non-empty and last byte is not '\n', append one
+            if [ -s README.md ]; then
+              last_byte="$(tail -c1 README.md 2>/dev/null || true)"
+              if [ "$last_byte" != $'\n' ]; then
+                printf '\n' >> README.md
+              fi
+            else
+              # empty file: keep as is
+              :
+            fi
+          fi
 
       # Report drift on PRs but do NOT fail
       - name: README drift report (PR)
@@ -120,7 +124,7 @@ jobs:
           git add README.md
           git commit -m "chore(readme): auto-refresh [skip ci]"
           git push
-      # --------------------------------------------------------------------
+      # --------------------------------------------------------------------------
 
       - name: Check formatting (nightly rustfmt)
         run: cargo +nightly-2025-08-01 fmt --all -- --check
