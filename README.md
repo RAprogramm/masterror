@@ -302,3 +302,24 @@ MSRV = 1.89 (may raise in minor, never in patch).
 Apache-2.0 OR MIT, at your option.
 
 </details>
+
+
+[![Open Issues](https://img.shields.io/github/issues/RAprogramm/masterror?label=Open%20Issues&color=informational)](https://github.com/RAprogramm/masterror/issues)
+[![Closed Issues](https://img.shields.io/github/issues-closed/RAprogramm/masterror?label=Closed%20Issues&color=success)](https://github.com/RAprogramm/masterror/issues?q=is%3Aissue+is%3Aclosed)
+[![Open PRs](https://img.shields.io/github/issues-pr/RAprogramm/masterror?label=Open%20PRs&color=blueviolet)](https://github.com/RAprogramm/masterror/pulls)
+[![Closed PRs](https://img.shields.io/github/issues-pr-closed/RAprogramm/masterror?label=Closed%20PRs&color=success)](https://github.com/RAprogramm/masterror/pulls?q=is%3Apr+is%3Aclosed)
+[![Last Commit](https://img.shields.io/github/last-commit/RAprogramm/masterror?color=yellowgreen&label=Last%20Commit)](https://github.com/RAprogramm/masterror/commits/main)
+[![Repo Size](https://img.shields.io/github/repo-size/RAprogramm/masterror?label=Repo%20Size)](https://github.com/RAprogramm/masterror)
+[![License](https://img.shields.io/github/license/RAprogramm/masterror)](./LICENSE)
+[![Contributors](https://img.shields.io/github/contributors/RAprogramm/masterror)](https://github.com/RAprogramm/masterror/graphs/contributors)
+
+[![Format](https://github.com/RAprogramm/masterror/actions/workflows/format.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/format.yml)
+[![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml)
+[![Deploy Status](https://img.shields.io/github/deployments/RAprogramm/masterror/production?label=deploy&color=blue)](https://github.com/RAprogramm/masterror/deployments)
+
+---
+
+## 📊 Project Insights
+
+![Issues Graph](https://github-readme-stats.vercel.app/api/pin/?username=RAprogramm&repo=masterror&theme=default)
+![Activity Graph](https://github-readme-activity-graph.vercel.app/graph?username=RAprogramm&repo=masterror&theme=github)
