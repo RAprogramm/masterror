@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [0.5.0] - 2025-09-23
+
 ### Added
 - Re-exported `thiserror::Error` as `masterror::Error`, making it possible to
   derive domain errors without an extra dependency. The derive supports
@@ -138,6 +142,8 @@ All notable changes to this project will be documented in this file.
 - **MSRV:** 1.89
 - **No unsafe:** the crate forbids `unsafe`.
 
+[0.5.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.5.0
+[0.4.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.4.0
 [0.3.5]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.5
 [0.3.4]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.4
 [0.3.3]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.3
@@ -146,5 +152,4 @@ All notable changes to this project will be documented in this file.
 [0.3.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.0
 [0.2.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.2.1
 [0.2.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.2.0
-[0.4.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.4.0
 
