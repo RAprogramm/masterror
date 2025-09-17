@@ -247,6 +247,18 @@ MSRV = 1.89 (may raise in minor, never in patch).
 </details>
 
 <details>
+  <summary><b>Release checklist</b></summary>
+
+1. `cargo +nightly fmt --`
+1. `cargo clippy -- -D warnings`
+1. `cargo test --all`
+1. `cargo build` (regenerates README.md from the template)
+1. `cargo doc --no-deps`
+1. `cargo package --locked`
+
+</details>
+
+<details>
   <summary><b>Non-goals</b></summary>
 
 - Not a general-purpose error aggregator like `anyhow`
