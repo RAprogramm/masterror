@@ -37,7 +37,7 @@ turnkey = []
 openapi = ["dep:utoipa"]
 
 [dependencies]
-masterror-derive = { path = "masterror-derive" }
+masterror-derive = { path = "masterror-derive", version = "0.1.0" }
 tracing = "0.1"
 
 serde = { version = "1", features = ["derive"] }
