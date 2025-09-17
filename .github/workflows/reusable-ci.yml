@@ -85,14 +85,15 @@ jobs:
             cargo +${{ steps.msrv.outputs.msrv }} test --workspace --no-fail-fast
           fi
 
-      # NEW: если какой-то умник всё-таки трогает README в ходе тестов — откатываем
-      - name: Reset generated files (README)
+      # Guard against stale README output
+      - name: Check generated README freshness
         shell: bash
         run: |
           set -euo pipefail
           if ! git diff --quiet -- README.md; then
-            echo "::warning:: README.md was modified during build/tests. Resetting to HEAD."
-            git restore --source=HEAD --worktree -- README.md || git checkout -- README.md
+            echo "README.md is out of date. Run 'cargo build' (or the designated regeneration command) and commit the refreshed README."
+            git status --short -- README.md
+            exit 1
           fi
 
       - name: Ensure tree is clean before package
