@@ -10,7 +10,7 @@
 //! - [`AppError`] — thin wrapper around a semantic error kind and optional
 //!   message
 //! - [`AppErrorKind`] — stable internal taxonomy of application errors
-//! - [`AppResult`] — convenience result alias (defaults to [`AppError`])
+//! - [`AppResult`] — convenience alias for returning [`AppError`]
 //! - [`ErrorResponse`] — stable wire-level JSON payload for HTTP APIs
 //! - [`AppCode`] — public, machine-readable error code for clients
 //!
