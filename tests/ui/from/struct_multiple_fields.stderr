@@ -1,0 +1,5 @@
+error: using #[from] in struct `BadStruct` requires exactly one field
+ --> tests/ui/from/struct_multiple_fields.rs:6:5
+  |
+6 |     #[from]
+  |     ^

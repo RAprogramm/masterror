@@ -1,0 +1,5 @@
+error: variant `Two` marked with #[from] must contain exactly one field
+ --> tests/ui/from/variant_multiple_fields.rs:6:5
+  |
+6 |     #[from]
+  |     ^
