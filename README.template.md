@@ -32,7 +32,7 @@ masterror = { version = "{{CRATE_VERSION}}", default-features = false }
 # ] }
 ~~~
 
-*Unreleased: derive custom errors via `#[derive(Error)]` (`use masterror::Error;`) and inspect browser logging failures with `BrowserConsoleError::context()`.*
+*Since v0.5.0: derive custom errors via `#[derive(Error)]` (`use masterror::Error;`) and inspect browser logging failures with `BrowserConsoleError::context()`.*
 *Since v0.4.0: optional `frontend` feature for WASM/browser console logging.*
 *Since v0.3.0: stable `AppCode` enum and extended `ErrorResponse` with retry/authentication metadata.*
 
