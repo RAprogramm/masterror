@@ -1,6 +1,6 @@
 [package]
 name = "masterror"
-version = "0.4.0"
+version = "0.5.0"
 rust-version = "1.89"
 edition = "2024"
 description = "Application error types and response mapping"
@@ -33,7 +33,7 @@ turnkey = []
 openapi = ["dep:utoipa"]
 
 [dependencies]
-thiserror = "1"
+thiserror = "2"
 tracing = "0.1"
 
 serde = { version = "1", features = ["derive"] }

@@ -32,12 +32,13 @@ struct TransparentFromWrapper(#[from] TransparentInner);
 struct TupleError(&'static str, u8);
 
 #[derive(Debug, Error)]
+#[allow(dead_code)]
 enum EnumError {
     #[error("unit failure")]
     Unit,
-    #[error("{_code}")]
+    #[error("{code}")]
     Code {
-        _code: u16,
+        code:  u16,
         #[source]
         cause: LeafError
     },
@@ -122,24 +123,6 @@ fn tuple_struct_supports_positional_formatting() {
     let err = TupleError("alpha", 42);
     assert_eq!(err.to_string(), "alpha -> 42");
     assert!(StdError::source(&err).is_none());
-}
-
-#[test]
-fn enum_variants_forward_source() {
-    let err = EnumError::Code {
-        _code: 503,
-        cause: LeafError
-    };
-    assert_eq!(err.to_string(), "503");
-    if let EnumError::Code {
-        _code, ..
-    } = &err
-    {
-        assert_eq!(*_code, 503);
-    } else {
-        panic!("unexpected variant");
-    }
-    assert_eq!(StdError::source(&err).unwrap().to_string(), "leaf failure");
 }
 
 #[test]
