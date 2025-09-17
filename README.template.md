@@ -1,6 +1,7 @@
 # masterror · Framework-agnostic application error types
 
-<!-- ⚠️ GENERATED FILE: edit README.template.md and run `cargo build` to refresh README.md before publishing. -->
+<!-- ⚠️ GENERATED FILE: edit README.template.md and run `cargo build` to refresh README.md before publishing.
+     CI packaging will fail if README.md is stale. -->
 
 [![Crates.io](https://img.shields.io/crates/v/masterror)](https://crates.io/crates/masterror)
 [![docs.rs](https://img.shields.io/docsrs/masterror)](https://docs.rs/masterror)
