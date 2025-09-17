@@ -202,4 +202,26 @@ pub mod prelude;
 pub use app_error::{AppError, AppResult};
 pub use code::AppCode;
 pub use kind::AppErrorKind;
+/// Derive macro replicating the ergonomics of `thiserror::Error`.
+///
+/// ```
+/// use std::error::Error as StdError;
+///
+/// use masterror::Error;
+///
+/// #[derive(Debug, Error)]
+/// #[error("{code}: {message}")]
+/// struct MiniError {
+///     code:    u16,
+///     message: &'static str
+/// }
+///
+/// let err = MiniError {
+///     code:    500,
+///     message: "boom"
+/// };
+/// assert_eq!(err.to_string(), "500: boom");
+/// assert!(StdError::source(&err).is_none());
+/// ```
+pub use masterror_derive::Error;
 pub use response::{ErrorResponse, RetryAdvice};

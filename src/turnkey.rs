@@ -28,9 +28,7 @@
 //! assert!(matches!(k, TurnkeyErrorKind::UniqueLabel));
 //! ```
 
-use thiserror::Error;
-
-use crate::{AppError, AppErrorKind};
+use crate::{AppError, AppErrorKind, Error};
 
 /// High-level, stable Turnkey error categories.
 ///

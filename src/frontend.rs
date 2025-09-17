@@ -37,12 +37,11 @@
 use js_sys::{Function, Reflect};
 #[cfg(target_arch = "wasm32")]
 use serde_wasm_bindgen::to_value;
-use thiserror::Error;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 
-use crate::{AppError, AppResult, ErrorResponse};
+use crate::{AppError, AppResult, Error, ErrorResponse};
 
 /// Error returned when emitting to the browser console fails or is unsupported.
 #[derive(Debug, Error, PartialEq, Eq)]
