@@ -172,10 +172,10 @@ utoipa = "5"
 
 ~~~rust
 // features = ["frontend"]
-use masterror::{AppError, AppErrorKind};
+use masterror::{AppError, AppErrorKind, AppResult};
 use masterror::frontend::{BrowserConsoleError, BrowserConsoleExt};
 
-fn report() -> Result<(), BrowserConsoleError> {
+fn report() -> AppResult<(), BrowserConsoleError> {
     let err = AppError::bad_request("missing field");
     let payload = err.to_js_value()?;
     assert!(payload.is_object());
