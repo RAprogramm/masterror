@@ -1,6 +1,6 @@
 # masterror · Framework-agnostic application error types
 
-<!-- This file is used to generate README.md. Edit README.template.md and run `cargo build` to refresh the published README. -->
+<!-- ⚠️ GENERATED FILE: edit README.template.md and run `cargo build` to refresh README.md before publishing. -->
 
 [![Crates.io](https://img.shields.io/crates/v/masterror)](https://crates.io/crates/masterror)
 [![docs.rs](https://img.shields.io/docsrs/masterror)](https://docs.rs/masterror)
