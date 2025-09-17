@@ -1,8 +1,8 @@
-error: using #[error(transparent)] in struct `TransparentUnit` requires exactly one field
+error: #[error(transparent)] requires exactly one field
  --> tests/ui/transparent/struct_no_fields.rs:4:1
   |
 4 | #[error(transparent)]
-  | ^
+  | ^^^^^^^^^^^^^^^^^^^^^
 
 error[E0601]: `main` function not found in crate `$CRATE`
  --> tests/ui/transparent/struct_no_fields.rs:5:24

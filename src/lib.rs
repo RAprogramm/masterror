@@ -202,6 +202,8 @@ pub mod prelude;
 pub use app_error::{AppError, AppResult};
 pub use code::AppCode;
 pub use kind::AppErrorKind;
+pub use response::{ErrorResponse, RetryAdvice};
+#[cfg_attr(docsrs, doc(cfg(feature = "derive")))]
 /// Derive macro replicating the ergonomics of `thiserror::Error`.
 ///
 /// ```
@@ -223,5 +225,4 @@ pub use kind::AppErrorKind;
 /// assert_eq!(err.to_string(), "500: boom");
 /// assert!(StdError::source(&err).is_none());
 /// ```
-pub use masterror_derive::Error;
-pub use response::{ErrorResponse, RetryAdvice};
+pub use thiserror::Error;

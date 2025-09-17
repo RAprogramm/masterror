@@ -64,8 +64,15 @@ struct TupleWrapper(
 #[derive(Debug, Error)]
 #[error("message: {message}")]
 struct MessageWrapper {
-    #[from]
     message: String
+}
+
+impl From<String> for MessageWrapper {
+    fn from(message: String) -> Self {
+        Self {
+            message
+        }
+    }
 }
 
 #[derive(Debug, Error)]
@@ -77,8 +84,11 @@ enum MixedFromError {
         LeafError
     ),
     #[error("variant attr {0}")]
-    #[from]
-    VariantAttr(#[source] PrimaryError),
+    VariantAttr(
+        #[from]
+        #[source]
+        PrimaryError
+    ),
     #[error("named variant {source:?}")]
     Named {
         #[from]
@@ -92,8 +102,7 @@ enum TransparentEnum {
     #[error("opaque {0}")]
     Opaque(&'static str),
     #[error(transparent)]
-    #[from]
-    TransparentVariant(TransparentInner)
+    TransparentVariant(#[from] TransparentInner)
 }
 
 #[test]
