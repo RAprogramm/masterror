@@ -32,7 +32,6 @@ struct TransparentFromWrapper(#[from] TransparentInner);
 struct TupleError(&'static str, u8);
 
 #[derive(Debug, Error)]
-#[allow(dead_code)]
 enum EnumError {
     #[error("unit failure")]
     Unit,
@@ -126,11 +125,21 @@ fn tuple_struct_supports_positional_formatting() {
 }
 
 #[test]
-fn tuple_variant_with_source() {
-    let err = EnumError::Pair("left".into(), LeafError);
-    let _unit = EnumError::Unit;
-    assert!(err.to_string().starts_with("left"));
-    assert_eq!(StdError::source(&err).unwrap().to_string(), "leaf failure");
+fn enum_variants_cover_display_and_source() {
+    let unit = EnumError::Unit;
+    assert_eq!(unit.to_string(), "unit failure");
+    assert!(StdError::source(&unit).is_none());
+
+    let code = EnumError::Code {
+        code:  503,
+        cause: LeafError
+    };
+    assert_eq!(code.to_string(), "503");
+    assert_eq!(StdError::source(&code).unwrap().to_string(), "leaf failure");
+
+    let pair = EnumError::Pair("left".into(), LeafError);
+    assert!(pair.to_string().starts_with("left"));
+    assert_eq!(StdError::source(&pair).unwrap().to_string(), "leaf failure");
 }
 
 #[test]
