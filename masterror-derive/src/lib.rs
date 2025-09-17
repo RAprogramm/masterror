@@ -21,8 +21,6 @@ use syn::{
 /// Derive [`std::error::Error`] and [`core::fmt::Display`] for structs and
 /// enums.
 ///
-/// ```
-/// use masterror_derive::Error;
 ///
 /// #[derive(Debug, Error)]
 /// #[error("{code}: {message}")]
