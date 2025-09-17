@@ -75,6 +75,7 @@ tokio = { version = "1", features = [
 trybuild = "1"
 
 toml = "0.9"
+tempfile = "3"
 
 [build-dependencies]
 serde = { version = "1", features = ["derive"] }

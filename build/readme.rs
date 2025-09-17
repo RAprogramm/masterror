@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs, io,
-    path::Path
+    path::{Path, PathBuf}
 };
 
 use serde::Deserialize;
@@ -26,7 +26,9 @@ pub enum ReadmeError {
     /// Feature snippet group must be greater than zero.
     InvalidSnippetGroup,
     /// Placeholder in the template was not substituted.
-    UnresolvedPlaceholder(String)
+    UnresolvedPlaceholder(String),
+    /// README on disk differs from generated template output.
+    OutOfSync { path: PathBuf }
 }
 
 impl std::fmt::Display for ReadmeError {
@@ -61,6 +63,15 @@ impl std::fmt::Display for ReadmeError {
                 write!(
                     f,
                     "Template placeholder '{{{{{name}}}}}' was not substituted"
+                )
+            }
+            Self::OutOfSync {
+                path
+            } => {
+                write!(
+                    f,
+                    "README at {} is out of sync; run `cargo build` in the repository root to refresh it",
+                    path.display()
                 )
             }
         }
@@ -208,6 +219,36 @@ pub fn sync_readme(manifest_dir: &Path) -> Result<(), ReadmeError> {
     let output_path = manifest_dir.join("README.md");
     let readme = generate_readme(&manifest_path, &template_path)?;
     write_if_changed(&output_path, &readme)
+}
+
+/// Verify that README.md matches the generated output without writing to disk.
+///
+/// # Errors
+///
+/// Returns an error if the README differs from the generated template or if any
+/// IO/TOML operations fail.
+///
+/// # Examples
+///
+/// ```ignore
+/// use std::path::Path;
+///
+/// let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+/// build::readme::verify_readme(manifest_dir)?;
+/// ```
+pub(crate) fn verify_readme(manifest_dir: &Path) -> Result<(), ReadmeError> {
+    let manifest_path = manifest_dir.join("Cargo.toml");
+    let template_path = manifest_dir.join("README.template.md");
+    let output_path = manifest_dir.join("README.md");
+    let readme = generate_readme(&manifest_path, &template_path)?;
+    let actual = fs::read_to_string(&output_path)?;
+    if actual == readme {
+        Ok(())
+    } else {
+        Err(ReadmeError::OutOfSync {
+            path: output_path
+        })
+    }
 }
 
 fn collect_feature_docs(
