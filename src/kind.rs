@@ -38,11 +38,13 @@
 #[cfg(feature = "axum")]
 use axum::http::StatusCode;
 
+use crate::Error;
+
 /// Canonical application error taxonomy.
 ///
 /// Keep it small, stable, and framework-agnostic. Each variant has a clear,
 /// documented meaning and a predictable mapping to an HTTP status code.
-#[derive(Debug, thiserror::Error, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Error, Clone, Copy, PartialEq, Eq)]
 pub enum AppErrorKind {
     // ── Generic, client-visible failures (4xx/5xx) ────────────────────────────
     /// Resource does not exist or is not visible to the caller.
