@@ -4,8 +4,29 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- `#[error(transparent)]` support in the derive macro: validates wrapper shape,
-  delegates `Display`/`source` to the inner error, and works with `#[from]`.
+- Re-exported `thiserror::Error` as `masterror::Error`, making it possible to
+  derive domain errors without an extra dependency. The derive supports
+  `#[from]` conversions, validates `#[error(transparent)]` wrappers, and mirrors
+  `thiserror`'s ergonomics.
+- Added `BrowserConsoleError::context()` for retrieving browser-provided
+  diagnostics when console logging fails.
+
+### Changed
+- README generation now pulls from crate metadata via the build script while
+  staying inert during `cargo package`, preventing dirty worktrees in release
+  workflows.
+
+### Documentation
+- Documented deriving custom errors via `masterror::Error` and expanded the
+  browser console section with context-handling guidance.
+- Added a release checklist and described the automated README sync process.
+
+### Tests
+- Added regression tests covering derive behaviour (including `#[from]` and
+  transparent wrappers) and ensuring the README stays in sync with its
+  template.
+- Added a guard test that enforces the `AppResult<_>` alias over raw
+  `Result<_, AppError>` usages within the crate.
 
 ## [0.4.0] - 2025-09-15
 ### Added
