@@ -3,6 +3,35 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [0.5.0] - 2025-09-23
+
+### Added
+- Re-exported `thiserror::Error` as `masterror::Error`, making it possible to
+  derive domain errors without an extra dependency. The derive supports
+  `#[from]` conversions, validates `#[error(transparent)]` wrappers, and mirrors
+  `thiserror`'s ergonomics.
+- Added `BrowserConsoleError::context()` for retrieving browser-provided
+  diagnostics when console logging fails.
+
+### Changed
+- README generation now pulls from crate metadata via the build script while
+  staying inert during `cargo package`, preventing dirty worktrees in release
+  workflows.
+
+### Documentation
+- Documented deriving custom errors via `masterror::Error` and expanded the
+  browser console section with context-handling guidance.
+- Added a release checklist and described the automated README sync process.
+
+### Tests
+- Added regression tests covering derive behaviour (including `#[from]` and
+  transparent wrappers) and ensuring the README stays in sync with its
+  template.
+- Added a guard test that enforces the `AppResult<_>` alias over raw
+  `Result<_, AppError>` usages within the crate.
+
 ## [0.4.0] - 2025-09-15
 ### Added
 - Optional `frontend` feature:
@@ -113,6 +142,8 @@ All notable changes to this project will be documented in this file.
 - **MSRV:** 1.89
 - **No unsafe:** the crate forbids `unsafe`.
 
+[0.5.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.5.0
+[0.4.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.4.0
 [0.3.5]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.5
 [0.3.4]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.4
 [0.3.3]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.3
@@ -121,5 +152,4 @@ All notable changes to this project will be documented in this file.
 [0.3.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.0
 [0.2.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.2.1
 [0.2.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.2.0
-[0.4.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.4.0
 

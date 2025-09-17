@@ -20,5 +20,20 @@ cargo test --workspace --all-features
 # echo "📦 Validating SQLx prepare..."
 # cargo sqlx prepare --check --workspace
 
+# same deterministic env
+export TZ=UTC
+export LC_ALL=C.UTF-8
+export NO_COLOR=1
+export CARGO_TERM_COLOR=never
+export SOURCE_DATE_EPOCH=0
+
+# Generate
+./.github/scripts/gen_readme.sh
+
+# Stage README if changed
+if ! git diff --quiet -- README.md; then
+  git add README.md
+fi
+
 echo "✅ All checks passed!"
 

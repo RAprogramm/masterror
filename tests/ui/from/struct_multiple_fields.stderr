@@ -1,0 +1,5 @@
+error: deriving From requires no fields other than source and backtrace
+ --> tests/ui/from/struct_multiple_fields.rs:6:5
+  |
+6 |     #[from]
+  |     ^^^^^^^

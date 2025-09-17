@@ -1,6 +1,6 @@
 [package]
 name = "masterror"
-version = "0.4.0"
+version = "0.5.0"
 rust-version = "1.89"
 edition = "2024"
 description = "Application error types and response mapping"
@@ -8,19 +8,20 @@ license = "MIT OR Apache-2.0"
 documentation = "https://docs.rs/masterror"
 repository = "https://github.com/RAprogramm/masterror"
 readme = "README.md"
+build = "build.rs"
 categories = ["rust-patterns", "web-programming"]
 keywords = ["error", "api", "framework"]
 
 
 [features]
 default = []
-axum = ["dep:axum", "dep:serde_json"]             # IntoResponse + JSON body
+axum = ["dep:axum", "dep:serde_json"]                                   # IntoResponse + JSON body
 actix = ["dep:actix-web", "dep:serde_json"]
 sqlx = ["dep:sqlx"]
 redis = ["dep:redis"]
 validator = ["dep:validator"]
 serde_json = ["dep:serde_json"]
-config = ["dep:config"]                           # config::ConfigError -> AppError
+config = ["dep:config"]                                                 # config::ConfigError -> AppError
 multipart = ["axum"]
 tokio = ["dep:tokio"]
 reqwest = ["dep:reqwest"]
@@ -58,7 +59,7 @@ utoipa = { version = "5.4", optional = true }
 tokio = { version = "1", optional = true, features = ["time"] }
 reqwest = { version = "0.12", optional = true, default-features = false }
 teloxide-core = { version = "0.13", optional = true, default-features = false }
-telegram-webapp-sdk = { version = "0.1", optional = true }
+telegram-webapp-sdk = { version = "0.2", optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 js-sys = { version = "0.3", optional = true }
 serde-wasm-bindgen = { version = "0.6", optional = true }
@@ -71,6 +72,92 @@ tokio = { version = "1", features = [
   "net",
   "time",
 ], default-features = false }
+trybuild = "1"
+
+toml = "0.9"
+tempfile = "3"
+
+[build-dependencies]
+serde = { version = "1", features = ["derive"] }
+toml = "0.9"
+
+[package.metadata.masterror.readme]
+feature_order = [
+  "axum",
+  "actix",
+  "openapi",
+  "serde_json",
+  "sqlx",
+  "reqwest",
+  "redis",
+  "validator",
+  "config",
+  "tokio",
+  "multipart",
+  "teloxide",
+  "telegram-webapp-sdk",
+  "frontend",
+  "turnkey",
+]
+feature_snippet_group = 4
+conversion_lines = [
+  "`std::io::Error` → Internal",
+  "`String` → BadRequest",
+  "`sqlx::Error` → NotFound/Database",
+  "`redis::RedisError` → Cache",
+  "`reqwest::Error` → Timeout/Network/ExternalApi",
+  "`axum::extract::multipart::MultipartError` → BadRequest",
+  "`validator::ValidationErrors` → Validation",
+  "`config::ConfigError` → Config",
+  "`tokio::time::error::Elapsed` → Timeout",
+  "`teloxide_core::RequestError` → RateLimited/Network/ExternalApi/Deserialization/Internal",
+  "`telegram_webapp_sdk::utils::validate_init_data::ValidationError` → TelegramAuth",
+]
+
+[package.metadata.masterror.readme.features.axum]
+description = "IntoResponse integration with structured JSON bodies"
+
+[package.metadata.masterror.readme.features.actix]
+description = "Actix Web ResponseError and Responder implementations"
+
+[package.metadata.masterror.readme.features.openapi]
+description = "Generate utoipa OpenAPI schema for ErrorResponse"
+
+[package.metadata.masterror.readme.features.serde_json]
+description = "Attach structured JSON details to AppError"
+
+[package.metadata.masterror.readme.features.sqlx]
+description = "Classify sqlx::Error variants into AppError kinds"
+
+[package.metadata.masterror.readme.features.redis]
+description = "Map redis::RedisError into cache-aware AppError"
+
+[package.metadata.masterror.readme.features.validator]
+description = "Convert validator::ValidationErrors into validation failures"
+
+[package.metadata.masterror.readme.features.config]
+description = "Propagate config::ConfigError as configuration issues"
+
+[package.metadata.masterror.readme.features.multipart]
+description = "Handle axum multipart extraction errors"
+
+[package.metadata.masterror.readme.features.tokio]
+description = "Classify tokio::time::error::Elapsed as timeout"
+
+[package.metadata.masterror.readme.features.reqwest]
+description = "Classify reqwest::Error as timeout/network/external API"
+
+[package.metadata.masterror.readme.features.teloxide]
+description = "Convert teloxide_core::RequestError into domain errors"
+
+[package.metadata.masterror.readme.features."telegram-webapp-sdk"]
+description = "Surface Telegram WebApp validation failures"
+
+[package.metadata.masterror.readme.features.frontend]
+description = "Log to the browser console and convert to JsValue on WASM"
+
+[package.metadata.masterror.readme.features.turnkey]
+description = "Ship Turnkey-specific error taxonomy and conversions"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

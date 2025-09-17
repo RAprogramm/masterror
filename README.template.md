@@ -6,7 +6,7 @@
 [![Crates.io](https://img.shields.io/crates/v/masterror)](https://crates.io/crates/masterror)
 [![docs.rs](https://img.shields.io/docsrs/masterror)](https://docs.rs/masterror)
 [![Downloads](https://img.shields.io/crates/d/masterror)](https://crates.io/crates/masterror)
-![MSRV](https://img.shields.io/badge/MSRV-1.89-blue)
+![MSRV](https://img.shields.io/badge/MSRV-{{MSRV}}-blue)
 ![License](https://img.shields.io/badge/License-MIT%20or%20Apache--2.0-informational)
 [![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
 
@@ -25,13 +25,10 @@ Stable categories, conservative HTTP mapping, no `unsafe`.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.5.0", default-features = false }
+masterror = { version = "{{CRATE_VERSION}}", default-features = false }
 # or with features:
-# masterror = { version = "0.5.0", features = [
-#   "axum", "actix", "openapi", "serde_json",
-#   "sqlx", "reqwest", "redis", "validator",
-#   "config", "tokio", "multipart", "teloxide",
-#   "telegram-webapp-sdk", "frontend", "turnkey"
+# masterror = { version = "{{CRATE_VERSION}}", features = [
+{{FEATURE_SNIPPET}}
 # ] }
 ~~~
 
@@ -62,18 +59,15 @@ masterror = { version = "0.5.0", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.5.0", default-features = false }
+masterror = { version = "{{CRATE_VERSION}}", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.5.0", features = [
-#   "axum", "actix", "openapi", "serde_json",
-#   "sqlx", "reqwest", "redis", "validator",
-#   "config", "tokio", "multipart", "teloxide",
-#   "telegram-webapp-sdk", "frontend", "turnkey"
+# masterror = { version = "{{CRATE_VERSION}}", features = [
+{{FEATURE_SNIPPET}}
 # ] }
 ~~~
 
-**MSRV:** 1.89
+**MSRV:** {{MSRV}}
 **No unsafe:** forbidden by crate.
 
 </details>
@@ -200,38 +194,14 @@ assert_eq!(resp.status, 401);
 <details>
   <summary><b>Feature flags</b></summary>
 
-- `axum` — IntoResponse integration with structured JSON bodies
-- `actix` — Actix Web ResponseError and Responder implementations
-- `openapi` — Generate utoipa OpenAPI schema for ErrorResponse
-- `serde_json` — Attach structured JSON details to AppError
-- `sqlx` — Classify sqlx::Error variants into AppError kinds
-- `reqwest` — Classify reqwest::Error as timeout/network/external API
-- `redis` — Map redis::RedisError into cache-aware AppError
-- `validator` — Convert validator::ValidationErrors into validation failures
-- `config` — Propagate config::ConfigError as configuration issues
-- `tokio` — Classify tokio::time::error::Elapsed as timeout
-- `multipart` — Handle axum multipart extraction errors
-- `teloxide` — Convert teloxide_core::RequestError into domain errors
-- `telegram-webapp-sdk` — Surface Telegram WebApp validation failures
-- `frontend` — Log to the browser console and convert to JsValue on WASM
-- `turnkey` — Ship Turnkey-specific error taxonomy and conversions
+{{FEATURE_BULLETS}}
 
 </details>
 
 <details>
   <summary><b>Conversions</b></summary>
 
-- `std::io::Error` → Internal
-- `String` → BadRequest
-- `sqlx::Error` → NotFound/Database
-- `redis::RedisError` → Cache
-- `reqwest::Error` → Timeout/Network/ExternalApi
-- `axum::extract::multipart::MultipartError` → BadRequest
-- `validator::ValidationErrors` → Validation
-- `config::ConfigError` → Config
-- `tokio::time::error::Elapsed` → Timeout
-- `teloxide_core::RequestError` → RateLimited/Network/ExternalApi/Deserialization/Internal
-- `telegram_webapp_sdk::utils::validate_init_data::ValidationError` → TelegramAuth
+{{CONVERSION_BULLETS}}
 
 </details>
 
@@ -241,13 +211,13 @@ assert_eq!(resp.status, 401);
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.5.0", default-features = false }
+masterror = { version = "{{CRATE_VERSION}}", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.5.0", features = [
+masterror = { version = "{{CRATE_VERSION}}", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -256,7 +226,7 @@ masterror = { version = "0.5.0", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.5.0", features = [
+masterror = { version = "{{CRATE_VERSION}}", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -297,7 +267,7 @@ assert_eq!(app.kind, AppErrorKind::RateLimited);
   <summary><b>Versioning & MSRV</b></summary>
 
 Semantic versioning. Breaking API/wire contract → major bump.
-MSRV = 1.89 (may raise in minor, never in patch).
+MSRV = {{MSRV}} (may raise in minor, never in patch).
 
 </details>
 
@@ -327,4 +297,3 @@ MSRV = 1.89 (may raise in minor, never in patch).
 Apache-2.0 OR MIT, at your option.
 
 </details>
-

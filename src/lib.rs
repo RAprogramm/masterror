@@ -203,3 +203,59 @@ pub use app_error::{AppError, AppResult};
 pub use code::AppCode;
 pub use kind::AppErrorKind;
 pub use response::{ErrorResponse, RetryAdvice};
+/// Derive macro re-export providing the same ergonomics as `thiserror::Error`.
+///
+/// Supports `#[from]` conversions and `#[error(transparent)]` wrappers out of
+/// the box while keeping compile-time validation of wrapper shapes.
+///
+/// ```
+/// use std::error::Error as StdError;
+///
+/// use masterror::Error;
+///
+/// #[derive(Debug, Error)]
+/// #[error("{code}: {message}")]
+/// struct MiniError {
+///     code:    u16,
+///     message: &'static str
+/// }
+///
+/// #[derive(Debug, Error)]
+/// #[error("wrapper -> {0}")]
+/// struct MiniWrapper(
+///     #[from]
+///     #[source]
+///     MiniError
+/// );
+///
+/// #[derive(Debug, Error)]
+/// #[error(transparent)]
+/// struct MiniTransparent(#[from] MiniError);
+///
+/// let wrapped = MiniWrapper::from(MiniError {
+///     code:    500,
+///     message: "boom"
+/// });
+/// assert_eq!(wrapped.to_string(), "wrapper -> 500: boom");
+/// assert_eq!(
+///     StdError::source(&wrapped).map(|err| err.to_string()),
+///     Some(String::from("500: boom"))
+/// );
+///
+/// let expected_source = StdError::source(&MiniError {
+///     code:    503,
+///     message: "oops"
+/// })
+/// .map(|err| err.to_string());
+///
+/// let transparent = MiniTransparent::from(MiniError {
+///     code:    503,
+///     message: "oops"
+/// });
+/// assert_eq!(transparent.to_string(), "503: oops");
+/// assert_eq!(
+///     StdError::source(&transparent).map(|err| err.to_string()),
+///     expected_source
+/// );
+/// ```
+pub use thiserror::Error;

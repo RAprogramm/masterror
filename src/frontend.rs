@@ -1,3 +1,5 @@
+#![allow(unused_variables)]
+
 //! Browser/WASM helpers for converting application errors into JavaScript
 //! values.
 //!
@@ -37,12 +39,11 @@
 use js_sys::{Function, Reflect};
 #[cfg(target_arch = "wasm32")]
 use serde_wasm_bindgen::to_value;
-use thiserror::Error;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 
-use crate::{AppError, AppResult, ErrorResponse};
+use crate::{AppError, AppResult, Error, ErrorResponse};
 
 /// Error returned when emitting to the browser console fails or is unsupported.
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -78,6 +79,48 @@ pub enum BrowserConsoleError {
     /// Logging is not supported on the current compilation target.
     #[error("browser console logging is not supported on this target")]
     UnsupportedTarget
+}
+
+impl BrowserConsoleError {
+    /// Returns the contextual message associated with the error, when
+    /// available.
+    ///
+    /// This is primarily useful for surfacing browser-provided diagnostics in
+    /// higher-level logs or telemetry.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[cfg(feature = "frontend")]
+    /// # {
+    /// use masterror::frontend::BrowserConsoleError;
+    ///
+    /// let err = BrowserConsoleError::ConsoleUnavailable {
+    ///     message: "console missing".to_owned()
+    /// };
+    /// assert_eq!(err.context(), Some("console missing"));
+    ///
+    /// let err = BrowserConsoleError::ConsoleMethodNotCallable;
+    /// assert_eq!(err.context(), None);
+    /// # }
+    /// ```
+    pub fn context(&self) -> Option<&str> {
+        match self {
+            Self::Serialization {
+                message
+            }
+            | Self::ConsoleUnavailable {
+                message
+            }
+            | Self::ConsoleErrorUnavailable {
+                message
+            }
+            | Self::ConsoleInvocation {
+                message
+            } => Some(message.as_str()),
+            Self::ConsoleMethodNotCallable | Self::UnsupportedTarget => None
+        }
+    }
 }
 
 /// Extensions for serializing errors to JavaScript and logging to the browser
@@ -181,6 +224,25 @@ fn format_js_value(value: &JsValue) -> String {
 mod tests {
     use super::*;
     use crate::AppCode;
+
+    #[test]
+    fn context_returns_optional_message() {
+        let serialization = BrowserConsoleError::Serialization {
+            message: "encode failed".to_owned()
+        };
+        assert_eq!(serialization.context(), Some("encode failed"));
+
+        let invocation = BrowserConsoleError::ConsoleInvocation {
+            message: "js error".to_owned()
+        };
+        assert_eq!(invocation.context(), Some("js error"));
+
+        assert_eq!(
+            BrowserConsoleError::ConsoleMethodNotCallable.context(),
+            None
+        );
+        assert_eq!(BrowserConsoleError::UnsupportedTarget.context(), None);
+    }
 
     #[cfg(not(target_arch = "wasm32"))]
     mod native {

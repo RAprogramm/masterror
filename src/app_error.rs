@@ -59,10 +59,9 @@
 
 use std::borrow::Cow;
 
-use thiserror::Error;
 use tracing::error;
 
-use crate::{RetryAdvice, code::AppCode, kind::AppErrorKind};
+use crate::{Error, RetryAdvice, code::AppCode, kind::AppErrorKind};
 
 /// Thin error wrapper: kind + optional message.
 ///
@@ -347,8 +346,8 @@ mod tests {
         // AppError's Display is "{kind}", message must not appear.
         let e = AppError::new(AppErrorKind::Validation, "email invalid");
         let shown = format!("{}", e);
-        // AppErrorKind::Validation Display text is defined on the enum via
-        // `thiserror::Error`. We only assert that message is not leaked.
+        // AppErrorKind::Validation Display text is defined on the enum via our
+        // `#[derive(Error)]`. We only assert that message is not leaked.
         assert!(
             !shown.contains("email invalid"),
             "Display must not include the public message"
