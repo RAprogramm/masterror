@@ -16,6 +16,18 @@ struct NamedError {
 struct LeafError;
 
 #[derive(Debug, Error)]
+#[error("{0}")]
+struct TransparentInner(#[source] LeafError);
+
+#[derive(Debug, Error)]
+#[error(transparent)]
+struct TransparentWrapper(TransparentInner);
+
+#[derive(Debug, Error)]
+#[error(transparent)]
+struct TransparentFromWrapper(#[from] TransparentInner);
+
+#[derive(Debug, Error)]
 #[error("{0} -> {1:?}")]
 struct TupleError(&'static str, u8);
 
@@ -73,6 +85,15 @@ enum MixedFromError {
         #[source]
         source: SecondaryError
     }
+}
+
+#[derive(Debug, Error)]
+enum TransparentEnum {
+    #[error("opaque {0}")]
+    Opaque(&'static str),
+    #[error(transparent)]
+    #[from]
+    TransparentVariant(TransparentInner)
 }
 
 #[test]
@@ -161,5 +182,40 @@ fn enum_from_variants_generate_impls() {
     assert_eq!(
         StdError::source(&named).unwrap().to_string(),
         "secondary failure"
+    );
+}
+
+#[test]
+fn transparent_struct_delegates_display_and_source() {
+    let inner = TransparentInner(LeafError);
+    let inner_display = inner.to_string();
+    let inner_source = StdError::source(&inner).map(|err| err.to_string());
+    let wrapper = TransparentWrapper(inner);
+    assert_eq!(wrapper.to_string(), inner_display);
+    assert_eq!(
+        StdError::source(&wrapper).map(|err| err.to_string()),
+        inner_source
+    );
+}
+
+#[test]
+fn transparent_struct_from_impl() {
+    let wrapper = TransparentFromWrapper::from(TransparentInner(LeafError));
+    assert_eq!(wrapper.to_string(), "leaf failure");
+    assert_eq!(
+        StdError::source(&wrapper).map(|err| err.to_string()),
+        Some(String::from("leaf failure"))
+    );
+}
+
+#[test]
+fn transparent_enum_variant_from_impl() {
+    let _unused = TransparentEnum::Opaque("noop");
+    let variant = TransparentEnum::from(TransparentInner(LeafError));
+    assert!(matches!(variant, TransparentEnum::TransparentVariant(_)));
+    assert_eq!(variant.to_string(), "leaf failure");
+    assert_eq!(
+        StdError::source(&variant).map(|err| err.to_string()),
+        Some(String::from("leaf failure"))
     );
 }

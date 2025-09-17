@@ -5,8 +5,9 @@
 //!
 //! The macro mirrors the essential functionality relied upon by `masterror` and
 //! consumers of the crate: display strings with named or positional fields,
-//! `#[from]` conversions for wrapper types, and a configurable error source via
-//! `#[source]` field attributes.
+//! `#[from]` conversions for wrapper types, transparent wrappers via
+//! `#[error(transparent)]`, and a configurable error source via `#[source]`
+//! field attributes.
 
 use std::collections::BTreeSet;
 
@@ -15,7 +16,8 @@ use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use syn::{
     Attribute, Data, DataEnum, DataStruct, DeriveInput, Field, Fields, GenericArgument, Generics,
-    LitStr, Member, Meta, PathArguments, Type, spanned::Spanned
+    Ident as SynIdent, LitStr, Member, Meta, PathArguments, Type, parse::ParseStream,
+    spanned::Spanned
 };
 
 /// Derive [`std::error::Error`] and [`core::fmt::Display`] for structs and
@@ -57,7 +59,7 @@ fn derive_error_impl(input: DeriveInput) -> syn::Result<TokenStream2> {
             let fields = parse_fields(&data)?;
             let display_attr = parse_display_attr(&input.attrs)?;
             display_impl = build_struct_display(&ident, &generics, &fields, &display_attr)?;
-            error_impl = build_struct_error(&ident, &generics, &fields)?;
+            error_impl = build_struct_error(&ident, &generics, &fields, &display_attr)?;
             from_impls = build_struct_from_impl(&ident, &generics, &fields)?;
         }
         Data::Enum(data) => {
@@ -133,6 +135,17 @@ impl FieldAttributes {
     }
 }
 
+#[derive(Clone)]
+enum DisplayAttribute {
+    Format(LitStr),
+    Transparent(TransparentAttr)
+}
+
+#[derive(Clone, Copy)]
+struct TransparentAttr {
+    span: Span
+}
+
 #[derive(Clone, Copy)]
 enum SourceKind {
     Direct { needs_deref: bool },
@@ -154,7 +167,7 @@ struct ParsedFields {
 struct VariantInfo {
     ident:   Ident,
     fields:  ParsedFields,
-    display: LitStr
+    display: DisplayAttribute
 }
 
 struct FromFieldInfo<'a> {
@@ -269,7 +282,7 @@ fn parse_fields_internal(fields: &Fields) -> syn::Result<ParsedFields> {
     }
 }
 
-fn parse_display_attr(attrs: &[Attribute]) -> syn::Result<LitStr> {
+fn parse_display_attr(attrs: &[Attribute]) -> syn::Result<DisplayAttribute> {
     let mut result = None;
     for attr in attrs.iter().filter(|attr| attr.path().is_ident("error")) {
         if result.is_some() {
@@ -280,8 +293,8 @@ fn parse_display_attr(attrs: &[Attribute]) -> syn::Result<LitStr> {
         }
         match &attr.meta {
             Meta::List(_) => {
-                let lit: LitStr = attr.parse_args()?;
-                result = Some(lit);
+                let attr_value = parse_error_attribute(attr)?;
+                result = Some(attr_value);
             }
             _ => {
                 return Err(syn::Error::new(
@@ -293,6 +306,37 @@ fn parse_display_attr(attrs: &[Attribute]) -> syn::Result<LitStr> {
     }
     result
         .ok_or_else(|| syn::Error::new(Span::call_site(), r#"missing #[error("...")] attribute"#))
+}
+
+fn parse_error_attribute(attr: &Attribute) -> syn::Result<DisplayAttribute> {
+    attr.parse_args_with(|input: ParseStream<'_>| {
+        if input.is_empty() {
+            return Err(input.error("expected string literal or `transparent`"));
+        }
+        if input.peek(LitStr) {
+            let lit: LitStr = input.parse()?;
+            if !input.is_empty() {
+                return Err(input.error("unexpected tokens after format string"));
+            }
+            return Ok(DisplayAttribute::Format(lit));
+        }
+        if input.peek(SynIdent) {
+            let ident: SynIdent = input.parse()?;
+            if ident == "transparent" {
+                if !input.is_empty() {
+                    return Err(input.error("unexpected tokens after `transparent`"));
+                }
+                return Ok(DisplayAttribute::Transparent(TransparentAttr {
+                    span: attr.span()
+                }));
+            }
+            return Err(syn::Error::new(
+                ident.span(),
+                "unknown #[error] attribute argument"
+            ));
+        }
+        Err(input.error("expected string literal or `transparent`"))
+    })
 }
 
 fn parse_field_attributes(field: &Field) -> syn::Result<FieldAttributes> {
@@ -392,6 +436,23 @@ fn find_from_field<'a>(
     Ok(Some(info))
 }
 
+fn ensure_transparent_field<'a>(
+    fields: &'a ParsedFields,
+    attr: &TransparentAttr,
+    context: &str
+) -> syn::Result<&'a FieldSpec> {
+    if fields.fields.len() != 1 {
+        return Err(syn::Error::new(
+            attr.span,
+            format!("using #[error(transparent)] in {context} requires exactly one field")
+        ));
+    }
+    fields
+        .fields
+        .first()
+        .ok_or_else(|| syn::Error::new(attr.span, "invalid transparent field index"))
+}
+
 fn detect_source_kind(ty: &Type) -> syn::Result<SourceKind> {
     if let Some(inner) = option_inner_type(ty) {
         Ok(SourceKind::Optional {
@@ -434,47 +495,63 @@ fn build_struct_display(
     ident: &Ident,
     generics: &Generics,
     fields: &ParsedFields,
-    display: &LitStr
+    display: &DisplayAttribute
 ) -> syn::Result<TokenStream2> {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-    let RewriteResult {
-        literal,
-        positional_indices
-    } = rewrite_format_string(display, fields.fields.len())?;
-
-    let body = match fields.style {
-        FieldsStyle::Unit => quote! {
-            ::core::write!(formatter, #literal)
-        },
-        FieldsStyle::Named => {
-            let field_idents: Vec<_> = fields
-                .fields
-                .iter()
-                .map(|f| f.ident.clone().expect("named fields must have identifiers"))
-                .collect();
-            let positional_bindings = positional_indices.iter().map(|index| {
-                let binding_ident = format_ident!("__masterror_{index}");
-                let field_ident = field_idents[*index].clone();
-                quote! {
-                    #[allow(unused_variables)]
-                    let #binding_ident = &*#field_ident;
-                }
-            });
+    let body = match display {
+        DisplayAttribute::Transparent(attr) => {
+            let context = format!("struct `{ident}`");
+            let field = ensure_transparent_field(fields, attr, &context)?;
+            let member = &field.member;
+            let binding = format_ident!("__masterror_transparent_inner");
             quote! {
-                let Self { #( ref #field_idents ),* } = *self;
-                #[allow(unused_variables)]
-                let _ = (#(&#field_idents),*);
-                #(#positional_bindings)*
-                ::core::write!(formatter, #literal)
+                let #binding = &self.#member;
+                let _: &(dyn ::std::error::Error + 'static) = #binding;
+                ::core::fmt::Display::fmt(#binding, formatter)
             }
         }
-        FieldsStyle::Unnamed => {
-            let bindings: Vec<_> = fields.fields.iter().map(|f| f.binding.clone()).collect();
-            quote! {
-                let Self( #( ref #bindings ),* ) = *self;
-                #[allow(unused_variables)]
-                let _ = (#(&#bindings),*);
-                ::core::write!(formatter, #literal)
+        DisplayAttribute::Format(literal) => {
+            let RewriteResult {
+                literal,
+                positional_indices
+            } = rewrite_format_string(literal, fields.fields.len())?;
+
+            match fields.style {
+                FieldsStyle::Unit => quote! {
+                    ::core::write!(formatter, #literal)
+                },
+                FieldsStyle::Named => {
+                    let field_idents: Vec<_> = fields
+                        .fields
+                        .iter()
+                        .map(|f| f.ident.clone().expect("named fields must have identifiers"))
+                        .collect();
+                    let positional_bindings = positional_indices.iter().map(|index| {
+                        let binding_ident = format_ident!("__masterror_{index}");
+                        let field_ident = field_idents[*index].clone();
+                        quote! {
+                            #[allow(unused_variables)]
+                            let #binding_ident = &*#field_ident;
+                        }
+                    });
+                    quote! {
+                        let Self { #( ref #field_idents ),* } = *self;
+                        #[allow(unused_variables)]
+                        let _ = (#(&#field_idents),*);
+                        #(#positional_bindings)*
+                        ::core::write!(formatter, #literal)
+                    }
+                }
+                FieldsStyle::Unnamed => {
+                    let bindings: Vec<_> =
+                        fields.fields.iter().map(|f| f.binding.clone()).collect();
+                    quote! {
+                        let Self( #( ref #bindings ),* ) = *self;
+                        #[allow(unused_variables)]
+                        let _ = (#(&#bindings),*);
+                        ::core::write!(formatter, #literal)
+                    }
+                }
             }
         }
     };
@@ -491,49 +568,64 @@ fn build_struct_display(
 fn build_struct_error(
     ident: &Ident,
     generics: &Generics,
-    fields: &ParsedFields
+    fields: &ParsedFields,
+    display: &DisplayAttribute
 ) -> syn::Result<TokenStream2> {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-    let source_expr = if let Some(source) = fields.source {
-        let field = fields
-            .fields
-            .get(source.index)
-            .ok_or_else(|| syn::Error::new(Span::call_site(), "invalid source field index"))?;
-        let member = &field.member;
-        match source.kind {
-            SourceKind::Direct {
-                needs_deref: false
-            } => quote! {
-                ::core::option::Option::Some(&self.#member as &(dyn ::std::error::Error + 'static))
-            },
-            SourceKind::Direct {
-                needs_deref: true
-            } => quote! {
-                ::core::option::Option::Some(self.#member.as_ref() as &(dyn ::std::error::Error + 'static))
-            },
-            SourceKind::Optional {
-                needs_deref: false
-            } => quote! {
-                self.#member
-                    .as_ref()
-                    .map(|source| source as &(dyn ::std::error::Error + 'static))
-            },
-            SourceKind::Optional {
-                needs_deref: true
-            } => quote! {
-                self.#member
-                    .as_ref()
-                    .map(|source| source.as_ref() as &(dyn ::std::error::Error + 'static))
+    let body = match display {
+        DisplayAttribute::Transparent(attr) => {
+            let context = format!("struct `{ident}`");
+            let field = ensure_transparent_field(fields, attr, &context)?;
+            let member = &field.member;
+            let binding = format_ident!("__masterror_transparent_inner");
+            quote! {
+                let #binding = &self.#member;
+                let _: &(dyn ::std::error::Error + 'static) = #binding;
+                ::std::error::Error::source(#binding)
             }
         }
-    } else {
-        quote! { ::core::option::Option::None }
+        DisplayAttribute::Format(_) => {
+            if let Some(source) = fields.source {
+                let field = fields.fields.get(source.index).ok_or_else(|| {
+                    syn::Error::new(Span::call_site(), "invalid source field index")
+                })?;
+                let member = &field.member;
+                match source.kind {
+                    SourceKind::Direct {
+                        needs_deref: false
+                    } => quote! {
+                        ::core::option::Option::Some(&self.#member as &(dyn ::std::error::Error + 'static))
+                    },
+                    SourceKind::Direct {
+                        needs_deref: true
+                    } => quote! {
+                        ::core::option::Option::Some(self.#member.as_ref() as &(dyn ::std::error::Error + 'static))
+                    },
+                    SourceKind::Optional {
+                        needs_deref: false
+                    } => quote! {
+                        self.#member
+                            .as_ref()
+                            .map(|source| source as &(dyn ::std::error::Error + 'static))
+                    },
+                    SourceKind::Optional {
+                        needs_deref: true
+                    } => quote! {
+                        self.#member
+                            .as_ref()
+                            .map(|source| source.as_ref() as &(dyn ::std::error::Error + 'static))
+                    }
+                }
+            } else {
+                quote! { ::core::option::Option::None }
+            }
+        }
     };
 
     Ok(quote! {
         impl #impl_generics ::std::error::Error for #ident #ty_generics #where_clause {
             fn source(&self) -> ::core::option::Option<&(dyn ::std::error::Error + 'static)> {
-                #source_expr
+                #body
             }
         }
     })
@@ -594,54 +686,96 @@ fn build_enum_display(
     let mut arms = Vec::with_capacity(variants.len());
     for variant in variants {
         let variant_ident = &variant.ident;
-        let RewriteResult {
-            literal,
-            positional_indices
-        } = rewrite_format_string(&variant.display, variant.fields.fields.len())?;
-        let arm = match variant.fields.style {
-            FieldsStyle::Unit => quote! {
-                Self::#variant_ident => ::core::write!(formatter, #literal)
-            },
-            FieldsStyle::Named => {
-                let bindings: Vec<_> = variant
-                    .fields
-                    .fields
-                    .iter()
-                    .map(|f| {
-                        f.ident
-                            .clone()
-                            .expect("named variant field requires identifier")
-                    })
-                    .collect();
-                let positional_bindings = positional_indices.iter().map(|index| {
-                    let binding_ident = format_ident!("__masterror_{index}");
-                    let field_ident = bindings[*index].clone();
-                    quote! {
-                        #[allow(unused_variables)]
-                        let #binding_ident = &*#field_ident;
+        let arm = match &variant.display {
+            DisplayAttribute::Transparent(attr) => {
+                let context = format!("variant `{variant_ident}`");
+                let field = ensure_transparent_field(&variant.fields, attr, &context)?;
+                match variant.fields.style {
+                    FieldsStyle::Named => {
+                        let field_ident = field.ident.clone().ok_or_else(|| {
+                            syn::Error::new(attr.span, "named field missing identifier")
+                        })?;
+                        let binding = format_ident!("__masterror_transparent_inner");
+                        quote! {
+                            Self::#variant_ident { #field_ident } => {
+                                let #binding = #field_ident;
+                                let _: &(dyn ::std::error::Error + 'static) = #binding;
+                                ::core::fmt::Display::fmt(#binding, formatter)
+                            }
+                        }
                     }
-                });
-                quote! {
-                    Self::#variant_ident { #( #bindings ),* } => {
-                        #[allow(unused_variables)]
-                        let _ = (#(&#bindings),*);
-                        #(#positional_bindings)*
-                        ::core::write!(formatter, #literal)
+                    FieldsStyle::Unnamed => {
+                        let binding = field.binding.clone();
+                        let inner = format_ident!("__masterror_transparent_inner");
+                        quote! {
+                            Self::#variant_ident( #binding ) => {
+                                let #inner = #binding;
+                                let _: &(dyn ::std::error::Error + 'static) = #inner;
+                                ::core::fmt::Display::fmt(#inner, formatter)
+                            }
+                        }
+                    }
+                    FieldsStyle::Unit => {
+                        return Err(syn::Error::new(
+                            attr.span,
+                            format!(
+                                "variant `{variant_ident}` using #[error(transparent)] must have exactly one field"
+                            )
+                        ));
                     }
                 }
             }
-            FieldsStyle::Unnamed => {
-                let bindings: Vec<_> = variant
-                    .fields
-                    .fields
-                    .iter()
-                    .map(|f| f.binding.clone())
-                    .collect();
-                quote! {
-                    Self::#variant_ident( #( #bindings ),* ) => {
-                        #[allow(unused_variables)]
-                        let _ = (#(&#bindings),*);
-                        ::core::write!(formatter, #literal)
+            DisplayAttribute::Format(literal) => {
+                let RewriteResult {
+                    literal,
+                    positional_indices
+                } = rewrite_format_string(literal, variant.fields.fields.len())?;
+                match variant.fields.style {
+                    FieldsStyle::Unit => quote! {
+                        Self::#variant_ident => ::core::write!(formatter, #literal)
+                    },
+                    FieldsStyle::Named => {
+                        let bindings: Vec<_> = variant
+                            .fields
+                            .fields
+                            .iter()
+                            .map(|f| {
+                                f.ident
+                                    .clone()
+                                    .expect("named variant field requires identifier")
+                            })
+                            .collect();
+                        let positional_bindings = positional_indices.iter().map(|index| {
+                            let binding_ident = format_ident!("__masterror_{index}");
+                            let field_ident = bindings[*index].clone();
+                            quote! {
+                                #[allow(unused_variables)]
+                                let #binding_ident = &*#field_ident;
+                            }
+                        });
+                        quote! {
+                            Self::#variant_ident { #( #bindings ),* } => {
+                                #[allow(unused_variables)]
+                                let _ = (#(&#bindings),*);
+                                #(#positional_bindings)*
+                                ::core::write!(formatter, #literal)
+                            }
+                        }
+                    }
+                    FieldsStyle::Unnamed => {
+                        let bindings: Vec<_> = variant
+                            .fields
+                            .fields
+                            .iter()
+                            .map(|f| f.binding.clone())
+                            .collect();
+                        quote! {
+                            Self::#variant_ident( #( #bindings ),* ) => {
+                                #[allow(unused_variables)]
+                                let _ = (#(&#bindings),*);
+                                ::core::write!(formatter, #literal)
+                            }
+                        }
                     }
                 }
             }
@@ -669,99 +803,139 @@ fn build_enum_error(
     let mut arms = Vec::with_capacity(variants.len());
     for variant in variants {
         let variant_ident = &variant.ident;
-        let arm = match variant.fields.style {
-            FieldsStyle::Unit => quote! {
-                Self::#variant_ident => ::core::option::Option::None
-            },
-            FieldsStyle::Named => {
-                let bindings: Vec<_> = variant
-                    .fields
-                    .fields
-                    .iter()
-                    .map(|f| {
-                        f.ident
-                            .clone()
-                            .expect("named variant field requires identifier")
-                    })
-                    .collect();
-                let source_expr = if let Some(source) = variant.fields.source {
-                    let binding = bindings[source.index].clone();
-                    match source.kind {
-                        SourceKind::Direct {
-                            needs_deref: false
-                        } => quote! {
-                            ::core::option::Option::Some(#binding as &(dyn ::std::error::Error + 'static))
-                        },
-                        SourceKind::Direct {
-                            needs_deref: true
-                        } => quote! {
-                            ::core::option::Option::Some(#binding.as_ref() as &(dyn ::std::error::Error + 'static))
-                        },
-                        SourceKind::Optional {
-                            needs_deref: false
-                        } => quote! {
-                            #binding
-                                .as_ref()
-                                .map(|source| source as &(dyn ::std::error::Error + 'static))
-                        },
-                        SourceKind::Optional {
-                            needs_deref: true
-                        } => quote! {
-                            #binding
-                                .as_ref()
-                                .map(|source| source.as_ref() as &(dyn ::std::error::Error + 'static))
+        let arm = match &variant.display {
+            DisplayAttribute::Transparent(attr) => {
+                let context = format!("variant `{variant_ident}`");
+                let field = ensure_transparent_field(&variant.fields, attr, &context)?;
+                match variant.fields.style {
+                    FieldsStyle::Named => {
+                        let field_ident = field.ident.clone().ok_or_else(|| {
+                            syn::Error::new(attr.span, "named field missing identifier")
+                        })?;
+                        let binding = format_ident!("__masterror_transparent_inner");
+                        quote! {
+                            Self::#variant_ident { #field_ident } => {
+                                let #binding = #field_ident;
+                                let _: &(dyn ::std::error::Error + 'static) = #binding;
+                                ::std::error::Error::source(#binding)
+                            }
                         }
                     }
-                } else {
-                    quote! { ::core::option::Option::None }
-                };
-                quote! {
-                    Self::#variant_ident { #( #bindings ),* } => {
-                        #source_expr
+                    FieldsStyle::Unnamed => {
+                        let binding = field.binding.clone();
+                        let inner = format_ident!("__masterror_transparent_inner");
+                        quote! {
+                            Self::#variant_ident( #binding ) => {
+                                let #inner = #binding;
+                                let _: &(dyn ::std::error::Error + 'static) = #inner;
+                                ::std::error::Error::source(#inner)
+                            }
+                        }
+                    }
+                    FieldsStyle::Unit => {
+                        return Err(syn::Error::new(
+                            attr.span,
+                            format!(
+                                "variant `{variant_ident}` using #[error(transparent)] must have exactly one field"
+                            )
+                        ));
                     }
                 }
             }
-            FieldsStyle::Unnamed => {
-                let bindings: Vec<_> = variant
-                    .fields
-                    .fields
-                    .iter()
-                    .map(|f| f.binding.clone())
-                    .collect();
-                let source_expr = if let Some(source) = variant.fields.source {
-                    let binding = bindings[source.index].clone();
-                    match source.kind {
-                        SourceKind::Direct {
-                            needs_deref: false
-                        } => quote! {
-                            ::core::option::Option::Some(#binding as &(dyn ::std::error::Error + 'static))
-                        },
-                        SourceKind::Direct {
-                            needs_deref: true
-                        } => quote! {
-                            ::core::option::Option::Some(#binding.as_ref() as &(dyn ::std::error::Error + 'static))
-                        },
-                        SourceKind::Optional {
-                            needs_deref: false
-                        } => quote! {
-                            #binding
-                                .as_ref()
-                                .map(|source| source as &(dyn ::std::error::Error + 'static))
-                        },
-                        SourceKind::Optional {
-                            needs_deref: true
-                        } => quote! {
-                            #binding
-                                .as_ref()
-                                .map(|source| source.as_ref() as &(dyn ::std::error::Error + 'static))
+            DisplayAttribute::Format(_) => match variant.fields.style {
+                FieldsStyle::Unit => quote! {
+                    Self::#variant_ident => ::core::option::Option::None
+                },
+                FieldsStyle::Named => {
+                    let bindings: Vec<_> = variant
+                        .fields
+                        .fields
+                        .iter()
+                        .map(|f| {
+                            f.ident
+                                .clone()
+                                .expect("named variant field requires identifier")
+                        })
+                        .collect();
+                    let source_expr = if let Some(source) = variant.fields.source {
+                        let binding = bindings[source.index].clone();
+                        match source.kind {
+                            SourceKind::Direct {
+                                needs_deref: false
+                            } => quote! {
+                                ::core::option::Option::Some(#binding as &(dyn ::std::error::Error + 'static))
+                            },
+                            SourceKind::Direct {
+                                needs_deref: true
+                            } => quote! {
+                                ::core::option::Option::Some(#binding.as_ref() as &(dyn ::std::error::Error + 'static))
+                            },
+                            SourceKind::Optional {
+                                needs_deref: false
+                            } => quote! {
+                                #binding
+                                    .as_ref()
+                                    .map(|source| source as &(dyn ::std::error::Error + 'static))
+                            },
+                            SourceKind::Optional {
+                                needs_deref: true
+                            } => quote! {
+                                #binding
+                                    .as_ref()
+                                    .map(|source| source.as_ref() as &(dyn ::std::error::Error + 'static))
+                            }
+                        }
+                    } else {
+                        quote! { ::core::option::Option::None }
+                    };
+                    quote! {
+                        Self::#variant_ident { #( #bindings ),* } => {
+                            #source_expr
                         }
                     }
-                } else {
-                    quote! { ::core::option::Option::None }
-                };
-                quote! {
-                    Self::#variant_ident( #( #bindings ),* ) => {
-                        #source_expr
+                }
+                FieldsStyle::Unnamed => {
+                    let bindings: Vec<_> = variant
+                        .fields
+                        .fields
+                        .iter()
+                        .map(|f| f.binding.clone())
+                        .collect();
+                    let source_expr = if let Some(source) = variant.fields.source {
+                        let binding = bindings[source.index].clone();
+                        match source.kind {
+                            SourceKind::Direct {
+                                needs_deref: false
+                            } => quote! {
+                                ::core::option::Option::Some(#binding as &(dyn ::std::error::Error + 'static))
+                            },
+                            SourceKind::Direct {
+                                needs_deref: true
+                            } => quote! {
+                                ::core::option::Option::Some(#binding.as_ref() as &(dyn ::std::error::Error + 'static))
+                            },
+                            SourceKind::Optional {
+                                needs_deref: false
+                            } => quote! {
+                                #binding
+                                    .as_ref()
+                                    .map(|source| source as &(dyn ::std::error::Error + 'static))
+                            },
+                            SourceKind::Optional {
+                                needs_deref: true
+                            } => quote! {
+                                #binding
+                                    .as_ref()
+                                    .map(|source| source.as_ref() as &(dyn ::std::error::Error + 'static))
+                            }
+                        }
+                    } else {
+                        quote! { ::core::option::Option::None }
+                    };
+                    quote! {
+                        Self::#variant_ident( #( #bindings ),* ) => {
+                            #source_expr
+                        }
                     }
                 }
             }

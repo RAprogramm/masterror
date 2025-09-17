@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `#[error(transparent)]` support in the derive macro: validates wrapper shape,
+  delegates `Display`/`source` to the inner error, and works with `#[from]`.
+
 ## [0.4.0] - 2025-09-15
 ### Added
 - Optional `frontend` feature:
