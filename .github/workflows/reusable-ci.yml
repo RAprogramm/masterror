@@ -63,60 +63,87 @@ jobs:
             exit 1
           fi
 
-      # ---------- README: regenerate early, normalize, drift handling ----------
-      - name: Regenerate README via build.rs (MSRV, deterministic)
+      # ---------- README handling ----------
+      - name: Build (may regenerate README to temp)
         shell: bash
+        env:
+          TZ: UTC
+          LC_ALL: C.UTF-8
+          NO_COLOR: "1"
+          CARGO_TERM_COLOR: never
+          SOURCE_DATE_EPOCH: "0"
         run: |
           set -euo pipefail
-          export TZ=UTC
-          export LC_ALL=C.UTF-8
-          export NO_COLOR=1
-          export CARGO_TERM_COLOR=never
-          export SOURCE_DATE_EPOCH=0
+          tmp="$(mktemp)"
           cargo +${{ steps.msrv.outputs.msrv }} build --workspace -q || cargo +${{ steps.msrv.outputs.msrv }} build -q
-
-      - name: Normalize README (ensure trailing newline) — bash only
-        if: hashFiles('README.md') != ''
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -f README.md ] && [ -s README.md ]; then
-            last_byte="$(tail -c1 README.md 2>/dev/null || true)"
-            if [ "$last_byte" != $'\n' ]; then
-              printf '\n' >> README.md
-            fi
+          if [ -f README.md ]; then
+            cp -f README.md "$tmp"
+            last_byte="$(tail -c1 "$tmp" 2>/dev/null || true)"
+            if [ "${last_byte:-}" != $'\n' ]; then printf '\n' >> "$tmp"; fi
+          else
+            : > "$tmp"
           fi
+          echo "README_CANDIDATE=$tmp" >> "$GITHUB_ENV"
 
-      - name: README drift report (PR)
+      - name: README drift on PR (report only)
         if: github.event_name == 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- README.md; then
-            echo "README is up to date (PR)."
+          if [ ! -f README.md ]; then
+            echo "README.md missing in repo; nothing to compare."
+            exit 0
+          fi
+          if ! diff -u --label "README.md (HEAD)" --label "README.md (generated)" README.md "$README_CANDIDATE" >/tmp/readme.diff 2>/dev/null; then
+            echo "::warning::README differs on PR. Tests proceed with HEAD, not rewriting the file."
+            git --no-pager diff --no-index -- README.md "$README_CANDIDATE" || true
           else
-            echo "::warning::README differs on PR. Tests will use regenerated content."
-            git --no-pager diff -- README.md || true
+            echo "README is up to date (PR)."
           fi
 
-      - name: README drift autocommit (main)
+      - name: README autocommit on main
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          if git diff --quiet -- README.md; then
+          need_update=0
+          if [ ! -f README.md ]; then
+            need_update=1
+          elif ! cmp -s README.md "$README_CANDIDATE"; then
+            need_update=1
+          fi
+          if [ "$need_update" -eq 0 ]; then
             echo "README is up to date (main)."
             exit 0
           fi
-          echo "Auto-committing refreshed README on main..."
+          echo "Updating README on main and pushing..."
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          cp -f "$README_CANDIDATE" README.md
           git add README.md
           git commit -m "chore(readme): auto-refresh [skip ci]"
-          git push
-      # -----------------------------------------------------------------------
+          git pull --rebase --autostash origin main || true
+          git push origin HEAD:main || {
+            git pull --rebase --autostash origin main
+            git push origin HEAD:main
+          }
+          git fetch origin main
+          git reset --hard origin/main
+          git clean -fdx
+
+      - name: Ensure tree is clean before package
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet; then
+            echo "Working tree is dirty:"
+            git status --porcelain
+            exit 1
+          fi
+      # ---------- end README handling ----------
 
       - name: Check formatting (nightly rustfmt)
         run: cargo +nightly-2025-08-01 fmt --all -- --check
@@ -139,27 +166,6 @@ jobs:
             cargo +${{ steps.msrv.outputs.msrv }} test --workspace --all-features --no-fail-fast
           else
             cargo +${{ steps.msrv.outputs.msrv }} test --workspace --no-fail-fast
-          fi
-
-      # На PR возвращаем README к HEAD, чтобы дерево стало чистым перед упаковкой
-      - name: Restore README to HEAD on PR (keep tree clean)
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          set -euo pipefail
-          if ! git diff --quiet -- README.md; then
-            echo "Restoring README.md to HEAD to keep tree clean on PR..."
-            git restore --worktree --source=HEAD -- README.md || git checkout -- README.md
-          fi
-
-      - name: Ensure tree is clean before package
-        shell: bash
-        run: |
-          set -euo pipefail
-          if ! git diff --quiet; then
-            echo "Working tree is dirty:"
-            git status --porcelain
-            exit 1
           fi
 
       - name: Package (dry-run)
