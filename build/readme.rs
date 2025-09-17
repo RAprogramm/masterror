@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs, io,
@@ -9,25 +11,15 @@ use serde::Deserialize;
 /// Error type describing issues while generating the README file.
 #[derive(Debug)]
 pub enum ReadmeError {
-    /// Wrapper for IO errors.
     Io(io::Error),
-    /// Wrapper for TOML deserialization errors.
     Toml(toml::de::Error),
-    /// Required metadata section is missing.
     MissingMetadata(&'static str),
-    /// One or more crate features do not have documentation metadata.
     MissingFeatureMetadata(Vec<String>),
-    /// The feature ordering references an unknown feature.
     UnknownFeatureInOrder(String),
-    /// The feature ordering lists the same feature more than once.
     DuplicateFeatureInOrder(String),
-    /// Metadata is defined for features that are not part of the manifest.
     UnknownMetadataFeature(Vec<String>),
-    /// Feature snippet group must be greater than zero.
     InvalidSnippetGroup,
-    /// Placeholder in the template was not substituted.
     UnresolvedPlaceholder(String),
-    /// README on disk differs from generated template output.
     OutOfSync { path: PathBuf }
 }
 
@@ -77,18 +69,15 @@ impl std::fmt::Display for ReadmeError {
         }
     }
 }
-
 impl std::error::Error for ReadmeError {}
-
 impl From<io::Error> for ReadmeError {
-    fn from(value: io::Error) -> Self {
-        Self::Io(value)
+    fn from(v: io::Error) -> Self {
+        Self::Io(v)
     }
 }
-
 impl From<toml::de::Error> for ReadmeError {
-    fn from(value: toml::de::Error) -> Self {
-        Self::Toml(value)
+    fn from(v: toml::de::Error) -> Self {
+        Self::Toml(v)
     }
 }
 
@@ -98,7 +87,6 @@ struct Manifest {
     #[serde(default)]
     features: BTreeMap<String, Vec<String>>
 }
-
 #[derive(Debug, Deserialize)]
 struct Package {
     version:      String,
@@ -107,19 +95,16 @@ struct Package {
     #[serde(default)]
     metadata:     Option<PackageMetadata>
 }
-
 #[derive(Debug, Deserialize)]
 struct PackageMetadata {
     #[serde(default)]
     masterror: Option<MasterrorMetadata>
 }
-
 #[derive(Debug, Deserialize)]
 struct MasterrorMetadata {
     #[serde(default)]
     readme: Option<ReadmeMetadata>
 }
-
 #[derive(Clone, Debug, Deserialize)]
 struct ReadmeMetadata {
     #[serde(default)]
@@ -131,14 +116,12 @@ struct ReadmeMetadata {
     #[serde(default)]
     features:              BTreeMap<String, FeatureMetadata>
 }
-
 #[derive(Clone, Debug, Deserialize)]
 struct FeatureMetadata {
     description: String,
     #[serde(default)]
     extra:       Vec<String>
 }
-
 #[derive(Clone, Debug)]
 struct FeatureDoc {
     name:        String,
@@ -146,21 +129,6 @@ struct FeatureDoc {
     extra:       Vec<String>
 }
 
-/// Generate README.md from Cargo metadata and a template.
-///
-/// # Errors
-///
-/// Returns an error if Cargo.toml, the template, or metadata are invalid.
-///
-/// # Examples
-///
-/// ```ignore
-/// use std::path::PathBuf;
-///
-/// let manifest = PathBuf::from("Cargo.toml");
-/// let template = PathBuf::from("README.template.md");
-/// let readme = build::readme::generate_readme(&manifest, &template)?;
-/// ```
 pub fn generate_readme(manifest_path: &Path, template_path: &Path) -> Result<String, ReadmeError> {
     let manifest_raw = fs::read_to_string(manifest_path)?;
     let manifest: Manifest = toml::from_str(&manifest_raw)?;
@@ -175,8 +143,8 @@ pub fn generate_readme(manifest_path: &Path, template_path: &Path) -> Result<Str
     } = package;
 
     let readme_meta = metadata
-        .and_then(|meta| meta.masterror)
-        .and_then(|meta| meta.readme)
+        .and_then(|m| m.masterror)
+        .and_then(|m| m.readme)
         .ok_or(ReadmeError::MissingMetadata(
             "package.metadata.masterror.readme"
         ))?;
@@ -198,20 +166,6 @@ pub fn generate_readme(manifest_path: &Path, template_path: &Path) -> Result<Str
     )
 }
 
-/// Synchronize README.md on disk with the generated output.
-///
-/// # Errors
-///
-/// Returns an error if reading or writing files fails or metadata is invalid.
-///
-/// # Examples
-///
-/// ```ignore
-/// use std::path::PathBuf;
-///
-/// let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-/// build::readme::sync_readme(&manifest_dir)?;
-/// ```
 #[cfg_attr(test, allow(dead_code))]
 pub fn sync_readme(manifest_dir: &Path) -> Result<(), ReadmeError> {
     let manifest_path = manifest_dir.join("Cargo.toml");
@@ -221,28 +175,14 @@ pub fn sync_readme(manifest_dir: &Path) -> Result<(), ReadmeError> {
     write_if_changed(&output_path, &readme)
 }
 
-/// Verify that README.md matches the generated output without writing to disk.
-///
-/// # Errors
-///
-/// Returns an error if the README differs from the generated template or if any
-/// IO/TOML operations fail.
-///
-/// # Examples
-///
-/// ```ignore
-/// use std::path::Path;
-///
-/// let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-/// build::readme::verify_readme(manifest_dir)?;
-/// ```
+/// Strict verify (kept for local use if нужно)
 pub(crate) fn verify_readme(manifest_dir: &Path) -> Result<(), ReadmeError> {
     let manifest_path = manifest_dir.join("Cargo.toml");
     let template_path = manifest_dir.join("README.template.md");
     let output_path = manifest_dir.join("README.md");
-    let readme = generate_readme(&manifest_path, &template_path)?;
+    let generated = generate_readme(&manifest_path, &template_path)?;
     let actual = fs::read_to_string(&output_path)?;
-    if actual == readme {
+    if actual == generated {
         Ok(())
     } else {
         Err(ReadmeError::OutOfSync {
@@ -251,13 +191,39 @@ pub(crate) fn verify_readme(manifest_dir: &Path) -> Result<(), ReadmeError> {
     }
 }
 
+/// Relaxed verify: normalize line endings and single trailing newline.
+/// Используем в tarball/без .git, чтобы не падать на мелочах.
+pub(crate) fn verify_readme_relaxed(manifest_dir: &Path) -> Result<(), ReadmeError> {
+    let manifest_path = manifest_dir.join("Cargo.toml");
+    let template_path = manifest_dir.join("README.template.md");
+    let output_path = manifest_dir.join("README.md");
+    let generated = generate_readme(&manifest_path, &template_path)?;
+    let actual = fs::read_to_string(&output_path)?;
+    if normalize(&actual) == normalize(&generated) {
+        Ok(())
+    } else {
+        Err(ReadmeError::OutOfSync {
+            path: output_path
+        })
+    }
+}
+
+fn normalize(s: &str) -> String {
+    // 1) CRLF -> LF, 2) убираем ровно один финальный '\n'
+    let mut t = s.replace("\r\n", "\n");
+    if t.ends_with('\n') {
+        t.pop();
+    }
+    t
+}
+
 fn collect_feature_docs(
     feature_table: &BTreeMap<String, Vec<String>>,
     readme_meta: &ReadmeMetadata
 ) -> Result<Vec<FeatureDoc>, ReadmeError> {
     let feature_names: BTreeSet<String> = feature_table
         .keys()
-        .filter(|name| name.as_str() != "default")
+        .filter(|n| n.as_str() != "default")
         .cloned()
         .collect();
 
@@ -277,7 +243,6 @@ fn collect_feature_docs(
             missing_docs.push(name.clone());
         }
     }
-
     if !missing_docs.is_empty() {
         return Err(ReadmeError::MissingFeatureMetadata(missing_docs));
     }
@@ -285,10 +250,9 @@ fn collect_feature_docs(
     let unknown_metadata: Vec<String> = readme_meta
         .features
         .keys()
-        .filter(|name| name.as_str() != "default" && !feature_names.contains(*name))
+        .filter(|n| n.as_str() != "default" && !feature_names.contains(*n))
         .cloned()
         .collect();
-
     if !unknown_metadata.is_empty() {
         return Err(ReadmeError::UnknownMetadataFeature(unknown_metadata));
     }
@@ -307,7 +271,6 @@ fn collect_feature_docs(
             return Err(ReadmeError::DuplicateFeatureInOrder(name.clone()));
         }
     }
-
     ordered.extend(docs_map.into_values());
     Ok(ordered)
 }
@@ -333,7 +296,6 @@ fn render_readme(
     if let Some(name) = find_placeholder(&rendered) {
         return Err(ReadmeError::UnresolvedPlaceholder(name));
     }
-
     Ok(rendered)
 }
 
@@ -353,7 +315,7 @@ fn render_feature_bullets(features: &[FeatureDoc]) -> String {
 fn render_conversion_bullets(conversions: &[String]) -> String {
     conversions
         .iter()
-        .map(|entry| format!("- {entry}"))
+        .map(|e| format!("- {e}"))
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -362,37 +324,30 @@ fn render_feature_snippet(features: &[FeatureDoc], group_size: usize) -> String 
     if features.is_empty() {
         return String::new();
     }
-
     let mut items = Vec::with_capacity(features.len());
-    for feature in features {
-        items.push(format!("\"{}\"", feature.name));
+    for f in features {
+        items.push(format!("\"{}\"", f.name));
     }
-
-    let chunk_size = group_size;
-    let chunk_count = items.len().div_ceil(chunk_size);
-    let mut lines = Vec::with_capacity(chunk_count);
-    for (index, chunk) in items.chunks(chunk_size).enumerate() {
+    let chunk = group_size;
+    let chunks = items.len().div_ceil(chunk);
+    let mut lines = Vec::with_capacity(chunks);
+    for (i, part) in items.chunks(chunk).enumerate() {
         let mut line = String::from("#   ");
-        line.push_str(&chunk.join(", "));
-        if index + 1 != chunk_count {
+        line.push_str(&part.join(", "));
+        if i + 1 != chunks {
             line.push(',');
         }
         lines.push(line);
     }
-
     lines.join("\n")
 }
 
 fn find_placeholder(rendered: &str) -> Option<String> {
     let start = rendered.find("{{")?;
     let after = &rendered[start + 2..];
-    if let Some(end_offset) = after.find("}}") {
-        let name = after[..end_offset].trim();
-        if name.is_empty() {
-            Some(String::from(""))
-        } else {
-            Some(name.to_string())
-        }
+    if let Some(end) = after.find("}}") {
+        let name = after[..end].trim();
+        Some(name.to_string())
     } else {
         let snippet: String = after.chars().take(32).collect();
         Some(snippet)
@@ -402,18 +357,11 @@ fn find_placeholder(rendered: &str) -> Option<String> {
 #[cfg_attr(test, allow(dead_code))]
 fn write_if_changed(path: &Path, contents: &str) -> Result<(), ReadmeError> {
     match fs::read_to_string(path) {
-        Ok(existing) => {
-            if existing == contents {
-                return Ok(());
-            }
-        }
-        Err(err) => {
-            if err.kind() != io::ErrorKind::NotFound {
-                return Err(ReadmeError::Io(err));
-            }
-        }
+        Ok(existing) if existing == contents => return Ok(()),
+        Ok(_) => {}
+        Err(err) if err.kind() != io::ErrorKind::NotFound => return Err(ReadmeError::Io(err)),
+        Err(_) => {}
     }
-
     fs::write(path, contents)?;
     Ok(())
 }
