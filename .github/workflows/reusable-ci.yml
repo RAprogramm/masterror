@@ -11,7 +11,7 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     env:
-      CARGO_LOCKED: "true"   # don't mutate Cargo.lock during CI
+      CARGO_LOCKED: "true"
       CARGO_TERM_COLOR: always
 
     steps:
@@ -63,7 +63,7 @@ jobs:
             exit 1
           fi
 
-      # ---------- README: regenerate early, normalize, then handle drift ----------
+      # ---------- README: regenerate early, normalize, drift handling ----------
       - name: Regenerate README via build.rs (MSRV, deterministic)
         shell: bash
         run: |
@@ -80,20 +80,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -f README.md ]; then
-            # If file non-empty and last byte is not '\n', append one
-            if [ -s README.md ]; then
-              last_byte="$(tail -c1 README.md 2>/dev/null || true)"
-              if [ "$last_byte" != $'\n' ]; then
-                printf '\n' >> README.md
-              fi
-            else
-              # empty file: keep as is
-              :
+          if [ -f README.md ] && [ -s README.md ]; then
+            last_byte="$(tail -c1 README.md 2>/dev/null || true)"
+            if [ "$last_byte" != $'\n' ]; then
+              printf '\n' >> README.md
             fi
           fi
 
-      # Report drift on PRs but do NOT fail
       - name: README drift report (PR)
         if: github.event_name == 'pull_request'
         shell: bash
@@ -102,11 +95,10 @@ jobs:
           if git diff --quiet -- README.md; then
             echo "README is up to date (PR)."
           else
-            echo "::warning::README differs on PR. Run the generator locally or let main autocommit handle it."
+            echo "::warning::README differs on PR. Tests will use regenerated content."
             git --no-pager diff -- README.md || true
           fi
 
-      # Autocommit on push to main
       - name: README drift autocommit (main)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
@@ -124,7 +116,7 @@ jobs:
           git add README.md
           git commit -m "chore(readme): auto-refresh [skip ci]"
           git push
-      # --------------------------------------------------------------------------
+      # -----------------------------------------------------------------------
 
       - name: Check formatting (nightly rustfmt)
         run: cargo +nightly-2025-08-01 fmt --all -- --check
@@ -147,6 +139,17 @@ jobs:
             cargo +${{ steps.msrv.outputs.msrv }} test --workspace --all-features --no-fail-fast
           else
             cargo +${{ steps.msrv.outputs.msrv }} test --workspace --no-fail-fast
+          fi
+
+      # На PR возвращаем README к HEAD, чтобы дерево стало чистым перед упаковкой
+      - name: Restore README to HEAD on PR (keep tree clean)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- README.md; then
+            echo "Restoring README.md to HEAD to keep tree clean on PR..."
+            git restore --worktree --source=HEAD -- README.md || git checkout -- README.md
           fi
 
       - name: Ensure tree is clean before package
