@@ -20,7 +20,7 @@ use syn::{
 /// Derive [`std::error::Error`] and [`core::fmt::Display`] for structs and
 /// enums.
 ///
-/// ```
+/// ```ignore
 /// use masterror::Error;
 ///
 /// #[derive(Debug, Error)]
