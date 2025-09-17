@@ -1,0 +1,11 @@
+error: using #[error(transparent)] in variant `Variant` requires exactly one field
+ --> tests/ui/transparent/enum_variant_multiple_fields.rs:5:5
+  |
+5 |     #[error(transparent)]
+  |     ^
+
+error[E0601]: `main` function not found in crate `$CRATE`
+ --> tests/ui/transparent/enum_variant_multiple_fields.rs:7:2
+  |
+7 | }
+  |  ^ consider adding a `main` function to `$DIR/tests/ui/transparent/enum_variant_multiple_fields.rs`

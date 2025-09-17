@@ -44,7 +44,8 @@ masterror = { version = "{{CRATE_VERSION}}", default-features = false }
 - **Opt-in integrations.** Zero default features; you enable what you need.
 - **Clean wire contract.** `ErrorResponse { status, code, message, details?, retry?, www_authenticate? }`.
 - **One log at boundary.** Log once with `tracing`.
-- **Less boilerplate.** Built-in conversions, compact prelude.
+- **Less boilerplate.** Built-in conversions, compact prelude,
+  derive macro support for transparent wrappers via `#[error(transparent)]`.
 - **Consistent workspace.** Same error surface across crates.
 
 </details>
