@@ -31,6 +31,7 @@ masterror = { version = "{{CRATE_VERSION}}", default-features = false }
 # ] }
 ~~~
 
+*Unreleased: derive custom errors via `#[derive(Error)]` (`use masterror::Error;`) and inspect browser logging failures with `BrowserConsoleError::context()`.*
 *Since v0.4.0: optional `frontend` feature for WASM/browser console logging.*
 *Since v0.3.0: stable `AppCode` enum and extended `ErrorResponse` with retry/authentication metadata.*
 
@@ -44,8 +45,9 @@ masterror = { version = "{{CRATE_VERSION}}", default-features = false }
 - **Opt-in integrations.** Zero default features; you enable what you need.
 - **Clean wire contract.** `ErrorResponse { status, code, message, details?, retry?, www_authenticate? }`.
 - **One log at boundary.** Log once with `tracing`.
-- **Less boilerplate.** Built-in conversions, compact prelude,
-  derive macro support for transparent wrappers via `#[error(transparent)]`.
+- **Less boilerplate.** Built-in conversions, compact prelude, and the
+  `masterror::Error` re-export of `thiserror::Error` with `#[from]` /
+  `#[error(transparent)]` support.
 - **Consistent workspace.** Same error surface across crates.
 
 </details>
@@ -97,6 +99,49 @@ fn do_work(flag: bool) -> AppResult<()> {
 </details>
 
 <details>
+  <summary><b>Derive custom errors</b></summary>
+
+~~~rust
+use std::io;
+
+use masterror::Error;
+
+#[derive(Debug, Error)]
+#[error("I/O failed: {source}")]
+pub struct DomainError {
+    #[from]
+    #[source]
+    source: io::Error,
+}
+
+#[derive(Debug, Error)]
+#[error(transparent)]
+pub struct WrappedDomainError(
+    #[from]
+    #[source]
+    DomainError
+);
+
+fn load() -> Result<(), DomainError> {
+    Err(io::Error::other("disk offline").into())
+}
+
+let err = load().unwrap_err();
+assert_eq!(err.to_string(), "I/O failed: disk offline");
+
+let wrapped = WrappedDomainError::from(err);
+assert_eq!(wrapped.to_string(), "I/O failed: disk offline");
+~~~
+
+- `use masterror::Error;` re-exports `thiserror::Error`.
+- `#[from]` automatically implements `From<...>` while ensuring wrapper shapes are
+  valid.
+- `#[error(transparent)]` enforces single-field wrappers that forward
+  `Display`/`source` to the inner error.
+
+</details>
+
+<details>
   <summary><b>Error response payload</b></summary>
 
 ~~~rust
@@ -125,7 +170,14 @@ assert_eq!(resp.status, 401);
     assert!(payload.is_object());
 
     #[cfg(target_arch = "wasm32")]
-    err.log_to_browser_console()?;
+    {
+        if let Err(console_err) = err.log_to_browser_console() {
+            eprintln!(
+                "failed to log to browser console: {:?}",
+                console_err.context()
+            );
+        }
+    }
 
     Ok(())
 }
@@ -133,6 +185,8 @@ assert_eq!(resp.status, 401);
 
 - On non-WASM targets `log_to_browser_console` returns
   `BrowserConsoleError::UnsupportedTarget`.
+- `BrowserConsoleError::context()` exposes optional browser diagnostics for
+  logging/telemetry when console logging fails.
 
 </details>
 
