@@ -63,7 +63,7 @@ jobs:
             exit 1
           fi
 
-      # ---------- README: regenerate early, then gate ----------
+      # ---------- README: regenerate early, normalize, then check ----------
       - name: Regenerate README via build.rs (MSRV, deterministic)
         shell: bash
         run: |
@@ -73,35 +73,54 @@ jobs:
           export NO_COLOR=1
           export CARGO_TERM_COLOR=never
           export SOURCE_DATE_EPOCH=0
-          # Твой build.rs пишет README.md; этого достаточно
-          cargo +${{ steps.msrv.outputs.msrv }} build --workspace --all-features -q || cargo +${{ steps.msrv.outputs.msrv }} build -q
+          cargo +${{ steps.msrv.outputs.msrv }} build --workspace -q || cargo +${{ steps.msrv.outputs.msrv }} build -q
 
-      - name: README drift gate (auto-commit on main, fail on others)
+      - name: Normalize README (ensure trailing newline)
+        if: hashFiles('README.md') != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+            from pathlib import Path
+            p = Path("README.md")
+            if p.exists():
+              s = p.read_text(encoding="utf-8")
+              if not s.endswith("\n"):
+                p.write_text(s + "\n", encoding="utf-8")
+            PY
+
+      # Report drift on PRs but do NOT fail
+      - name: README drift report (PR)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- README.md; then
+            echo "README is up to date (PR)."
+          else
+            echo "::warning::README differs on PR. Run the generator locally or let main autocommit handle it."
+            git --no-pager diff -- README.md || true
+          fi
+
+      # Autocommit on push to main
+      - name: README drift autocommit (main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           if git diff --quiet -- README.md; then
-            echo "README is up to date."
+            echo "README is up to date (main)."
             exit 0
           fi
-
-          echo "README drift detected:"
-          git --no-pager diff -- README.md
-
-          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            echo "Auto-committing refreshed README on main..."
-            git config user.name  "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add README.md
-            git commit -m "chore(readme): auto-refresh [skip ci]"
-            git push
-          else
-            echo "Failing because README is out of date on a non-main ref."
-            exit 1
-          fi
-      # ---------------------------------------------------------
+          echo "Auto-committing refreshed README on main..."
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "chore(readme): auto-refresh [skip ci]"
+          git push
+      # --------------------------------------------------------------------
 
       - name: Check formatting (nightly rustfmt)
         run: cargo +nightly-2025-08-01 fmt --all -- --check
