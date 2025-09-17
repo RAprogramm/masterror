@@ -83,7 +83,29 @@ pub struct AppError {
 }
 
 /// Conventional result alias for application code.
-pub type AppResult<T> = Result<T, AppError>;
+///
+/// The alias defaults to [`AppError`] but accepts a custom error type when the
+/// context requires a different domain error.
+///
+/// # Examples
+///
+/// ```rust
+/// use std::io::Error;
+///
+/// use masterror::AppResult;
+///
+/// fn app_logic() -> AppResult<u8> {
+///     Ok(7)
+/// }
+///
+/// fn io_logic() -> AppResult<(), Error> {
+///     Ok(())
+/// }
+///
+/// assert_eq!(app_logic().unwrap(), 7);
+/// assert!(io_logic().is_ok());
+/// ```
+pub type AppResult<T, E = AppError> = Result<T, E>;
 
 impl AppError {
     /// Create a new [`AppError`] with a kind and message.
@@ -526,15 +548,20 @@ mod tests {
         fn err() -> AppResult<u8> {
             Err(AppError::internal("x"))
         }
+        fn other_err() -> AppResult<u8, &'static str> {
+            Err("boom")
+        }
 
         let a: AppResult<u8> = ok();
         let b: AppResult<u8> = err();
+        let c: AppResult<u8, &'static str> = other_err();
 
         assert_eq!(a.unwrap(), 1);
         assert!(b.is_err());
         if let Err(e) = b {
             assert!(matches!(e.kind, AppErrorKind::Internal));
         }
+        assert_eq!(c.unwrap_err(), "boom");
     }
 
     // --- Logging path sanity check -------------------------------------------

@@ -35,8 +35,10 @@
 //!     Err(AppError::new(AppErrorKind::Forbidden, "no access"))
 //! }
 //!
+//! use std::io::Error;
+//!
 //! #[actix_web::main]
-//! async fn main() -> std::io::Result<()> {
+//! async fn main() -> AppResult<(), Error> {
 //!     HttpServer::new(|| App::new().service(forbidden))
 //!         .bind(("127.0.0.1", 8080))?
 //!         .run()
@@ -103,7 +105,7 @@ mod actix_tests {
         http::header::{RETRY_AFTER, WWW_AUTHENTICATE}
     };
 
-    use crate::{AppCode, AppError, AppErrorKind, ErrorResponse};
+    use crate::{AppCode, AppError, AppErrorKind, AppResult, ErrorResponse};
 
     #[test]
     fn maps_status_consistently() {
@@ -112,7 +114,7 @@ mod actix_tests {
     }
 
     #[actix_web::test] // ← вот это
-    async fn error_response_sets_body_and_headers() -> Result<(), Box<dyn std::error::Error>> {
+    async fn error_response_sets_body_and_headers() -> AppResult<(), Box<dyn std::error::Error>> {
         let err = AppError::unauthorized("no token")
             .with_retry_after_secs(7)
             .with_www_authenticate("Bearer");

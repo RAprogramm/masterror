@@ -42,7 +42,7 @@ use thiserror::Error;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 
-use crate::{AppError, ErrorResponse};
+use crate::{AppError, AppResult, ErrorResponse};
 
 /// Error returned when emitting to the browser console fails or is unsupported.
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -85,20 +85,20 @@ pub enum BrowserConsoleError {
 #[cfg_attr(docsrs, doc(cfg(feature = "frontend")))]
 pub trait BrowserConsoleExt {
     /// Convert the error into a [`JsValue`] suitable for passing to JavaScript.
-    fn to_js_value(&self) -> Result<JsValue, BrowserConsoleError>;
+    fn to_js_value(&self) -> AppResult<JsValue, BrowserConsoleError>;
 
     /// Emit the error as a structured payload via `console.error`.
     ///
     /// On non-WASM targets this returns
     /// [`BrowserConsoleError::UnsupportedTarget`].
-    fn log_to_browser_console(&self) -> Result<(), BrowserConsoleError> {
+    fn log_to_browser_console(&self) -> AppResult<(), BrowserConsoleError> {
         let payload = self.to_js_value()?;
         log_js_value(&payload)
     }
 }
 
 impl BrowserConsoleExt for ErrorResponse {
-    fn to_js_value(&self) -> Result<JsValue, BrowserConsoleError> {
+    fn to_js_value(&self) -> AppResult<JsValue, BrowserConsoleError> {
         #[cfg(target_arch = "wasm32")]
         {
             to_value(self).map_err(|err| BrowserConsoleError::Serialization {
@@ -114,7 +114,7 @@ impl BrowserConsoleExt for ErrorResponse {
 }
 
 impl BrowserConsoleExt for AppError {
-    fn to_js_value(&self) -> Result<JsValue, BrowserConsoleError> {
+    fn to_js_value(&self) -> AppResult<JsValue, BrowserConsoleError> {
         #[cfg(target_arch = "wasm32")]
         {
             let response: ErrorResponse = self.into();
@@ -129,7 +129,7 @@ impl BrowserConsoleExt for AppError {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn log_js_value(value: &JsValue) -> Result<(), BrowserConsoleError> {
+fn log_js_value(value: &JsValue) -> AppResult<(), BrowserConsoleError> {
     let global = js_sys::global();
     let console = Reflect::get(&global, &JsValue::from_str("console")).map_err(|err| {
         BrowserConsoleError::ConsoleUnavailable {
@@ -168,7 +168,7 @@ fn log_js_value(value: &JsValue) -> Result<(), BrowserConsoleError> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn log_js_value(_value: &JsValue) -> Result<(), BrowserConsoleError> {
+fn log_js_value(_value: &JsValue) -> AppResult<(), BrowserConsoleError> {
     Err(BrowserConsoleError::UnsupportedTarget)
 }
 
