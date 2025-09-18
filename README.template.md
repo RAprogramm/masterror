@@ -10,6 +10,8 @@
 ![License](https://img.shields.io/badge/License-MIT%20or%20Apache--2.0-informational)
 [![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
 
+> 🇷🇺 Читайте README на [русском языке](README.ru.md).
+
 Small, pragmatic error model for API-heavy Rust services.
 Core is framework-agnostic; integrations are opt-in via feature flags.
 Stable categories, conservative HTTP mapping, no `unsafe`.
