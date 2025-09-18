@@ -7,11 +7,6 @@ on:
         type: boolean
         default: true
 
-# даём боту право писать в репо; без этого пуш/PR не взлетит
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   ci:
     runs-on: ubuntu-latest
