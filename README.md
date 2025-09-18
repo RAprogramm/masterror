@@ -147,6 +147,22 @@ assert_eq!(wrapped.to_string(), "I/O failed: disk offline");
   valid.
 - `#[error(transparent)]` enforces single-field wrappers that forward
   `Display`/`source` to the inner error.
+- `masterror::error::template::ErrorTemplate` parses `#[error("...")]`
+  strings, exposing literal and placeholder segments so custom derives can be
+  implemented without relying on `thiserror`.
+
+```rust
+use masterror::error::template::{ErrorTemplate, TemplateIdentifier};
+
+let template = ErrorTemplate::parse("{code}: {message}").expect("parse");
+let display = template.display_with(|placeholder, f| match placeholder.identifier() {
+    TemplateIdentifier::Named("code") => write!(f, "{}", 404),
+    TemplateIdentifier::Named("message") => f.write_str("Not Found"),
+    _ => Ok(()),
+});
+
+assert_eq!(display.to_string(), "404: Not Found");
+```
 
 </details>
 
@@ -329,4 +345,3 @@ MSRV = 1.89 (may raise in minor, never in patch).
 Apache-2.0 OR MIT, at your option.
 
 </details>
-
