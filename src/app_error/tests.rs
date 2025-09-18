@@ -1,0 +1,155 @@
+use super::{AppResult, core::AppError};
+use crate::AppErrorKind;
+
+// --- Helpers -------------------------------------------------------------
+
+/// Assert helper: kind matches and message is Some(s).
+fn assert_err_with_msg(err: AppError, expected: AppErrorKind, msg: &str) {
+    assert!(
+        matches!(err.kind, k if k == expected),
+        "expected kind {:?}, got {:?}",
+        expected,
+        err.kind
+    );
+    assert_eq!(err.message.as_deref(), Some(msg));
+}
+
+/// Assert helper: kind matches and message is None.
+fn assert_err_bare(err: AppError, expected: AppErrorKind) {
+    assert!(
+        matches!(err.kind, k if k == expected),
+        "expected kind {:?}, got {:?}",
+        expected,
+        err.kind
+    );
+    assert!(err.message.is_none());
+}
+
+#[test]
+fn constructors_match_kinds() {
+    assert_err_with_msg(
+        AppError::not_found("missing"),
+        AppErrorKind::NotFound,
+        "missing"
+    );
+    assert_err_with_msg(
+        AppError::validation("invalid"),
+        AppErrorKind::Validation,
+        "invalid"
+    );
+    assert_err_with_msg(
+        AppError::unauthorized("need token"),
+        AppErrorKind::Unauthorized,
+        "need token"
+    );
+    assert_err_with_msg(
+        AppError::forbidden("no access"),
+        AppErrorKind::Forbidden,
+        "no access"
+    );
+    assert_err_with_msg(AppError::conflict("dup"), AppErrorKind::Conflict, "dup");
+    assert_err_with_msg(
+        AppError::bad_request("bad"),
+        AppErrorKind::BadRequest,
+        "bad"
+    );
+    assert_err_with_msg(
+        AppError::rate_limited("slow"),
+        AppErrorKind::RateLimited,
+        "slow"
+    );
+    assert_err_with_msg(
+        AppError::telegram_auth("fail"),
+        AppErrorKind::TelegramAuth,
+        "fail"
+    );
+    assert_err_with_msg(AppError::internal("oops"), AppErrorKind::Internal, "oops");
+    assert_err_with_msg(AppError::service("down"), AppErrorKind::Service, "down");
+    assert_err_with_msg(AppError::config("bad cfg"), AppErrorKind::Config, "bad cfg");
+    assert_err_with_msg(
+        AppError::turnkey("turnkey"),
+        AppErrorKind::Turnkey,
+        "turnkey"
+    );
+    assert_err_with_msg(
+        AppError::timeout("timeout"),
+        AppErrorKind::Timeout,
+        "timeout"
+    );
+    assert_err_with_msg(AppError::network("net"), AppErrorKind::Network, "net");
+    assert_err_with_msg(
+        AppError::dependency_unavailable("dep"),
+        AppErrorKind::DependencyUnavailable,
+        "dep"
+    );
+    assert_err_with_msg(
+        AppError::service_unavailable("dep"),
+        AppErrorKind::DependencyUnavailable,
+        "dep"
+    );
+    assert_err_with_msg(
+        AppError::serialization("ser"),
+        AppErrorKind::Serialization,
+        "ser"
+    );
+    assert_err_with_msg(
+        AppError::deserialization("deser"),
+        AppErrorKind::Deserialization,
+        "deser"
+    );
+    assert_err_with_msg(
+        AppError::external_api("external"),
+        AppErrorKind::ExternalApi,
+        "external"
+    );
+    assert_err_with_msg(AppError::queue("queue"), AppErrorKind::Queue, "queue");
+    assert_err_with_msg(AppError::cache("cache"), AppErrorKind::Cache, "cache");
+}
+
+#[test]
+fn database_accepts_optional_message() {
+    let with_msg = AppError::database(Some("db down"));
+    assert_err_with_msg(with_msg, AppErrorKind::Database, "db down");
+
+    let without = AppError::database(None::<&str>);
+    assert_err_bare(without, AppErrorKind::Database);
+}
+
+#[test]
+fn bare_sets_kind_without_message() {
+    assert_err_bare(
+        AppError::bare(AppErrorKind::Internal),
+        AppErrorKind::Internal
+    );
+}
+
+#[test]
+fn retry_and_www_authenticate_are_attached() {
+    let err = AppError::internal("boom")
+        .with_retry_after_secs(30)
+        .with_www_authenticate("Bearer");
+    assert_eq!(err.retry.unwrap().after_seconds, 30);
+    assert_eq!(err.www_authenticate.as_deref(), Some("Bearer"));
+}
+
+#[test]
+fn log_uses_kind_and_code() {
+    // Smoke test to ensure the method is callable; tracing output isn't asserted
+    // here.
+    let err = AppError::internal("boom");
+    err.log();
+}
+
+#[test]
+fn result_alias_is_generic() {
+    fn app() -> AppResult<u8> {
+        Ok(1)
+    }
+
+    fn other() -> AppResult<u8, &'static str> {
+        Ok(2)
+    }
+
+    assert_eq!(app().unwrap(), 1);
+    assert_eq!(other().unwrap(), 2);
+}
