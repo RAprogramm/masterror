@@ -197,6 +197,22 @@ jobs:
             cargo +${{ steps.msrv.outputs.msrv }} test --workspace --no-fail-fast
           fi
 
+      - name: Auto-commit README changes (any branch)
+        if: always()
+        run: |
+          set -euo pipefail
+          if ! cmp -s README.md "$README_CANDIDATE"; then
+            echo "README changed, committing..."
+            cp -f "$README_CANDIDATE" README.md
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git config --global --add safe.directory "$GITHUB_WORKSPACE"
+            git add README.md
+            git commit -m "chore(readme): auto-refresh [skip ci]" || true
+          else
+            echo "README already up to date."
+          fi
+
       - name: Ensure tree is clean before package
         shell: bash
         run: |
