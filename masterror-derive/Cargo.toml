@@ -4,6 +4,9 @@ rust-version = "1.90"
 version = "0.1.2"
 edition = "2024"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/RAprogramm/masterror"
+readme = "README.md"
+description = "Derive macros for masterror"
 
 [lib]
 proc-macro = true
@@ -12,4 +15,4 @@ proc-macro = true
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "2", features = ["full", "extra-traits"] }
-masterror-template = { path = "../masterror-template", version = "0.1.2" }
+masterror-template = { workspace = true }

@@ -3,7 +3,10 @@ name = "masterror-template"
 version = "0.1.2"
 rust-version = "1.90"
 edition = "2024"
-license = "MIT OR Apache-2.0"
+repository = "https://github.com/RAprogramm/masterror"
+readme = "README.md"
+description = "Template utilities for masterror and its derive macros"
 publish = false
+license = "MIT OR Apache-2.0"
 
 [dependencies]

@@ -1,0 +1,5 @@
+[advisories]
+ignore = ["RUSTSEC-2023-0071"] # rsa / Marvin Attack; тянется опционально через sqlx-mysql, мы mysql не используем
+severity_threshold = "low"
+informational_warnings = ["unmaintained"] # опционально
+
