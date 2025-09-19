@@ -1409,7 +1409,7 @@ dependencies = [
 
 [[package]]
 name = "masterror"
-version = "0.5.2"
+version = "0.5.3"
 dependencies = [
  "actix-web",
  "axum",
@@ -1438,7 +1438,7 @@ dependencies = [
 
 [[package]]
 name = "masterror-derive"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "masterror-template",
  "proc-macro2",
@@ -1448,7 +1448,7 @@ dependencies = [
 
 [[package]]
 name = "masterror-template"
-version = "0.1.0"
+version = "0.1.1"
 
 [[package]]
 name = "matchit"

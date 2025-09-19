@@ -147,21 +147,15 @@ fn split_placeholder<'a>(
 
     let formatter = match parts.next().map(str::trim) {
         None => TemplateFormatter::Display,
-        Some("?") => TemplateFormatter::Debug {
-            alternate: false
-        },
-        Some("#?") => TemplateFormatter::Debug {
-            alternate: true
-        },
         Some("") => {
             return Err(TemplateError::InvalidFormatter {
                 span
             });
         }
-        Some(_) => {
-            return Err(TemplateError::InvalidFormatter {
+        Some(spec) => {
+            TemplateFormatter::from_format_spec(spec).ok_or(TemplateError::InvalidFormatter {
                 span
-            });
+            })?
         }
     };
 

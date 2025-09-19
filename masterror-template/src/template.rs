@@ -164,18 +164,129 @@ pub enum TemplateFormatter {
     Debug {
         /// Whether `{value:#?}` (alternate debug) was requested.
         alternate: bool
+    },
+    /// Lower-hexadecimal formatting (`{value:x}` / `{value:#x}`).
+    LowerHex {
+        /// Whether alternate formatting (`{value:#x}`) was requested.
+        alternate: bool
+    },
+    /// Upper-hexadecimal formatting (`{value:X}` / `{value:#X}`).
+    UpperHex {
+        /// Whether alternate formatting (`{value:#X}`) was requested.
+        alternate: bool
+    },
+    /// Pointer formatting (`{value:p}` / `{value:#p}`).
+    Pointer {
+        /// Whether alternate formatting (`{value:#p}`) was requested.
+        alternate: bool
+    },
+    /// Binary formatting (`{value:b}` / `{value:#b}`).
+    Binary {
+        /// Whether alternate formatting (`{value:#b}`) was requested.
+        alternate: bool
+    },
+    /// Octal formatting (`{value:o}` / `{value:#o}`).
+    Octal {
+        /// Whether alternate formatting (`{value:#o}`) was requested.
+        alternate: bool
+    },
+    /// Lower exponential formatting (`{value:e}` / `{value:#e}`).
+    LowerExp {
+        /// Whether alternate formatting (`{value:#e}`) was requested.
+        alternate: bool
+    },
+    /// Upper exponential formatting (`{value:E}` / `{value:#E}`).
+    UpperExp {
+        /// Whether alternate formatting (`{value:#E}`) was requested.
+        alternate: bool
     }
 }
 
 impl TemplateFormatter {
-    /// Returns `true` when debug formatting with `#?` was requested.
-    pub const fn is_alternate(&self) -> bool {
-        matches!(
-            self,
-            Self::Debug {
+    /// Parses a formatting specifier (the portion after `:`) into a formatter.
+    pub fn from_format_spec(spec: &str) -> Option<Self> {
+        match spec {
+            "?" => Some(Self::Debug {
+                alternate: false
+            }),
+            "#?" => Some(Self::Debug {
                 alternate: true
+            }),
+            "x" => Some(Self::LowerHex {
+                alternate: false
+            }),
+            "#x" => Some(Self::LowerHex {
+                alternate: true
+            }),
+            "X" => Some(Self::UpperHex {
+                alternate: false
+            }),
+            "#X" => Some(Self::UpperHex {
+                alternate: true
+            }),
+            "p" => Some(Self::Pointer {
+                alternate: false
+            }),
+            "#p" => Some(Self::Pointer {
+                alternate: true
+            }),
+            "b" => Some(Self::Binary {
+                alternate: false
+            }),
+            "#b" => Some(Self::Binary {
+                alternate: true
+            }),
+            "o" => Some(Self::Octal {
+                alternate: false
+            }),
+            "#o" => Some(Self::Octal {
+                alternate: true
+            }),
+            "e" => Some(Self::LowerExp {
+                alternate: false
+            }),
+            "#e" => Some(Self::LowerExp {
+                alternate: true
+            }),
+            "E" => Some(Self::UpperExp {
+                alternate: false
+            }),
+            "#E" => Some(Self::UpperExp {
+                alternate: true
+            }),
+            _ => None
+        }
+    }
+
+    /// Returns `true` when alternate formatting (`#`) was requested.
+    pub const fn is_alternate(&self) -> bool {
+        match self {
+            Self::Display => false,
+            Self::Debug {
+                alternate
             }
-        )
+            | Self::LowerHex {
+                alternate
+            }
+            | Self::UpperHex {
+                alternate
+            }
+            | Self::Pointer {
+                alternate
+            }
+            | Self::Binary {
+                alternate
+            }
+            | Self::Octal {
+                alternate
+            }
+            | Self::LowerExp {
+                alternate
+            }
+            | Self::UpperExp {
+                alternate
+            } => *alternate
+        }
     }
 }
 
@@ -320,6 +431,102 @@ mod tests {
             }
         );
         assert!(placeholders[0].formatter().is_alternate());
+    }
+
+    #[test]
+    fn parses_extended_formatters() {
+        let cases = [
+            (
+                "{value:x}",
+                TemplateFormatter::LowerHex {
+                    alternate: false
+                }
+            ),
+            (
+                "{value:#x}",
+                TemplateFormatter::LowerHex {
+                    alternate: true
+                }
+            ),
+            (
+                "{value:X}",
+                TemplateFormatter::UpperHex {
+                    alternate: false
+                }
+            ),
+            (
+                "{value:#X}",
+                TemplateFormatter::UpperHex {
+                    alternate: true
+                }
+            ),
+            (
+                "{value:p}",
+                TemplateFormatter::Pointer {
+                    alternate: false
+                }
+            ),
+            (
+                "{value:#p}",
+                TemplateFormatter::Pointer {
+                    alternate: true
+                }
+            ),
+            (
+                "{value:b}",
+                TemplateFormatter::Binary {
+                    alternate: false
+                }
+            ),
+            (
+                "{value:#b}",
+                TemplateFormatter::Binary {
+                    alternate: true
+                }
+            ),
+            (
+                "{value:o}",
+                TemplateFormatter::Octal {
+                    alternate: false
+                }
+            ),
+            (
+                "{value:#o}",
+                TemplateFormatter::Octal {
+                    alternate: true
+                }
+            ),
+            (
+                "{value:e}",
+                TemplateFormatter::LowerExp {
+                    alternate: false
+                }
+            ),
+            (
+                "{value:#e}",
+                TemplateFormatter::LowerExp {
+                    alternate: true
+                }
+            ),
+            (
+                "{value:E}",
+                TemplateFormatter::UpperExp {
+                    alternate: false
+                }
+            ),
+            (
+                "{value:#E}",
+                TemplateFormatter::UpperExp {
+                    alternate: true
+                }
+            )
+        ];
+
+        for (template_str, expected) in &cases {
+            let template = ErrorTemplate::parse(template_str).expect("parse");
+            let placeholder = template.placeholders().next().expect("placeholder present");
+            assert_eq!(placeholder.formatter(), *expected, "case: {template_str}");
+        }
     }
 
     #[test]

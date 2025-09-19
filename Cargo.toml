@@ -1,6 +1,6 @@
 [package]
 name = "masterror"
-version = "0.5.2"
+version = "0.5.3"
 rust-version = "1.90"
 edition = "2024"
 description = "Application error types and response mapping"
@@ -35,8 +35,8 @@ turnkey = []
 
 openapi = ["dep:utoipa"]
 [workspace.dependencies]
-masterror-derive = { version = "0.1", path = "masterror-derive" }
-masterror-template = { version = "0.1", path = "masterror-template" }
+masterror-derive = { version = "0.1.1", path = "masterror-derive" }
+masterror-template = { version = "0.1.1", path = "masterror-template" }
 
 [dependencies]
 # masterror-derive = { path = "masterror-derive" }
