@@ -13,6 +13,14 @@ All notable changes to this project will be documented in this file.
 - `masterror::Error` now uses the in-tree derive, removing the dependency on
   `thiserror` while keeping the same runtime behaviour and diagnostics.
 
+## [0.5.2] - 2025-09-25
+
+### Fixed
+- Added a workspace `deny.toml` allow-list for MIT, Apache-2.0 and Unicode-3.0
+  licenses so `cargo deny` accepts existing dependencies.
+- Declared SPDX license expressions for the internal `masterror-derive` and
+  `masterror-template` crates to avoid unlicensed warnings.
+
 ## [0.5.1] - 2025-09-24
 
 ### Changed
@@ -169,6 +177,7 @@ All notable changes to this project will be documented in this file.
 - **MSRV:** 1.89
 - **No unsafe:** the crate forbids `unsafe`.
 
+[0.5.2]: https://github.com/RAprogramm/masterror/releases/tag/v0.5.2
 [0.5.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.5.1
 [0.5.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.5.0
 [0.4.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.4.0
