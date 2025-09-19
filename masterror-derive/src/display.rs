@@ -1,4 +1,4 @@
-use masterror_template::template::TemplateFormatter;
+use masterror_template::template::{TemplateFormatter, TemplateFormatterKind};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use syn::Error;
@@ -337,32 +337,83 @@ fn format_placeholder(
         pointer_value
     } = resolved;
 
-    match formatter {
-        TemplateFormatter::Display => format_with_trait(expr, "Display"),
+    let (kind, alternate) = match formatter {
+        TemplateFormatter::Display => (TemplateFormatterKind::Display, false),
         TemplateFormatter::Debug {
             alternate
-        } => format_with_optional_alternate(expr, "Debug", '?', alternate),
+        } => (TemplateFormatterKind::Debug, alternate),
         TemplateFormatter::LowerHex {
             alternate
-        } => format_with_optional_alternate(expr, "LowerHex", 'x', alternate),
+        } => (TemplateFormatterKind::LowerHex, alternate),
         TemplateFormatter::UpperHex {
             alternate
-        } => format_with_optional_alternate(expr, "UpperHex", 'X', alternate),
+        } => (TemplateFormatterKind::UpperHex, alternate),
         TemplateFormatter::Pointer {
             alternate
-        } => format_pointer(expr, pointer_value, alternate),
+        } => (TemplateFormatterKind::Pointer, alternate),
         TemplateFormatter::Binary {
             alternate
-        } => format_with_optional_alternate(expr, "Binary", 'b', alternate),
+        } => (TemplateFormatterKind::Binary, alternate),
         TemplateFormatter::Octal {
             alternate
-        } => format_with_optional_alternate(expr, "Octal", 'o', alternate),
+        } => (TemplateFormatterKind::Octal, alternate),
         TemplateFormatter::LowerExp {
             alternate
-        } => format_with_optional_alternate(expr, "LowerExp", 'e', alternate),
+        } => (TemplateFormatterKind::LowerExp, alternate),
         TemplateFormatter::UpperExp {
             alternate
-        } => format_with_optional_alternate(expr, "UpperExp", 'E', alternate)
+        } => (TemplateFormatterKind::UpperExp, alternate)
+    };
+
+    format_with_formatter_kind(expr, pointer_value, kind, alternate)
+}
+
+fn format_with_formatter_kind(
+    expr: TokenStream,
+    pointer_value: bool,
+    kind: TemplateFormatterKind,
+    alternate: bool
+) -> TokenStream {
+    let trait_name = formatter_trait_name(kind);
+    match kind {
+        TemplateFormatterKind::Display => format_with_trait(expr, trait_name),
+        TemplateFormatterKind::Pointer => {
+            format_pointer(expr, pointer_value, alternate, trait_name)
+        }
+        _ => {
+            if let Some(specifier) = formatter_specifier(kind) {
+                format_with_optional_alternate(expr, trait_name, specifier, alternate)
+            } else {
+                format_with_trait(expr, trait_name)
+            }
+        }
+    }
+}
+
+fn formatter_trait_name(kind: TemplateFormatterKind) -> &'static str {
+    match kind {
+        TemplateFormatterKind::Display => "Display",
+        TemplateFormatterKind::Debug => "Debug",
+        TemplateFormatterKind::LowerHex => "LowerHex",
+        TemplateFormatterKind::UpperHex => "UpperHex",
+        TemplateFormatterKind::Pointer => "Pointer",
+        TemplateFormatterKind::Binary => "Binary",
+        TemplateFormatterKind::Octal => "Octal",
+        TemplateFormatterKind::LowerExp => "LowerExp",
+        TemplateFormatterKind::UpperExp => "UpperExp"
+    }
+}
+
+fn formatter_specifier(kind: TemplateFormatterKind) -> Option<char> {
+    match kind {
+        TemplateFormatterKind::Display | TemplateFormatterKind::Pointer => None,
+        TemplateFormatterKind::Debug => Some('?'),
+        TemplateFormatterKind::LowerHex => Some('x'),
+        TemplateFormatterKind::UpperHex => Some('X'),
+        TemplateFormatterKind::Binary => Some('b'),
+        TemplateFormatterKind::Octal => Some('o'),
+        TemplateFormatterKind::LowerExp => Some('e'),
+        TemplateFormatterKind::UpperExp => Some('E')
     }
 }
 
@@ -393,16 +444,22 @@ fn format_with_alternate(expr: TokenStream, specifier: char) -> TokenStream {
     }
 }
 
-fn format_pointer(expr: TokenStream, pointer_value: bool, alternate: bool) -> TokenStream {
+fn format_pointer(
+    expr: TokenStream,
+    pointer_value: bool,
+    alternate: bool,
+    trait_name: &str
+) -> TokenStream {
     if alternate {
         format_with_alternate(expr, 'p')
     } else if pointer_value {
+        let trait_ident = format_ident!("{}", trait_name);
         quote! {{
             let value = #expr;
-            ::core::fmt::Pointer::fmt(&value, f)?;
+            ::core::fmt::#trait_ident::fmt(&value, f)?;
         }}
     } else {
-        format_with_trait(expr, "Pointer")
+        format_with_trait(expr, trait_name)
     }
 }
 
