@@ -1,0 +1,11 @@
+error: duplicate `fmt` handler specified
+ --> tests/ui/formatter/fail/duplicate_fmt.rs:4:36
+  |
+4 | #[error(fmt = crate::format_error, fmt = crate::format_error)]
+  |                                    ^^^
+
+error: missing #[error(...)] attribute
+ --> tests/ui/formatter/fail/duplicate_fmt.rs:5:8
+  |
+5 | struct DuplicateFmt;
+  |        ^^^^^^^^^^^^
