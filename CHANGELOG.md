@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file.
   `#[error("...")]` strings and a formatter hook for future custom derives.
 - Internal `masterror-derive` crate powering the native `masterror::Error`
   derive macro.
+- Template placeholders now accept the same formatter traits as `thiserror`
+  (`:?`, `:x`, `:X`, `:p`, `:b`, `:o`, `:e`, `:E`) so existing derives keep
+  compiling when hexadecimal, binary, pointer or exponential formatting is
+  requested.
 
 ### Changed
 - `masterror::Error` now uses the in-tree derive, removing the dependency on
