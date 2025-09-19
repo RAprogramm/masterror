@@ -149,6 +149,9 @@ assert_eq!(wrapped.to_string(), "I/O failed: disk offline");
 - `TemplateFormatter` mirrors `thiserror`'s formatter detection so existing
   derives that relied on hexadecimal, pointer or exponential renderers keep
   compiling.
+- `TemplateFormatterKind` exposes the formatter trait requested by a
+  placeholder, making it easy to branch on the requested rendering behaviour
+  without manually matching every enum variant.
 
 #### Formatter traits
 
@@ -205,7 +208,9 @@ assert!(rendered.contains("upper=1.5625E-1"));
 ~~~
 
 ~~~rust
-use masterror::error::template::{ErrorTemplate, TemplateFormatter};
+use masterror::error::template::{
+    ErrorTemplate, TemplateFormatter, TemplateFormatterKind
+};
 
 let template = ErrorTemplate::parse("{code:#x} → {payload:?}").expect("parse");
 let mut placeholders = template.placeholders();
@@ -215,6 +220,8 @@ assert!(matches!(
     code.formatter(),
     TemplateFormatter::LowerHex { alternate: true }
 ));
+assert_eq!(code.formatter().kind(), TemplateFormatterKind::LowerHex);
+assert!(code.formatter().is_alternate());
 
 let payload = placeholders.next().expect("payload placeholder");
 assert_eq!(

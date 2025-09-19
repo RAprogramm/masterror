@@ -155,6 +155,115 @@ impl<'a> TemplateIdentifier<'a> {
     }
 }
 
+/// Formatter traits recognised within placeholders.
+///
+/// # Examples
+///
+/// ```
+/// use masterror_template::template::{TemplateFormatter, TemplateFormatterKind};
+///
+/// let formatter = TemplateFormatter::LowerHex {
+///     alternate: true
+/// };
+///
+/// assert_eq!(formatter.kind(), TemplateFormatterKind::LowerHex);
+/// assert_eq!(TemplateFormatterKind::LowerHex.specifier(), Some('x'));
+/// assert!(TemplateFormatterKind::LowerHex.supports_alternate());
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TemplateFormatterKind {
+    /// Default `Display` trait (`{value}`).
+    Display,
+    /// `Debug` trait (`{value:?}` / `{value:#?}`).
+    Debug,
+    /// `LowerHex` trait (`{value:x}` / `{value:#x}`).
+    LowerHex,
+    /// `UpperHex` trait (`{value:X}` / `{value:#X}`).
+    UpperHex,
+    /// `Pointer` trait (`{value:p}` / `{value:#p}`).
+    Pointer,
+    /// `Binary` trait (`{value:b}` / `{value:#b}`).
+    Binary,
+    /// `Octal` trait (`{value:o}` / `{value:#o}`).
+    Octal,
+    /// `LowerExp` trait (`{value:e}` / `{value:#e}`).
+    LowerExp,
+    /// `UpperExp` trait (`{value:E}` / `{value:#E}`).
+    UpperExp
+}
+
+impl TemplateFormatterKind {
+    /// Maps a format specifier character to a formatter kind.
+    ///
+    /// Returns `None` when the specifier is unsupported.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use masterror_template::template::TemplateFormatterKind;
+    ///
+    /// assert_eq!(
+    ///     TemplateFormatterKind::from_specifier('?'),
+    ///     Some(TemplateFormatterKind::Debug)
+    /// );
+    /// assert_eq!(TemplateFormatterKind::from_specifier('Q'), None);
+    /// ```
+    pub const fn from_specifier(specifier: char) -> Option<Self> {
+        match specifier {
+            '?' => Some(Self::Debug),
+            'x' => Some(Self::LowerHex),
+            'X' => Some(Self::UpperHex),
+            'p' => Some(Self::Pointer),
+            'b' => Some(Self::Binary),
+            'o' => Some(Self::Octal),
+            'e' => Some(Self::LowerExp),
+            'E' => Some(Self::UpperExp),
+            _ => None
+        }
+    }
+
+    /// Returns the canonical format specifier character, if any.
+    ///
+    /// The default `Display` kind has no dedicated specifier and therefore
+    /// returns `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use masterror_template::template::TemplateFormatterKind;
+    ///
+    /// assert_eq!(TemplateFormatterKind::LowerHex.specifier(), Some('x'));
+    /// assert_eq!(TemplateFormatterKind::Display.specifier(), None);
+    /// ```
+    pub const fn specifier(self) -> Option<char> {
+        match self {
+            Self::Display => None,
+            Self::Debug => Some('?'),
+            Self::LowerHex => Some('x'),
+            Self::UpperHex => Some('X'),
+            Self::Pointer => Some('p'),
+            Self::Binary => Some('b'),
+            Self::Octal => Some('o'),
+            Self::LowerExp => Some('e'),
+            Self::UpperExp => Some('E')
+        }
+    }
+
+    /// Indicates whether the formatter kind supports the alternate (`#`) flag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use masterror_template::template::TemplateFormatterKind;
+    ///
+    /// assert!(TemplateFormatterKind::Binary.supports_alternate());
+    /// assert!(!TemplateFormatterKind::Display.supports_alternate());
+    /// ```
+    pub const fn supports_alternate(self) -> bool {
+        !matches!(self, Self::Display)
+    }
+}
+
 /// Formatting mode requested by the placeholder.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TemplateFormatter {
@@ -203,6 +312,98 @@ pub enum TemplateFormatter {
 }
 
 impl TemplateFormatter {
+    /// Constructs a formatter from a [`TemplateFormatterKind`] and `alternate`
+    /// flag.
+    ///
+    /// The `alternate` flag is ignored for [`TemplateFormatterKind::Display`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use masterror_template::template::{TemplateFormatter, TemplateFormatterKind};
+    ///
+    /// let formatter = TemplateFormatter::from_kind(TemplateFormatterKind::Binary, true);
+    ///
+    /// assert!(matches!(
+    ///     formatter,
+    ///     TemplateFormatter::Binary {
+    ///         alternate: true
+    ///     }
+    /// ));
+    /// ```
+    pub const fn from_kind(kind: TemplateFormatterKind, alternate: bool) -> Self {
+        match kind {
+            TemplateFormatterKind::Display => Self::Display,
+            TemplateFormatterKind::Debug => Self::Debug {
+                alternate
+            },
+            TemplateFormatterKind::LowerHex => Self::LowerHex {
+                alternate
+            },
+            TemplateFormatterKind::UpperHex => Self::UpperHex {
+                alternate
+            },
+            TemplateFormatterKind::Pointer => Self::Pointer {
+                alternate
+            },
+            TemplateFormatterKind::Binary => Self::Binary {
+                alternate
+            },
+            TemplateFormatterKind::Octal => Self::Octal {
+                alternate
+            },
+            TemplateFormatterKind::LowerExp => Self::LowerExp {
+                alternate
+            },
+            TemplateFormatterKind::UpperExp => Self::UpperExp {
+                alternate
+            }
+        }
+    }
+
+    /// Returns the underlying formatter kind.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use masterror_template::template::{TemplateFormatter, TemplateFormatterKind};
+    ///
+    /// let formatter = TemplateFormatter::Pointer {
+    ///     alternate: false
+    /// };
+    ///
+    /// assert_eq!(formatter.kind(), TemplateFormatterKind::Pointer);
+    /// ```
+    pub const fn kind(&self) -> TemplateFormatterKind {
+        match self {
+            Self::Display => TemplateFormatterKind::Display,
+            Self::Debug {
+                ..
+            } => TemplateFormatterKind::Debug,
+            Self::LowerHex {
+                ..
+            } => TemplateFormatterKind::LowerHex,
+            Self::UpperHex {
+                ..
+            } => TemplateFormatterKind::UpperHex,
+            Self::Pointer {
+                ..
+            } => TemplateFormatterKind::Pointer,
+            Self::Binary {
+                ..
+            } => TemplateFormatterKind::Binary,
+            Self::Octal {
+                ..
+            } => TemplateFormatterKind::Octal,
+            Self::LowerExp {
+                ..
+            } => TemplateFormatterKind::LowerExp,
+            Self::UpperExp {
+                ..
+            } => TemplateFormatterKind::UpperExp
+        }
+    }
+
     /// Parses a formatting specifier (the portion after `:`) into a formatter.
     pub fn from_format_spec(spec: &str) -> Option<Self> {
         Self::parse_specifier(spec)
@@ -222,33 +423,8 @@ impl TemplateFormatter {
             _ => return None
         };
 
-        match ty {
-            '?' => Some(Self::Debug {
-                alternate
-            }),
-            'x' => Some(Self::LowerHex {
-                alternate
-            }),
-            'X' => Some(Self::UpperHex {
-                alternate
-            }),
-            'p' => Some(Self::Pointer {
-                alternate
-            }),
-            'b' => Some(Self::Binary {
-                alternate
-            }),
-            'o' => Some(Self::Octal {
-                alternate
-            }),
-            'e' => Some(Self::LowerExp {
-                alternate
-            }),
-            'E' => Some(Self::UpperExp {
-                alternate
-            }),
-            _ => None
-        }
+        let kind = TemplateFormatterKind::from_specifier(ty)?;
+        Some(Self::from_kind(kind, alternate))
     }
 
     /// Returns `true` when alternate formatting (`#`) was requested.
@@ -520,6 +696,45 @@ mod tests {
             let placeholder = template.placeholders().next().expect("placeholder present");
             assert_eq!(placeholder.formatter(), *expected, "case: {template_str}");
         }
+    }
+
+    #[test]
+    fn formatter_kind_helpers_cover_all_variants() {
+        let table = [
+            (TemplateFormatterKind::Debug, '?'),
+            (TemplateFormatterKind::LowerHex, 'x'),
+            (TemplateFormatterKind::UpperHex, 'X'),
+            (TemplateFormatterKind::Pointer, 'p'),
+            (TemplateFormatterKind::Binary, 'b'),
+            (TemplateFormatterKind::Octal, 'o'),
+            (TemplateFormatterKind::LowerExp, 'e'),
+            (TemplateFormatterKind::UpperExp, 'E')
+        ];
+
+        for (kind, specifier) in table {
+            assert_eq!(TemplateFormatterKind::from_specifier(specifier), Some(kind));
+            assert_eq!(kind.specifier(), Some(specifier));
+
+            let with_alternate = TemplateFormatter::from_kind(kind, true);
+            let without_alternate = TemplateFormatter::from_kind(kind, false);
+
+            assert_eq!(with_alternate.kind(), kind);
+            assert_eq!(without_alternate.kind(), kind);
+
+            if kind.supports_alternate() {
+                assert!(with_alternate.is_alternate());
+                assert!(!without_alternate.is_alternate());
+            } else {
+                assert!(!with_alternate.is_alternate());
+                assert!(!without_alternate.is_alternate());
+            }
+        }
+
+        let display = TemplateFormatter::from_kind(TemplateFormatterKind::Display, true);
+        assert_eq!(display.kind(), TemplateFormatterKind::Display);
+        assert!(!display.is_alternate());
+        assert_eq!(TemplateFormatterKind::Display.specifier(), None);
+        assert!(!TemplateFormatterKind::Display.supports_alternate());
     }
 
     #[test]

@@ -136,10 +136,13 @@ assert!(rendered.contains("upper=1.5625E-1"));
 ~~~
 
 `masterror::error::template::ErrorTemplate` позволяет разобрать шаблон и
-программно проверить запрошенные форматтеры:
+программно проверить запрошенные форматтеры; перечисление
+`TemplateFormatterKind` возвращает название трейта для каждого плейсхолдера:
 
 ~~~rust
-use masterror::error::template::{ErrorTemplate, TemplateFormatter};
+use masterror::error::template::{
+    ErrorTemplate, TemplateFormatter, TemplateFormatterKind
+};
 
 let template = ErrorTemplate::parse("{code:#x} → {payload:?}").expect("parse");
 let mut placeholders = template.placeholders();
@@ -149,6 +152,8 @@ assert!(matches!(
     code.formatter(),
     TemplateFormatter::LowerHex { alternate: true }
 ));
+assert_eq!(code.formatter().kind(), TemplateFormatterKind::LowerHex);
+assert!(code.formatter().is_alternate());
 
 let payload = placeholders.next().expect("payload placeholder");
 assert_eq!(
