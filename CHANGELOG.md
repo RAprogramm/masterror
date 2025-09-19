@@ -6,6 +6,23 @@ All notable changes to this project will be documented in this file.
 ### Added
 - _Nothing yet._
 
+## [0.5.15] - 2025-10-07
+
+### Added
+- Parse `#[error("...")]` attribute arguments into structured `FormatArg`
+  entries, tracking named bindings and positional indices for future
+  `format_args!` integration.
+- Recognise `#[error(fmt = <path>)]` handlers, capturing the formatter path and
+  associated arguments while guarding against duplicate `fmt` specifications.
+
+### Fixed
+- Produce dedicated diagnostics when unsupported combinations are used, such as
+  providing format arguments alongside `#[error(transparent)]`.
+
+### Tests
+- Extend the `trybuild` suite with regression cases covering duplicate `fmt`
+  handlers and transparent attributes that erroneously include arguments.
+
 ## [0.5.14] - 2025-10-06
 
 ### Added

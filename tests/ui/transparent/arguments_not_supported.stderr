@@ -1,0 +1,11 @@
+error: format arguments are not supported with #[error(transparent)]
+ --> tests/ui/transparent/arguments_not_supported.rs:4:20
+  |
+4 | #[error(transparent, code = 42)]
+  |                    ^
+
+error: missing #[error(...)] attribute
+ --> tests/ui/transparent/arguments_not_supported.rs:5:8
+  |
+5 | struct TransparentWithArgs(#[from] std::io::Error);
+  |        ^^^^^^^^^^^^^^^^^^^
