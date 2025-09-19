@@ -410,21 +410,7 @@ impl TemplateFormatter {
     }
 
     pub(crate) fn parse_specifier(spec: &str) -> Option<Self> {
-        let trimmed = spec.trim();
-        if trimmed.is_empty() {
-            return None;
-        }
-
-        let (last_index, ty) = trimmed.char_indices().next_back()?;
-        let prefix = &trimmed[..last_index];
-        let alternate = match prefix {
-            "" => false,
-            "#" => true,
-            _ => return None
-        };
-
-        let kind = TemplateFormatterKind::from_specifier(ty)?;
-        Some(Self::from_kind(kind, alternate))
+        parser::parse_formatter_spec(spec)
     }
 
     /// Returns `true` when alternate formatting (`#`) was requested.
