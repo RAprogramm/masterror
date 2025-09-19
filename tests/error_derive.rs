@@ -1,8 +1,8 @@
 #![allow(unused_variables, non_shorthand_field_patterns)]
 
-use std::error::Error as StdError;
 #[cfg(error_generic_member_access)]
 use std::ptr;
+use std::{error::Error as StdError, fmt};
 
 use masterror::Error;
 
@@ -152,14 +152,32 @@ enum EnumWithBacktrace {
 
 #[derive(Debug, Error)]
 #[error(
-    "x={value:x} X={value:X} #x={value:#x} #X={value:#X} b={value:b} #b={value:#b} \
-     o={value:o} #o={value:#o} e={float:e} #e={float:#e} E={float:E} #E={float:#E} \
-     p={ptr:p} #p={ptr:#p}"
+    "display={value} debug={value:?} #debug={value:#?} x={value:x} X={value:X} \
+     #x={value:#x} #X={value:#X} b={value:b} #b={value:#b} o={value:o} #o={value:#o} \
+     e={float:e} #e={float:#e} E={float:E} #E={float:#E} p={ptr:p} #p={ptr:#p}"
 )]
 struct FormatterShowcase {
     value: u32,
     float: f64,
     ptr:   *const u32
+}
+
+#[derive(Debug)]
+struct PrettyDebugValue {
+    label: &'static str
+}
+
+impl fmt::Display for PrettyDebugValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.label)
+    }
+}
+
+#[derive(Debug, Error)]
+#[error("display={value} debug={value:?} #debug={value:#?} tuple={tuple:?} #tuple={tuple:#?}")]
+struct FormatterDebugShowcase {
+    value: PrettyDebugValue,
+    tuple: (&'static str, u8)
 }
 
 #[cfg(error_generic_member_access)]
@@ -362,6 +380,34 @@ fn enum_backtrace_field_is_returned() {
 }
 
 #[test]
+fn supports_display_and_debug_formatters() {
+    let value = PrettyDebugValue {
+        label: "Alpha"
+    };
+    let tuple = ("tuple", 7u8);
+
+    let expected = format!(
+        "display={value} debug={value:?} #debug={value:#?} tuple={tuple:?} #tuple={tuple:#?}",
+    );
+
+    let standard_debug = format!("{value:?}");
+    let alternate_debug = format!("{value:#?}");
+    assert_ne!(standard_debug, alternate_debug);
+
+    let tuple_debug = format!("{tuple:?}");
+    let tuple_alternate_debug = format!("{tuple:#?}");
+    assert_ne!(tuple_debug, tuple_alternate_debug);
+
+    let err = FormatterDebugShowcase {
+        value,
+        tuple
+    };
+
+    assert_eq!(err.to_string(), expected);
+    assert!(StdError::source(&err).is_none());
+}
+
+#[test]
 fn supports_extended_formatters() {
     let value = 0x5A5Au32;
     let float = 1234.5_f64;
@@ -374,10 +420,18 @@ fn supports_extended_formatters() {
     };
 
     let expected = format!(
-        "x={value:x} X={value:X} #x={value:#x} #X={value:#X} b={value:b} #b={value:#b} \
-         o={value:o} #o={value:#o} e={float:e} #e={float:#e} E={float:E} #E={float:#E} \
-         p={ptr:p} #p={ptr:#p}"
+        "display={value} debug={value:?} #debug={value:#?} x={value:x} X={value:X} \
+         #x={value:#x} #X={value:#X} b={value:b} #b={value:#b} o={value:o} #o={value:#o} \
+         e={float:e} #e={float:#e} E={float:E} #E={float:#E} p={ptr:p} #p={ptr:#p}"
     );
+
+    let lower_hex = format!("{value:x}");
+    let upper_hex = format!("{value:X}");
+    assert_ne!(lower_hex, upper_hex);
+
+    let lower_exp = format!("{float:e}");
+    let upper_exp = format!("{float:E}");
+    assert_ne!(lower_exp, upper_exp);
 
     assert_eq!(err.to_string(), expected);
     assert!(StdError::source(&err).is_none());
