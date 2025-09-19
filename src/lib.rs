@@ -185,6 +185,7 @@
 mod app_error;
 mod code;
 mod convert;
+pub mod error;
 mod kind;
 mod response;
 

@@ -3,7 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-_No changes yet._
+### Added
+- `masterror::error::template` module providing a parsed representation of
+  `#[error("...")]` strings and a formatter hook for future custom derives.
 
 ## [0.5.0] - 2025-09-23
 
