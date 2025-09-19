@@ -1,8 +1,8 @@
 [package]
 name = "masterror"
-version = "0.5.1"
-edition = "2024"
+version = "0.5.3"
 rust-version = "1.90"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/RAprogramm/masterror"
 readme = "README.md"
@@ -25,10 +25,6 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/RAprogramm/masterror"
 readme = "README.md"
 
-# Версионированные внутренние зависимости, чтобы cargo package/publish не терял path
-[workspace.dependencies]
-masterror-derive = { version = "0.5.1", path = "masterror-derive" }
-masterror-template = { version = "0.5.1", path = "masterror-template" }
 
 [features]
 default = []
@@ -51,6 +47,10 @@ telegram-webapp-sdk = ["dep:telegram-webapp-sdk"]
 frontend = ["dep:wasm-bindgen", "dep:js-sys", "dep:serde-wasm-bindgen"]
 turnkey = []
 openapi = ["dep:utoipa"]
+
+[workspace.dependencies]
+masterror-derive = { version = "0.1.1", path = "masterror-derive" }
+masterror-template = { version = "0.1.1", path = "masterror-template" }
 
 [dependencies]
 masterror-derive = { workspace = true }

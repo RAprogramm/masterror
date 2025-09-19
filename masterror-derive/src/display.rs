@@ -85,6 +85,29 @@ fn render_variant(variant: &VariantData) -> Result<TokenStream, Error> {
     }
 }
 
+#[derive(Debug)]
+struct ResolvedPlaceholderExpr {
+    expr:          TokenStream,
+    pointer_value: bool
+}
+
+impl ResolvedPlaceholderExpr {
+    fn new(expr: TokenStream) -> Self {
+        Self::with(expr, false)
+    }
+
+    fn pointer(expr: TokenStream) -> Self {
+        Self::with(expr, true)
+    }
+
+    fn with(expr: TokenStream, pointer_value: bool) -> Self {
+        Self {
+            expr,
+            pointer_value
+        }
+    }
+}
+
 fn render_variant_transparent(variant: &VariantData) -> Result<TokenStream, Error> {
     let variant_ident = &variant.ident;
 
@@ -172,7 +195,7 @@ fn render_variant_template(
 
 fn render_template<F>(template: &DisplayTemplate, resolver: F) -> Result<TokenStream, Error>
 where
-    F: Fn(&TemplatePlaceholderSpec) -> Result<TokenStream, Error>
+    F: Fn(&TemplatePlaceholderSpec) -> Result<ResolvedPlaceholderExpr, Error>
 {
     let mut pieces = Vec::new();
     for segment in &template.segments {
@@ -181,8 +204,8 @@ where
                 pieces.push(quote! { f.write_str(#text)?; });
             }
             TemplateSegmentSpec::Placeholder(placeholder) => {
-                let expr = resolver(placeholder)?;
-                pieces.push(format_placeholder(expr, placeholder.formatter));
+                let resolved = resolver(placeholder)?;
+                pieces.push(format_placeholder(resolved, placeholder.formatter));
             }
         }
     }
@@ -196,40 +219,78 @@ where
 fn struct_placeholder_expr(
     fields: &Fields,
     placeholder: &TemplatePlaceholderSpec
-) -> Result<TokenStream, Error> {
+) -> Result<ResolvedPlaceholderExpr, Error> {
     match &placeholder.identifier {
-        TemplateIdentifierSpec::Named(name) if name == "self" => Ok(quote!(self)),
+        TemplateIdentifierSpec::Named(name) if name == "self" => {
+            Ok(ResolvedPlaceholderExpr::with(
+                quote!(self),
+                needs_pointer_value(placeholder.formatter)
+            ))
+        }
         TemplateIdentifierSpec::Named(name) => {
             if let Some(field) = fields.get_named(name) {
-                let member = &field.member;
-                Ok(quote!(&self.#member))
+                Ok(struct_field_expr(field, placeholder.formatter))
             } else {
                 Err(placeholder_error(placeholder.span, &placeholder.identifier))
             }
         }
-        TemplateIdentifierSpec::Positional(index) => {
-            if let Some(field) = fields.get_positional(*index) {
-                let member = &field.member;
-                Ok(quote!(&self.#member))
-            } else {
-                Err(placeholder_error(placeholder.span, &placeholder.identifier))
-            }
-        }
+        TemplateIdentifierSpec::Positional(index) => fields
+            .get_positional(*index)
+            .map(|field| struct_field_expr(field, placeholder.formatter))
+            .ok_or_else(|| placeholder_error(placeholder.span, &placeholder.identifier))
+    }
+}
+
+fn struct_field_expr(field: &Field, formatter: TemplateFormatter) -> ResolvedPlaceholderExpr {
+    let member = &field.member;
+
+    if needs_pointer_value(formatter) && pointer_prefers_value(&field.ty) {
+        ResolvedPlaceholderExpr::pointer(quote!(self.#member))
+    } else {
+        ResolvedPlaceholderExpr::new(quote!(&self.#member))
+    }
+}
+
+fn needs_pointer_value(formatter: TemplateFormatter) -> bool {
+    matches!(formatter, TemplateFormatter::Pointer { .. })
+}
+
+fn pointer_prefers_value(ty: &syn::Type) -> bool {
+    match ty {
+        syn::Type::Ptr(_) => true,
+        syn::Type::Reference(reference) => reference.mutability.is_none(),
+        syn::Type::Path(path) => path
+            .path
+            .segments
+            .last()
+            .map(|segment| segment.ident == "NonNull")
+            .unwrap_or(false),
+        _ => false
     }
 }
 
 fn variant_tuple_placeholder(
     bindings: &[Ident],
     placeholder: &TemplatePlaceholderSpec
-) -> Result<TokenStream, Error> {
+) -> Result<ResolvedPlaceholderExpr, Error> {
     match &placeholder.identifier {
-        TemplateIdentifierSpec::Named(name) if name == "self" => Ok(quote!(self)),
+        TemplateIdentifierSpec::Named(name) if name == "self" => {
+            Ok(ResolvedPlaceholderExpr::with(
+                quote!(self),
+                needs_pointer_value(placeholder.formatter)
+            ))
+        }
         TemplateIdentifierSpec::Named(_) => {
             Err(placeholder_error(placeholder.span, &placeholder.identifier))
         }
         TemplateIdentifierSpec::Positional(index) => bindings
             .get(*index)
-            .map(|binding| quote!(#binding))
+            .map(|binding| {
+                ResolvedPlaceholderExpr::with(
+                    quote!(#binding),
+                    needs_pointer_value(placeholder.formatter)
+                )
+            })
             .ok_or_else(|| placeholder_error(placeholder.span, &placeholder.identifier))
     }
 }
@@ -238,16 +299,24 @@ fn variant_named_placeholder(
     fields: &[Field],
     bindings: &[Ident],
     placeholder: &TemplatePlaceholderSpec
-) -> Result<TokenStream, Error> {
+) -> Result<ResolvedPlaceholderExpr, Error> {
     match &placeholder.identifier {
-        TemplateIdentifierSpec::Named(name) if name == "self" => Ok(quote!(self)),
+        TemplateIdentifierSpec::Named(name) if name == "self" => {
+            Ok(ResolvedPlaceholderExpr::with(
+                quote!(self),
+                needs_pointer_value(placeholder.formatter)
+            ))
+        }
         TemplateIdentifierSpec::Named(name) => {
             if let Some(index) = fields
                 .iter()
                 .position(|field| field.ident.as_ref().is_some_and(|ident| ident == name))
             {
                 let binding = &bindings[index];
-                Ok(quote!(#binding))
+                Ok(ResolvedPlaceholderExpr::with(
+                    quote!(#binding),
+                    needs_pointer_value(placeholder.formatter)
+                ))
             } else {
                 Err(placeholder_error(placeholder.span, &placeholder.identifier))
             }
@@ -259,7 +328,15 @@ fn variant_named_placeholder(
     }
 }
 
-fn format_placeholder(expr: TokenStream, formatter: TemplateFormatter) -> TokenStream {
+fn format_placeholder(
+    resolved: ResolvedPlaceholderExpr,
+    formatter: TemplateFormatter
+) -> TokenStream {
+    let ResolvedPlaceholderExpr {
+        expr,
+        pointer_value
+    } = resolved;
+
     match formatter {
         TemplateFormatter::Display => quote! {
             core::fmt::Display::fmt(#expr, f)?;
@@ -273,6 +350,74 @@ fn format_placeholder(expr: TokenStream, formatter: TemplateFormatter) -> TokenS
             alternate: true
         } => quote! {
             write!(f, "{:#?}", #expr)?;
+        },
+        TemplateFormatter::LowerHex {
+            alternate
+        } => {
+            if alternate {
+                quote! { write!(f, "{:#x}", #expr)?; }
+            } else {
+                quote! { core::fmt::LowerHex::fmt(#expr, f)?; }
+            }
+        }
+        TemplateFormatter::UpperHex {
+            alternate
+        } => {
+            if alternate {
+                quote! { write!(f, "{:#X}", #expr)?; }
+            } else {
+                quote! { core::fmt::UpperHex::fmt(#expr, f)?; }
+            }
+        }
+        TemplateFormatter::Pointer {
+            alternate
+        } => {
+            if alternate {
+                quote! { write!(f, "{:#p}", #expr)?; }
+            } else if pointer_value {
+                quote! {{
+                    let value = #expr;
+                    core::fmt::Pointer::fmt(&value, f)?;
+                }}
+            } else {
+                quote! { core::fmt::Pointer::fmt(#expr, f)?; }
+            }
+        }
+        TemplateFormatter::Binary {
+            alternate
+        } => {
+            if alternate {
+                quote! { write!(f, "{:#b}", #expr)?; }
+            } else {
+                quote! { core::fmt::Binary::fmt(#expr, f)?; }
+            }
+        }
+        TemplateFormatter::Octal {
+            alternate
+        } => {
+            if alternate {
+                quote! { write!(f, "{:#o}", #expr)?; }
+            } else {
+                quote! { core::fmt::Octal::fmt(#expr, f)?; }
+            }
+        }
+        TemplateFormatter::LowerExp {
+            alternate
+        } => {
+            if alternate {
+                quote! { write!(f, "{:#e}", #expr)?; }
+            } else {
+                quote! { core::fmt::LowerExp::fmt(#expr, f)?; }
+            }
+        }
+        TemplateFormatter::UpperExp {
+            alternate
+        } => {
+            if alternate {
+                quote! { write!(f, "{:#E}", #expr)?; }
+            } else {
+                quote! { core::fmt::UpperExp::fmt(#expr, f)?; }
+            }
         }
     }
 }

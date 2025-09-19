@@ -150,6 +150,18 @@ enum EnumWithBacktrace {
     Unit
 }
 
+#[derive(Debug, Error)]
+#[error(
+    "x={value:x} X={value:X} #x={value:#x} #X={value:#X} b={value:b} #b={value:#b} \
+     o={value:o} #o={value:#o} e={float:e} #e={float:#e} E={float:E} #E={float:#E} \
+     p={ptr:p} #p={ptr:#p}"
+)]
+struct FormatterShowcase {
+    value: u32,
+    float: f64,
+    ptr:   *const u32
+}
+
 #[cfg(error_generic_member_access)]
 fn assert_backtrace_interfaces<E>(error: &E, expected: &std::backtrace::Backtrace)
 where
@@ -347,4 +359,26 @@ fn enum_backtrace_field_is_returned() {
     {
         assert!(std::error::Error::backtrace(&unit).is_none());
     }
+}
+
+#[test]
+fn supports_extended_formatters() {
+    let value = 0x5A5Au32;
+    let float = 1234.5_f64;
+    let ptr = core::ptr::null::<u32>();
+
+    let err = FormatterShowcase {
+        value,
+        float,
+        ptr
+    };
+
+    let expected = format!(
+        "x={value:x} X={value:X} #x={value:#x} #X={value:#X} b={value:b} #b={value:#b} \
+         o={value:o} #o={value:#o} e={float:e} #e={float:#e} E={float:E} #E={float:#E} \
+         p={ptr:p} #p={ptr:#p}"
+    );
+
+    assert_eq!(err.to_string(), expected);
+    assert!(StdError::source(&err).is_none());
 }
