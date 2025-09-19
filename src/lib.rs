@@ -203,11 +203,10 @@ pub mod prelude;
 pub use app_error::{AppError, AppResult};
 pub use code::AppCode;
 pub use kind::AppErrorKind;
-pub use response::{ErrorResponse, RetryAdvice};
-/// Derive macro re-export providing the same ergonomics as `thiserror::Error`.
+/// Native derive macro for error enums and structs.
 ///
-/// Supports `#[from]` conversions and `#[error(transparent)]` wrappers out of
-/// the box while keeping compile-time validation of wrapper shapes.
+/// Supports `#[from]` conversions, transparent wrappers, and precise
+/// diagnostics for `#[error("...")]` templates with field-aware validation.
 ///
 /// ```
 /// use std::error::Error as StdError;
@@ -259,4 +258,5 @@ pub use response::{ErrorResponse, RetryAdvice};
 ///     expected_source
 /// );
 /// ```
-pub use thiserror::Error;
+pub use masterror_derive::Error;
+pub use response::{ErrorResponse, RetryAdvice};

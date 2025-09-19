@@ -12,6 +12,12 @@ build = "build.rs"
 categories = ["rust-patterns", "web-programming"]
 keywords = ["error", "api", "framework"]
 
+[workspace]
+members = [
+  "masterror-derive",
+  "masterror-template"
+]
+
 
 [features]
 default = []
@@ -33,7 +39,8 @@ turnkey = []
 openapi = ["dep:utoipa"]
 
 [dependencies]
-thiserror = "2"
+masterror-derive = { path = "masterror-derive" }
+masterror-template = { path = "masterror-template" }
 tracing = "0.1"
 
 serde = { version = "1", features = ["derive"] }
