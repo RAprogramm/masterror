@@ -24,6 +24,14 @@ All notable changes to this project will be documented in this file.
 - Added `cargo audit` to the pre-commit hook and CI workflow; published a
   README badge to surface the audit status.
 
+### Added
+- Composite GitHub Action (`.github/actions/cargo-deny`) that installs and runs
+  `cargo-deny` checks for reuse across workflows.
+- `cargo deny` step in the reusable CI pipeline to catch advisories, bans,
+  license and source issues automatically.
+- README badges surfacing the Cargo Deny status so consumers can quickly verify
+  supply-chain checks.
+
 ## [0.5.0] - 2025-09-23
 
 ### Added

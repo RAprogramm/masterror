@@ -1,6 +1,8 @@
 #![allow(unused_variables, non_shorthand_field_patterns)]
 
 use std::error::Error as StdError;
+#[cfg(error_generic_member_access)]
+use std::ptr;
 
 use masterror::Error;
 
@@ -127,6 +129,46 @@ enum VariantFromWithBacktrace {
     }
 }
 
+#[derive(Debug, Error)]
+#[error("captured")]
+struct StructWithBacktrace {
+    #[backtrace]
+    trace: std::backtrace::Backtrace
+}
+
+#[derive(Debug, Error)]
+enum EnumWithBacktrace {
+    #[error("tuple {0}")]
+    Tuple(&'static str, #[backtrace] std::backtrace::Backtrace),
+    #[error("named {message}")]
+    Named {
+        message: &'static str,
+        #[backtrace]
+        trace:   std::backtrace::Backtrace
+    },
+    #[error("unit")]
+    Unit
+}
+
+#[cfg(error_generic_member_access)]
+fn assert_backtrace_interfaces<E>(error: &E, expected: &std::backtrace::Backtrace)
+where
+    E: StdError + ?Sized
+{
+    let reported = std::error::Error::backtrace(error).expect("backtrace");
+    assert!(ptr::eq(expected, reported));
+    let provided =
+        std::error::request_ref::<std::backtrace::Backtrace>(error).expect("provided backtrace");
+    assert!(ptr::eq(reported, provided));
+}
+
+#[cfg(not(error_generic_member_access))]
+fn assert_backtrace_interfaces<E>(_error: &E, _expected: &std::backtrace::Backtrace)
+where
+    E: StdError + ?Sized
+{
+}
+
 #[test]
 fn named_struct_display_and_source() {
     let err = NamedError {
@@ -247,6 +289,8 @@ fn transparent_enum_variant_from_impl() {
 fn struct_from_with_backtrace_field_captures_trace() {
     let err = StructFromWithBacktrace::from(LeafError);
     assert!(err.trace.is_some());
+    let stored = err.trace.as_ref().expect("trace stored");
+    assert_backtrace_interfaces(&err, stored);
     assert_eq!(
         StdError::source(&err).map(|err| err.to_string()),
         Some(String::from("leaf failure"))
@@ -256,15 +300,51 @@ fn struct_from_with_backtrace_field_captures_trace() {
 #[test]
 fn enum_from_with_backtrace_field_captures_trace() {
     let err = VariantFromWithBacktrace::from(LeafError);
-    match &err {
+    let trace = match &err {
         VariantFromWithBacktrace::WithTrace {
             trace, ..
         } => {
             assert!(trace.is_some());
+            trace.as_ref().unwrap()
         }
-    }
+    };
+    assert_backtrace_interfaces(&err, trace);
     assert_eq!(
         StdError::source(&err).map(|err| err.to_string()),
         Some(String::from("leaf failure"))
     );
+}
+
+#[test]
+fn struct_backtrace_field_is_returned() {
+    let err = StructWithBacktrace {
+        trace: std::backtrace::Backtrace::capture()
+    };
+    assert_backtrace_interfaces(&err, &err.trace);
+    assert!(StdError::source(&err).is_none());
+}
+
+#[test]
+fn enum_backtrace_field_is_returned() {
+    let tuple = EnumWithBacktrace::Tuple("tuple", std::backtrace::Backtrace::capture());
+    if let EnumWithBacktrace::Tuple(_, trace) = &tuple {
+        assert_backtrace_interfaces(&tuple, trace);
+    }
+
+    let named = EnumWithBacktrace::Named {
+        message: "named",
+        trace:   std::backtrace::Backtrace::capture()
+    };
+    if let EnumWithBacktrace::Named {
+        trace, ..
+    } = &named
+    {
+        assert_backtrace_interfaces(&named, trace);
+    }
+
+    let unit = EnumWithBacktrace::Unit;
+    #[cfg(error_generic_member_access)]
+    {
+        assert!(std::error::Error::backtrace(&unit).is_none());
+    }
 }

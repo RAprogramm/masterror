@@ -1,7 +1,7 @@
 use proc_macro2::Span;
 use syn::{
     Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Field as SynField,
-    Fields as SynFields, Ident, LitStr, spanned::Spanned
+    Fields as SynFields, GenericArgument, Ident, LitStr, spanned::Spanned
 };
 
 use crate::template_support::{DisplayTemplate, TemplateIdentifierSpec, parse_display_template};
@@ -93,6 +93,10 @@ impl Fields {
 
     pub fn first_from_field(&self) -> Option<&Field> {
         self.iter().find(|field| field.attrs.from.is_some())
+    }
+
+    pub fn backtrace_field(&self) -> Option<&Field> {
+        self.iter().find(|field| field.attrs.backtrace.is_some())
     }
 }
 
@@ -250,6 +254,7 @@ fn parse_struct(
     let fields = Fields::from_syn(&data.fields, errors);
 
     validate_from_usage(&fields, &display, errors);
+    validate_backtrace_usage(&fields, errors);
     validate_transparent(&fields, &display, errors, None);
 
     Ok(ErrorData::Struct(Box::new(StructData {
@@ -295,6 +300,7 @@ fn parse_variant(variant: syn::Variant, errors: &mut Vec<Error>) -> Result<Varia
     let fields = Fields::from_syn(&variant.fields, errors);
 
     validate_from_usage(&fields, &display, errors);
+    validate_backtrace_usage(&fields, errors);
     validate_transparent(&fields, &display, errors, Some(&variant));
 
     Ok(VariantData {
@@ -433,6 +439,50 @@ fn validate_from_usage(fields: &Fields, display: &DisplaySpec, errors: &mut Vec<
     }
 }
 
+fn validate_backtrace_usage(fields: &Fields, errors: &mut Vec<Error>) {
+    let backtrace_fields: Vec<_> = fields
+        .iter()
+        .filter(|field| field.attrs.backtrace.is_some())
+        .collect();
+
+    for field in &backtrace_fields {
+        validate_backtrace_field_type(field, errors);
+    }
+
+    if backtrace_fields.len() <= 1 {
+        return;
+    }
+
+    for field in backtrace_fields.iter().skip(1) {
+        if let Some(attr) = &field.attrs.backtrace {
+            errors.push(Error::new_spanned(
+                attr,
+                "multiple #[backtrace] fields are not supported"
+            ));
+        }
+    }
+}
+
+fn validate_backtrace_field_type(field: &Field, errors: &mut Vec<Error>) {
+    let Some(attr) = &field.attrs.backtrace else {
+        return;
+    };
+
+    let ty = &field.ty;
+    if is_option_type(ty) {
+        if option_inner_type(ty).is_some_and(is_backtrace_type) {
+            return;
+        }
+    } else if is_backtrace_type(ty) {
+        return;
+    }
+
+    errors.push(Error::new_spanned(
+        attr,
+        "fields with #[backtrace] must be std::backtrace::Backtrace or Option<std::backtrace::Backtrace>"
+    ));
+}
+
 fn validate_transparent(
     fields: &Fields,
     display: &DisplaySpec,
@@ -491,6 +541,39 @@ pub fn is_option_type(ty: &syn::Type) -> bool {
         }
     }
     false
+}
+
+fn option_inner_type(ty: &syn::Type) -> Option<&syn::Type> {
+    let syn::Type::Path(path) = ty else {
+        return None;
+    };
+    if path.qself.is_some() {
+        return None;
+    }
+    let last = path.path.segments.last()?;
+    if last.ident != "Option" {
+        return None;
+    }
+    let syn::PathArguments::AngleBracketed(arguments) = &last.arguments else {
+        return None;
+    };
+    arguments.args.iter().find_map(|argument| match argument {
+        GenericArgument::Type(inner) => Some(inner),
+        _ => None
+    })
+}
+
+fn is_backtrace_type(ty: &syn::Type) -> bool {
+    let syn::Type::Path(path) = ty else {
+        return false;
+    };
+    if path.qself.is_some() {
+        return false;
+    }
+    let Some(last) = path.path.segments.last() else {
+        return false;
+    };
+    last.ident == "Backtrace" && matches!(last.arguments, syn::PathArguments::None)
 }
 
 pub fn placeholder_error(span: Span, identifier: &TemplateIdentifierSpec) -> Error {

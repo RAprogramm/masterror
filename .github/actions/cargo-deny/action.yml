@@ -1,0 +1,41 @@
+name: "Cargo Deny Check"
+description: "Install and run cargo-deny against the workspace"
+inputs:
+  version:
+    description: "cargo-deny crate version to install"
+    required: false
+    default: "0.18.4"
+  checks:
+    description: "Space-separated list of cargo deny check types (leave empty to run all)"
+    required: false
+    default: "advisories bans licenses sources"
+runs:
+  using: "composite"
+  steps:
+    - name: Ensure cargo-deny
+      shell: bash
+      env:
+        CARGO_DENY_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        current_version=""
+        if command -v cargo-deny >/dev/null 2>&1; then
+          current_version="$(cargo-deny --version | awk '{print $2}')"
+        fi
+        if [ "$current_version" = "$CARGO_DENY_VERSION" ]; then
+          echo "cargo-deny $CARGO_DENY_VERSION already installed"
+          exit 0
+        fi
+        echo "Installing cargo-deny $CARGO_DENY_VERSION"
+        cargo install cargo-deny --locked --force --version "$CARGO_DENY_VERSION"
+    - name: Run cargo-deny
+      shell: bash
+      env:
+        CHECKS: ${{ inputs.checks }}
+      run: |
+        set -euo pipefail
+        if [ -z "${CHECKS// }" ]; then
+          cargo-deny check
+        else
+          cargo-deny check ${CHECKS}
+        fi
