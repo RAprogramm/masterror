@@ -1,8 +1,11 @@
 [package]
 name = "masterror-template"
-version = "0.1.0"
-rust-version = "1.90"
+version = "0.5.1"
 edition = "2024"
-publish = false
+rust-version = "1.90"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/RAprogramm/masterror"
+readme = "README.md"
+description = "Template utilities for masterror and its derive macros"
 
 [dependencies]

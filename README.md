@@ -33,9 +33,9 @@ masterror = { version = "0.5.1", default-features = false }
 # or with features:
 # masterror = { version = "0.5.1", features = [
 #   "axum", "actix", "openapi", "serde_json",
-#   "sqlx", "reqwest", "redis", "validator",
-#   "config", "tokio", "multipart", "teloxide",
-#   "telegram-webapp-sdk", "frontend", "turnkey"
+#   "sqlx", "sqlx-migrate", "reqwest", "redis",
+#   "validator", "config", "tokio", "multipart",
+#   "teloxide", "telegram-webapp-sdk", "frontend", "turnkey"
 # ] }
 ~~~
 
@@ -71,9 +71,9 @@ masterror = { version = "0.5.1", default-features = false }
 # with Axum/Actix + JSON + integrations
 # masterror = { version = "0.5.1", features = [
 #   "axum", "actix", "openapi", "serde_json",
-#   "sqlx", "reqwest", "redis", "validator",
-#   "config", "tokio", "multipart", "teloxide",
-#   "telegram-webapp-sdk", "frontend", "turnkey"
+#   "sqlx", "sqlx-migrate", "reqwest", "redis",
+#   "validator", "config", "tokio", "multipart",
+#   "teloxide", "telegram-webapp-sdk", "frontend", "turnkey"
 # ] }
 ~~~
 
@@ -224,7 +224,8 @@ assert_eq!(resp.status, 401);
 - `actix` — Actix Web ResponseError and Responder implementations
 - `openapi` — Generate utoipa OpenAPI schema for ErrorResponse
 - `serde_json` — Attach structured JSON details to AppError
-- `sqlx` — Classify sqlx::Error variants into AppError kinds
+- `sqlx` — Classify sqlx_core::Error variants into AppError kinds
+- `sqlx-migrate` — Map sqlx::migrate::MigrateError into AppError (Database)
 - `reqwest` — Classify reqwest::Error as timeout/network/external API
 - `redis` — Map redis::RedisError into cache-aware AppError
 - `validator` — Convert validator::ValidationErrors into validation failures
