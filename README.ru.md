@@ -27,9 +27,10 @@
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.5.7", default-features = false }
+# минимальное ядро
+masterror = { version = "0.5.15", default-features = false }
 # или с нужными интеграциями
-# masterror = { version = "0.5.7", features = [
+# masterror = { version = "0.5.15", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -81,23 +82,30 @@ fn do_work(flag: bool) -> AppResult<()> {
 ## Форматирование шаблонов `#[error]`
 
 Шаблон `#[error("...")]` по умолчанию использует `Display`, но любая
-подстановка может запросить другой форматтер. `masterror::Error` понимает тот же
-набор спецификаторов, что и `thiserror` v2: `:?`, `:x`, `:X`, `:p`, `:b`, `:o`,
-`:e`, `:E`, а также их версии с `#` для альтернативного вывода. Неподдержанные
-форматтеры приводят к диагностике на этапе компиляции, совпадающей с
-`thiserror`.
+подстановка может запросить другой форматтер.
+`TemplateFormatter::is_alternate()` фиксирует флаг `#`, а `TemplateFormatterKind`
+сообщает, какой трейт `core::fmt` нужен, поэтому порождённый код может
+переключаться между вариантами без ручного `match`. Неподдержанные спецификаторы
+приводят к диагностике на этапе компиляции, совпадающей с `thiserror`.
 
-| Спецификатор     | Трейт                   | Пример результата        |
-|------------------|-------------------------|--------------------------|
-| _по умолчанию_   | `core::fmt::Display`    | `value`                  |
-| `:?` / `:#?`     | `core::fmt::Debug`      | `Struct { .. }` / многострочный |
-| `:x` / `:#x`     | `core::fmt::LowerHex`   | `0x2a`                   |
-| `:X` / `:#X`     | `core::fmt::UpperHex`   | `0x2A`                   |
-| `:p` / `:#p`     | `core::fmt::Pointer`    | `0x1f00` / `0x1f00`      |
-| `:b` / `:#b`     | `core::fmt::Binary`     | `101010` / `0b101010`   |
-| `:o` / `:#o`     | `core::fmt::Octal`      | `52` / `0o52`           |
-| `:e` / `:#e`     | `core::fmt::LowerExp`   | `1.5e-2`                |
-| `:E` / `:#E`     | `core::fmt::UpperExp`   | `1.5E-2`                |
+| Спецификатор     | Трейт                   | Пример результата        | Примечания |
+|------------------|-------------------------|--------------------------|------------|
+| _по умолчанию_   | `core::fmt::Display`    | `value`                  | Пользовательские сообщения; `#` игнорируется. |
+| `:?` / `:#?`     | `core::fmt::Debug`      | `Struct { .. }` / многострочный | Поведение `Debug`; `#` включает pretty-print. |
+| `:x` / `:#x`     | `core::fmt::LowerHex`   | `0x2a`                   | Шестнадцатеричный вывод; `#` добавляет `0x`. |
+| `:X` / `:#X`     | `core::fmt::UpperHex`   | `0x2A`                   | Верхний регистр; `#` добавляет `0x`. |
+| `:p` / `:#p`     | `core::fmt::Pointer`    | `0x1f00` / `0x1f00`      | Сырые указатели; `#` поддерживается для совместимости. |
+| `:b` / `:#b`     | `core::fmt::Binary`     | `101010` / `0b101010`   | Двоичный вывод; `#` добавляет `0b`. |
+| `:o` / `:#o`     | `core::fmt::Octal`      | `52` / `0o52`           | Восьмеричный вывод; `#` добавляет `0o`. |
+| `:e` / `:#e`     | `core::fmt::LowerExp`   | `1.5e-2`                | Научная запись; `#` заставляет выводить десятичную точку. |
+| `:E` / `:#E`     | `core::fmt::UpperExp`   | `1.5E-2`                | Верхний регистр научной записи; `#` заставляет выводить точку. |
+
+- `TemplateFormatterKind::supports_alternate()` сообщает, имеет ли смысл `#` для
+  выбранного трейта (для указателей вывод совпадает с обычным).
+- `TemplateFormatterKind::specifier()` возвращает канонический символ
+  спецификатора, что упрощает повторный рендеринг плейсхолдеров.
+- `TemplateFormatter::from_kind(kind, alternate)` собирает форматтер из
+  `TemplateFormatterKind`, позволяя программно переключать флаг `#`.
 
 ~~~rust
 use core::ptr;
@@ -148,18 +156,38 @@ let template = ErrorTemplate::parse("{code:#x} → {payload:?}").expect("parse")
 let mut placeholders = template.placeholders();
 
 let code = placeholders.next().expect("code placeholder");
+let code_formatter = code.formatter();
 assert!(matches!(
-    code.formatter(),
+    code_formatter,
     TemplateFormatter::LowerHex { alternate: true }
 ));
-assert_eq!(code.formatter().kind(), TemplateFormatterKind::LowerHex);
-assert!(code.formatter().is_alternate());
+let code_kind = code_formatter.kind();
+assert_eq!(code_kind, TemplateFormatterKind::LowerHex);
+assert!(code_formatter.is_alternate());
+assert_eq!(code_kind.specifier(), Some('x'));
+assert!(code_kind.supports_alternate());
+let lowered = TemplateFormatter::from_kind(code_kind, false);
+assert!(matches!(
+    lowered,
+    TemplateFormatter::LowerHex { alternate: false }
+));
 
 let payload = placeholders.next().expect("payload placeholder");
+let payload_formatter = payload.formatter();
 assert_eq!(
-    payload.formatter(),
+    payload_formatter,
     TemplateFormatter::Debug { alternate: false }
 );
+let payload_kind = payload_formatter.kind();
+assert_eq!(payload_kind, TemplateFormatterKind::Debug);
+assert_eq!(payload_kind.specifier(), Some('?'));
+assert!(payload_kind.supports_alternate());
+let pretty_debug = TemplateFormatter::from_kind(payload_kind, true);
+assert!(matches!(
+    pretty_debug,
+    TemplateFormatter::Debug { alternate: true }
+));
+assert!(pretty_debug.is_alternate());
 ~~~
 
 > **Совместимость с `thiserror` v2.** Доступные спецификаторы, сообщения об

@@ -1,0 +1,11 @@
+error: placeholder spanning bytes 0..9 uses an unsupported formatter
+ --> tests/ui/formatter/fail/uppercase_pointer.rs:4:9
+  |
+4 | #[error("{value:P}")]
+  |         ^^^^^^^^^^^
+
+error: missing #[error(...)] attribute
+ --> tests/ui/formatter/fail/uppercase_pointer.rs:5:8
+  |
+5 | struct UppercasePointer {
+  |        ^^^^^^^^^^^^^^^^

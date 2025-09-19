@@ -6,6 +6,87 @@ All notable changes to this project will be documented in this file.
 ### Added
 - _Nothing yet._
 
+## [0.6.0] - 2025-10-08
+
+### Added
+- Recognised empty placeholder bodies (`{}` / `{:?}`) as implicit positional
+  identifiers, numbering them by appearance and exposing the new
+  `TemplateIdentifier::Implicit` variant in the template API.
+- Propagated the implicit identifier metadata through
+  `template_support::TemplateIdentifierSpec`, ensuring derive-generated display
+  implementations resolve tuple fields in placeholder order.
+
+### Fixed
+- Preserved `TemplateError::EmptyPlaceholder` diagnostics for whitespace-only
+  placeholders, matching previous error reporting for invalid bodies.
+
+### Tests
+- Added parser regressions covering implicit placeholder sequencing and the
+  whitespace-only error path.
+
+## [0.5.15] - 2025-10-07
+
+### Added
+- Parse `#[error("...")]` attribute arguments into structured `FormatArg`
+  entries, tracking named bindings and positional indices for future
+  `format_args!` integration.
+- Recognise `#[error(fmt = <path>)]` handlers, capturing the formatter path and
+  associated arguments while guarding against duplicate `fmt` specifications.
+
+### Fixed
+- Produce dedicated diagnostics when unsupported combinations are used, such as
+  providing format arguments alongside `#[error(transparent)]`.
+
+### Tests
+- Extend the `trybuild` suite with regression cases covering duplicate `fmt`
+  handlers and transparent attributes that erroneously include arguments.
+
+## [0.5.14] - 2025-10-06
+
+### Added
+- Prepared the derive input structures for future `format_args!` support by
+  introducing display specification variants for templates with arguments and
+  `fmt = <path>` handlers, along with `FormatArgsSpec`/`FormatArg` metadata
+  scaffolding.
+
+## [0.5.13] - 2025-10-05
+
+### Documentation
+- Documented the formatter trait helpers (`TemplateFormatter::is_alternate`,
+  `TemplateFormatter::from_kind`, and `TemplateFormatterKind::specifier`/`supports_alternate`)
+  across README variants and crate docs, including guidance on the extended
+  formatter table and compatibility with `thiserror` v2.
+
+## [0.5.12] - 2025-10-04
+
+### Tests
+- Added runtime assertions covering every derive formatter variant and
+  validating lowercase versus uppercase rendering differences during error
+  formatting.
+- Expanded the formatter `trybuild` suite with per-formatter success cases and
+  new compile-fail fixtures for unsupported uppercase specifiers to guarantee
+  diagnostics remain descriptive.
+
+## [0.5.11] - 2025-10-03
+
+### Changed
+- Aligned the derive display generator with `TemplateFormatterKind`, invoking the
+  appropriate `core::fmt` trait for every placeholder variant and preserving the
+  default `Display` path when no formatter is provided, mirroring `thiserror`'s
+  behaviour.
+
+## [0.5.10] - 2025-10-02
+
+### Changed
+- Template parser now recognises formatter traits even when alignment, sign or
+  width flags precede the type specifier, constructing the matching
+  `TemplateFormatter` variant and keeping alternate (`#`) detection aligned with
+  `thiserror`.
+
+### Tests
+- Extended parser unit tests to cover complex formatter specifiers and
+  additional malformed cases to guard diagnostic accuracy.
+
 ## [0.5.9] - 2025-10-01
 
 ### Added

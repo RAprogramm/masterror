@@ -1,7 +1,12 @@
-use proc_macro2::Span;
+use std::collections::HashSet;
+
+use proc_macro2::{Span, TokenStream};
+use quote::{ToTokens, quote};
 use syn::{
-    Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Field as SynField,
-    Fields as SynFields, GenericArgument, Ident, LitStr, spanned::Spanned
+    Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Expr, ExprPath, Field as SynField,
+    Fields as SynFields, GenericArgument, Ident, LitStr, Token,
+    parse::{Parse, ParseStream},
+    spanned::Spanned
 };
 
 use crate::template_support::{DisplayTemplate, TemplateIdentifierSpec, parse_display_template};
@@ -21,16 +26,20 @@ pub enum ErrorData {
 
 #[derive(Debug)]
 pub struct StructData {
-    pub fields:  Fields,
-    pub display: DisplaySpec
+    pub fields:      Fields,
+    pub display:     DisplaySpec,
+    #[allow(dead_code)]
+    pub format_args: FormatArgsSpec
 }
 
 #[derive(Debug)]
 pub struct VariantData {
-    pub ident:   Ident,
-    pub fields:  Fields,
-    pub display: DisplaySpec,
-    pub span:    Span
+    pub ident:       Ident,
+    pub fields:      Fields,
+    pub display:     DisplaySpec,
+    #[allow(dead_code)]
+    pub format_args: FormatArgsSpec,
+    pub span:        Span
 }
 
 #[derive(Debug)]
@@ -245,8 +254,43 @@ impl FieldAttrs {
 
 #[derive(Debug)]
 pub enum DisplaySpec {
-    Transparent { attribute: Box<Attribute> },
-    Template(DisplayTemplate)
+    Transparent {
+        attribute: Box<Attribute>
+    },
+    Template(DisplayTemplate),
+    #[allow(dead_code)]
+    TemplateWithArgs {
+        template: DisplayTemplate,
+        args:     FormatArgsSpec
+    },
+    #[allow(dead_code)]
+    FormatterPath {
+        path: ExprPath,
+        args: FormatArgsSpec
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Default)]
+pub struct FormatArgsSpec {
+    pub args: Vec<FormatArg>
+}
+
+#[allow(dead_code)]
+#[derive(Debug)]
+pub struct FormatArg {
+    pub tokens: TokenStream,
+    pub expr:   Expr,
+    pub kind:   FormatBindingKind,
+    pub span:   Span
+}
+
+#[allow(dead_code)]
+#[derive(Debug)]
+pub enum FormatBindingKind {
+    Named(Ident),
+    Positional(usize),
+    Implicit(usize)
 }
 
 pub fn parse_input(input: DeriveInput) -> Result<ErrorInput, Error> {
@@ -300,7 +344,8 @@ fn parse_struct(
 
     Ok(ErrorData::Struct(Box::new(StructData {
         fields,
-        display
+        display,
+        format_args: FormatArgsSpec::default()
     })))
 }
 
@@ -348,6 +393,7 @@ fn parse_variant(variant: syn::Variant, errors: &mut Vec<Error>) -> Result<Varia
         ident: variant.ident,
         fields,
         display,
+        format_args: FormatArgsSpec::default(),
         span
     })
 }
@@ -385,41 +431,181 @@ fn extract_display_spec(
 }
 
 fn parse_error_attribute(attr: &Attribute) -> Result<DisplaySpec, Error> {
-    attr.parse_args_with(|input: syn::parse::ParseStream| {
+    mod kw {
+        syn::custom_keyword!(transparent);
+        syn::custom_keyword!(fmt);
+    }
+
+    attr.parse_args_with(|input: ParseStream| {
         if input.peek(LitStr) {
             let lit: LitStr = input.parse()?;
-            if !input.is_empty() {
-                return Err(Error::new(
-                    input.span(),
-                    "unexpected tokens after string literal"
-                ));
-            }
             let template = parse_display_template(lit)?;
-            Ok(DisplaySpec::Template(template))
-        } else if input.peek(Ident) {
-            let ident: Ident = input.parse()?;
-            if ident != "transparent" {
-                return Err(Error::new(
-                    ident.span(),
-                    "expected string literal or `transparent`"
-                ));
-            }
+            let args = parse_format_args(input)?;
+
             if !input.is_empty() {
                 return Err(Error::new(
                     input.span(),
-                    "unexpected tokens after `transparent`"
+                    "unexpected tokens after format arguments"
                 ));
             }
+
+            if args.args.is_empty() {
+                Ok(DisplaySpec::Template(template))
+            } else {
+                Ok(DisplaySpec::TemplateWithArgs {
+                    template,
+                    args
+                })
+            }
+        } else if input.peek(kw::transparent) {
+            let _: kw::transparent = input.parse()?;
+
+            if !input.is_empty() {
+                return Err(Error::new(
+                    input.span(),
+                    "format arguments are not supported with #[error(transparent)]"
+                ));
+            }
+
             Ok(DisplaySpec::Transparent {
                 attribute: Box::new(attr.clone())
+            })
+        } else if input.peek(kw::fmt) {
+            input.parse::<kw::fmt>()?;
+            input.parse::<Token![=]>()?;
+            let path: ExprPath = input.parse()?;
+            let args = parse_format_args(input)?;
+
+            for arg in &args.args {
+                if let FormatBindingKind::Named(ident) = &arg.kind
+                    && ident == "fmt"
+                {
+                    return Err(Error::new(arg.span, "duplicate `fmt` handler specified"));
+                }
+            }
+
+            if !input.is_empty() {
+                return Err(Error::new(
+                    input.span(),
+                    "`fmt = ...` cannot be combined with additional arguments"
+                ));
+            }
+
+            Ok(DisplaySpec::FormatterPath {
+                path,
+                args
             })
         } else {
             Err(Error::new(
                 input.span(),
-                "expected string literal or `transparent`"
+                "expected string literal, `transparent`, or `fmt = ...`"
             ))
         }
     })
+}
+
+fn parse_format_args(input: ParseStream) -> Result<FormatArgsSpec, Error> {
+    let mut args = FormatArgsSpec::default();
+
+    if input.is_empty() {
+        return Ok(args);
+    }
+
+    let leading_comma = if input.peek(Token![,]) {
+        let comma: Token![,] = input.parse()?;
+        Some(comma.span)
+    } else {
+        None
+    };
+
+    if input.is_empty() {
+        if let Some(span) = leading_comma {
+            return Err(Error::new(span, "expected format argument after comma"));
+        }
+        return Ok(args);
+    }
+
+    let parsed = syn::punctuated::Punctuated::<RawFormatArg, Token![,]>::parse_terminated(input)?;
+
+    let mut seen_named = HashSet::new();
+
+    for (index, raw) in parsed.into_iter().enumerate() {
+        match raw {
+            RawFormatArg::Named {
+                ident,
+                expr,
+                span
+            } => {
+                let name_key = ident.to_string();
+                if !seen_named.insert(name_key) {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!("duplicate format argument `{ident}`")
+                    ));
+                }
+
+                let tokens = quote!(#ident = #expr);
+                args.args.push(FormatArg {
+                    tokens,
+                    expr,
+                    kind: FormatBindingKind::Named(ident),
+                    span
+                });
+            }
+            RawFormatArg::Positional {
+                expr,
+                span
+            } => {
+                let tokens = expr.to_token_stream();
+                args.args.push(FormatArg {
+                    tokens,
+                    expr,
+                    kind: FormatBindingKind::Positional(index),
+                    span
+                });
+            }
+        }
+    }
+
+    Ok(args)
+}
+
+enum RawFormatArg {
+    Named {
+        ident: Ident,
+        expr:  Expr,
+        span:  Span
+    },
+    Positional {
+        expr: Expr,
+        span: Span
+    }
+}
+
+impl Parse for RawFormatArg {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        if input.peek(Ident) && input.peek2(Token![=]) {
+            let ident: Ident = input.parse()?;
+            input.parse::<Token![=]>()?;
+            let expr: Expr = input.parse()?;
+            let span = ident
+                .span()
+                .join(expr.span())
+                .unwrap_or_else(|| ident.span());
+            Ok(Self::Named {
+                ident,
+                expr,
+                span
+            })
+        } else {
+            let expr: Expr = input.parse()?;
+            let span = expr.span();
+            Ok(Self::Positional {
+                expr,
+                span
+            })
+        }
+    }
 }
 
 fn validate_from_usage(fields: &Fields, display: &DisplaySpec, errors: &mut Vec<Error>) {
@@ -638,6 +824,9 @@ pub fn placeholder_error(span: Span, identifier: &TemplateIdentifierSpec) -> Err
             Error::new(span, format!("unknown field `{}`", name))
         }
         TemplateIdentifierSpec::Positional(index) => {
+            Error::new(span, format!("field `{}` is not available", index))
+        }
+        TemplateIdentifierSpec::Implicit(index) => {
             Error::new(span, format!("field `{}` is not available", index))
         }
     }

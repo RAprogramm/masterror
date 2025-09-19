@@ -139,6 +139,9 @@ impl<'a> TemplatePlaceholder<'a> {
 /// Placeholder identifier parsed from the template.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TemplateIdentifier<'a> {
+    /// Implicit positional index inferred from the placeholder order (`{}` /
+    /// `{:?}` / etc.).
+    Implicit(usize),
     /// Positional index (`{0}` / `{1:?}` / etc.).
     Positional(usize),
     /// Named field (`{name}` / `{kind:?}` / etc.).
@@ -150,7 +153,7 @@ impl<'a> TemplateIdentifier<'a> {
     pub const fn as_str(&self) -> Option<&'a str> {
         match self {
             Self::Named(value) => Some(value),
-            Self::Positional(_) => None
+            Self::Positional(_) | Self::Implicit(_) => None
         }
     }
 }
@@ -410,21 +413,7 @@ impl TemplateFormatter {
     }
 
     pub(crate) fn parse_specifier(spec: &str) -> Option<Self> {
-        let trimmed = spec.trim();
-        if trimmed.is_empty() {
-            return None;
-        }
-
-        let (last_index, ty) = trimmed.char_indices().next_back()?;
-        let prefix = &trimmed[..last_index];
-        let alternate = match prefix {
-            "" => false,
-            "#" => true,
-            _ => return None
-        };
-
-        let kind = TemplateFormatterKind::from_specifier(ty)?;
-        Some(Self::from_kind(kind, alternate))
+        parser::parse_formatter_spec(spec)
     }
 
     /// Returns `true` when alternate formatting (`#`) was requested.
@@ -581,6 +570,32 @@ mod tests {
         assert_eq!(placeholders.len(), 2);
         assert_eq!(placeholders[0].identifier(), &named("code"));
         assert_eq!(placeholders[1].identifier(), &named("message"));
+    }
+
+    #[test]
+    fn parses_implicit_identifiers() {
+        let template = ErrorTemplate::parse("{}, {:?}, {name}, {}").expect("parse");
+        let mut placeholders = template.placeholders();
+
+        let first = placeholders.next().expect("first placeholder");
+        assert_eq!(first.identifier(), &TemplateIdentifier::Implicit(0));
+        assert_eq!(first.formatter(), TemplateFormatter::Display);
+
+        let second = placeholders.next().expect("second placeholder");
+        assert_eq!(second.identifier(), &TemplateIdentifier::Implicit(1));
+        assert_eq!(
+            second.formatter(),
+            TemplateFormatter::Debug {
+                alternate: false
+            }
+        );
+
+        let third = placeholders.next().expect("third placeholder");
+        assert_eq!(third.identifier(), &named("name"));
+
+        let fourth = placeholders.next().expect("fourth placeholder");
+        assert_eq!(fourth.identifier(), &TemplateIdentifier::Implicit(2));
+        assert!(placeholders.next().is_none());
     }
 
     #[test]
