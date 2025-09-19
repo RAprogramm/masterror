@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 ### Added
 - _Nothing yet._
 
+## [0.5.10] - 2025-10-02
+
+### Changed
+- Template parser now recognises formatter traits even when alignment, sign or
+  width flags precede the type specifier, constructing the matching
+  `TemplateFormatter` variant and keeping alternate (`#`) detection aligned with
+  `thiserror`.
+
+### Tests
+- Extended parser unit tests to cover complex formatter specifiers and
+  additional malformed cases to guard diagnostic accuracy.
+
 ## [0.5.9] - 2025-10-01
 
 ### Added

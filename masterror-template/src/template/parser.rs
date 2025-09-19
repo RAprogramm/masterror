@@ -1,7 +1,8 @@
 use core::ops::Range;
 
 use super::{
-    TemplateError, TemplateFormatter, TemplateIdentifier, TemplatePlaceholder, TemplateSegment
+    TemplateError, TemplateFormatter, TemplateFormatterKind, TemplateIdentifier,
+    TemplatePlaceholder, TemplateSegment
 };
 
 pub fn parse_template<'a>(source: &'a str) -> Result<Vec<TemplateSegment<'a>>, TemplateError> {
@@ -152,14 +153,71 @@ fn split_placeholder<'a>(
                 span
             });
         }
-        Some(spec) => {
-            TemplateFormatter::parse_specifier(spec).ok_or(TemplateError::InvalidFormatter {
-                span
-            })?
-        }
+        Some(spec) => parse_formatter(spec, span.clone())?
     };
 
     Ok((identifier, formatter))
+}
+
+fn parse_formatter(spec: &str, span: Range<usize>) -> Result<TemplateFormatter, TemplateError> {
+    parse_formatter_spec(spec).ok_or(TemplateError::InvalidFormatter {
+        span
+    })
+}
+
+pub(super) fn parse_formatter_spec(spec: &str) -> Option<TemplateFormatter> {
+    let trimmed = spec.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let (last_index, ty) = trimmed.char_indices().next_back()?;
+    let prefix = &trimmed[..last_index];
+    let kind = TemplateFormatterKind::from_specifier(ty)?;
+    let alternate = detect_alternate_flag(prefix)?;
+
+    Some(TemplateFormatter::from_kind(kind, alternate))
+}
+
+fn detect_alternate_flag(prefix: &str) -> Option<bool> {
+    let mut rest = prefix;
+
+    if rest.len() >= 2 {
+        let mut iter = rest.char_indices();
+        if let (Some((_, _)), Some((second_index, second))) = (iter.next(), iter.next())
+            && matches!(second, '<' | '>' | '^' | '=')
+        {
+            let skip = second_index + second.len_utf8();
+            rest = &rest[skip..];
+        }
+    }
+
+    if let Some(first) = rest.chars().next()
+        && matches!(first, '<' | '>' | '^' | '=')
+    {
+        rest = &rest[first.len_utf8()..];
+    }
+
+    loop {
+        let mut chars = rest.chars();
+        let Some(ch) = chars.next() else {
+            return Some(false);
+        };
+
+        match ch {
+            '+' | '-' | ' ' => {
+                rest = &rest[ch.len_utf8()..];
+            }
+            '#' => {
+                rest = &rest[ch.len_utf8()..];
+                if rest.chars().any(|value| value == '#') {
+                    return None;
+                }
+                return Some(true);
+            }
+            _ => return Some(false)
+        }
+    }
 }
 
 fn parse_identifier<'a>(
@@ -213,7 +271,25 @@ mod tests {
                 }
             ),
             (
+                "{value:*>#?}",
+                TemplateFormatter::Debug {
+                    alternate: true
+                }
+            ),
+            (
+                "{value:#>8?}",
+                TemplateFormatter::Debug {
+                    alternate: false
+                }
+            ),
+            (
                 "{value:x}",
+                TemplateFormatter::LowerHex {
+                    alternate: false
+                }
+            ),
+            (
+                "{value:>08x}",
                 TemplateFormatter::LowerHex {
                     alternate: false
                 }
@@ -225,9 +301,21 @@ mod tests {
                 }
             ),
             (
+                "{value:*<#x}",
+                TemplateFormatter::LowerHex {
+                    alternate: true
+                }
+            ),
+            (
                 "{value:X}",
                 TemplateFormatter::UpperHex {
                     alternate: false
+                }
+            ),
+            (
+                "{value:*>#X}",
+                TemplateFormatter::UpperHex {
+                    alternate: true
                 }
             ),
             (
@@ -243,6 +331,12 @@ mod tests {
                 }
             ),
             (
+                "{value:>+#18p}",
+                TemplateFormatter::Pointer {
+                    alternate: true
+                }
+            ),
+            (
                 "{value:#p}",
                 TemplateFormatter::Pointer {
                     alternate: true
@@ -252,6 +346,12 @@ mod tests {
                 "{value:b}",
                 TemplateFormatter::Binary {
                     alternate: false
+                }
+            ),
+            (
+                "{value:#08b}",
+                TemplateFormatter::Binary {
+                    alternate: true
                 }
             ),
             (
@@ -267,6 +367,12 @@ mod tests {
                 }
             ),
             (
+                "{value:+#o}",
+                TemplateFormatter::Octal {
+                    alternate: true
+                }
+            ),
+            (
                 "{value:#o}",
                 TemplateFormatter::Octal {
                     alternate: true
@@ -279,6 +385,12 @@ mod tests {
                 }
             ),
             (
+                "{value:#0e}",
+                TemplateFormatter::LowerExp {
+                    alternate: true
+                }
+            ),
+            (
                 "{value:#e}",
                 TemplateFormatter::LowerExp {
                     alternate: true
@@ -286,6 +398,12 @@ mod tests {
             ),
             (
                 "{value:E}",
+                TemplateFormatter::UpperExp {
+                    alternate: false
+                }
+            ),
+            (
+                "{value:#^10E}",
                 TemplateFormatter::UpperExp {
                     alternate: false
                 }
@@ -315,7 +433,14 @@ mod tests {
 
     #[test]
     fn rejects_malformed_formatters() {
-        let cases = ["{value:}", "{value:#}", "{value:0x}"];
+        let cases = [
+            "{value:}",
+            "{value:#}",
+            "{value:>8q}",
+            "{value:#>}",
+            "{value:*>}",
+            "{value:##x}"
+        ];
 
         for source in &cases {
             let err = parse_template(source).expect_err("expected formatter error");
