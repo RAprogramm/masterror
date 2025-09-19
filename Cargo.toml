@@ -34,10 +34,15 @@ frontend = ["dep:wasm-bindgen", "dep:js-sys", "dep:serde-wasm-bindgen"]
 turnkey = []
 
 openapi = ["dep:utoipa"]
+[workspace.dependencies]
+masterror-derive = { version = "0.1", path = "masterror-derive" }
+masterror-template = { version = "0.1", path = "masterror-template" }
 
 [dependencies]
-masterror-derive = { path = "masterror-derive" }
-masterror-template = { path = "masterror-template" }
+# masterror-derive = { path = "masterror-derive" }
+# masterror-template = { path = "masterror-template" }
+masterror-derive = { workspace = true }
+masterror-template = { workspace = true }
 tracing = "0.1"
 
 serde = { version = "1", features = ["derive"] }
