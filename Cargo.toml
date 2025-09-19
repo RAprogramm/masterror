@@ -1,7 +1,7 @@
 [package]
 name = "masterror"
 version = "0.5.0"
-rust-version = "1.89"
+rust-version = "1.90"
 edition = "2024"
 description = "Application error types and response mapping"
 license = "MIT OR Apache-2.0"
@@ -13,10 +13,7 @@ categories = ["rust-patterns", "web-programming"]
 keywords = ["error", "api", "framework"]
 
 [workspace]
-members = [
-  "masterror-derive",
-  "masterror-template"
-]
+members = ["masterror-derive", "masterror-template"]
 
 
 [features]
