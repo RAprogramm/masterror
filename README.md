@@ -9,6 +9,7 @@
 ![MSRV](https://img.shields.io/badge/MSRV-1.90-blue)
 ![License](https://img.shields.io/badge/License-MIT%20or%20Apache--2.0-informational)
 [![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
+[![Security audit](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main&label=Security%20audit)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
 
 > 🇷🇺 Читайте README на [русском языке](README.ru.md).
 
@@ -27,9 +28,9 @@ Stable categories, conservative HTTP mapping, no `unsafe`.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.5.0", default-features = false }
+masterror = { version = "0.5.1", default-features = false }
 # or with features:
-# masterror = { version = "0.5.0", features = [
+# masterror = { version = "0.5.1", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "reqwest", "redis", "validator",
 #   "config", "tokio", "multipart", "teloxide",
@@ -64,10 +65,10 @@ masterror = { version = "0.5.0", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.5.0", default-features = false }
+masterror = { version = "0.5.1", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.5.0", features = [
+# masterror = { version = "0.5.1", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "reqwest", "redis", "validator",
 #   "config", "tokio", "multipart", "teloxide",
@@ -259,13 +260,13 @@ assert_eq!(resp.status, 401);
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.5.0", default-features = false }
+masterror = { version = "0.5.1", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.5.0", features = [
+masterror = { version = "0.5.1", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -274,7 +275,7 @@ masterror = { version = "0.5.0", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.5.0", features = [
+masterror = { version = "0.5.1", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }

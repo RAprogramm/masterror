@@ -13,6 +13,17 @@ All notable changes to this project will be documented in this file.
 - `masterror::Error` now uses the in-tree derive, removing the dependency on
   `thiserror` while keeping the same runtime behaviour and diagnostics.
 
+## [0.5.1] - 2025-09-24
+
+### Changed
+- Replaced the optional `sqlx` dependency with `sqlx-core` so enabling the
+  feature no longer pulls in `rsa` via the MySQL driver, fixing the
+  `RUSTSEC-2023-0071` advisory reported by `cargo audit`.
+
+### Security
+- Added `cargo audit` to the pre-commit hook and CI workflow; published a
+  README badge to surface the audit status.
+
 ## [0.5.0] - 2025-09-23
 
 ### Added
@@ -150,6 +161,7 @@ All notable changes to this project will be documented in this file.
 - **MSRV:** 1.89
 - **No unsafe:** the crate forbids `unsafe`.
 
+[0.5.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.5.1
 [0.5.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.5.0
 [0.4.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.4.0
 [0.3.5]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.5

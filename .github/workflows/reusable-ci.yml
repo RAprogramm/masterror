@@ -192,6 +192,12 @@ jobs:
             cargo +${{ steps.msrv.outputs.msrv }} test --workspace --no-fail-fast
           fi
 
+      - name: Install cargo-audit
+        run: cargo install --locked cargo-audit
+
+      - name: Security audit
+        run: cargo audit --deny warnings
+
       - name: Auto-commit README changes (any branch)
         if: always()
         run: |
