@@ -29,9 +29,9 @@ Stable categories, conservative HTTP mapping, no `unsafe`.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.5.12", default-features = false }
+masterror = { version = "0.5.13", default-features = false }
 # or with features:
-# masterror = { version = "0.5.12", features = [
+# masterror = { version = "0.5.13", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -66,10 +66,10 @@ masterror = { version = "0.5.12", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.5.12", default-features = false }
+masterror = { version = "0.5.13", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.5.12", features = [
+# masterror = { version = "0.5.13", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -162,20 +162,34 @@ assert_eq!(wrapped.to_string(), "I/O failed: disk offline");
 #### Formatter traits
 
 Placeholders default to `Display` (`{value}`) but can opt into richer
-formatters via the same specifiers supported by `thiserror` v2. Unsupported
-formatters surface a compile error that mirrors `thiserror`'s diagnostics.
+formatters via the same specifiers supported by `thiserror` v2.
+`TemplateFormatter::is_alternate()` tracks the `#` flag, while
+`TemplateFormatterKind` exposes the underlying `core::fmt` trait so derived
+code can branch on the requested renderer without manual pattern matching.
+Unsupported formatters surface a compile error that mirrors `thiserror`'s
+diagnostics.
 
-| Specifier        | `core::fmt` trait          | Example output         |
-|------------------|----------------------------|------------------------|
-| _default_        | `core::fmt::Display`       | `value`                |
-| `:?` / `:#?`     | `core::fmt::Debug`         | `Struct { .. }` / multi-line |
-| `:x` / `:#x`     | `core::fmt::LowerHex`      | `0x2a`                 |
-| `:X` / `:#X`     | `core::fmt::UpperHex`      | `0x2A`                 |
-| `:p` / `:#p`     | `core::fmt::Pointer`       | `0x1f00` / `0x1f00`    |
-| `:b` / `:#b`     | `core::fmt::Binary`        | `101010` / `0b101010` |
-| `:o` / `:#o`     | `core::fmt::Octal`         | `52` / `0o52`         |
-| `:e` / `:#e`     | `core::fmt::LowerExp`      | `1.5e-2`              |
-| `:E` / `:#E`     | `core::fmt::UpperExp`      | `1.5E-2`              |
+| Specifier        | `core::fmt` trait          | Example output         | Notes |
+|------------------|----------------------------|------------------------|-------|
+| _default_        | `core::fmt::Display`       | `value`                | User-facing strings; `#` has no effect. |
+| `:?` / `:#?`     | `core::fmt::Debug`         | `Struct { .. }` / multi-line | Mirrors `Debug`; `#` pretty-prints structs. |
+| `:x` / `:#x`     | `core::fmt::LowerHex`      | `0x2a`                 | Hexadecimal; `#` prepends `0x`. |
+| `:X` / `:#X`     | `core::fmt::UpperHex`      | `0x2A`                 | Uppercase hex; `#` prepends `0x`. |
+| `:p` / `:#p`     | `core::fmt::Pointer`       | `0x1f00` / `0x1f00`    | Raw pointers; `#` is accepted for compatibility. |
+| `:b` / `:#b`     | `core::fmt::Binary`        | `101010` / `0b101010` | Binary; `#` prepends `0b`. |
+| `:o` / `:#o`     | `core::fmt::Octal`         | `52` / `0o52`         | Octal; `#` prepends `0o`. |
+| `:e` / `:#e`     | `core::fmt::LowerExp`      | `1.5e-2`              | Scientific notation; `#` forces the decimal point. |
+| `:E` / `:#E`     | `core::fmt::UpperExp`      | `1.5E-2`              | Uppercase scientific; `#` forces the decimal point. |
+
+- `TemplateFormatterKind::supports_alternate()` reports whether the `#` flag is
+  meaningful for the requested trait (pointer accepts it even though the output
+  matches the non-alternate form).
+- `TemplateFormatterKind::specifier()` returns the canonical format specifier
+  character when one exists, enabling custom derives to re-render placeholders
+  in their original style.
+- `TemplateFormatter::from_kind(kind, alternate)` reconstructs a formatter from
+  the lightweight `TemplateFormatterKind`, making it easy to toggle the
+  alternate flag in generated code.
 
 ~~~rust
 use core::ptr;
@@ -222,18 +236,38 @@ let template = ErrorTemplate::parse("{code:#x} → {payload:?}").expect("parse")
 let mut placeholders = template.placeholders();
 
 let code = placeholders.next().expect("code placeholder");
+let code_formatter = code.formatter();
 assert!(matches!(
-    code.formatter(),
+    code_formatter,
     TemplateFormatter::LowerHex { alternate: true }
 ));
-assert_eq!(code.formatter().kind(), TemplateFormatterKind::LowerHex);
-assert!(code.formatter().is_alternate());
+let code_kind = code_formatter.kind();
+assert_eq!(code_kind, TemplateFormatterKind::LowerHex);
+assert!(code_formatter.is_alternate());
+assert_eq!(code_kind.specifier(), Some('x'));
+assert!(code_kind.supports_alternate());
+let lowered = TemplateFormatter::from_kind(code_kind, false);
+assert!(matches!(
+    lowered,
+    TemplateFormatter::LowerHex { alternate: false }
+));
 
 let payload = placeholders.next().expect("payload placeholder");
+let payload_formatter = payload.formatter();
 assert_eq!(
-    payload.formatter(),
+    payload_formatter,
     TemplateFormatter::Debug { alternate: false }
 );
+let payload_kind = payload_formatter.kind();
+assert_eq!(payload_kind, TemplateFormatterKind::Debug);
+assert_eq!(payload_kind.specifier(), Some('?'));
+assert!(payload_kind.supports_alternate());
+let pretty_debug = TemplateFormatter::from_kind(payload_kind, true);
+assert!(matches!(
+    pretty_debug,
+    TemplateFormatter::Debug { alternate: true }
+));
+assert!(pretty_debug.is_alternate());
 ~~~
 
 > **Compatibility with `thiserror` v2:** the derive understands the extended
@@ -349,13 +383,13 @@ assert_eq!(resp.status, 401);
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.5.12", default-features = false }
+masterror = { version = "0.5.13", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.5.12", features = [
+masterror = { version = "0.5.13", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -364,7 +398,7 @@ masterror = { version = "0.5.12", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.5.12", features = [
+masterror = { version = "0.5.13", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }

@@ -15,6 +15,10 @@
 //! `TemplateFormatter` enumerates the formatting modes supported by
 //! `#[error("...")]` placeholders. It mirrors the formatter detection logic in
 //! `thiserror` v2 so migrating existing derives is a drop-in change.
+//! `TemplateFormatter::is_alternate()` surfaces the `#` flag, and
+//! [`TemplateFormatterKind`](crate::error::template::TemplateFormatterKind)
+//! describes the underlying `core::fmt` trait with helpers like
+//! `specifier()`/`supports_alternate()` for programmatic inspection.
 //!
 //! ```rust
 //! use core::ptr;
@@ -56,26 +60,52 @@
 //! formatters via [`ErrorTemplate`](crate::error::template::ErrorTemplate):
 //!
 //! ```rust
-//! use masterror::error::template::{ErrorTemplate, TemplateFormatter};
+//! use masterror::error::template::{ErrorTemplate, TemplateFormatter, TemplateFormatterKind};
 //!
 //! let template = ErrorTemplate::parse("{code:#x} → {payload:?}").expect("parse");
 //! let mut placeholders = template.placeholders();
 //!
 //! let code = placeholders.next().expect("code placeholder");
+//! let code_formatter = code.formatter();
 //! assert!(matches!(
-//!     code.formatter(),
+//!     code_formatter,
 //!     TemplateFormatter::LowerHex {
 //!         alternate: true
 //!     }
 //! ));
+//! let code_kind = code_formatter.kind();
+//! assert_eq!(code_kind, TemplateFormatterKind::LowerHex);
+//! assert!(code_formatter.is_alternate());
+//! assert_eq!(code_kind.specifier(), Some('x'));
+//! assert!(code_kind.supports_alternate());
+//! let lowered = TemplateFormatter::from_kind(code_kind, false);
+//! assert!(matches!(
+//!     lowered,
+//!     TemplateFormatter::LowerHex {
+//!         alternate: false
+//!     }
+//! ));
 //!
 //! let payload = placeholders.next().expect("payload placeholder");
+//! let payload_formatter = payload.formatter();
 //! assert_eq!(
-//!     payload.formatter(),
+//!     payload_formatter,
 //!     TemplateFormatter::Debug {
 //!         alternate: false
 //!     }
 //! );
+//! let payload_kind = payload_formatter.kind();
+//! assert_eq!(payload_kind, TemplateFormatterKind::Debug);
+//! assert_eq!(payload_kind.specifier(), Some('?'));
+//! assert!(payload_kind.supports_alternate());
+//! let pretty_debug = TemplateFormatter::from_kind(payload_kind, true);
+//! assert!(matches!(
+//!     pretty_debug,
+//!     TemplateFormatter::Debug {
+//!         alternate: true
+//!     }
+//! ));
+//! assert!(pretty_debug.is_alternate());
 //! ```
 
 /// Parser and formatter helpers for `#[error("...")]` templates.

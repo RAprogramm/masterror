@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 ### Added
 - _Nothing yet._
 
+## [0.5.13] - 2025-10-05
+
+### Documentation
+- Documented the formatter trait helpers (`TemplateFormatter::is_alternate`,
+  `TemplateFormatter::from_kind`, and `TemplateFormatterKind::specifier`/`supports_alternate`)
+  across README variants and crate docs, including guidance on the extended
+  formatter table and compatibility with `thiserror` v2.
+
 ## [0.5.12] - 2025-10-04
 
 ### Tests
