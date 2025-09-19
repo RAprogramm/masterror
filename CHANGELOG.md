@@ -13,6 +13,16 @@ All notable changes to this project will be documented in this file.
 - `masterror::Error` now uses the in-tree derive, removing the dependency on
   `thiserror` while keeping the same runtime behaviour and diagnostics.
 
+## [0.5.1] - 2025-09-24
+
+### Added
+- Composite GitHub Action (`.github/actions/cargo-deny`) that installs and runs
+  `cargo-deny` checks for reuse across workflows.
+- `cargo deny` step in the reusable CI pipeline to catch advisories, bans,
+  license and source issues automatically.
+- README badges surfacing the Cargo Deny status so consumers can quickly verify
+  supply-chain checks.
+
 ## [0.5.0] - 2025-09-23
 
 ### Added
@@ -150,6 +160,7 @@ All notable changes to this project will be documented in this file.
 - **MSRV:** 1.89
 - **No unsafe:** the crate forbids `unsafe`.
 
+[0.5.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.5.1
 [0.5.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.5.0
 [0.4.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.4.0
 [0.3.5]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.5
