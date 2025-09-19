@@ -6,6 +6,22 @@ All notable changes to this project will be documented in this file.
 ### Added
 - _Nothing yet._
 
+## [0.6.0] - 2025-10-06
+
+### Added
+- Enabled the derive and template parser to understand the new formatter
+  specifier, keeping runtime rendering and compile-time diagnostics aligned with
+  `thiserror` while exposing the helper through `TemplateFormatterKind`.
+
+### Tests
+- Expanded the runtime formatter assertions and `trybuild` fixtures to cover the
+  new formatter branch, guarding both successful usage and descriptive error
+  messages.
+
+### Documentation
+- Documented the formatter addition across README variants and crate docs,
+  including updates to the formatter reference table and usage guidance.
+
 ## [0.5.13] - 2025-10-05
 
 ### Documentation
@@ -283,6 +299,7 @@ All notable changes to this project will be documented in this file.
 - **MSRV:** 1.89
 - **No unsafe:** the crate forbids `unsafe`.
 
+[0.6.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.6.0
 [0.5.2]: https://github.com/RAprogramm/masterror/releases/tag/v0.5.2
 [0.5.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.5.1
 [0.5.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.5.0
