@@ -17,6 +17,13 @@ All notable changes to this project will be documented in this file.
 - `masterror::Error` now uses the in-tree derive, removing the dependency on
   `thiserror` while keeping the same runtime behaviour and diagnostics.
 
+## [0.5.5] - 2025-09-27
+
+### Fixed
+- Derive formatter generation now matches on every `TemplateFormatter`
+  variant and calls the corresponding `::core::fmt` trait (including the
+  default `Display` path), mirroring `thiserror`'s placeholder handling.
+
 ## [0.5.4] - 2025-09-26
 
 ### Fixed

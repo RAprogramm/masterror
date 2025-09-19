@@ -338,87 +338,71 @@ fn format_placeholder(
     } = resolved;
 
     match formatter {
-        TemplateFormatter::Display => quote! {
-            core::fmt::Display::fmt(#expr, f)?;
-        },
+        TemplateFormatter::Display => format_with_trait(expr, "Display"),
         TemplateFormatter::Debug {
-            alternate: false
-        } => quote! {
-            core::fmt::Debug::fmt(#expr, f)?;
-        },
-        TemplateFormatter::Debug {
-            alternate: true
-        } => quote! {
-            write!(f, "{:#?}", #expr)?;
-        },
+            alternate
+        } => format_with_optional_alternate(expr, "Debug", '?', alternate),
         TemplateFormatter::LowerHex {
             alternate
-        } => {
-            if alternate {
-                quote! { write!(f, "{:#x}", #expr)?; }
-            } else {
-                quote! { core::fmt::LowerHex::fmt(#expr, f)?; }
-            }
-        }
+        } => format_with_optional_alternate(expr, "LowerHex", 'x', alternate),
         TemplateFormatter::UpperHex {
             alternate
-        } => {
-            if alternate {
-                quote! { write!(f, "{:#X}", #expr)?; }
-            } else {
-                quote! { core::fmt::UpperHex::fmt(#expr, f)?; }
-            }
-        }
+        } => format_with_optional_alternate(expr, "UpperHex", 'X', alternate),
         TemplateFormatter::Pointer {
             alternate
-        } => {
-            if alternate {
-                quote! { write!(f, "{:#p}", #expr)?; }
-            } else if pointer_value {
-                quote! {{
-                    let value = #expr;
-                    core::fmt::Pointer::fmt(&value, f)?;
-                }}
-            } else {
-                quote! { core::fmt::Pointer::fmt(#expr, f)?; }
-            }
-        }
+        } => format_pointer(expr, pointer_value, alternate),
         TemplateFormatter::Binary {
             alternate
-        } => {
-            if alternate {
-                quote! { write!(f, "{:#b}", #expr)?; }
-            } else {
-                quote! { core::fmt::Binary::fmt(#expr, f)?; }
-            }
-        }
+        } => format_with_optional_alternate(expr, "Binary", 'b', alternate),
         TemplateFormatter::Octal {
             alternate
-        } => {
-            if alternate {
-                quote! { write!(f, "{:#o}", #expr)?; }
-            } else {
-                quote! { core::fmt::Octal::fmt(#expr, f)?; }
-            }
-        }
+        } => format_with_optional_alternate(expr, "Octal", 'o', alternate),
         TemplateFormatter::LowerExp {
             alternate
-        } => {
-            if alternate {
-                quote! { write!(f, "{:#e}", #expr)?; }
-            } else {
-                quote! { core::fmt::LowerExp::fmt(#expr, f)?; }
-            }
-        }
+        } => format_with_optional_alternate(expr, "LowerExp", 'e', alternate),
         TemplateFormatter::UpperExp {
             alternate
-        } => {
-            if alternate {
-                quote! { write!(f, "{:#E}", #expr)?; }
-            } else {
-                quote! { core::fmt::UpperExp::fmt(#expr, f)?; }
-            }
-        }
+        } => format_with_optional_alternate(expr, "UpperExp", 'E', alternate)
+    }
+}
+
+fn format_with_trait(expr: TokenStream, trait_name: &str) -> TokenStream {
+    let trait_ident = format_ident!("{}", trait_name);
+    quote! {
+        ::core::fmt::#trait_ident::fmt(#expr, f)?;
+    }
+}
+
+fn format_with_optional_alternate(
+    expr: TokenStream,
+    trait_name: &str,
+    specifier: char,
+    alternate: bool
+) -> TokenStream {
+    if alternate {
+        format_with_alternate(expr, specifier)
+    } else {
+        format_with_trait(expr, trait_name)
+    }
+}
+
+fn format_with_alternate(expr: TokenStream, specifier: char) -> TokenStream {
+    let format_string = format!("{{:#{}}}", specifier);
+    quote! {
+        ::core::write!(f, #format_string, #expr)?;
+    }
+}
+
+fn format_pointer(expr: TokenStream, pointer_value: bool, alternate: bool) -> TokenStream {
+    if alternate {
+        format_with_alternate(expr, 'p')
+    } else if pointer_value {
+        quote! {{
+            let value = #expr;
+            ::core::fmt::Pointer::fmt(&value, f)?;
+        }}
+    } else {
+        format_with_trait(expr, "Pointer")
     }
 }
 
