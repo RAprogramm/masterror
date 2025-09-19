@@ -251,6 +251,10 @@ fn struct_placeholder_expr(
         TemplateIdentifierSpec::Positional(index) => fields
             .get_positional(*index)
             .map(|field| struct_field_expr(field, placeholder.formatter))
+            .ok_or_else(|| placeholder_error(placeholder.span, &placeholder.identifier)),
+        TemplateIdentifierSpec::Implicit(index) => fields
+            .get_positional(*index)
+            .map(|field| struct_field_expr(field, placeholder.formatter))
             .ok_or_else(|| placeholder_error(placeholder.span, &placeholder.identifier))
     }
 }
@@ -305,6 +309,15 @@ fn variant_tuple_placeholder(
                     needs_pointer_value(placeholder.formatter)
                 )
             })
+            .ok_or_else(|| placeholder_error(placeholder.span, &placeholder.identifier)),
+        TemplateIdentifierSpec::Implicit(index) => bindings
+            .get(*index)
+            .map(|binding| {
+                ResolvedPlaceholderExpr::with(
+                    quote!(#binding),
+                    needs_pointer_value(placeholder.formatter)
+                )
+            })
             .ok_or_else(|| placeholder_error(placeholder.span, &placeholder.identifier))
     }
 }
@@ -338,6 +351,10 @@ fn variant_named_placeholder(
         TemplateIdentifierSpec::Positional(index) => Err(placeholder_error(
             placeholder.span,
             &TemplateIdentifierSpec::Positional(*index)
+        )),
+        TemplateIdentifierSpec::Implicit(index) => Err(placeholder_error(
+            placeholder.span,
+            &TemplateIdentifierSpec::Implicit(*index)
         ))
     }
 }

@@ -27,7 +27,8 @@ pub struct TemplatePlaceholderSpec {
 #[derive(Debug, Clone)]
 pub enum TemplateIdentifierSpec {
     Named(String),
-    Positional(usize)
+    Positional(usize),
+    Implicit(usize)
 }
 
 pub fn parse_display_template(lit: LitStr) -> Result<DisplayTemplate, Error> {
@@ -49,6 +50,7 @@ pub fn parse_display_template(lit: LitStr) -> Result<DisplayTemplate, Error> {
                     TemplateIdentifier::Positional(index) => {
                         TemplateIdentifierSpec::Positional(*index)
                     }
+                    TemplateIdentifier::Implicit(index) => TemplateIdentifierSpec::Implicit(*index)
                 };
 
                 segments.push(TemplateSegmentSpec::Placeholder(TemplatePlaceholderSpec {
