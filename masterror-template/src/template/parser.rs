@@ -9,6 +9,7 @@ pub fn parse_template<'a>(source: &'a str) -> Result<Vec<TemplateSegment<'a>>, T
     let mut segments = Vec::new();
     let mut iter = source.char_indices().peekable();
     let mut literal_start = 0usize;
+    let mut implicit_counter = 0usize;
 
     while let Some((index, ch)) = iter.next() {
         match ch {
@@ -36,7 +37,7 @@ pub fn parse_template<'a>(source: &'a str) -> Result<Vec<TemplateSegment<'a>>, T
                     segments.push(TemplateSegment::Literal(&source[literal_start..index]));
                 }
 
-                let parsed = parse_placeholder(source, index)?;
+                let parsed = parse_placeholder(source, index, &mut implicit_counter)?;
                 segments.push(TemplateSegment::Placeholder(parsed.placeholder));
 
                 literal_start = parsed.after;
@@ -86,14 +87,15 @@ struct ParsedPlaceholder<'a> {
 
 fn parse_placeholder<'a>(
     source: &'a str,
-    start: usize
+    start: usize,
+    implicit_counter: &mut usize
 ) -> Result<ParsedPlaceholder<'a>, TemplateError> {
     for (offset, ch) in source[start + 1..].char_indices() {
         let absolute = start + 1 + offset;
         match ch {
             '}' => {
                 let end = absolute;
-                let placeholder = build_placeholder(source, start, end)?;
+                let placeholder = build_placeholder(source, start, end, implicit_counter)?;
                 return Ok(ParsedPlaceholder {
                     placeholder,
                     after: end + 1
@@ -116,10 +118,21 @@ fn parse_placeholder<'a>(
 fn build_placeholder<'a>(
     source: &'a str,
     start: usize,
-    end: usize
+    end: usize,
+    implicit_counter: &mut usize
 ) -> Result<TemplatePlaceholder<'a>, TemplateError> {
     let span = start..(end + 1);
     let body = &source[start + 1..end];
+
+    if body.is_empty() {
+        let identifier = next_implicit_identifier(implicit_counter, &span)?;
+        return Ok(TemplatePlaceholder {
+            span,
+            identifier,
+            formatter: TemplateFormatter::Display
+        });
+    }
+
     let trimmed = body.trim();
 
     if trimmed.is_empty() {
@@ -128,7 +141,7 @@ fn build_placeholder<'a>(
         });
     }
 
-    let (identifier, formatter) = split_placeholder(trimmed, span.clone())?;
+    let (identifier, formatter) = split_placeholder(trimmed, span.clone(), implicit_counter)?;
 
     Ok(TemplatePlaceholder {
         span,
@@ -139,12 +152,13 @@ fn build_placeholder<'a>(
 
 fn split_placeholder<'a>(
     body: &'a str,
-    span: Range<usize>
+    span: Range<usize>,
+    implicit_counter: &mut usize
 ) -> Result<(TemplateIdentifier<'a>, TemplateFormatter), TemplateError> {
     let mut parts = body.splitn(2, ':');
     let identifier_text = parts.next().unwrap_or("").trim();
 
-    let identifier = parse_identifier(identifier_text, span.clone())?;
+    let identifier = parse_identifier(identifier_text, span.clone(), implicit_counter)?;
 
     let formatter = match parts.next().map(str::trim) {
         None => TemplateFormatter::Display,
@@ -222,12 +236,11 @@ fn detect_alternate_flag(prefix: &str) -> Option<bool> {
 
 fn parse_identifier<'a>(
     text: &'a str,
-    span: Range<usize>
+    span: Range<usize>,
+    implicit_counter: &mut usize
 ) -> Result<TemplateIdentifier<'a>, TemplateError> {
     if text.is_empty() {
-        return Err(TemplateError::EmptyPlaceholder {
-            start: span.start
-        });
+        return next_implicit_identifier(implicit_counter, &span);
     }
 
     if text.chars().all(|ch| ch.is_ascii_digit()) {
@@ -249,6 +262,20 @@ fn parse_identifier<'a>(
     Err(TemplateError::InvalidIdentifier {
         span
     })
+}
+
+fn next_implicit_identifier<'a>(
+    implicit_counter: &mut usize,
+    span: &Range<usize>
+) -> Result<TemplateIdentifier<'a>, TemplateError> {
+    let index = *implicit_counter;
+    *implicit_counter = index
+        .checked_add(1)
+        .ok_or_else(|| TemplateError::InvalidIdentifier {
+            span: span.clone()
+        })?;
+
+    Ok(TemplateIdentifier::Implicit(index))
 }
 
 #[cfg(test)]
@@ -448,5 +475,64 @@ mod tests {
                 matches!(err, TemplateError::InvalidFormatter { span } if span == (0..source.len()))
             );
         }
+    }
+
+    #[test]
+    fn parses_empty_braces_as_implicit_display() {
+        let segments = parse_template("{}").expect("template parsed");
+        let placeholder = match segments.first() {
+            Some(TemplateSegment::Placeholder(placeholder)) => placeholder,
+            other => panic!("unexpected segments for empty braces: {other:?}")
+        };
+
+        assert_eq!(placeholder.identifier(), &TemplateIdentifier::Implicit(0));
+        assert_eq!(placeholder.formatter(), TemplateFormatter::Display);
+    }
+
+    #[test]
+    fn increments_implicit_indices_across_placeholders() {
+        let segments = parse_template("{}, {value}, {:?}, {}").expect("template parsed");
+        let placeholders: Vec<_> = segments
+            .iter()
+            .filter_map(|segment| match segment {
+                TemplateSegment::Placeholder(placeholder) => Some(placeholder),
+                TemplateSegment::Literal(_) => None
+            })
+            .collect();
+
+        assert_eq!(placeholders.len(), 4);
+        assert_eq!(
+            placeholders[0].identifier(),
+            &TemplateIdentifier::Implicit(0)
+        );
+        assert_eq!(
+            placeholders[1].identifier(),
+            &TemplateIdentifier::Named("value")
+        );
+        assert_eq!(
+            placeholders[2].identifier(),
+            &TemplateIdentifier::Implicit(1)
+        );
+        assert_eq!(
+            placeholders[2].formatter(),
+            TemplateFormatter::Debug {
+                alternate: false
+            }
+        );
+        assert_eq!(
+            placeholders[3].identifier(),
+            &TemplateIdentifier::Implicit(2)
+        );
+    }
+
+    #[test]
+    fn rejects_whitespace_only_placeholders() {
+        let err = parse_template("{   }").expect_err("should fail");
+        assert!(matches!(
+            err,
+            TemplateError::EmptyPlaceholder {
+                start: 0
+            }
+        ));
     }
 }

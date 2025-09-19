@@ -826,5 +826,8 @@ pub fn placeholder_error(span: Span, identifier: &TemplateIdentifierSpec) -> Err
         TemplateIdentifierSpec::Positional(index) => {
             Error::new(span, format!("field `{}` is not available", index))
         }
+        TemplateIdentifierSpec::Implicit(index) => {
+            Error::new(span, format!("field `{}` is not available", index))
+        }
     }
 }

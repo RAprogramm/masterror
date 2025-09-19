@@ -6,6 +6,24 @@ All notable changes to this project will be documented in this file.
 ### Added
 - _Nothing yet._
 
+## [0.6.0] - 2025-10-08
+
+### Added
+- Recognised empty placeholder bodies (`{}` / `{:?}`) as implicit positional
+  identifiers, numbering them by appearance and exposing the new
+  `TemplateIdentifier::Implicit` variant in the template API.
+- Propagated the implicit identifier metadata through
+  `template_support::TemplateIdentifierSpec`, ensuring derive-generated display
+  implementations resolve tuple fields in placeholder order.
+
+### Fixed
+- Preserved `TemplateError::EmptyPlaceholder` diagnostics for whitespace-only
+  placeholders, matching previous error reporting for invalid bodies.
+
+### Tests
+- Added parser regressions covering implicit placeholder sequencing and the
+  whitespace-only error path.
+
 ## [0.5.15] - 2025-10-07
 
 ### Added
