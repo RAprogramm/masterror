@@ -1,8 +1,8 @@
 [package]
 name = "masterror-template"
-version = "0.1.1"
-edition = "2024"
+version = "0.1.2"
 rust-version = "1.90"
+edition = "2024"
 repository = "https://github.com/RAprogramm/masterror"
 readme = "README.md"
 description = "Template utilities for masterror and its derive macros"

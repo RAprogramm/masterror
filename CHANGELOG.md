@@ -17,6 +17,18 @@ All notable changes to this project will be documented in this file.
 - `masterror::Error` now uses the in-tree derive, removing the dependency on
   `thiserror` while keeping the same runtime behaviour and diagnostics.
 
+## [0.5.4] - 2025-09-26
+
+### Fixed
+- Template parser mirrors `thiserror`'s formatter trait detection, ensuring
+  `:?`, `:x`, `:X`, `:p`, `:b`, `:o`, `:e` and `:E` specifiers resolve to the
+  appropriate `TemplateFormatter` variant while still flagging unsupported
+  flags precisely.
+
+### Tests
+- Added parser-level unit tests that cover every supported formatter specifier
+  and assert graceful failures for malformed format strings.
+
 ## [0.5.2] - 2025-09-25
 
 ### Fixed
