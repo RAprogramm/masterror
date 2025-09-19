@@ -17,3 +17,15 @@ fn backtrace_attribute_compile_failures() {
     let t = TestCases::new();
     t.compile_fail("tests/ui/backtrace/*.rs");
 }
+
+#[test]
+fn formatter_attribute_passes() {
+    let t = TestCases::new();
+    t.pass("tests/ui/formatter/pass/*.rs");
+}
+
+#[test]
+fn formatter_attribute_compile_failures() {
+    let t = TestCases::new();
+    t.compile_fail("tests/ui/formatter/fail/*.rs");
+}

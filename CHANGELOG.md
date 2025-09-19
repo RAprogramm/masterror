@@ -17,6 +17,14 @@ All notable changes to this project will be documented in this file.
 - `masterror::Error` now uses the in-tree derive, removing the dependency on
   `thiserror` while keeping the same runtime behaviour and diagnostics.
 
+## [0.5.6] - 2025-09-28
+
+### Tests
+- Added runtime coverage exercising every derive formatter variant (including
+  case-sensitive formatters) and asserted the rendered output.
+- Added `trybuild` suites that compile successful formatter usage and verify the
+  emitted diagnostics for unsupported specifiers.
+
 ## [0.5.5] - 2025-09-27
 
 ### Fixed
