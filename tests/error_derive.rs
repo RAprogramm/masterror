@@ -1,3 +1,5 @@
+#![allow(unused_variables, non_shorthand_field_patterns)]
+
 use std::error::Error as StdError;
 
 use masterror::Error;
@@ -103,6 +105,26 @@ enum TransparentEnum {
     Opaque(&'static str),
     #[error(transparent)]
     TransparentVariant(#[from] TransparentInner)
+}
+
+#[derive(Debug, Error)]
+#[error("{source:?}")]
+struct StructFromWithBacktrace {
+    #[from]
+    source: LeafError,
+    #[backtrace]
+    trace:  Option<std::backtrace::Backtrace>
+}
+
+#[derive(Debug, Error)]
+enum VariantFromWithBacktrace {
+    #[error("{source:?}")]
+    WithTrace {
+        #[from]
+        source: LeafError,
+        #[backtrace]
+        trace:  Option<std::backtrace::Backtrace>
+    }
 }
 
 #[test]
@@ -217,6 +239,32 @@ fn transparent_enum_variant_from_impl() {
     assert_eq!(variant.to_string(), "leaf failure");
     assert_eq!(
         StdError::source(&variant).map(|err| err.to_string()),
+        Some(String::from("leaf failure"))
+    );
+}
+
+#[test]
+fn struct_from_with_backtrace_field_captures_trace() {
+    let err = StructFromWithBacktrace::from(LeafError);
+    assert!(err.trace.is_some());
+    assert_eq!(
+        StdError::source(&err).map(|err| err.to_string()),
+        Some(String::from("leaf failure"))
+    );
+}
+
+#[test]
+fn enum_from_with_backtrace_field_captures_trace() {
+    let err = VariantFromWithBacktrace::from(LeafError);
+    match &err {
+        VariantFromWithBacktrace::WithTrace {
+            trace, ..
+        } => {
+            assert!(trace.is_some());
+        }
+    }
+    assert_eq!(
+        StdError::source(&err).map(|err| err.to_string()),
         Some(String::from("leaf failure"))
     );
 }

@@ -5,6 +5,8 @@ use masterror::Error;
 struct BadStruct {
     #[from]
     left: DummyError,
+    #[backtrace]
+    trace: Option<std::backtrace::Backtrace>,
     right: DummyError,
 }
 
