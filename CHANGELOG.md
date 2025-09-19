@@ -6,6 +6,17 @@ All notable changes to this project will be documented in this file.
 ### Added
 - _Nothing yet._
 
+## [0.5.8] - 2025-09-30
+
+### Changed
+- `masterror::Error` now infers sources named `source` and backtrace fields of
+  type `std::backtrace::Backtrace`/`Option<std::backtrace::Backtrace>` even
+  without explicit attributes, matching `thiserror`'s ergonomics.
+
+### Tests
+- Expanded derive tests to cover implicit `source`/`backtrace` detection across
+  structs and enums.
+
 ## [0.5.7] - 2025-09-29
 
 ### Added

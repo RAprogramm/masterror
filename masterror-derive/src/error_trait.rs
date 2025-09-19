@@ -82,7 +82,7 @@ fn struct_source_body(fields: &Fields, display: &DisplaySpec) -> TokenStream {
             }
         }
         DisplaySpec::Template(_) => {
-            if let Some(field) = fields.iter().find(|field| field.attrs.source.is_some()) {
+            if let Some(field) = fields.iter().find(|field| field.attrs.has_source()) {
                 let member = &field.member;
                 field_source_expr(quote!(self.#member), quote!(&self.#member), &field.ty)
             } else {
@@ -135,10 +135,7 @@ fn variant_transparent_source(variant: &VariantData) -> TokenStream {
 
 fn variant_template_source(variant: &VariantData) -> TokenStream {
     let variant_ident = &variant.ident;
-    let source_field = variant
-        .fields
-        .iter()
-        .find(|field| field.attrs.source.is_some());
+    let source_field = variant.fields.iter().find(|field| field.attrs.has_source());
 
     match (&variant.fields, source_field) {
         (Fields::Unit, _) => quote! { Self::#variant_ident => None },

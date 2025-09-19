@@ -151,6 +151,41 @@ enum EnumWithBacktrace {
 }
 
 #[derive(Debug, Error)]
+#[error("auto {source}")]
+struct AutoSourceStruct {
+    source: LeafError
+}
+
+#[derive(Debug, Error)]
+enum AutoSourceEnum {
+    #[error("named {source}")]
+    Named { source: LeafError }
+}
+
+#[derive(Debug, Error)]
+#[error("captured")]
+struct AutoBacktraceStruct {
+    trace: std::backtrace::Backtrace
+}
+
+#[derive(Debug, Error)]
+#[error("optional")]
+struct AutoOptionalBacktraceStruct {
+    trace: Option<std::backtrace::Backtrace>
+}
+
+#[derive(Debug, Error)]
+enum AutoBacktraceEnum {
+    #[error("named {message}")]
+    Named {
+        message: &'static str,
+        trace:   std::backtrace::Backtrace
+    },
+    #[error("tuple {0:?}")]
+    Tuple(Option<std::backtrace::Backtrace>)
+}
+
+#[derive(Debug, Error)]
 #[error(
     "display={value} debug={value:?} #debug={value:#?} x={value:x} X={value:X} \
      #x={value:#x} #X={value:#X} b={value:b} #b={value:#b} o={value:o} #o={value:#o} \
@@ -405,6 +440,72 @@ fn supports_display_and_debug_formatters() {
 
     assert_eq!(err.to_string(), expected);
     assert!(StdError::source(&err).is_none());
+}
+
+#[test]
+fn struct_named_source_is_inferred() {
+    let err = AutoSourceStruct {
+        source: LeafError
+    };
+    assert_eq!(err.to_string(), "auto leaf failure");
+    let source = StdError::source(&err).expect("source");
+    assert_eq!(source.to_string(), "leaf failure");
+}
+
+#[test]
+fn enum_named_source_is_inferred() {
+    let err = AutoSourceEnum::Named {
+        source: LeafError
+    };
+    assert_eq!(err.to_string(), "named leaf failure");
+    let source = StdError::source(&err).expect("source");
+    assert_eq!(source.to_string(), "leaf failure");
+}
+
+#[test]
+fn struct_backtrace_is_inferred_without_attribute() {
+    let err = AutoBacktraceStruct {
+        trace: std::backtrace::Backtrace::capture()
+    };
+    assert_backtrace_interfaces(&err, &err.trace);
+    assert!(StdError::source(&err).is_none());
+}
+
+#[test]
+fn struct_optional_backtrace_is_inferred_without_attribute() {
+    let err = AutoOptionalBacktraceStruct {
+        trace: Some(std::backtrace::Backtrace::capture())
+    };
+    let stored = err.trace.as_ref().expect("trace stored");
+    assert_backtrace_interfaces(&err, stored);
+    assert!(StdError::source(&err).is_none());
+}
+
+#[test]
+fn enum_backtrace_is_inferred_without_attribute() {
+    let named = AutoBacktraceEnum::Named {
+        message: "named",
+        trace:   std::backtrace::Backtrace::capture()
+    };
+    if let AutoBacktraceEnum::Named {
+        trace, ..
+    } = &named
+    {
+        assert_backtrace_interfaces(&named, trace);
+    }
+    assert!(StdError::source(&named).is_none());
+
+    let tuple = AutoBacktraceEnum::Tuple(Some(std::backtrace::Backtrace::capture()));
+    if let AutoBacktraceEnum::Tuple(Some(trace)) = &tuple {
+        assert_backtrace_interfaces(&tuple, trace);
+    }
+    assert!(StdError::source(&tuple).is_none());
+
+    #[cfg(error_generic_member_access)]
+    {
+        let none = AutoBacktraceEnum::Tuple(None);
+        assert!(std::error::Error::backtrace(&none).is_none());
+    }
 }
 
 #[test]

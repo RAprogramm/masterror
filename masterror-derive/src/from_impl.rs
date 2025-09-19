@@ -127,11 +127,11 @@ fn field_value_expr(field: &Field, from_field: &Field) -> Result<TokenStream, Er
         return Ok(quote! { value });
     }
 
-    if field.attrs.backtrace.is_some() {
+    if field.attrs.has_backtrace() {
         return Ok(backtrace_initializer(field));
     }
 
-    if field.attrs.source.is_some() && field.attrs.from.is_none() {
+    if field.attrs.has_source() && field.attrs.from.is_none() {
         return source_initializer(field);
     }
 
