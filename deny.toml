@@ -1,0 +1,27 @@
+[advisories]
+ignore = []
+git-fetch-with-cli = true
+
+[licenses]
+allow = [
+    "Apache-2.0",
+    "MIT",
+]
+confidence-threshold = 0.8
+
+[[licenses.exceptions]]
+crate = "unicode-ident"
+allow = ["Apache-2.0", "MIT", "Unicode-3.0"]
+
+[licenses.private]
+ignore = false
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-git = []
+

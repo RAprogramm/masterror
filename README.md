@@ -29,9 +29,9 @@ Stable categories, conservative HTTP mapping, no `unsafe`.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.5.1", default-features = false }
+masterror = { version = "0.5.2", default-features = false }
 # or with features:
-# masterror = { version = "0.5.1", features = [
+# masterror = { version = "0.5.2", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "reqwest", "redis", "validator",
 #   "config", "tokio", "multipart", "teloxide",
@@ -66,10 +66,10 @@ masterror = { version = "0.5.1", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.5.1", default-features = false }
+masterror = { version = "0.5.2", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.5.1", features = [
+# masterror = { version = "0.5.2", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "reqwest", "redis", "validator",
 #   "config", "tokio", "multipart", "teloxide",
@@ -261,13 +261,13 @@ assert_eq!(resp.status, 401);
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.5.1", default-features = false }
+masterror = { version = "0.5.2", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.5.1", features = [
+masterror = { version = "0.5.2", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -276,7 +276,7 @@ masterror = { version = "0.5.1", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.5.1", features = [
+masterror = { version = "0.5.2", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
