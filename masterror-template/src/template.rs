@@ -205,54 +205,47 @@ pub enum TemplateFormatter {
 impl TemplateFormatter {
     /// Parses a formatting specifier (the portion after `:`) into a formatter.
     pub fn from_format_spec(spec: &str) -> Option<Self> {
-        match spec {
-            "?" => Some(Self::Debug {
-                alternate: false
+        Self::parse_specifier(spec)
+    }
+
+    pub(crate) fn parse_specifier(spec: &str) -> Option<Self> {
+        let trimmed = spec.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+
+        let (last_index, ty) = trimmed.char_indices().next_back()?;
+        let prefix = &trimmed[..last_index];
+        let alternate = match prefix {
+            "" => false,
+            "#" => true,
+            _ => return None
+        };
+
+        match ty {
+            '?' => Some(Self::Debug {
+                alternate
             }),
-            "#?" => Some(Self::Debug {
-                alternate: true
+            'x' => Some(Self::LowerHex {
+                alternate
             }),
-            "x" => Some(Self::LowerHex {
-                alternate: false
+            'X' => Some(Self::UpperHex {
+                alternate
             }),
-            "#x" => Some(Self::LowerHex {
-                alternate: true
+            'p' => Some(Self::Pointer {
+                alternate
             }),
-            "X" => Some(Self::UpperHex {
-                alternate: false
+            'b' => Some(Self::Binary {
+                alternate
             }),
-            "#X" => Some(Self::UpperHex {
-                alternate: true
+            'o' => Some(Self::Octal {
+                alternate
             }),
-            "p" => Some(Self::Pointer {
-                alternate: false
+            'e' => Some(Self::LowerExp {
+                alternate
             }),
-            "#p" => Some(Self::Pointer {
-                alternate: true
-            }),
-            "b" => Some(Self::Binary {
-                alternate: false
-            }),
-            "#b" => Some(Self::Binary {
-                alternate: true
-            }),
-            "o" => Some(Self::Octal {
-                alternate: false
-            }),
-            "#o" => Some(Self::Octal {
-                alternate: true
-            }),
-            "e" => Some(Self::LowerExp {
-                alternate: false
-            }),
-            "#e" => Some(Self::LowerExp {
-                alternate: true
-            }),
-            "E" => Some(Self::UpperExp {
-                alternate: false
-            }),
-            "#E" => Some(Self::UpperExp {
-                alternate: true
+            'E' => Some(Self::UpperExp {
+                alternate
             }),
             _ => None
         }

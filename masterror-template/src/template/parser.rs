@@ -153,7 +153,7 @@ fn split_placeholder<'a>(
             });
         }
         Some(spec) => {
-            TemplateFormatter::from_format_spec(spec).ok_or(TemplateError::InvalidFormatter {
+            TemplateFormatter::parse_specifier(spec).ok_or(TemplateError::InvalidFormatter {
                 span
             })?
         }
@@ -191,4 +191,137 @@ fn parse_identifier<'a>(
     Err(TemplateError::InvalidIdentifier {
         span
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_supported_formatter_specs() {
+        let cases = [
+            (
+                "{value:?}",
+                TemplateFormatter::Debug {
+                    alternate: false
+                }
+            ),
+            (
+                "{value:#?}",
+                TemplateFormatter::Debug {
+                    alternate: true
+                }
+            ),
+            (
+                "{value:x}",
+                TemplateFormatter::LowerHex {
+                    alternate: false
+                }
+            ),
+            (
+                "{value:#x}",
+                TemplateFormatter::LowerHex {
+                    alternate: true
+                }
+            ),
+            (
+                "{value:X}",
+                TemplateFormatter::UpperHex {
+                    alternate: false
+                }
+            ),
+            (
+                "{value:#X}",
+                TemplateFormatter::UpperHex {
+                    alternate: true
+                }
+            ),
+            (
+                "{value:p}",
+                TemplateFormatter::Pointer {
+                    alternate: false
+                }
+            ),
+            (
+                "{value:#p}",
+                TemplateFormatter::Pointer {
+                    alternate: true
+                }
+            ),
+            (
+                "{value:b}",
+                TemplateFormatter::Binary {
+                    alternate: false
+                }
+            ),
+            (
+                "{value:#b}",
+                TemplateFormatter::Binary {
+                    alternate: true
+                }
+            ),
+            (
+                "{value:o}",
+                TemplateFormatter::Octal {
+                    alternate: false
+                }
+            ),
+            (
+                "{value:#o}",
+                TemplateFormatter::Octal {
+                    alternate: true
+                }
+            ),
+            (
+                "{value:e}",
+                TemplateFormatter::LowerExp {
+                    alternate: false
+                }
+            ),
+            (
+                "{value:#e}",
+                TemplateFormatter::LowerExp {
+                    alternate: true
+                }
+            ),
+            (
+                "{value:E}",
+                TemplateFormatter::UpperExp {
+                    alternate: false
+                }
+            ),
+            (
+                "{value:#E}",
+                TemplateFormatter::UpperExp {
+                    alternate: true
+                }
+            )
+        ];
+
+        for (source, expected_formatter) in &cases {
+            let segments = parse_template(source).expect("template parsed");
+            let placeholder = match segments.first() {
+                Some(TemplateSegment::Placeholder(placeholder)) => placeholder,
+                other => panic!("unexpected segments for {source:?}: {other:?}")
+            };
+
+            assert_eq!(
+                placeholder.formatter(),
+                *expected_formatter,
+                "case: {source}"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_malformed_formatters() {
+        let cases = ["{value:}", "{value:#}", "{value:0x}"];
+
+        for source in &cases {
+            let err = parse_template(source).expect_err("expected formatter error");
+            assert!(
+                matches!(err, TemplateError::InvalidFormatter { span } if span == (0..source.len()))
+            );
+        }
+    }
 }
