@@ -1,7 +1,7 @@
 use masterror_template::template::{TemplateFormatter, TemplateFormatterKind};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
-use syn::Error;
+use syn::{Error, spanned::Spanned};
 
 use crate::{
     input::{
@@ -25,9 +25,17 @@ fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, E
         DisplaySpec::Transparent {
             ..
         } => render_struct_transparent(&data.fields),
-        DisplaySpec::Template(template) => render_template(template, |placeholder| {
+        DisplaySpec::Template(template)
+        | DisplaySpec::TemplateWithArgs {
+            template, ..
+        } => render_template(template, |placeholder| {
             struct_placeholder_expr(&data.fields, placeholder)
-        })?
+        })?,
+        DisplaySpec::FormatterPath {
+            path, ..
+        } => {
+            return Err(Error::new(path.span(), "`fmt = ...` is not supported yet"));
+        }
     };
 
     let ident = &input.ident;
@@ -81,7 +89,13 @@ fn render_variant(variant: &VariantData) -> Result<TokenStream, Error> {
         DisplaySpec::Transparent {
             ..
         } => render_variant_transparent(variant),
-        DisplaySpec::Template(template) => render_variant_template(variant, template)
+        DisplaySpec::Template(template)
+        | DisplaySpec::TemplateWithArgs {
+            template, ..
+        } => render_variant_template(variant, template),
+        DisplaySpec::FormatterPath {
+            path, ..
+        } => Err(Error::new(path.span(), "`fmt = ...` is not supported yet"))
     }
 }
 

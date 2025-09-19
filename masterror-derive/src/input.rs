@@ -1,7 +1,7 @@
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream};
 use syn::{
-    Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Field as SynField,
-    Fields as SynFields, GenericArgument, Ident, LitStr, spanned::Spanned
+    Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Expr, Field as SynField,
+    Fields as SynFields, GenericArgument, Ident, LitStr, Path, spanned::Spanned
 };
 
 use crate::template_support::{DisplayTemplate, TemplateIdentifierSpec, parse_display_template};
@@ -21,16 +21,20 @@ pub enum ErrorData {
 
 #[derive(Debug)]
 pub struct StructData {
-    pub fields:  Fields,
-    pub display: DisplaySpec
+    pub fields:      Fields,
+    pub display:     DisplaySpec,
+    #[allow(dead_code)]
+    pub format_args: FormatArgsSpec
 }
 
 #[derive(Debug)]
 pub struct VariantData {
-    pub ident:   Ident,
-    pub fields:  Fields,
-    pub display: DisplaySpec,
-    pub span:    Span
+    pub ident:       Ident,
+    pub fields:      Fields,
+    pub display:     DisplaySpec,
+    #[allow(dead_code)]
+    pub format_args: FormatArgsSpec,
+    pub span:        Span
 }
 
 #[derive(Debug)]
@@ -245,8 +249,43 @@ impl FieldAttrs {
 
 #[derive(Debug)]
 pub enum DisplaySpec {
-    Transparent { attribute: Box<Attribute> },
-    Template(DisplayTemplate)
+    Transparent {
+        attribute: Box<Attribute>
+    },
+    Template(DisplayTemplate),
+    #[allow(dead_code)]
+    TemplateWithArgs {
+        template: DisplayTemplate,
+        args:     FormatArgsSpec
+    },
+    #[allow(dead_code)]
+    FormatterPath {
+        path: Path,
+        args: FormatArgsSpec
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Default)]
+pub struct FormatArgsSpec {
+    pub args: Vec<FormatArg>
+}
+
+#[allow(dead_code)]
+#[derive(Debug)]
+pub struct FormatArg {
+    pub tokens: TokenStream,
+    pub expr:   Expr,
+    pub kind:   FormatBindingKind,
+    pub span:   Span
+}
+
+#[allow(dead_code)]
+#[derive(Debug)]
+pub enum FormatBindingKind {
+    Named(Ident),
+    Positional(usize),
+    Implicit
 }
 
 pub fn parse_input(input: DeriveInput) -> Result<ErrorInput, Error> {
@@ -300,7 +339,8 @@ fn parse_struct(
 
     Ok(ErrorData::Struct(Box::new(StructData {
         fields,
-        display
+        display,
+        format_args: FormatArgsSpec::default()
     })))
 }
 
@@ -348,6 +388,7 @@ fn parse_variant(variant: syn::Variant, errors: &mut Vec<Error>) -> Result<Varia
         ident: variant.ident,
         fields,
         display,
+        format_args: FormatArgsSpec::default(),
         span
     })
 }

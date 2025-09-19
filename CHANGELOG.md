@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 ### Added
 - _Nothing yet._
 
+## [0.5.14] - 2025-10-06
+
+### Added
+- Prepared the derive input structures for future `format_args!` support by
+  introducing display specification variants for templates with arguments and
+  `fmt = <path>` handlers, along with `FormatArgsSpec`/`FormatArg` metadata
+  scaffolding.
+
 ## [0.5.13] - 2025-10-05
 
 ### Documentation

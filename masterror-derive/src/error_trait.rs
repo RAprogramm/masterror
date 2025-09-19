@@ -81,7 +81,13 @@ fn struct_source_body(fields: &Fields, display: &DisplaySpec) -> TokenStream {
                 quote! { None }
             }
         }
-        DisplaySpec::Template(_) => {
+        DisplaySpec::Template(_)
+        | DisplaySpec::TemplateWithArgs {
+            ..
+        }
+        | DisplaySpec::FormatterPath {
+            ..
+        } => {
             if let Some(field) = fields.iter().find(|field| field.attrs.has_source()) {
                 let member = &field.member;
                 field_source_expr(quote!(self.#member), quote!(&self.#member), &field.ty)
@@ -97,7 +103,13 @@ fn variant_source_arm(variant: &VariantData) -> TokenStream {
         DisplaySpec::Transparent {
             ..
         } => variant_transparent_source(variant),
-        DisplaySpec::Template(_) => variant_template_source(variant)
+        DisplaySpec::Template(_)
+        | DisplaySpec::TemplateWithArgs {
+            ..
+        }
+        | DisplaySpec::FormatterPath {
+            ..
+        } => variant_template_source(variant)
     }
 }
 
