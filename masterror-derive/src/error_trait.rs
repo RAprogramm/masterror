@@ -15,6 +15,14 @@ pub fn expand(input: &ErrorInput) -> Result<TokenStream, Error> {
 
 fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, Error> {
     let body = struct_source_body(&data.fields, &data.display);
+    let backtrace_method = struct_backtrace_method(&data.fields);
+    let has_backtrace = backtrace_method.is_some();
+    let backtrace_method = backtrace_method.unwrap_or_default();
+    let provide_method = if has_backtrace {
+        provide_method_tokens()
+    } else {
+        TokenStream::new()
+    };
 
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
@@ -24,6 +32,8 @@ fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, E
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
                 #body
             }
+            #backtrace_method
+            #provide_method
         }
     })
 }
@@ -33,6 +43,15 @@ fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> Result<TokenStre
     for variant in variants {
         arms.push(variant_source_arm(variant));
     }
+
+    let backtrace_method = enum_backtrace_method(variants);
+    let has_backtrace = backtrace_method.is_some();
+    let backtrace_method = backtrace_method.unwrap_or_default();
+    let provide_method = if has_backtrace {
+        provide_method_tokens()
+    } else {
+        TokenStream::new()
+    };
 
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
@@ -44,6 +63,8 @@ fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> Result<TokenStre
                     #(#arms),*
                 }
             }
+            #backtrace_method
+            #provide_method
         }
     })
 }
@@ -176,6 +197,115 @@ fn field_source_expr(
         quote! { #owned_expr.as_ref().map(|source| source as &(dyn std::error::Error + 'static)) }
     } else {
         quote! { Some(#referenced_expr as &(dyn std::error::Error + 'static)) }
+    }
+}
+
+fn struct_backtrace_method(fields: &Fields) -> Option<TokenStream> {
+    let field = fields.backtrace_field()?;
+    let member = &field.member;
+    let body = field_backtrace_expr(quote!(self.#member), quote!(&self.#member), &field.ty);
+    Some(quote! {
+        #[cfg(error_generic_member_access)]
+        fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
+            #body
+        }
+    })
+}
+
+fn enum_backtrace_method(variants: &[VariantData]) -> Option<TokenStream> {
+    let mut has_backtrace = false;
+    let mut arms = Vec::new();
+    for variant in variants {
+        if variant.fields.backtrace_field().is_some() {
+            has_backtrace = true;
+        }
+        arms.push(variant_backtrace_arm(variant));
+    }
+
+    if has_backtrace {
+        Some(quote! {
+            #[cfg(error_generic_member_access)]
+            fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
+                match self {
+                    #(#arms),*
+                }
+            }
+        })
+    } else {
+        None
+    }
+}
+
+fn variant_backtrace_arm(variant: &VariantData) -> TokenStream {
+    let variant_ident = &variant.ident;
+    let backtrace_field = variant.fields.backtrace_field();
+
+    match (&variant.fields, backtrace_field) {
+        (Fields::Unit, _) => quote! { Self::#variant_ident => None },
+        (Fields::Named(fields), Some(field)) => {
+            let field_ident = field.ident.clone().expect("named field");
+            let binding = binding_ident(field);
+            let pattern = if fields.len() == 1 {
+                quote!(Self::#variant_ident { #field_ident: #binding })
+            } else {
+                quote!(Self::#variant_ident { #field_ident: #binding, .. })
+            };
+            let body = field_backtrace_expr(quote!(#binding), quote!(#binding), &field.ty);
+            quote! {
+                #pattern => { #body }
+            }
+        }
+        (Fields::Unnamed(fields), Some(field)) => {
+            let index = field.index;
+            let binding = binding_ident(field);
+            let pattern_elements: Vec<_> = fields
+                .iter()
+                .enumerate()
+                .map(|(idx, _)| {
+                    if idx == index {
+                        quote!(#binding)
+                    } else {
+                        quote!(_)
+                    }
+                })
+                .collect();
+            let body = field_backtrace_expr(quote!(#binding), quote!(#binding), &field.ty);
+            quote! {
+                Self::#variant_ident(#(#pattern_elements),*) => { #body }
+            }
+        }
+        (Fields::Named(_), None) => quote! { Self::#variant_ident { .. } => None },
+        (Fields::Unnamed(fields), None) => {
+            if fields.is_empty() {
+                quote! { Self::#variant_ident() => None }
+            } else {
+                let placeholders = vec![quote!(_); fields.len()];
+                quote! { Self::#variant_ident(#(#placeholders),*) => None }
+            }
+        }
+    }
+}
+
+fn field_backtrace_expr(
+    owned_expr: TokenStream,
+    referenced_expr: TokenStream,
+    ty: &syn::Type
+) -> TokenStream {
+    if is_option_type(ty) {
+        quote! { #owned_expr.as_ref() }
+    } else {
+        quote! { Some(#referenced_expr) }
+    }
+}
+
+fn provide_method_tokens() -> TokenStream {
+    quote! {
+        #[cfg(error_generic_member_access)]
+        fn provide<'a>(&'a self, request: &mut core::error::Request<'a>) {
+            if let Some(backtrace) = std::error::Error::backtrace(self) {
+                request.provide_ref::<std::backtrace::Backtrace>(backtrace);
+            }
+        }
     }
 }
 

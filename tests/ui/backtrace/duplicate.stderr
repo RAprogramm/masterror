@@ -1,0 +1,5 @@
+error: multiple #[backtrace] fields are not supported
+ --> tests/ui/backtrace/duplicate.rs:8:5
+  |
+8 |     #[backtrace]
+  |     ^^^^^^^^^^^^
