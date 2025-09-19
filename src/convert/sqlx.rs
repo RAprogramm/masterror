@@ -28,7 +28,7 @@
 //! ```
 
 #[cfg(feature = "sqlx")]
-use sqlx::{Error as SqlxError, migrate::MigrateError};
+use sqlx_core::{error::Error as SqlxError, migrate::MigrateError};
 
 #[cfg(feature = "sqlx")]
 use crate::AppError;

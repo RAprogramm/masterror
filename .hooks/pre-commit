@@ -16,6 +16,12 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 echo "🧪 Running tests (all features)..."
 cargo test --workspace --all-features
 
+echo "🛡️ Running cargo audit..."
+if ! command -v cargo-audit >/dev/null 2>&1; then
+  cargo install --locked cargo-audit >/dev/null
+fi
+cargo audit
+
 # Uncomment if you want to validate SQLx offline data
 # echo "📦 Validating SQLx prepare..."
 # cargo sqlx prepare --check --workspace

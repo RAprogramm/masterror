@@ -15,6 +15,15 @@ All notable changes to this project will be documented in this file.
 
 ## [0.5.1] - 2025-09-24
 
+### Changed
+- Replaced the optional `sqlx` dependency with `sqlx-core` so enabling the
+  feature no longer pulls in `rsa` via the MySQL driver, fixing the
+  `RUSTSEC-2023-0071` advisory reported by `cargo audit`.
+
+### Security
+- Added `cargo audit` to the pre-commit hook and CI workflow; published a
+  README badge to surface the audit status.
+
 ### Added
 - Composite GitHub Action (`.github/actions/cargo-deny`) that installs and runs
   `cargo-deny` checks for reuse across workflows.

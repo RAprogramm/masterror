@@ -20,7 +20,7 @@ members = ["masterror-derive", "masterror-template"]
 default = []
 axum = ["dep:axum", "dep:serde_json"]                                   # IntoResponse + JSON body
 actix = ["dep:actix-web", "dep:serde_json"]
-sqlx = ["dep:sqlx"]
+sqlx = ["dep:sqlx-core"]
 redis = ["dep:redis"]
 validator = ["dep:validator"]
 serde_json = ["dep:serde_json"]
@@ -58,7 +58,7 @@ axum = { version = "0.8", optional = true, default-features = false, features = 
 actix-web = { version = "4", optional = true, default-features = false, features = [
   "macros",
 ] }
-sqlx = { version = "0.8", optional = true, default-features = false, features = [
+sqlx-core = { version = "0.8", optional = true, default-features = false, features = [
   "migrate",
 ] }
 redis = { version = "0.32", optional = true, default-features = false }
