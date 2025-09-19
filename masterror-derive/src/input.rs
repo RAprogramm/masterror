@@ -391,9 +391,30 @@ fn validate_from_usage(fields: &Fields, display: &DisplaySpec, errors: &mut Vec<
             return;
         }
 
-        if fields.len() > 1
-            && let Some(attr) = &field.attrs.from
-        {
+        let mut has_unexpected_companions = false;
+        for companion in fields.iter() {
+            if companion.index == field.index {
+                continue;
+            }
+
+            if companion.attrs.backtrace.is_some() {
+                continue;
+            }
+
+            if let Some(attr) = &companion.attrs.source {
+                if companion.attrs.from.is_none() && !is_option_type(&companion.ty) {
+                    errors.push(Error::new_spanned(
+                        attr,
+                        "additional #[source] fields used with #[from] must be Option<_>"
+                    ));
+                }
+                continue;
+            }
+
+            has_unexpected_companions = true;
+        }
+
+        if has_unexpected_companions && let Some(attr) = &field.attrs.from {
             errors.push(Error::new_spanned(
                 attr,
                 "deriving From requires no fields other than source and backtrace"

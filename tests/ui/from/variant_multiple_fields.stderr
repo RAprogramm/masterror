@@ -1,5 +1,5 @@
-error: not expected here; the #[from] attribute belongs on a specific field
- --> tests/ui/from/variant_multiple_fields.rs:6:5
+error: deriving From requires no fields other than source and backtrace
+ --> tests/ui/from/variant_multiple_fields.rs:7:9
   |
-6 |     #[from]
-  |     ^^^^^^^
+7 |         #[from]
+  |         ^^^^^^^
