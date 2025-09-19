@@ -29,9 +29,9 @@ Stable categories, conservative HTTP mapping, no `unsafe`.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.5.8", default-features = false }
+masterror = { version = "0.5.9", default-features = false }
 # or with features:
-# masterror = { version = "0.5.8", features = [
+# masterror = { version = "0.5.9", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -66,10 +66,10 @@ masterror = { version = "0.5.8", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.5.8", default-features = false }
+masterror = { version = "0.5.9", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.5.8", features = [
+# masterror = { version = "0.5.9", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -155,6 +155,9 @@ assert_eq!(wrapped.to_string(), "I/O failed: disk offline");
 - `TemplateFormatter` mirrors `thiserror`'s formatter detection so existing
   derives that relied on hexadecimal, pointer or exponential renderers keep
   compiling.
+- `TemplateFormatterKind` exposes the formatter trait requested by a
+  placeholder, making it easy to branch on the requested rendering behaviour
+  without manually matching every enum variant.
 
 #### Formatter traits
 
@@ -211,7 +214,9 @@ assert!(rendered.contains("upper=1.5625E-1"));
 ~~~
 
 ~~~rust
-use masterror::error::template::{ErrorTemplate, TemplateFormatter};
+use masterror::error::template::{
+    ErrorTemplate, TemplateFormatter, TemplateFormatterKind
+};
 
 let template = ErrorTemplate::parse("{code:#x} → {payload:?}").expect("parse");
 let mut placeholders = template.placeholders();
@@ -221,6 +226,8 @@ assert!(matches!(
     code.formatter(),
     TemplateFormatter::LowerHex { alternate: true }
 ));
+assert_eq!(code.formatter().kind(), TemplateFormatterKind::LowerHex);
+assert!(code.formatter().is_alternate());
 
 let payload = placeholders.next().expect("payload placeholder");
 assert_eq!(
@@ -342,13 +349,13 @@ assert_eq!(resp.status, 401);
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.5.8", default-features = false }
+masterror = { version = "0.5.9", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.5.8", features = [
+masterror = { version = "0.5.9", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -357,7 +364,7 @@ masterror = { version = "0.5.8", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.5.8", features = [
+masterror = { version = "0.5.9", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }

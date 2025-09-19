@@ -6,6 +6,22 @@ All notable changes to this project will be documented in this file.
 ### Added
 - _Nothing yet._
 
+## [0.5.9] - 2025-10-01
+
+### Added
+- `TemplateFormatterKind` enumerating the formatter traits supported by
+  `#[error("...")]`, plus `TemplateFormatter::from_kind`/`kind()` helpers for
+  constructing and inspecting placeholders programmatically.
+
+### Changed
+- Formatter parsing now routes through `TemplateFormatterKind`, ensuring lookup
+  tables, `is_alternate` handling and downstream derives share the same
+  canonical representation.
+
+### Documentation
+- Documented `TemplateFormatterKind` usage and the new inspection helpers
+  across README variants.
+
 ## [0.5.8] - 2025-09-30
 
 ### Changed
