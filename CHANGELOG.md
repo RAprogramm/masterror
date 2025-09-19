@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 ### Added
 - _Nothing yet._
 
+## [0.5.12] - 2025-10-04
+
+### Tests
+- Added runtime assertions covering every derive formatter variant and
+  validating lowercase versus uppercase rendering differences during error
+  formatting.
+- Expanded the formatter `trybuild` suite with per-formatter success cases and
+  new compile-fail fixtures for unsupported uppercase specifiers to guarantee
+  diagnostics remain descriptive.
+
 ## [0.5.11] - 2025-10-03
 
 ### Changed

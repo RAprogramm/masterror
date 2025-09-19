@@ -215,6 +215,60 @@ struct FormatterDebugShowcase {
     tuple: (&'static str, u8)
 }
 
+#[derive(Debug, Error)]
+#[error("{value}")]
+struct DisplayFormatterError {
+    value: &'static str
+}
+
+#[derive(Debug, Error)]
+#[error("debug={value:?} #debug={value:#?}")]
+struct DebugFormatterError {
+    value: PrettyDebugValue
+}
+
+#[derive(Debug, Error)]
+#[error("lower={value:x} #lower={value:#x}")]
+struct LowerHexFormatterError {
+    value: u32
+}
+
+#[derive(Debug, Error)]
+#[error("upper={value:X} #upper={value:#X}")]
+struct UpperHexFormatterError {
+    value: u32
+}
+
+#[derive(Debug, Error)]
+#[error("binary={value:b} #binary={value:#b}")]
+struct BinaryFormatterError {
+    value: u16
+}
+
+#[derive(Debug, Error)]
+#[error("octal={value:o} #octal={value:#o}")]
+struct OctalFormatterError {
+    value: u16
+}
+
+#[derive(Debug, Error)]
+#[error("pointer={value:p} #pointer={value:#p}")]
+struct PointerFormatterError {
+    value: *const u32
+}
+
+#[derive(Debug, Error)]
+#[error("lower={value:e} #lower={value:#e}")]
+struct LowerExpFormatterError {
+    value: f64
+}
+
+#[derive(Debug, Error)]
+#[error("upper={value:E} #upper={value:#E}")]
+struct UpperExpFormatterError {
+    value: f64
+}
+
 #[cfg(error_generic_member_access)]
 fn assert_backtrace_interfaces<E>(error: &E, expected: &std::backtrace::Backtrace)
 where
@@ -536,4 +590,95 @@ fn supports_extended_formatters() {
 
     assert_eq!(err.to_string(), expected);
     assert!(StdError::source(&err).is_none());
+}
+
+#[test]
+fn formatter_variants_render_expected_output() {
+    let display = DisplayFormatterError {
+        value: "display"
+    };
+    assert_eq!(display.to_string(), "display");
+
+    let debug = DebugFormatterError {
+        value: PrettyDebugValue {
+            label: "Debug"
+        }
+    };
+    let debug_expected = format!(
+        "debug={value:?} #debug={value:#?}",
+        value = PrettyDebugValue {
+            label: "Debug"
+        }
+    );
+    assert_eq!(debug.to_string(), debug_expected);
+    assert_ne!(
+        format!(
+            "{value:?}",
+            value = PrettyDebugValue {
+                label: "Debug"
+            }
+        ),
+        format!(
+            "{value:#?}",
+            value = PrettyDebugValue {
+                label: "Debug"
+            }
+        )
+    );
+
+    const HEX_VALUE: u32 = 0x5A5A;
+    let lower_hex = LowerHexFormatterError {
+        value: HEX_VALUE
+    };
+    let lower_hex_expected = format!("lower={value:x} #lower={value:#x}", value = HEX_VALUE);
+    assert_eq!(lower_hex.to_string(), lower_hex_expected);
+    assert_ne!(format!("{HEX_VALUE:x}"), format!("{HEX_VALUE:#x}"));
+
+    let upper_hex = UpperHexFormatterError {
+        value: HEX_VALUE
+    };
+    let upper_hex_expected = format!("upper={value:X} #upper={value:#X}", value = HEX_VALUE);
+    assert_eq!(upper_hex.to_string(), upper_hex_expected);
+    assert_ne!(format!("{HEX_VALUE:X}"), format!("{HEX_VALUE:#X}"));
+    assert_ne!(format!("{HEX_VALUE:x}"), format!("{HEX_VALUE:X}"));
+
+    const INTEGER_VALUE: u16 = 0b1010_1100;
+    let binary = BinaryFormatterError {
+        value: INTEGER_VALUE
+    };
+    let binary_expected = format!("binary={value:b} #binary={value:#b}", value = INTEGER_VALUE);
+    assert_eq!(binary.to_string(), binary_expected);
+    assert_ne!(format!("{INTEGER_VALUE:b}"), format!("{INTEGER_VALUE:#b}"));
+
+    let octal = OctalFormatterError {
+        value: INTEGER_VALUE
+    };
+    let octal_expected = format!("octal={value:o} #octal={value:#o}", value = INTEGER_VALUE);
+    assert_eq!(octal.to_string(), octal_expected);
+    assert_ne!(format!("{INTEGER_VALUE:o}"), format!("{INTEGER_VALUE:#o}"));
+
+    let pointer_value = core::ptr::null::<u32>();
+    let pointer = PointerFormatterError {
+        value: pointer_value
+    };
+    let pointer_expected = format!(
+        "pointer={value:p} #pointer={value:#p}",
+        value = pointer_value
+    );
+    assert_eq!(pointer.to_string(), pointer_expected);
+    assert_ne!(format!("{pointer_value:p}"), format!("{pointer_value:#p}"));
+
+    const FLOAT_VALUE: f64 = 1234.5;
+    let lower_exp = LowerExpFormatterError {
+        value: FLOAT_VALUE
+    };
+    let lower_exp_expected = format!("lower={value:e} #lower={value:#e}", value = FLOAT_VALUE);
+    assert_eq!(lower_exp.to_string(), lower_exp_expected);
+
+    let upper_exp = UpperExpFormatterError {
+        value: FLOAT_VALUE
+    };
+    let upper_exp_expected = format!("upper={value:E} #upper={value:#E}", value = FLOAT_VALUE);
+    assert_eq!(upper_exp.to_string(), upper_exp_expected);
+    assert_ne!(format!("{FLOAT_VALUE:e}"), format!("{FLOAT_VALUE:E}"));
 }
