@@ -96,7 +96,7 @@ impl Fields {
     }
 
     pub fn backtrace_field(&self) -> Option<&Field> {
-        self.iter().find(|field| field.attrs.backtrace.is_some())
+        self.iter().find(|field| field.attrs.has_backtrace())
     }
 }
 
@@ -134,7 +134,7 @@ impl Field {
             None => syn::Member::Unnamed(syn::Index::from(index))
         };
 
-        let attrs = FieldAttrs::from_attrs(&field.attrs, errors);
+        let attrs = FieldAttrs::from_attrs(&field.attrs, ident.as_ref(), &field.ty, errors);
 
         Self {
             ident,
@@ -149,13 +149,20 @@ impl Field {
 
 #[derive(Debug, Default)]
 pub struct FieldAttrs {
-    pub from:      Option<Attribute>,
-    pub source:    Option<Attribute>,
-    pub backtrace: Option<Attribute>
+    pub from:           Option<Attribute>,
+    pub source:         Option<Attribute>,
+    pub backtrace:      Option<Attribute>,
+    inferred_source:    bool,
+    inferred_backtrace: bool
 }
 
 impl FieldAttrs {
-    fn from_attrs(attrs: &[Attribute], errors: &mut Vec<Error>) -> Self {
+    fn from_attrs(
+        attrs: &[Attribute],
+        ident: Option<&Ident>,
+        ty: &syn::Type,
+        errors: &mut Vec<Error>
+    ) -> Self {
         let mut result = FieldAttrs::default();
 
         for attr in attrs {
@@ -198,7 +205,41 @@ impl FieldAttrs {
             result.source = Some(attr.clone());
         }
 
+        if result.source.is_none() && ident.is_some_and(|ident| ident == "source") {
+            result.inferred_source = true;
+        }
+
+        if result.backtrace.is_none() {
+            if is_option_type(ty) {
+                if option_inner_type(ty).is_some_and(is_backtrace_type) {
+                    result.inferred_backtrace = true;
+                }
+            } else if is_backtrace_type(ty) {
+                result.inferred_backtrace = true;
+            }
+        }
+
         result
+    }
+
+    pub fn has_source(&self) -> bool {
+        self.source.is_some() || self.inferred_source
+    }
+
+    pub fn has_backtrace(&self) -> bool {
+        self.backtrace.is_some() || self.inferred_backtrace
+    }
+
+    pub fn is_backtrace_inferred(&self) -> bool {
+        self.inferred_backtrace
+    }
+
+    pub fn source_attribute(&self) -> Option<&Attribute> {
+        self.source.as_ref()
+    }
+
+    pub fn backtrace_attribute(&self) -> Option<&Attribute> {
+        self.backtrace.as_ref()
     }
 }
 
@@ -403,16 +444,23 @@ fn validate_from_usage(fields: &Fields, display: &DisplaySpec, errors: &mut Vec<
                 continue;
             }
 
-            if companion.attrs.backtrace.is_some() {
+            if companion.attrs.has_backtrace() {
                 continue;
             }
 
-            if let Some(attr) = &companion.attrs.source {
+            if companion.attrs.has_source() {
                 if companion.attrs.from.is_none() && !is_option_type(&companion.ty) {
-                    errors.push(Error::new_spanned(
-                        attr,
-                        "additional #[source] fields used with #[from] must be Option<_>"
-                    ));
+                    if let Some(attr) = companion.attrs.source_attribute() {
+                        errors.push(Error::new_spanned(
+                            attr,
+                            "additional #[source] fields used with #[from] must be Option<_>"
+                        ));
+                    } else {
+                        errors.push(Error::new(
+                            companion.span,
+                            "additional #[source] fields used with #[from] must be Option<_>"
+                        ));
+                    }
                 }
                 continue;
             }
@@ -442,7 +490,7 @@ fn validate_from_usage(fields: &Fields, display: &DisplaySpec, errors: &mut Vec<
 fn validate_backtrace_usage(fields: &Fields, errors: &mut Vec<Error>) {
     let backtrace_fields: Vec<_> = fields
         .iter()
-        .filter(|field| field.attrs.backtrace.is_some())
+        .filter(|field| field.attrs.has_backtrace())
         .collect();
 
     for field in &backtrace_fields {
@@ -454,9 +502,14 @@ fn validate_backtrace_usage(fields: &Fields, errors: &mut Vec<Error>) {
     }
 
     for field in backtrace_fields.iter().skip(1) {
-        if let Some(attr) = &field.attrs.backtrace {
+        if let Some(attr) = field.attrs.backtrace_attribute() {
             errors.push(Error::new_spanned(
                 attr,
+                "multiple #[backtrace] fields are not supported"
+            ));
+        } else {
+            errors.push(Error::new(
+                field.span,
                 "multiple #[backtrace] fields are not supported"
             ));
         }
@@ -464,7 +517,10 @@ fn validate_backtrace_usage(fields: &Fields, errors: &mut Vec<Error>) {
 }
 
 fn validate_backtrace_field_type(field: &Field, errors: &mut Vec<Error>) {
-    let Some(attr) = &field.attrs.backtrace else {
+    let Some(attr) = field.attrs.backtrace_attribute() else {
+        if field.attrs.is_backtrace_inferred() {
+            return;
+        }
         return;
     };
 
