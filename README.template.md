@@ -146,6 +146,86 @@ assert_eq!(wrapped.to_string(), "I/O failed: disk offline");
 - `masterror::error::template::ErrorTemplate` parses `#[error("...")]`
   strings, exposing literal and placeholder segments so custom derives can be
   implemented without relying on `thiserror`.
+- `TemplateFormatter` mirrors `thiserror`'s formatter detection so existing
+  derives that relied on hexadecimal, pointer or exponential renderers keep
+  compiling.
+
+#### Formatter traits
+
+Placeholders default to `Display` (`{value}`) but can opt into richer
+formatters via the same specifiers supported by `thiserror` v2. Unsupported
+formatters surface a compile error that mirrors `thiserror`'s diagnostics.
+
+| Specifier        | `core::fmt` trait          | Example output         |
+|------------------|----------------------------|------------------------|
+| _default_        | `core::fmt::Display`       | `value`                |
+| `:?` / `:#?`     | `core::fmt::Debug`         | `Struct { .. }` / multi-line |
+| `:x` / `:#x`     | `core::fmt::LowerHex`      | `0x2a`                 |
+| `:X` / `:#X`     | `core::fmt::UpperHex`      | `0x2A`                 |
+| `:p` / `:#p`     | `core::fmt::Pointer`       | `0x1f00` / `0x1f00`    |
+| `:b` / `:#b`     | `core::fmt::Binary`        | `101010` / `0b101010` |
+| `:o` / `:#o`     | `core::fmt::Octal`         | `52` / `0o52`         |
+| `:e` / `:#e`     | `core::fmt::LowerExp`      | `1.5e-2`              |
+| `:E` / `:#E`     | `core::fmt::UpperExp`      | `1.5E-2`              |
+
+~~~rust
+use core::ptr;
+
+use masterror::Error;
+
+#[derive(Debug, Error)]
+#[error(
+    "debug={payload:?}, hex={id:#x}, ptr={ptr:p}, bin={mask:#b}, \
+     oct={mask:o}, lower={ratio:e}, upper={ratio:E}"
+)]
+struct FormattedError {
+    id: u32,
+    payload: String,
+    ptr: *const u8,
+    mask: u8,
+    ratio: f32,
+}
+
+let err = FormattedError {
+    id: 0x2a,
+    payload: "hello".into(),
+    ptr: ptr::null(),
+    mask: 0b1010_0001,
+    ratio: 0.15625,
+};
+
+let rendered = err.to_string();
+assert!(rendered.contains("debug=\"hello\""));
+assert!(rendered.contains("hex=0x2a"));
+assert!(rendered.contains("ptr=0x0"));
+assert!(rendered.contains("bin=0b10100001"));
+assert!(rendered.contains("oct=241"));
+assert!(rendered.contains("lower=1.5625e-1"));
+assert!(rendered.contains("upper=1.5625E-1"));
+~~~
+
+~~~rust
+use masterror::error::template::{ErrorTemplate, TemplateFormatter};
+
+let template = ErrorTemplate::parse("{code:#x} → {payload:?}").expect("parse");
+let mut placeholders = template.placeholders();
+
+let code = placeholders.next().expect("code placeholder");
+assert!(matches!(
+    code.formatter(),
+    TemplateFormatter::LowerHex { alternate: true }
+));
+
+let payload = placeholders.next().expect("payload placeholder");
+assert_eq!(
+    payload.formatter(),
+    TemplateFormatter::Debug { alternate: false }
+);
+~~~
+
+> **Compatibility with `thiserror` v2:** the derive understands the extended
+> formatter set introduced in `thiserror` 2.x and reports identical diagnostics
+> for unsupported specifiers, so migrating existing derives is drop-in.
 
 ```rust
 use masterror::error::template::{ErrorTemplate, TemplateIdentifier};

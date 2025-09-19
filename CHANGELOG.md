@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- _Nothing yet._
+
+## [0.5.7] - 2025-09-29
+
+### Added
 - `masterror::error::template` module providing a parsed representation of
   `#[error("...")]` strings and a formatter hook for future custom derives.
 - Internal `masterror-derive` crate powering the native `masterror::Error`
@@ -16,6 +21,11 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - `masterror::Error` now uses the in-tree derive, removing the dependency on
   `thiserror` while keeping the same runtime behaviour and diagnostics.
+
+### Documentation
+- Documented formatter trait usage across README.md, README.ru.md and the
+  `masterror::error` module, noting compatibility with `thiserror` v2 and
+  demonstrating programmatic `TemplateFormatter` inspection.
 
 ## [0.5.6] - 2025-09-28
 
