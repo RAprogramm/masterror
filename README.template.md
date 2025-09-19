@@ -49,8 +49,8 @@ masterror = { version = "{{CRATE_VERSION}}", default-features = false }
 - **Clean wire contract.** `ErrorResponse { status, code, message, details?, retry?, www_authenticate? }`.
 - **One log at boundary.** Log once with `tracing`.
 - **Less boilerplate.** Built-in conversions, compact prelude, and the
-  `masterror::Error` re-export of `thiserror::Error` with `#[from]` /
-  `#[error(transparent)]` support.
+  native `masterror::Error` derive with `#[from]` / `#[error(transparent)]`
+  support.
 - **Consistent workspace.** Same error surface across crates.
 
 </details>
@@ -136,7 +136,7 @@ let wrapped = WrappedDomainError::from(err);
 assert_eq!(wrapped.to_string(), "I/O failed: disk offline");
 ~~~
 
-- `use masterror::Error;` re-exports `thiserror::Error`.
+- `use masterror::Error;` brings the crate's derive macro into scope.
 - `#[from]` automatically implements `From<...>` while ensuring wrapper shapes are
   valid.
 - `#[error(transparent)]` enforces single-field wrappers that forward

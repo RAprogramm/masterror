@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 ### Added
 - `masterror::error::template` module providing a parsed representation of
   `#[error("...")]` strings and a formatter hook for future custom derives.
+- Internal `masterror-derive` crate powering the native `masterror::Error`
+  derive macro.
+
+### Changed
+- `masterror::Error` now uses the in-tree derive, removing the dependency on
+  `thiserror` while keeping the same runtime behaviour and diagnostics.
 
 ## [0.5.0] - 2025-09-23
 
