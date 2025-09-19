@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 ### Added
 - _Nothing yet._
 
+## [0.5.11] - 2025-10-03
+
+### Changed
+- Aligned the derive display generator with `TemplateFormatterKind`, invoking the
+  appropriate `core::fmt` trait for every placeholder variant and preserving the
+  default `Display` path when no formatter is provided, mirroring `thiserror`'s
+  behaviour.
+
 ## [0.5.10] - 2025-10-02
 
 ### Changed
