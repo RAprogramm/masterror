@@ -90,7 +90,7 @@
 //! let payload_formatter = payload.formatter();
 //! assert_eq!(
 //!     payload_formatter,
-//!     TemplateFormatter::Debug {
+//!     &TemplateFormatter::Debug {
 //!         alternate: false
 //!     }
 //! );

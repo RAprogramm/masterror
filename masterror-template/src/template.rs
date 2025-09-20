@@ -1,4 +1,5 @@
 use core::{fmt, ops::Range};
+use std::borrow::Cow;
 
 mod parser;
 
@@ -131,8 +132,8 @@ impl<'a> TemplatePlaceholder<'a> {
     }
 
     /// Returns the requested formatter.
-    pub const fn formatter(&self) -> TemplateFormatter {
-        self.formatter
+    pub fn formatter(&self) -> &TemplateFormatter {
+        &self.formatter
     }
 }
 
@@ -268,10 +269,13 @@ impl TemplateFormatterKind {
 }
 
 /// Formatting mode requested by the placeholder.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TemplateFormatter {
-    /// Default `Display` formatting (`{value}`).
-    Display,
+    /// Default `Display` formatting (`{value}`) with an optional format spec.
+    Display {
+        /// Raw display format specifier (for example `">8"` or ".3").
+        spec: Option<Box<str>>
+    },
     /// `Debug` formatting (`{value:?}` or `{value:#?}`).
     Debug {
         /// Whether `{value:#?}` (alternate debug) was requested.
@@ -336,7 +340,9 @@ impl TemplateFormatter {
     /// ```
     pub const fn from_kind(kind: TemplateFormatterKind, alternate: bool) -> Self {
         match kind {
-            TemplateFormatterKind::Display => Self::Display,
+            TemplateFormatterKind::Display => Self::Display {
+                spec: None
+            },
             TemplateFormatterKind::Debug => Self::Debug {
                 alternate
             },
@@ -379,7 +385,9 @@ impl TemplateFormatter {
     /// ```
     pub const fn kind(&self) -> TemplateFormatterKind {
         match self {
-            Self::Display => TemplateFormatterKind::Display,
+            Self::Display {
+                ..
+            } => TemplateFormatterKind::Display,
             Self::Debug {
                 ..
             } => TemplateFormatterKind::Debug,
@@ -416,10 +424,115 @@ impl TemplateFormatter {
         parser::parse_formatter_spec(spec)
     }
 
+    /// Returns the stored display format specifier, if any.
+    pub fn display_spec(&self) -> Option<&str> {
+        match self {
+            Self::Display {
+                spec: Some(spec)
+            } => Some(spec),
+            _ => None
+        }
+    }
+
+    /// Indicates whether a display formatter carries additional formatting
+    /// parameters.
+    pub fn has_display_spec(&self) -> bool {
+        matches!(
+            self,
+            Self::Display {
+                spec: Some(_)
+            }
+        )
+    }
+
+    /// Returns the formatter fragment that should follow the `:` in a format
+    /// string.
+    pub fn format_fragment(&self) -> Option<Cow<'_, str>> {
+        match self {
+            Self::Display {
+                spec
+            } => spec.as_deref().map(Cow::Borrowed),
+            Self::Debug {
+                alternate
+            } => {
+                if *alternate {
+                    Some(Cow::Borrowed("#?"))
+                } else {
+                    Some(Cow::Borrowed("?"))
+                }
+            }
+            Self::LowerHex {
+                alternate
+            } => {
+                if *alternate {
+                    Some(Cow::Borrowed("#x"))
+                } else {
+                    Some(Cow::Borrowed("x"))
+                }
+            }
+            Self::UpperHex {
+                alternate
+            } => {
+                if *alternate {
+                    Some(Cow::Borrowed("#X"))
+                } else {
+                    Some(Cow::Borrowed("X"))
+                }
+            }
+            Self::Pointer {
+                alternate
+            } => {
+                if *alternate {
+                    Some(Cow::Borrowed("#p"))
+                } else {
+                    Some(Cow::Borrowed("p"))
+                }
+            }
+            Self::Binary {
+                alternate
+            } => {
+                if *alternate {
+                    Some(Cow::Borrowed("#b"))
+                } else {
+                    Some(Cow::Borrowed("b"))
+                }
+            }
+            Self::Octal {
+                alternate
+            } => {
+                if *alternate {
+                    Some(Cow::Borrowed("#o"))
+                } else {
+                    Some(Cow::Borrowed("o"))
+                }
+            }
+            Self::LowerExp {
+                alternate
+            } => {
+                if *alternate {
+                    Some(Cow::Borrowed("#e"))
+                } else {
+                    Some(Cow::Borrowed("e"))
+                }
+            }
+            Self::UpperExp {
+                alternate
+            } => {
+                if *alternate {
+                    Some(Cow::Borrowed("#E"))
+                } else {
+                    Some(Cow::Borrowed("E"))
+                }
+            }
+        }
+    }
+
     /// Returns `true` when alternate formatting (`#`) was requested.
     pub const fn is_alternate(&self) -> bool {
         match self {
-            Self::Display => false,
+            Self::Display {
+                ..
+            } => false,
             Self::Debug {
                 alternate
             }
@@ -579,13 +692,18 @@ mod tests {
 
         let first = placeholders.next().expect("first placeholder");
         assert_eq!(first.identifier(), &TemplateIdentifier::Implicit(0));
-        assert_eq!(first.formatter(), TemplateFormatter::Display);
+        assert_eq!(
+            first.formatter(),
+            &TemplateFormatter::Display {
+                spec: None
+            }
+        );
 
         let second = placeholders.next().expect("second placeholder");
         assert_eq!(second.identifier(), &TemplateIdentifier::Implicit(1));
         assert_eq!(
             second.formatter(),
-            TemplateFormatter::Debug {
+            &TemplateFormatter::Debug {
                 alternate: false
             }
         );
@@ -610,7 +728,7 @@ mod tests {
         );
         assert_eq!(
             placeholders[0].formatter(),
-            TemplateFormatter::Debug {
+            &TemplateFormatter::Debug {
                 alternate: true
             }
         );
@@ -709,7 +827,7 @@ mod tests {
         for (template_str, expected) in &cases {
             let template = ErrorTemplate::parse(template_str).expect("parse");
             let placeholder = template.placeholders().next().expect("placeholder present");
-            assert_eq!(placeholder.formatter(), *expected, "case: {template_str}");
+            assert_eq!(placeholder.formatter(), expected, "case: {template_str}");
         }
     }
 

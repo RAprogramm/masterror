@@ -106,6 +106,10 @@ fn do_work(flag: bool) -> AppResult<()> {
   спецификатора, что упрощает повторный рендеринг плейсхолдеров.
 - `TemplateFormatter::from_kind(kind, alternate)` собирает форматтер из
   `TemplateFormatterKind`, позволяя программно переключать флаг `#`.
+- Display-плейсхолдеры сохраняют исходные параметры форматирования:
+  методы `TemplateFormatter::display_spec()` и
+  `TemplateFormatter::format_fragment()` возвращают `:>8`, `:.3` и другие
+  варианты без необходимости собирать строку вручную.
 
 ~~~rust
 use core::ptr;
@@ -176,7 +180,7 @@ let payload = placeholders.next().expect("payload placeholder");
 let payload_formatter = payload.formatter();
 assert_eq!(
     payload_formatter,
-    TemplateFormatter::Debug { alternate: false }
+    &TemplateFormatter::Debug { alternate: false }
 );
 let payload_kind = payload_formatter.kind();
 assert_eq!(payload_kind, TemplateFormatterKind::Debug);
@@ -188,6 +192,24 @@ assert!(matches!(
     TemplateFormatter::Debug { alternate: true }
 ));
 assert!(pretty_debug.is_alternate());
+~~~
+
+Опции выравнивания, точности и заполнения для `Display` сохраняются и доступны
+для прямой передачи в `write!`:
+
+~~~rust
+use masterror::error::template::ErrorTemplate;
+
+let aligned = ErrorTemplate::parse("{value:>8}").expect("parse");
+let display = aligned.placeholders().next().expect("display placeholder");
+assert_eq!(display.formatter().display_spec(), Some(">8"));
+assert_eq!(
+    display
+        .formatter()
+        .format_fragment()
+        .as_deref(),
+    Some(">8")
+);
 ~~~
 
 > **Совместимость с `thiserror` v2.** Доступные спецификаторы, сообщения об

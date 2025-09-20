@@ -3,6 +3,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.0] - 2025-10-21
+
+### Added
+- Preserved the raw format fragment for display-only placeholders, exposing it
+  through `TemplateFormatter::display_spec()`/`format_fragment()` so derived
+  implementations can forward `:>8`, `:.3`, and similar specifiers to
+  `write!`.
+
+### Changed
+- `TemplateFormatter` now owns display specs and `TemplatePlaceholder::formatter`
+  returns a reference to reflect the richer formatter representation.
+
+### Tests
+- Added a trybuild pass case and runtime assertions covering display alignment,
+  precision, and fill specifiers to prevent regressions.
+
+### Documentation
+- Documented the new display formatter support in the README (including the
+  Russian translation) with examples showing how to recover preserved specs.
+
 ## [0.9.0] - 2025-10-20
 
 ### Added

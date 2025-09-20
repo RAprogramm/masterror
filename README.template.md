@@ -153,6 +153,10 @@ assert_eq!(wrapped.to_string(), "I/O failed: disk offline");
 - `TemplateFormatter` mirrors `thiserror`'s formatter detection so existing
   derives that relied on hexadecimal, pointer or exponential renderers keep
   compiling.
+- Display placeholders preserve their raw format specs via
+  `TemplateFormatter::display_spec()` and `TemplateFormatter::format_fragment()`,
+  so derived code can forward `:>8`, `:.3` and other display-only options
+  without reconstructing the original string.
 - `TemplateFormatterKind` exposes the formatter trait requested by a
   placeholder, making it easy to branch on the requested rendering behaviour
   without manually matching every enum variant.
@@ -350,7 +354,7 @@ let payload = placeholders.next().expect("payload placeholder");
 let payload_formatter = payload.formatter();
 assert_eq!(
     payload_formatter,
-    TemplateFormatter::Debug { alternate: false }
+    &TemplateFormatter::Debug { alternate: false }
 );
 let payload_kind = payload_formatter.kind();
 assert_eq!(payload_kind, TemplateFormatterKind::Debug);
@@ -362,6 +366,24 @@ assert!(matches!(
     TemplateFormatter::Debug { alternate: true }
 ));
 assert!(pretty_debug.is_alternate());
+~~~
+
+Display-only format specs (alignment, precision, fill) are preserved so you can
+forward them to `write!` without rebuilding the fragment:
+
+~~~rust
+use masterror::error::template::ErrorTemplate;
+
+let aligned = ErrorTemplate::parse("{value:>8}").expect("parse");
+let display = aligned.placeholders().next().expect("display placeholder");
+assert_eq!(display.formatter().display_spec(), Some(">8"));
+assert_eq!(
+    display
+        .formatter()
+        .format_fragment()
+        .as_deref(),
+    Some(">8")
+);
 ~~~
 
 > **Compatibility with `thiserror` v2:** the derive understands the extended
