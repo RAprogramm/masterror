@@ -3,6 +3,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.6.3] - 2025-10-10
+
+### Added
+- Invoke custom `#[error(fmt = <path>)]` handlers for structs and enum variants,
+  borrowing fields and forwarding the formatter reference just like `thiserror`.
+
+### Changed
+- Ensure duplicate `fmt` attributes report a single diagnostic without
+  suppressing the derived display implementation.
+
+### Tests
+- Extend the formatter trybuild suite with success cases covering struct and
+  enum formatter paths.
+
 ## [0.6.2] - 2025-10-09
 
 ### Added

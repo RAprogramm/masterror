@@ -404,11 +404,14 @@ fn extract_display_spec(
     errors: &mut Vec<Error>
 ) -> Result<DisplaySpec, ()> {
     let mut display = None;
+    let mut saw_error_attribute = false;
 
     for attr in attrs {
         if !path_is(attr, "error") {
             continue;
         }
+
+        saw_error_attribute = true;
 
         if display.is_some() {
             errors.push(Error::new_spanned(attr, "duplicate #[error] attribute"));
@@ -424,7 +427,9 @@ fn extract_display_spec(
     match display {
         Some(spec) => Ok(spec),
         None => {
-            errors.push(Error::new(missing_span, "missing #[error(...)] attribute"));
+            if !saw_error_attribute {
+                errors.push(Error::new(missing_span, "missing #[error(...)] attribute"));
+            }
             Err(())
         }
     }
