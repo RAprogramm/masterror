@@ -3,6 +3,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.6.5] - 2025-10-12
+
+### Added
+- Accepted `.field` and `.0` shorthand expressions in `#[error("...")]` format
+  argument lists, resolving them against struct and variant fields without
+  moving the original values.
+
+### Changed
+- The format argument resolver now tracks whether it operates on a struct or a
+  destructured enum variant, allowing field shorthands to reuse local bindings
+  and honour pointer formatting requirements.
+
+### Tests
+- Added trybuild pass cases covering named, positional and implicit arguments,
+  formatter path handlers and the new field shorthand expressions.
+- Introduced compile-fail fixtures for duplicate argument names, mixing
+  implicit placeholders after explicitly indexed ones and combining
+  `transparent` with `fmt` handlers.
+- Extended the runtime `error_derive` suite with assertions exercising the
+  shorthand field accessors.
+
 ## [0.6.4] - 2025-10-11
 
 ### Added

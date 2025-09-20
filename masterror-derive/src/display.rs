@@ -7,8 +7,9 @@ use syn::Error;
 
 use crate::{
     input::{
-        DisplaySpec, ErrorData, ErrorInput, Field, Fields, FormatArg, FormatArgsSpec,
-        FormatBindingKind, StructData, VariantData, placeholder_error
+        DisplaySpec, ErrorData, ErrorInput, Field, Fields, FormatArg, FormatArgShorthand,
+        FormatArgValue, FormatArgsSpec, FormatBindingKind, StructData, VariantData,
+        placeholder_error
     },
     template_support::{
         DisplayTemplate, TemplateIdentifierSpec, TemplatePlaceholderSpec, TemplateSegmentSpec
@@ -34,7 +35,7 @@ fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, E
             template,
             args
         } => {
-            let mut env = FormatArgumentsEnv::new(args);
+            let mut env = FormatArgumentsEnv::new_struct(args, &data.fields);
             let preludes = env.prelude_tokens();
             render_template(template, preludes, |placeholder| {
                 struct_placeholder_expr(&data.fields, placeholder, Some(&mut env))
@@ -175,6 +176,7 @@ struct PlaceholderRender {
 
 #[derive(Debug)]
 struct FormatArgumentsEnv<'a> {
+    context:    FormatArgContext<'a>,
     args:       Vec<EnvFormatArg<'a>>,
     named:      HashMap<String, usize>,
     positional: HashMap<usize, usize>,
@@ -182,25 +184,53 @@ struct FormatArgumentsEnv<'a> {
 }
 
 #[derive(Debug)]
+enum FormatArgContext<'a> {
+    Struct(&'a Fields),
+    Variant {
+        fields:   &'a Fields,
+        bindings: Vec<Ident>
+    }
+}
+
+#[derive(Debug)]
 struct EnvFormatArg<'a> {
-    binding: Ident,
+    binding: Option<Ident>,
     arg:     &'a FormatArg
 }
 
 impl<'a> FormatArgumentsEnv<'a> {
-    fn new(spec: &'a FormatArgsSpec) -> Self {
+    fn new_struct(spec: &'a FormatArgsSpec, fields: &'a Fields) -> Self {
+        Self::new_with_context(spec, FormatArgContext::Struct(fields))
+    }
+
+    fn new_variant(spec: &'a FormatArgsSpec, fields: &'a Fields, bindings: &[Ident]) -> Self {
+        Self::new_with_context(
+            spec,
+            FormatArgContext::Variant {
+                fields,
+                bindings: bindings.to_vec()
+            }
+        )
+    }
+
+    fn new_with_context(spec: &'a FormatArgsSpec, context: FormatArgContext<'a>) -> Self {
         let mut env = Self {
-            args:       Vec::new(),
-            named:      HashMap::new(),
+            context,
+            args: Vec::new(),
+            named: HashMap::new(),
             positional: HashMap::new(),
-            implicit:   Vec::new()
+            implicit: Vec::new()
         };
 
         for (index, arg) in spec.args.iter().enumerate() {
-            let binding = format_ident!("__masterror_format_arg_{}", index);
+            let binding = match &arg.value {
+                FormatArgValue::Expr(_) => Some(format_ident!("__masterror_format_arg_{}", index)),
+                FormatArgValue::Shorthand(_) => None
+            };
+
             let arg_index = env.args.len();
             env.args.push(EnvFormatArg {
-                binding,
+                binding: binding.clone(),
                 arg
             });
 
@@ -228,16 +258,22 @@ impl<'a> FormatArgumentsEnv<'a> {
     fn resolve_placeholder(
         &mut self,
         placeholder: &TemplatePlaceholderSpec
-    ) -> Option<ResolvedPlaceholderExpr> {
+    ) -> Result<Option<ResolvedPlaceholderExpr>, Error> {
         let arg_index = match &placeholder.identifier {
             TemplateIdentifierSpec::Named(name) => self.named.get(name).copied(),
             TemplateIdentifierSpec::Positional(index) => self.positional.get(index).copied(),
             TemplateIdentifierSpec::Implicit(index) => {
                 self.implicit.get(*index).and_then(|slot| *slot)
             }
-        }?;
+        };
 
-        Some(self.args[arg_index].resolved_expr(placeholder.formatter))
+        let index = match arg_index {
+            Some(index) => index,
+            None => return Ok(None)
+        };
+
+        let resolved = self.args[index].resolved_expr(self, placeholder)?;
+        Ok(Some(resolved))
     }
 
     fn register_implicit(&mut self, index: usize, arg_index: usize) {
@@ -246,23 +282,51 @@ impl<'a> FormatArgumentsEnv<'a> {
         }
         self.implicit[index] = Some(arg_index);
     }
+
+    fn resolve_shorthand(
+        &self,
+        shorthand: &FormatArgShorthand,
+        placeholder: &TemplatePlaceholderSpec
+    ) -> Result<ResolvedPlaceholderExpr, Error> {
+        match &self.context {
+            FormatArgContext::Struct(fields) => {
+                resolve_struct_shorthand(fields, shorthand, placeholder)
+            }
+            FormatArgContext::Variant {
+                fields,
+                bindings
+            } => resolve_variant_shorthand(fields, bindings, shorthand, placeholder)
+        }
+    }
 }
 
 impl<'a> EnvFormatArg<'a> {
     fn prelude_tokens(&self) -> TokenStream {
-        let binding = &self.binding;
-        let expr = &self.arg.expr;
-        quote! {
-            let #binding = #expr;
+        match (&self.binding, &self.arg.value) {
+            (Some(binding), FormatArgValue::Expr(expr)) => {
+                quote! { let #binding = #expr; }
+            }
+            _ => TokenStream::new()
         }
     }
 
-    fn resolved_expr(&self, formatter: TemplateFormatter) -> ResolvedPlaceholderExpr {
-        let binding = &self.binding;
-        if needs_pointer_value(formatter) {
-            ResolvedPlaceholderExpr::with(quote!(#binding), true)
-        } else {
-            ResolvedPlaceholderExpr::new(quote!(&#binding))
+    fn resolved_expr(
+        &self,
+        env: &FormatArgumentsEnv<'_>,
+        placeholder: &TemplatePlaceholderSpec
+    ) -> Result<ResolvedPlaceholderExpr, Error> {
+        match (&self.binding, &self.arg.value) {
+            (Some(binding), FormatArgValue::Expr(_)) => {
+                if needs_pointer_value(placeholder.formatter) {
+                    Ok(ResolvedPlaceholderExpr::with(quote!(#binding), true))
+                } else {
+                    Ok(ResolvedPlaceholderExpr::new(quote!(&#binding)))
+                }
+            }
+            (_, FormatArgValue::Shorthand(shorthand)) => {
+                env.resolve_shorthand(shorthand, placeholder)
+            }
+            _ => unreachable!()
         }
     }
 }
@@ -298,6 +362,106 @@ fn render_variant_transparent(variant: &VariantData) -> Result<TokenStream, Erro
             Ok(quote! {
                 #pattern => core::fmt::Display::fmt(#binding, f)
             })
+        }
+    }
+}
+
+fn resolve_struct_shorthand(
+    fields: &Fields,
+    shorthand: &FormatArgShorthand,
+    placeholder: &TemplatePlaceholderSpec
+) -> Result<ResolvedPlaceholderExpr, Error> {
+    match shorthand {
+        FormatArgShorthand::Named(ident) => {
+            let field = fields.get_named(&ident.to_string()).ok_or_else(|| {
+                Error::new(
+                    ident.span(),
+                    format!("unknown field `{}` in format arguments", ident)
+                )
+            })?;
+            Ok(struct_field_expr(field, placeholder.formatter))
+        }
+        FormatArgShorthand::Positional {
+            index,
+            span
+        } => {
+            let field = fields.get_positional(*index).ok_or_else(|| {
+                Error::new(
+                    *span,
+                    format!("field `{}` is not available in format arguments", index)
+                )
+            })?;
+            Ok(struct_field_expr(field, placeholder.formatter))
+        }
+    }
+}
+
+fn resolve_variant_shorthand(
+    fields: &Fields,
+    bindings: &[Ident],
+    shorthand: &FormatArgShorthand,
+    placeholder: &TemplatePlaceholderSpec
+) -> Result<ResolvedPlaceholderExpr, Error> {
+    match shorthand {
+        FormatArgShorthand::Named(ident) => {
+            let Fields::Named(named_fields) = fields else {
+                return Err(Error::new(
+                    ident.span(),
+                    format!(
+                        "named field `{}` is not available for tuple variants",
+                        ident
+                    )
+                ));
+            };
+
+            let position = named_fields.iter().position(|field| {
+                field
+                    .ident
+                    .as_ref()
+                    .is_some_and(|field_ident| field_ident == ident)
+            });
+
+            let index = position.ok_or_else(|| {
+                Error::new(
+                    ident.span(),
+                    format!("unknown field `{}` in format arguments", ident)
+                )
+            })?;
+
+            let binding = bindings.get(index).ok_or_else(|| {
+                Error::new(
+                    ident.span(),
+                    format!("field `{}` is not available in format arguments", ident)
+                )
+            })?;
+
+            Ok(ResolvedPlaceholderExpr::with(
+                quote!(#binding),
+                needs_pointer_value(placeholder.formatter)
+            ))
+        }
+        FormatArgShorthand::Positional {
+            index,
+            span
+        } => {
+            let Fields::Unnamed(_) = fields else {
+                return Err(Error::new(
+                    *span,
+                    "positional fields are not available for struct variants"
+                ));
+            };
+
+            let binding = bindings.get(*index).ok_or_else(|| {
+                Error::new(
+                    *span,
+                    format!("field `{}` is not available in format arguments", index)
+                )
+            })?;
+
+            Ok(ResolvedPlaceholderExpr::with(
+                quote!(#binding),
+                needs_pointer_value(placeholder.formatter)
+            ))
         }
     }
 }
@@ -349,10 +513,10 @@ fn render_variant_template(
     format_args: Option<&FormatArgsSpec>
 ) -> Result<TokenStream, Error> {
     let variant_ident = &variant.ident;
-    let mut env = format_args.map(FormatArgumentsEnv::new);
-
     match &variant.fields {
         Fields::Unit => {
+            let mut env = format_args
+                .map(|args| FormatArgumentsEnv::new_variant(args, &variant.fields, &[]));
             let preludes = env
                 .as_ref()
                 .map(|env| env.prelude_tokens())
@@ -360,7 +524,7 @@ fn render_variant_template(
             let span = variant.span;
             let body = render_template(template, preludes, |placeholder| {
                 if let Some(env) = env.as_mut()
-                    && let Some(resolved) = env.resolve_placeholder(placeholder)
+                    && let Some(resolved) = env.resolve_placeholder(placeholder)?
                 {
                     return Ok(resolved);
                 }
@@ -374,6 +538,8 @@ fn render_variant_template(
         }
         Fields::Unnamed(fields) => {
             let bindings: Vec<_> = fields.iter().map(binding_ident).collect();
+            let mut env = format_args
+                .map(|args| FormatArgumentsEnv::new_variant(args, &variant.fields, &bindings));
             let pattern = quote!(Self::#variant_ident(#(#bindings),*));
             let preludes = env
                 .as_ref()
@@ -393,6 +559,8 @@ fn render_variant_template(
                 .iter()
                 .map(|field| field.ident.clone().expect("named field"))
                 .collect();
+            let mut env = format_args
+                .map(|args| FormatArgumentsEnv::new_variant(args, &variant.fields, &bindings));
             let pattern = quote!(Self::#variant_ident { #(#bindings),* });
             let preludes = env
                 .as_ref()
@@ -715,7 +883,7 @@ fn struct_placeholder_expr(
     }
 
     if let Some(env) = env
-        && let Some(resolved) = env.resolve_placeholder(placeholder)
+        && let Some(resolved) = env.resolve_placeholder(placeholder)?
     {
         return Ok(resolved);
     }
@@ -783,7 +951,7 @@ fn variant_tuple_placeholder(
     }
 
     if let Some(env) = env
-        && let Some(resolved) = env.resolve_placeholder(placeholder)
+        && let Some(resolved) = env.resolve_placeholder(placeholder)?
     {
         return Ok(resolved);
     }
@@ -830,7 +998,7 @@ fn variant_named_placeholder(
     }
 
     if let Some(env) = env
-        && let Some(resolved) = env.resolve_placeholder(placeholder)
+        && let Some(resolved) = env.resolve_placeholder(placeholder)?
     {
         return Ok(resolved);
     }
