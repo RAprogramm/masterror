@@ -29,9 +29,9 @@ Stable categories, conservative HTTP mapping, no `unsafe`.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.10.2", default-features = false }
+masterror = { version = "0.10.3", default-features = false }
 # or with features:
-# masterror = { version = "0.10.2", features = [
+# masterror = { version = "0.10.3", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -66,10 +66,10 @@ masterror = { version = "0.10.2", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.10.2", default-features = false }
+masterror = { version = "0.10.3", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.10.2", features = [
+# masterror = { version = "0.10.3", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -262,6 +262,109 @@ let missing = ApiError::Missing { id: 7 };
 let as_app: AppError = missing.into();
 assert_eq!(as_app.message.as_deref(), Some("missing resource 7"));
 ~~~
+
+#### Structured telemetry providers and AppError mappings
+
+`#[provide(...)]` exposes typed context through `std::error::Request`, while
+`#[app_error(...)]` records how your domain error translates into `AppError`
+and `AppCode`. The derive mirrors `thiserror`'s syntax and extends it with
+optional telemetry propagation and direct conversions into the `masterror`
+runtime types.
+
+~~~rust
+use std::error::request_ref;
+
+use masterror::{AppCode, AppError, AppErrorKind, Error};
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct TelemetrySnapshot {
+    name:  &'static str,
+    value: u64,
+}
+
+#[derive(Debug, Error)]
+#[error("structured telemetry {snapshot:?}")]
+#[app_error(kind = AppErrorKind::Service, code = AppCode::Service)]
+struct StructuredTelemetryError {
+    #[provide(ref = TelemetrySnapshot, value = TelemetrySnapshot)]
+    snapshot: TelemetrySnapshot,
+}
+
+let err = StructuredTelemetryError {
+    snapshot: TelemetrySnapshot {
+        name: "db.query",
+        value: 42,
+    },
+};
+
+let snapshot = request_ref::<TelemetrySnapshot>(&err).expect("telemetry");
+assert_eq!(snapshot.value, 42);
+
+let app: AppError = err.into();
+let via_app = request_ref::<TelemetrySnapshot>(&app).expect("telemetry");
+assert_eq!(via_app.name, "db.query");
+~~~
+
+Optional telemetry only surfaces when present, so `None` does not register a
+provider. Owned snapshots can still be provided as values when the caller
+requests ownership:
+
+~~~rust
+use masterror::{AppCode, AppErrorKind, Error};
+
+#[derive(Debug, Error)]
+#[error("optional telemetry {telemetry:?}")]
+#[app_error(kind = AppErrorKind::Internal, code = AppCode::Internal)]
+struct OptionalTelemetryError {
+    #[provide(ref = TelemetrySnapshot, value = TelemetrySnapshot)]
+    telemetry: Option<TelemetrySnapshot>,
+}
+
+let noisy = OptionalTelemetryError {
+    telemetry: Some(TelemetrySnapshot {
+        name: "queue.depth",
+        value: 17,
+    }),
+};
+let silent = OptionalTelemetryError { telemetry: None };
+
+assert!(request_ref::<TelemetrySnapshot>(&noisy).is_some());
+assert!(request_ref::<TelemetrySnapshot>(&silent).is_none());
+~~~
+
+Enums support per-variant telemetry and conversion metadata. Each variant chooses
+its own `AppErrorKind`/`AppCode` mapping while the derive generates a single
+`From<Enum>` implementation:
+
+~~~rust
+#[derive(Debug, Error)]
+enum EnumTelemetryError {
+    #[error("named {label}")]
+    #[app_error(kind = AppErrorKind::NotFound, code = AppCode::NotFound)]
+    Named {
+        label:    &'static str,
+        #[provide(ref = TelemetrySnapshot)]
+        snapshot: TelemetrySnapshot,
+    },
+    #[error("optional tuple")]
+    #[app_error(kind = AppErrorKind::Timeout, code = AppCode::Timeout)]
+    Optional(#[provide(ref = TelemetrySnapshot)] Option<TelemetrySnapshot>),
+    #[error("owned tuple")]
+    #[app_error(kind = AppErrorKind::Service, code = AppCode::Service)]
+    Owned(#[provide(value = TelemetrySnapshot)] TelemetrySnapshot),
+}
+
+let owned = EnumTelemetryError::Owned(TelemetrySnapshot {
+    name: "redis.latency",
+    value: 3,
+});
+let app: AppError = owned.into();
+assert!(matches!(app.kind, AppErrorKind::Service));
+~~~
+
+Compared to `thiserror`, you retain the familiar deriving surface while gaining
+structured telemetry (`#[provide]`) and first-class conversions into
+`AppError`/`AppCode` without writing manual `From` implementations.
 
 #### Formatter traits
 
@@ -520,13 +623,13 @@ assert_eq!(resp.status, 401);
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.10.2", default-features = false }
+masterror = { version = "0.10.3", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.10.2", features = [
+masterror = { version = "0.10.3", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -535,7 +638,7 @@ masterror = { version = "0.10.2", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.10.2", features = [
+masterror = { version = "0.10.3", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
