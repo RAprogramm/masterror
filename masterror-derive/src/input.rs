@@ -104,8 +104,50 @@ impl Fields {
         self.iter().find(|field| field.attrs.from.is_some())
     }
 
-    pub fn backtrace_field(&self) -> Option<&Field> {
-        self.iter().find(|field| field.attrs.has_backtrace())
+    pub fn backtrace_field(&self) -> Option<BacktraceField<'_>> {
+        self.iter().find_map(|field| {
+            field
+                .attrs
+                .backtrace_kind()
+                .map(|kind| BacktraceField::new(field, kind))
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BacktraceFieldKind {
+    Explicit,
+    Inferred
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct BacktraceField<'a> {
+    field: &'a Field,
+    kind:  BacktraceFieldKind
+}
+
+impl<'a> BacktraceField<'a> {
+    pub fn new(field: &'a Field, kind: BacktraceFieldKind) -> Self {
+        Self {
+            field,
+            kind
+        }
+    }
+
+    pub fn field(&self) -> &'a Field {
+        self.field
+    }
+
+    pub fn kind(&self) -> BacktraceFieldKind {
+        self.kind
+    }
+
+    pub fn stores_backtrace(&self) -> bool {
+        is_backtrace_storage(&self.field.ty)
+    }
+
+    pub fn index(&self) -> usize {
+        self.field.index
     }
 }
 
@@ -239,8 +281,14 @@ impl FieldAttrs {
         self.backtrace.is_some() || self.inferred_backtrace
     }
 
-    pub fn is_backtrace_inferred(&self) -> bool {
-        self.inferred_backtrace
+    pub fn backtrace_kind(&self) -> Option<BacktraceFieldKind> {
+        if self.backtrace.is_some() {
+            Some(BacktraceFieldKind::Explicit)
+        } else if self.inferred_backtrace {
+            Some(BacktraceFieldKind::Inferred)
+        } else {
+            None
+        }
     }
 
     pub fn source_attribute(&self) -> Option<&Attribute> {
@@ -713,18 +761,14 @@ fn validate_backtrace_usage(fields: &Fields, errors: &mut Vec<Error>) {
 
 fn validate_backtrace_field_type(field: &Field, errors: &mut Vec<Error>) {
     let Some(attr) = field.attrs.backtrace_attribute() else {
-        if field.attrs.is_backtrace_inferred() {
-            return;
-        }
         return;
     };
 
-    let ty = &field.ty;
-    if is_option_type(ty) {
-        if option_inner_type(ty).is_some_and(is_backtrace_type) {
-            return;
-        }
-    } else if is_backtrace_type(ty) {
+    if is_backtrace_storage(&field.ty) {
+        return;
+    }
+
+    if field.attrs.has_source() {
         return;
     }
 
@@ -794,7 +838,7 @@ pub fn is_option_type(ty: &syn::Type) -> bool {
     false
 }
 
-fn option_inner_type(ty: &syn::Type) -> Option<&syn::Type> {
+pub(crate) fn option_inner_type(ty: &syn::Type) -> Option<&syn::Type> {
     let syn::Type::Path(path) = ty else {
         return None;
     };
@@ -814,7 +858,7 @@ fn option_inner_type(ty: &syn::Type) -> Option<&syn::Type> {
     })
 }
 
-fn is_backtrace_type(ty: &syn::Type) -> bool {
+pub(crate) fn is_backtrace_type(ty: &syn::Type) -> bool {
     let syn::Type::Path(path) = ty else {
         return false;
     };
@@ -825,6 +869,14 @@ fn is_backtrace_type(ty: &syn::Type) -> bool {
         return false;
     };
     last.ident == "Backtrace" && matches!(last.arguments, syn::PathArguments::None)
+}
+
+pub(crate) fn is_backtrace_storage(ty: &syn::Type) -> bool {
+    if is_option_type(ty) {
+        option_inner_type(ty).is_some_and(is_backtrace_type)
+    } else {
+        is_backtrace_type(ty)
+    }
 }
 
 pub fn placeholder_error(span: Span, identifier: &TemplateIdentifierSpec) -> Error {
