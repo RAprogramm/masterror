@@ -150,12 +150,14 @@ enum EnumWithBacktrace {
     Unit
 }
 
+#[cfg_attr(not(error_generic_member_access), allow(dead_code))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct TelemetrySnapshot {
     name:  &'static str,
     value: u64
 }
 
+#[cfg_attr(not(error_generic_member_access), allow(dead_code))]
 #[derive(Debug, Error)]
 #[error("structured telemetry {snapshot:?}")]
 struct StructuredTelemetryError {
@@ -163,6 +165,7 @@ struct StructuredTelemetryError {
     snapshot: TelemetrySnapshot
 }
 
+#[cfg_attr(not(error_generic_member_access), allow(dead_code))]
 #[derive(Debug, Error)]
 #[error("optional telemetry {telemetry:?}")]
 struct OptionalTelemetryError {
@@ -170,6 +173,7 @@ struct OptionalTelemetryError {
     telemetry: Option<TelemetrySnapshot>
 }
 
+#[cfg_attr(not(error_generic_member_access), allow(dead_code))]
 #[derive(Debug, Error)]
 #[error("optional owned telemetry {telemetry:?}")]
 struct OptionalOwnedTelemetryError {
@@ -177,6 +181,7 @@ struct OptionalOwnedTelemetryError {
     telemetry: Option<TelemetrySnapshot>
 }
 
+#[cfg_attr(not(error_generic_member_access), allow(dead_code))]
 #[derive(Debug, Error)]
 enum EnumTelemetryError {
     #[error("named {label}")]
@@ -316,6 +321,40 @@ struct FieldShortcutError {
 #[derive(Debug, Error)]
 #[error("{}, {}", .0, .1)]
 struct TupleShortcutError(&'static str, &'static str);
+
+#[derive(Debug)]
+struct RangeLimits {
+    lo: i32,
+    hi: i32
+}
+
+#[derive(Debug, Error)]
+#[error(
+    "range {lo}-{hi} suggestion {suggestion}",
+    lo = .limits.lo,
+    hi = .limits.hi,
+    suggestion = .suggestion.as_ref().map_or_else(|| "<none>", |s| s.as_str())
+)]
+struct ProjectionStructError {
+    limits:     RangeLimits,
+    suggestion: Option<String>
+}
+
+#[derive(Debug)]
+struct TuplePayload {
+    data: &'static str
+}
+
+#[derive(Debug, Error)]
+enum ProjectionEnumError {
+    #[error("tuple data {data}", data = .0.data)]
+    Tuple(TuplePayload),
+    #[error(
+        "named suggestion {value}",
+        value = .suggestion.as_ref().map_or_else(|| "<none>", |s| s.as_str())
+    )]
+    Named { suggestion: Option<String> }
+}
 
 #[derive(Debug, Error)]
 #[error("{value}")]
@@ -783,6 +822,43 @@ fn supports_display_and_debug_formatters() {
 
     assert_eq!(err.to_string(), expected);
     assert!(StdError::source(&err).is_none());
+}
+
+#[test]
+fn struct_projection_shorthand_handles_nested_segments() {
+    let err = ProjectionStructError {
+        limits:     RangeLimits {
+            lo: 2, hi: 5
+        },
+        suggestion: Some("retry".to_string())
+    };
+    assert_eq!(err.to_string(), "range 2-5 suggestion retry");
+
+    let none = ProjectionStructError {
+        limits:     RangeLimits {
+            lo: -1, hi: 3
+        },
+        suggestion: None
+    };
+    assert_eq!(none.to_string(), "range -1-3 suggestion <none>");
+}
+
+#[test]
+fn enum_projection_shorthand_handles_nested_segments() {
+    let tuple = ProjectionEnumError::Tuple(TuplePayload {
+        data: "payload"
+    });
+    assert_eq!(tuple.to_string(), "tuple data payload");
+
+    let named = ProjectionEnumError::Named {
+        suggestion: Some("escalate".to_string())
+    };
+    assert_eq!(named.to_string(), "named suggestion escalate");
+
+    let fallback = ProjectionEnumError::Named {
+        suggestion: None
+    };
+    assert_eq!(fallback.to_string(), "named suggestion <none>");
 }
 
 #[test]
