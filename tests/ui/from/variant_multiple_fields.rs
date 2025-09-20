@@ -2,9 +2,14 @@ use masterror::Error;
 
 #[derive(Debug, Error)]
 enum BadEnum {
-    #[error("{0} - {1}")]
-    #[from]
-    Two(#[source] DummyError, DummyError),
+    #[error("{source:?} - {extra:?}")]
+    WithExtra {
+        #[from]
+        source: DummyError,
+        #[backtrace]
+        trace: Option<std::backtrace::Backtrace>,
+        extra: DummyError
+    }
 }
 
 #[derive(Debug, Error)]

@@ -1,0 +1,11 @@
+error: multiple unused formatting arguments
+ --> tests/ui/formatter/fail/implicit_after_named.rs:3:17
+  |
+3 | #[derive(Debug, Error)]
+  |                 ^^^^^
+  |                 |
+  |                 multiple missing formatting specifiers
+  |                 argument never used
+  |                 argument never used
+  |
+  = note: this error originates in the derive macro `Error` (in Nightly builds, run with -Z macro-backtrace for more info)

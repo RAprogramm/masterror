@@ -1,27 +1,66 @@
 [package]
 name = "masterror"
-version = "0.5.0"
-rust-version = "1.89"
+version = "0.10.4"
+rust-version = "1.90"
 edition = "2024"
-description = "Application error types and response mapping"
 license = "MIT OR Apache-2.0"
-documentation = "https://docs.rs/masterror"
 repository = "https://github.com/RAprogramm/masterror"
 readme = "README.md"
+description = "Application error types and response mapping"
+documentation = "https://docs.rs/masterror"
 build = "build.rs"
 categories = ["rust-patterns", "web-programming"]
 keywords = ["error", "api", "framework"]
+include = [
+  "Cargo.toml",
+  "Cargo.lock",
+  "build.rs",
+  "src/**",
+  "tests/**",
+  "README.md",
+  "README.ru.md",
+  "README.template.md",
+  "CHANGELOG.md",
+  "LICENSE-APACHE",
+  "LICENSE-MIT",
+  "Makefile.toml",
+  "deny.toml",
+  "idea.md",
+  "target.md",
+  "build/**",
+  "masterror-derive/**",
+  "masterror-template/**",
+  ".cargo/audit.toml",
+  ".cargo/config.toml"
+]
+
+[workspace]
+members = ["masterror-derive", "masterror-template"]
+
+resolver = "3"
+
+# Defaults for members (root объявлен строками выше, потому что build.rs парсит его как строки)
+[workspace.package]
+edition = "2024"
+rust-version = "1.90"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/RAprogramm/masterror"
+readme = "README.md"
 
 
 [features]
 default = []
-axum = ["dep:axum", "dep:serde_json"]                                   # IntoResponse + JSON body
+axum = ["dep:axum", "dep:serde_json"]
 actix = ["dep:actix-web", "dep:serde_json"]
-sqlx = ["dep:sqlx"]
+
+# Разделили: лёгкая обработка ошибок (sqlx-core) и опциональные миграции (полный sqlx)
+sqlx = ["dep:sqlx-core"]    # maps sqlx_core::Error
+sqlx-migrate = ["dep:sqlx"] # maps sqlx::migrate::MigrateError
+
 redis = ["dep:redis"]
 validator = ["dep:validator"]
 serde_json = ["dep:serde_json"]
-config = ["dep:config"]                                                 # config::ConfigError -> AppError
+config = ["dep:config"]
 multipart = ["axum"]
 tokio = ["dep:tokio"]
 reqwest = ["dep:reqwest"]
@@ -29,19 +68,22 @@ teloxide = ["dep:teloxide-core"]
 telegram-webapp-sdk = ["dep:telegram-webapp-sdk"]
 frontend = ["dep:wasm-bindgen", "dep:js-sys", "dep:serde-wasm-bindgen"]
 turnkey = []
-
 openapi = ["dep:utoipa"]
 
+[workspace.dependencies]
+masterror-derive = { version = "0.6.0" }
+masterror-template = { version = "0.3.1" }
+
 [dependencies]
-thiserror = "2"
+masterror-derive = { workspace = true }
+masterror-template = { workspace = true }
 tracing = "0.1"
 
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", optional = true }
-
 http = "1"
 
-# опциональные интеграции
+# optional integrations
 axum = { version = "0.8", optional = true, default-features = false, features = [
   "json",
   "multipart",
@@ -49,9 +91,14 @@ axum = { version = "0.8", optional = true, default-features = false, features = 
 actix-web = { version = "4", optional = true, default-features = false, features = [
   "macros",
 ] }
+
+# Lean core only; no drivers, no TLS, no macros
+sqlx-core = { version = "0.8", optional = true, default-features = false }
+# Full sqlx ONLY for migrate mapping; still no default features
 sqlx = { version = "0.8", optional = true, default-features = false, features = [
   "migrate",
 ] }
+
 redis = { version = "0.32", optional = true, default-features = false }
 validator = { version = "0.20", optional = true, features = ["derive"] }
 config = { version = "0.15", optional = true }
@@ -73,7 +120,6 @@ tokio = { version = "1", features = [
   "time",
 ], default-features = false }
 trybuild = "1"
-
 toml = "0.9"
 tempfile = "3"
 
@@ -88,6 +134,7 @@ feature_order = [
   "openapi",
   "serde_json",
   "sqlx",
+  "sqlx-migrate",
   "reqwest",
   "redis",
   "validator",
@@ -127,7 +174,13 @@ description = "Generate utoipa OpenAPI schema for ErrorResponse"
 description = "Attach structured JSON details to AppError"
 
 [package.metadata.masterror.readme.features.sqlx]
-description = "Classify sqlx::Error variants into AppError kinds"
+description = "Classify sqlx_core::Error variants into AppError kinds"
+
+[package.metadata.masterror.readme.features.sqlx-migrate]
+description = "Map sqlx::migrate::MigrateError into AppError (Database)"
+
+[package.metadata.masterror.readme.features.reqwest]
+description = "Classify reqwest::Error as timeout/network/external API"
 
 [package.metadata.masterror.readme.features.redis]
 description = "Map redis::RedisError into cache-aware AppError"
@@ -143,9 +196,6 @@ description = "Handle axum multipart extraction errors"
 
 [package.metadata.masterror.readme.features.tokio]
 description = "Classify tokio::time::error::Elapsed as timeout"
-
-[package.metadata.masterror.readme.features.reqwest]
-description = "Classify reqwest::Error as timeout/network/external API"
 
 [package.metadata.masterror.readme.features.teloxide]
 description = "Convert teloxide_core::RequestError into domain errors"

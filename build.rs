@@ -17,6 +17,7 @@ fn main() {
 }
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
+    println!("cargo:rustc-check-cfg=cfg(error_generic_member_access)");
     println!("cargo:rerun-if-changed=Cargo.toml");
     println!("cargo:rerun-if-changed=README.template.md");
     println!("cargo:rerun-if-changed=build/readme.rs");

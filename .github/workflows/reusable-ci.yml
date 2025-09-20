@@ -182,6 +182,9 @@ jobs:
             cargo +${{ steps.msrv.outputs.msrv }} clippy --workspace --all-targets -- -D warnings
           fi
 
+      - name: Cargo deny
+        uses: ./.github/actions/cargo-deny
+
       - name: Tests (MSRV)
         shell: bash
         run: |
@@ -191,6 +194,12 @@ jobs:
           else
             cargo +${{ steps.msrv.outputs.msrv }} test --workspace --no-fail-fast
           fi
+
+      - name: Install cargo-audit
+        run: cargo install --locked cargo-audit
+
+      - name: Security audit
+        run: cargo audit --deny warnings
 
       - name: Auto-commit README changes (any branch)
         if: always()
