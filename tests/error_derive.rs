@@ -151,6 +151,23 @@ enum EnumWithBacktrace {
 }
 
 #[derive(Debug, Error)]
+#[error("{source:?}")]
+struct DelegatedBacktraceFromSource {
+    #[from]
+    #[source]
+    #[backtrace]
+    source: StructWithBacktrace
+}
+
+#[derive(Debug, Error)]
+#[error("{source:?}")]
+struct OptionalDelegatedBacktrace {
+    #[source]
+    #[backtrace]
+    source: Option<StructWithBacktrace>
+}
+
+#[derive(Debug, Error)]
 #[error("auto {source}")]
 struct AutoSourceStruct {
     source: LeafError
@@ -519,6 +536,44 @@ fn struct_backtrace_field_is_returned() {
     };
     assert_backtrace_interfaces(&err, &err.trace);
     assert!(StdError::source(&err).is_none());
+}
+
+#[test]
+fn struct_backtrace_attribute_on_source_delegates() {
+    let source = StructWithBacktrace {
+        trace: std::backtrace::Backtrace::capture()
+    };
+    let err = DelegatedBacktraceFromSource::from(source);
+    let inner = StdError::source(&err)
+        .and_then(|source| source.downcast_ref::<StructWithBacktrace>())
+        .expect("delegated source");
+    assert_backtrace_interfaces(&err, &inner.trace);
+}
+
+#[test]
+fn optional_source_backtrace_attribute_delegates() {
+    let err = OptionalDelegatedBacktrace {
+        source: Some(StructWithBacktrace {
+            trace: std::backtrace::Backtrace::capture()
+        })
+    };
+    let inner = StdError::source(&err)
+        .and_then(|source| source.downcast_ref::<StructWithBacktrace>())
+        .expect("optional delegated source");
+    assert_backtrace_interfaces(&err, &inner.trace);
+}
+
+#[test]
+fn optional_source_backtrace_absent_when_none() {
+    let err = OptionalDelegatedBacktrace {
+        source: None
+    };
+    assert!(StdError::source(&err).is_none());
+    #[cfg(error_generic_member_access)]
+    {
+        assert!(std::error::Error::backtrace(&err).is_none());
+        assert!(std::error::request_ref::<std::backtrace::Backtrace>(&err).is_none());
+    }
 }
 
 #[test]

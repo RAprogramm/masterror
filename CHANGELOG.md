@@ -3,6 +3,29 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.6.4] - 2025-10-11
+
+### Added
+- Exposed an internal `provide` shim that mirrors `thiserror`'s
+  `ThiserrorProvide`, enabling derived errors to forward
+  `core::error::Request` values to their sources.
+
+### Changed
+- Allow `#[backtrace]` to be paired with `#[source]`/`#[from]` fields when the
+  field type implements `Error`, while retaining diagnostics for incompatible
+  non-source fields.
+- Track whether backtrace detection is explicit or inferred so generated
+  implementations avoid providing the same backtrace twice when delegating to
+  sources.
+- Update the generated `provide` methods to call `thiserror_provide` on source
+  fields before exposing the stored backtrace, ensuring delegated traces reach
+  callers.
+
+### Tests
+- Added regression tests covering direct and optional sources annotated with
+  `#[backtrace]`, validating delegated backtrace propagation and `None`
+  handling.
+
 ## [0.6.3] - 2025-10-10
 
 ### Added

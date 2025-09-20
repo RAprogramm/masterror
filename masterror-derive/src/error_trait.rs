@@ -3,7 +3,8 @@ use quote::{format_ident, quote};
 use syn::Error;
 
 use crate::input::{
-    DisplaySpec, ErrorData, ErrorInput, Field, Fields, StructData, VariantData, is_option_type
+    BacktraceField, BacktraceFieldKind, DisplaySpec, ErrorData, ErrorInput, Field, Fields,
+    StructData, VariantData, is_backtrace_storage, is_option_type
 };
 
 pub fn expand(input: &ErrorInput) -> Result<TokenStream, Error> {
@@ -16,13 +17,9 @@ pub fn expand(input: &ErrorInput) -> Result<TokenStream, Error> {
 fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, Error> {
     let body = struct_source_body(&data.fields, &data.display);
     let backtrace_method = struct_backtrace_method(&data.fields);
-    let has_backtrace = backtrace_method.is_some();
+    let provide_method = struct_provide_method(&data.fields);
     let backtrace_method = backtrace_method.unwrap_or_default();
-    let provide_method = if has_backtrace {
-        provide_method_tokens()
-    } else {
-        TokenStream::new()
-    };
+    let provide_method = provide_method.unwrap_or_default();
 
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
@@ -45,13 +42,9 @@ fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> Result<TokenStre
     }
 
     let backtrace_method = enum_backtrace_method(variants);
-    let has_backtrace = backtrace_method.is_some();
+    let provide_method = enum_provide_method(variants);
     let backtrace_method = backtrace_method.unwrap_or_default();
-    let provide_method = if has_backtrace {
-        provide_method_tokens()
-    } else {
-        TokenStream::new()
-    };
+    let provide_method = provide_method.unwrap_or_default();
 
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
@@ -210,9 +203,10 @@ fn field_source_expr(
 }
 
 fn struct_backtrace_method(fields: &Fields) -> Option<TokenStream> {
-    let field = fields.backtrace_field()?;
+    let backtrace = fields.backtrace_field()?;
+    let field = backtrace.field();
     let member = &field.member;
-    let body = field_backtrace_expr(quote!(self.#member), quote!(&self.#member), &field.ty);
+    let body = field_backtrace_expr(quote!(self.#member), quote!(&self.#member), field);
     Some(quote! {
         #[cfg(error_generic_member_access)]
         fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
@@ -251,7 +245,8 @@ fn variant_backtrace_arm(variant: &VariantData) -> TokenStream {
 
     match (&variant.fields, backtrace_field) {
         (Fields::Unit, _) => quote! { Self::#variant_ident => None },
-        (Fields::Named(fields), Some(field)) => {
+        (Fields::Named(fields), Some(backtrace)) => {
+            let field = backtrace.field();
             let field_ident = field.ident.clone().expect("named field");
             let binding = binding_ident(field);
             let pattern = if fields.len() == 1 {
@@ -259,12 +254,13 @@ fn variant_backtrace_arm(variant: &VariantData) -> TokenStream {
             } else {
                 quote!(Self::#variant_ident { #field_ident: #binding, .. })
             };
-            let body = field_backtrace_expr(quote!(#binding), quote!(#binding), &field.ty);
+            let body = field_backtrace_expr(quote!(#binding), quote!(#binding), field);
             quote! {
                 #pattern => { #body }
             }
         }
-        (Fields::Unnamed(fields), Some(field)) => {
+        (Fields::Unnamed(fields), Some(backtrace)) => {
+            let field = backtrace.field();
             let index = field.index;
             let binding = binding_ident(field);
             let pattern_elements: Vec<_> = fields
@@ -278,7 +274,7 @@ fn variant_backtrace_arm(variant: &VariantData) -> TokenStream {
                     }
                 })
                 .collect();
-            let body = field_backtrace_expr(quote!(#binding), quote!(#binding), &field.ty);
+            let body = field_backtrace_expr(quote!(#binding), quote!(#binding), field);
             quote! {
                 Self::#variant_ident(#(#pattern_elements),*) => { #body }
             }
@@ -298,22 +294,325 @@ fn variant_backtrace_arm(variant: &VariantData) -> TokenStream {
 fn field_backtrace_expr(
     owned_expr: TokenStream,
     referenced_expr: TokenStream,
-    ty: &syn::Type
+    field: &Field
 ) -> TokenStream {
-    if is_option_type(ty) {
-        quote! { #owned_expr.as_ref() }
+    let ty = &field.ty;
+    if is_backtrace_storage(ty) {
+        if is_option_type(ty) {
+            quote! { #owned_expr.as_ref() }
+        } else {
+            quote! { Some(#referenced_expr) }
+        }
+    } else if field.attrs.has_source() {
+        if is_option_type(ty) {
+            quote! { #owned_expr.as_ref().and_then(std::error::Error::backtrace) }
+        } else {
+            quote! { std::error::Error::backtrace(#referenced_expr) }
+        }
     } else {
-        quote! { Some(#referenced_expr) }
+        quote! { None }
     }
 }
 
-fn provide_method_tokens() -> TokenStream {
-    quote! {
+fn struct_provide_method(fields: &Fields) -> Option<TokenStream> {
+    let backtrace = fields.backtrace_field()?;
+    let field = backtrace.field();
+    let request = quote!(request);
+    let delegates_to_source =
+        matches!(backtrace.kind(), BacktraceFieldKind::Explicit) && !backtrace.stores_backtrace();
+    let mut statements = Vec::new();
+    let mut needs_trait_import = false;
+
+    if let Some(source_field) = fields.iter().find(|candidate| candidate.attrs.has_source()) {
+        needs_trait_import = true;
+        let member = &source_field.member;
+        statements.push(provide_source_tokens(
+            quote!(self.#member),
+            source_field,
+            &request
+        ));
+
+        if backtrace.stores_backtrace()
+            && source_field.index != backtrace.index()
+            && !delegates_to_source
+        {
+            let member = &field.member;
+            statements.push(provide_backtrace_tokens(
+                quote!(self.#member),
+                field,
+                &request
+            ));
+        }
+    } else if backtrace.stores_backtrace() && !delegates_to_source {
+        let member = &field.member;
+        statements.push(provide_backtrace_tokens(
+            quote!(self.#member),
+            field,
+            &request
+        ));
+    }
+
+    if statements.is_empty() {
+        return None;
+    }
+
+    let trait_import = if needs_trait_import {
+        quote! { use masterror::provide::ThiserrorProvide as _; }
+    } else {
+        TokenStream::new()
+    };
+
+    Some(quote! {
         #[cfg(error_generic_member_access)]
-        fn provide<'a>(&'a self, request: &mut core::error::Request<'a>) {
-            if let Some(backtrace) = std::error::Error::backtrace(self) {
-                request.provide_ref::<std::backtrace::Backtrace>(backtrace);
+        fn provide<'a>(&'a self, #request: &mut core::error::Request<'a>) {
+            #trait_import
+            #(#statements)*
+        }
+    })
+}
+
+fn enum_provide_method(variants: &[VariantData]) -> Option<TokenStream> {
+    let mut has_backtrace = false;
+    let mut needs_trait_import = false;
+    let mut arms = Vec::new();
+    let request = quote!(request);
+
+    for variant in variants {
+        if variant.fields.backtrace_field().is_some() {
+            has_backtrace = true;
+        }
+        arms.push(variant_provide_arm_tokens(
+            variant,
+            &request,
+            &mut needs_trait_import
+        ));
+    }
+
+    if !has_backtrace {
+        return None;
+    }
+
+    let trait_import = if needs_trait_import {
+        quote! { use masterror::provide::ThiserrorProvide as _; }
+    } else {
+        TokenStream::new()
+    };
+
+    Some(quote! {
+        #[cfg(error_generic_member_access)]
+        fn provide<'a>(&'a self, #request: &mut core::error::Request<'a>) {
+            #trait_import
+            #[allow(deprecated)]
+            match self {
+                #(#arms),*
             }
+        }
+    })
+}
+
+fn variant_provide_arm_tokens(
+    variant: &VariantData,
+    request: &TokenStream,
+    needs_trait_import: &mut bool
+) -> TokenStream {
+    let variant_ident = &variant.ident;
+    let backtrace = variant.fields.backtrace_field();
+    let source_field = variant.fields.iter().find(|field| field.attrs.has_source());
+
+    match (&variant.fields, backtrace) {
+        (Fields::Unit, _) => quote! { Self::#variant_ident => {} },
+        (Fields::Named(fields), Some(backtrace_field)) => variant_provide_named_arm(
+            variant_ident,
+            fields,
+            backtrace_field,
+            source_field,
+            request,
+            needs_trait_import
+        ),
+        (Fields::Unnamed(fields), Some(backtrace_field)) => variant_provide_unnamed_arm(
+            variant_ident,
+            fields,
+            backtrace_field,
+            source_field,
+            request,
+            needs_trait_import
+        ),
+        (Fields::Named(fields), None) => {
+            let mut entries = Vec::new();
+            for field in fields {
+                let ident = field.ident.clone().expect("named field");
+                entries.push(quote!(#ident: _));
+            }
+            quote! { Self::#variant_ident { #(#entries),* } => {} }
+        }
+        (Fields::Unnamed(fields), None) => {
+            if fields.is_empty() {
+                quote! { Self::#variant_ident() => {} }
+            } else {
+                let placeholders = vec![quote!(_); fields.len()];
+                quote! { Self::#variant_ident(#(#placeholders),*) => {} }
+            }
+        }
+    }
+}
+
+fn variant_provide_named_arm(
+    variant_ident: &Ident,
+    fields: &[Field],
+    backtrace: BacktraceField<'_>,
+    source: Option<&Field>,
+    request: &TokenStream,
+    needs_trait_import: &mut bool
+) -> TokenStream {
+    let same_as_source = source.is_some_and(|field| field.index == backtrace.index());
+    let delegates_to_source =
+        matches!(backtrace.kind(), BacktraceFieldKind::Explicit) && !backtrace.stores_backtrace();
+    let mut entries = Vec::new();
+    let mut backtrace_binding = None;
+    let mut source_binding = None;
+
+    for field in fields {
+        let ident = field.ident.clone().expect("named field");
+        if field.index == backtrace.index() {
+            let binding = binding_ident(field);
+            entries.push(quote!(#ident: #binding));
+            backtrace_binding = Some(binding.clone());
+            if same_as_source {
+                source_binding = Some(binding);
+            }
+        } else if source.is_some_and(|candidate| candidate.index == field.index) {
+            let binding = binding_ident(field);
+            entries.push(quote!(#ident: #binding));
+            source_binding = Some(binding);
+        } else {
+            entries.push(quote!(#ident: _));
+        }
+    }
+
+    let mut statements = Vec::new();
+
+    if let Some(source_field) = source {
+        *needs_trait_import = true;
+        let binding = source_binding.expect("source binding");
+        statements.push(provide_source_tokens(
+            quote!(#binding),
+            source_field,
+            request
+        ));
+    }
+
+    if backtrace.stores_backtrace() && !same_as_source && !delegates_to_source {
+        let binding = backtrace_binding.expect("backtrace binding");
+        statements.push(provide_backtrace_tokens(
+            quote!(#binding),
+            backtrace.field(),
+            request
+        ));
+    }
+
+    let pattern = quote!(Self::#variant_ident { #(#entries),* });
+
+    if statements.is_empty() {
+        quote! { #pattern => {} }
+    } else {
+        quote! { #pattern => { #(#statements)* } }
+    }
+}
+
+fn variant_provide_unnamed_arm(
+    variant_ident: &Ident,
+    fields: &[Field],
+    backtrace: BacktraceField<'_>,
+    source: Option<&Field>,
+    request: &TokenStream,
+    needs_trait_import: &mut bool
+) -> TokenStream {
+    let same_as_source = source.is_some_and(|field| field.index == backtrace.index());
+    let delegates_to_source =
+        matches!(backtrace.kind(), BacktraceFieldKind::Explicit) && !backtrace.stores_backtrace();
+    let mut elements = Vec::new();
+    let mut backtrace_binding = None;
+    let mut source_binding = None;
+
+    for (index, field) in fields.iter().enumerate() {
+        if index == backtrace.index() {
+            let binding = binding_ident(field);
+            elements.push(quote!(#binding));
+            backtrace_binding = Some(binding.clone());
+            if same_as_source {
+                source_binding = Some(binding);
+            }
+        } else if source.is_some_and(|candidate| candidate.index == index) {
+            let binding = binding_ident(field);
+            elements.push(quote!(#binding));
+            source_binding = Some(binding);
+        } else {
+            elements.push(quote!(_));
+        }
+    }
+
+    let mut statements = Vec::new();
+
+    if let Some(source_field) = source {
+        *needs_trait_import = true;
+        let binding = source_binding.expect("source binding");
+        statements.push(provide_source_tokens(
+            quote!(#binding),
+            source_field,
+            request
+        ));
+    }
+
+    if backtrace.stores_backtrace() && !same_as_source && !delegates_to_source {
+        let binding = backtrace_binding.expect("backtrace binding");
+        statements.push(provide_backtrace_tokens(
+            quote!(#binding),
+            backtrace.field(),
+            request
+        ));
+    }
+
+    let pattern = if elements.is_empty() {
+        quote!(Self::#variant_ident())
+    } else {
+        quote!(Self::#variant_ident(#(#elements),*))
+    };
+
+    if statements.is_empty() {
+        quote! { #pattern => {} }
+    } else {
+        quote! { #pattern => { #(#statements)* } }
+    }
+}
+
+fn provide_backtrace_tokens(
+    expr: TokenStream,
+    field: &Field,
+    request: &TokenStream
+) -> TokenStream {
+    if is_option_type(&field.ty) {
+        quote! {
+            if let Some(backtrace) = #expr.as_ref() {
+                #request.provide_ref::<std::backtrace::Backtrace>(backtrace);
+            }
+        }
+    } else {
+        quote! {
+            #request.provide_ref::<std::backtrace::Backtrace>(#expr);
+        }
+    }
+}
+
+fn provide_source_tokens(expr: TokenStream, field: &Field, request: &TokenStream) -> TokenStream {
+    if is_option_type(&field.ty) {
+        quote! {
+            if let Some(source) = #expr.as_ref() {
+                source.thiserror_provide(#request);
+            }
+        }
+    } else {
+        quote! {
+            #expr.thiserror_provide(#request);
         }
     }
 }
