@@ -29,9 +29,9 @@ Stable categories, conservative HTTP mapping, no `unsafe`.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.8.0", default-features = false }
+masterror = { version = "0.9.0", default-features = false }
 # or with features:
-# masterror = { version = "0.8.0", features = [
+# masterror = { version = "0.9.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -66,10 +66,10 @@ masterror = { version = "0.8.0", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.8.0", default-features = false }
+masterror = { version = "0.9.0", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.8.0", features = [
+# masterror = { version = "0.9.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -163,6 +163,54 @@ assert_eq!(wrapped.to_string(), "I/O failed: disk offline");
   placeholder, making it easy to branch on the requested rendering behaviour
   without manually matching every enum variant.
 
+#### Display shorthand projections
+
+`#[error("...")]` supports the same shorthand syntax as `thiserror` for
+referencing fields with `.field` or `.0`. The derive now understands chained
+segments, so projections like `.limits.lo`, `.0.data` or
+`.suggestion.as_ref().map_or_else(...)` keep compiling unchanged. Raw
+identifiers and tuple indices are preserved, ensuring keywords such as
+`r#type` and tuple fields continue to work even when you call methods on the
+projected value.
+
+~~~rust
+use masterror::Error;
+
+#[derive(Debug)]
+struct Limits {
+    lo: i32,
+    hi: i32,
+}
+
+#[derive(Debug, Error)]
+#[error(
+    "range {lo}-{hi} suggestion {suggestion}",
+    lo = .limits.lo,
+    hi = .limits.hi,
+    suggestion = .suggestion.as_ref().map_or_else(|| "<none>", |s| s.as_str())
+)]
+struct RangeError {
+    limits: Limits,
+    suggestion: Option<String>,
+}
+
+#[derive(Debug)]
+struct Payload {
+    data: &'static str,
+}
+
+#[derive(Debug, Error)]
+enum UiError {
+    #[error("tuple data {data}", data = .0.data)]
+    Tuple(Payload),
+    #[error(
+        "named suggestion {value}",
+        value = .suggestion.as_ref().map_or_else(|| "<none>", |s| s.as_str())
+    )]
+    Named { suggestion: Option<String> },
+}
+~~~
+
 #### AppError conversions
 
 Annotating structs or enum variants with `#[app_error(...)]` captures the
@@ -209,56 +257,6 @@ enum ApiError {
 let missing = ApiError::Missing { id: 7 };
 let as_app: AppError = missing.into();
 assert_eq!(as_app.message.as_deref(), Some("missing resource 7"));
-~~~
-
-#### Provide custom telemetry
-
-Fields can expose structured telemetry to `std::error::Request` consumers by
-annotating them with `#[provide(...)]`. The attribute accepts `ref = <Type>` to
-publish borrowed values via `Request::provide_ref` and `value = <Type>` to clone
-and forward owned data with `Request::provide_value`. Both specifiers are
-optional, enabling one field to provide different representations. Optional
-fields only emit telemetry when they contain a value, mirroring the
-backtrace-handling behaviour of `thiserror`.
-
-When the crate is compiled with `--cfg error_generic_member_access` (required by
-the current unstable `std::error::request_*` helpers), the derive generates a
-`provide` implementation that forwards the `Request` to any `#[source]` field
-before yielding the annotated telemetry:
-
-~~~rust
-use masterror::Error;
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct Snapshot(&'static str);
-
-#[derive(Debug, Error)]
-#[error("snapshot {0:?}")]
-struct SnapshotError(
-    #[provide(ref = Snapshot, value = Snapshot)]
-    Snapshot
-);
-
-#[derive(Debug, Error)]
-#[error("optional telemetry {0:?}")]
-struct MaybeSnapshot(
-    #[provide(ref = Snapshot)]
-    Option<Snapshot>
-);
-
-#[cfg(error_generic_member_access)]
-{
-    let err = SnapshotError(Snapshot("trace"));
-    let borrowed = std::error::request_ref::<Snapshot>(&err).unwrap();
-    assert_eq!(borrowed, &Snapshot("trace"));
-    let owned = std::error::request_value::<Snapshot>(&err).unwrap();
-    assert_eq!(owned, Snapshot("trace"));
-
-    let maybe = MaybeSnapshot(Some(Snapshot("span")));
-    assert!(std::error::request_ref::<Snapshot>(&maybe).is_some());
-    let empty = MaybeSnapshot(None);
-    assert!(std::error::request_ref::<Snapshot>(&empty).is_none());
-}
 ~~~
 
 #### Formatter traits
@@ -485,13 +483,13 @@ assert_eq!(resp.status, 401);
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.8.0", default-features = false }
+masterror = { version = "0.9.0", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.8.0", features = [
+masterror = { version = "0.9.0", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -500,7 +498,7 @@ masterror = { version = "0.8.0", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.8.0", features = [
+masterror = { version = "0.9.0", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }

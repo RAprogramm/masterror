@@ -157,6 +157,54 @@ assert_eq!(wrapped.to_string(), "I/O failed: disk offline");
   placeholder, making it easy to branch on the requested rendering behaviour
   without manually matching every enum variant.
 
+#### Display shorthand projections
+
+`#[error("...")]` supports the same shorthand syntax as `thiserror` for
+referencing fields with `.field` or `.0`. The derive now understands chained
+segments, so projections like `.limits.lo`, `.0.data` or
+`.suggestion.as_ref().map_or_else(...)` keep compiling unchanged. Raw
+identifiers and tuple indices are preserved, ensuring keywords such as
+`r#type` and tuple fields continue to work even when you call methods on the
+projected value.
+
+~~~rust
+use masterror::Error;
+
+#[derive(Debug)]
+struct Limits {
+    lo: i32,
+    hi: i32,
+}
+
+#[derive(Debug, Error)]
+#[error(
+    "range {lo}-{hi} suggestion {suggestion}",
+    lo = .limits.lo,
+    hi = .limits.hi,
+    suggestion = .suggestion.as_ref().map_or_else(|| "<none>", |s| s.as_str())
+)]
+struct RangeError {
+    limits: Limits,
+    suggestion: Option<String>,
+}
+
+#[derive(Debug)]
+struct Payload {
+    data: &'static str,
+}
+
+#[derive(Debug, Error)]
+enum UiError {
+    #[error("tuple data {data}", data = .0.data)]
+    Tuple(Payload),
+    #[error(
+        "named suggestion {value}",
+        value = .suggestion.as_ref().map_or_else(|| "<none>", |s| s.as_str())
+    )]
+    Named { suggestion: Option<String> },
+}
+~~~
+
 #### AppError conversions
 
 Annotating structs or enum variants with `#[app_error(...)]` captures the

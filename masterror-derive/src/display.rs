@@ -3,11 +3,12 @@ use std::collections::HashMap;
 use masterror_template::template::{TemplateFormatter, TemplateFormatterKind};
 use proc_macro2::{Ident, Literal, Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned};
-use syn::Error;
+use syn::{Error, Index};
 
 use crate::{
     input::{
-        DisplaySpec, ErrorData, ErrorInput, Field, Fields, FormatArg, FormatArgShorthand,
+        DisplaySpec, ErrorData, ErrorInput, Field, Fields, FormatArg, FormatArgProjection,
+        FormatArgProjectionMethodCall, FormatArgProjectionSegment, FormatArgShorthand,
         FormatArgValue, FormatArgsSpec, FormatBindingKind, StructData, VariantData,
         placeholder_error
     },
@@ -371,28 +372,18 @@ fn resolve_struct_shorthand(
     shorthand: &FormatArgShorthand,
     placeholder: &TemplatePlaceholderSpec
 ) -> Result<ResolvedPlaceholderExpr, Error> {
-    match shorthand {
-        FormatArgShorthand::Named(ident) => {
-            let field = fields.get_named(&ident.to_string()).ok_or_else(|| {
-                Error::new(
-                    ident.span(),
-                    format!("unknown field `{}` in format arguments", ident)
-                )
-            })?;
-            Ok(struct_field_expr(field, placeholder.formatter))
-        }
-        FormatArgShorthand::Positional {
-            index,
-            span
-        } => {
-            let field = fields.get_positional(*index).ok_or_else(|| {
-                Error::new(
-                    *span,
-                    format!("field `{}` is not available in format arguments", index)
-                )
-            })?;
-            Ok(struct_field_expr(field, placeholder.formatter))
-        }
+    let FormatArgShorthand::Projection(projection) = shorthand;
+
+    let (expr, first_field, has_tail) = struct_projection_expr(fields, projection)?;
+
+    if !has_tail && let Some(field) = first_field {
+        return Ok(struct_field_expr(field, placeholder.formatter));
+    }
+
+    if needs_pointer_value(placeholder.formatter) {
+        Ok(ResolvedPlaceholderExpr::with(expr, false))
+    } else {
+        Ok(ResolvedPlaceholderExpr::new(quote!(&(#expr))))
     }
 }
 
@@ -402,8 +393,17 @@ fn resolve_variant_shorthand(
     shorthand: &FormatArgShorthand,
     placeholder: &TemplatePlaceholderSpec
 ) -> Result<ResolvedPlaceholderExpr, Error> {
-    match shorthand {
-        FormatArgShorthand::Named(ident) => {
+    let FormatArgShorthand::Projection(projection) = shorthand;
+
+    let Some(first_segment) = projection.segments.first() else {
+        return Err(Error::new(
+            projection.span,
+            "empty shorthand projection is not supported"
+        ));
+    };
+
+    match first_segment {
+        FormatArgProjectionSegment::Field(ident) => {
             let Fields::Named(named_fields) = fields else {
                 return Err(Error::new(
                     ident.span(),
@@ -435,12 +435,24 @@ fn resolve_variant_shorthand(
                 )
             })?;
 
-            Ok(ResolvedPlaceholderExpr::with(
-                quote!(#binding),
-                needs_pointer_value(placeholder.formatter)
-            ))
+            let expr = if projection.segments.len() == 1 {
+                quote!(#binding)
+            } else {
+                append_projection_segments(quote!(#binding), &projection.segments[1..])
+            };
+
+            if projection.segments.len() == 1 {
+                Ok(ResolvedPlaceholderExpr::with(
+                    expr,
+                    needs_pointer_value(placeholder.formatter)
+                ))
+            } else if needs_pointer_value(placeholder.formatter) {
+                Ok(ResolvedPlaceholderExpr::with(expr, false))
+            } else {
+                Ok(ResolvedPlaceholderExpr::new(quote!(&(#expr))))
+            }
         }
-        FormatArgShorthand::Positional {
+        FormatArgProjectionSegment::Index {
             index,
             span
         } => {
@@ -458,11 +470,117 @@ fn resolve_variant_shorthand(
                 )
             })?;
 
-            Ok(ResolvedPlaceholderExpr::with(
-                quote!(#binding),
-                needs_pointer_value(placeholder.formatter)
-            ))
+            let expr = if projection.segments.len() == 1 {
+                quote!(#binding)
+            } else {
+                append_projection_segments(quote!(#binding), &projection.segments[1..])
+            };
+
+            if projection.segments.len() == 1 {
+                Ok(ResolvedPlaceholderExpr::with(
+                    expr,
+                    needs_pointer_value(placeholder.formatter)
+                ))
+            } else if needs_pointer_value(placeholder.formatter) {
+                Ok(ResolvedPlaceholderExpr::with(expr, false))
+            } else {
+                Ok(ResolvedPlaceholderExpr::new(quote!(&(#expr))))
+            }
         }
+        FormatArgProjectionSegment::MethodCall(call) => Err(Error::new(
+            call.span,
+            "variant format projections must start with a field or index"
+        ))
+    }
+}
+
+fn struct_projection_expr<'a>(
+    fields: &'a Fields,
+    projection: &'a FormatArgProjection
+) -> Result<(TokenStream, Option<&'a Field>, bool), Error> {
+    let Some(first) = projection.segments.first() else {
+        return Err(Error::new(
+            projection.span,
+            "empty shorthand projection is not supported"
+        ));
+    };
+
+    let mut first_field = None;
+    let mut expr = match first {
+        FormatArgProjectionSegment::Field(ident) => {
+            let field = fields.get_named(&ident.to_string()).ok_or_else(|| {
+                Error::new(
+                    ident.span(),
+                    format!("unknown field `{}` in format arguments", ident)
+                )
+            })?;
+            first_field = Some(field);
+            let member = &field.member;
+            quote!(self.#member)
+        }
+        FormatArgProjectionSegment::Index {
+            index,
+            span
+        } => {
+            let field = fields.get_positional(*index).ok_or_else(|| {
+                Error::new(
+                    *span,
+                    format!("field `{}` is not available in format arguments", index)
+                )
+            })?;
+            first_field = Some(field);
+            let member = &field.member;
+            quote!(self.#member)
+        }
+        FormatArgProjectionSegment::MethodCall(call) => append_method_call(quote!(self), call)
+    };
+
+    if projection.segments.len() > 1 {
+        expr = append_projection_segments(expr, &projection.segments[1..]);
+    }
+
+    Ok((expr, first_field, projection.segments.len() > 1))
+}
+
+fn append_projection_segments(
+    mut expr: TokenStream,
+    segments: &[FormatArgProjectionSegment]
+) -> TokenStream {
+    for segment in segments {
+        expr = append_projection_segment(expr, segment);
+    }
+    expr
+}
+
+fn append_projection_segment(
+    expr: TokenStream,
+    segment: &FormatArgProjectionSegment
+) -> TokenStream {
+    match segment {
+        FormatArgProjectionSegment::Field(ident) => quote!((#expr).#ident),
+        FormatArgProjectionSegment::Index {
+            index,
+            span
+        } => {
+            let index_token = Index {
+                index: *index as u32,
+                span:  *span
+            };
+            quote!((#expr).#index_token)
+        }
+        FormatArgProjectionSegment::MethodCall(call) => append_method_call(expr, call)
+    }
+}
+
+fn append_method_call(expr: TokenStream, call: &FormatArgProjectionMethodCall) -> TokenStream {
+    let method = &call.method;
+    let args = &call.args;
+    if let Some(turbofish) = &call.turbofish {
+        let colon2 = turbofish.colon2_token;
+        let generics = &turbofish.generics;
+        quote!((#expr).#method #colon2 #generics (#args))
+    } else {
+        quote!((#expr).#method(#args))
     }
 }
 

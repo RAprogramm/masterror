@@ -334,18 +334,17 @@ fn struct_provide_method(fields: &Fields) -> Option<TokenStream> {
         ));
     }
 
-    if let Some(backtrace) = backtrace {
-        if backtrace.stores_backtrace()
-            && !source_field.is_some_and(|source| source.index == backtrace.index())
-            && !delegates_to_source
-        {
-            let member = &backtrace.field().member;
-            statements.push(provide_backtrace_tokens(
-                quote!(self.#member),
-                backtrace.field(),
-                &request
-            ));
-        }
+    if let Some(backtrace) = backtrace
+        && backtrace.stores_backtrace()
+        && source_field.is_none_or(|source| source.index != backtrace.index())
+        && !delegates_to_source
+    {
+        let member = &backtrace.field().member;
+        statements.push(provide_backtrace_tokens(
+            quote!(self.#member),
+            backtrace.field(),
+            &request
+        ));
     }
 
     for field in fields.iter() {
@@ -515,15 +514,17 @@ fn variant_provide_named_arm(
         ));
     }
 
-    if let Some(backtrace_field) = backtrace {
-        if backtrace_field.stores_backtrace() && !same_as_source && !delegates_to_source {
-            let binding = backtrace_binding.expect("backtrace binding");
-            statements.push(provide_backtrace_tokens(
-                quote!(#binding),
-                backtrace_field.field(),
-                request
-            ));
-        }
+    if let Some(backtrace_field) = backtrace
+        && backtrace_field.stores_backtrace()
+        && !same_as_source
+        && !delegates_to_source
+    {
+        let binding = backtrace_binding.expect("backtrace binding");
+        statements.push(provide_backtrace_tokens(
+            quote!(#binding),
+            backtrace_field.field(),
+            request
+        ));
     }
 
     for (binding, field) in provide_bindings {
@@ -606,15 +607,17 @@ fn variant_provide_unnamed_arm(
         ));
     }
 
-    if let Some(backtrace_field) = backtrace {
-        if backtrace_field.stores_backtrace() && !same_as_source && !delegates_to_source {
-            let binding = backtrace_binding.expect("backtrace binding");
-            statements.push(provide_backtrace_tokens(
-                quote!(#binding),
-                backtrace_field.field(),
-                request
-            ));
-        }
+    if let Some(backtrace_field) = backtrace
+        && backtrace_field.stores_backtrace()
+        && !same_as_source
+        && !delegates_to_source
+    {
+        let binding = backtrace_binding.expect("backtrace binding");
+        statements.push(provide_backtrace_tokens(
+            quote!(#binding),
+            backtrace_field.field(),
+            request
+        ));
     }
 
     for (binding, field) in provide_bindings {
