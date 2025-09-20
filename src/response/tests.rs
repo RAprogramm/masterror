@@ -147,6 +147,30 @@ fn from_app_error_uses_default_message_when_none() {
     assert_eq!(e.message, "An error occurred");
 }
 
+#[test]
+fn from_owned_app_error_moves_message_and_metadata() {
+    let err = AppError::unauthorized(String::from("owned message"))
+        .with_retry_after_secs(5)
+        .with_www_authenticate("Bearer");
+
+    let resp: ErrorResponse = err.into();
+
+    assert_eq!(resp.status, 401);
+    assert!(matches!(resp.code, AppCode::Unauthorized));
+    assert_eq!(resp.message, "owned message");
+    assert_eq!(resp.retry.unwrap().after_seconds, 5);
+    assert_eq!(resp.www_authenticate.as_deref(), Some("Bearer"));
+}
+
+#[test]
+fn from_owned_app_error_defaults_message_when_absent() {
+    let resp: ErrorResponse = AppError::bare(AppErrorKind::Internal).into();
+
+    assert_eq!(resp.status, 500);
+    assert!(matches!(resp.code, AppCode::Internal));
+    assert_eq!(resp.message, "An error occurred");
+}
+
 // --- Display formatting --------------------------------------------------
 
 #[test]
