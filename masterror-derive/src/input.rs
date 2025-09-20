@@ -3,7 +3,8 @@ use std::collections::HashSet;
 use proc_macro2::Span;
 use syn::{
     Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Expr, ExprPath, Field as SynField,
-    Fields as SynFields, GenericArgument, Ident, LitBool, LitInt, LitStr, Token,
+    Fields as SynFields, GenericArgument, Ident, LitBool, LitInt, LitStr, Token, TypePath,
+    ext::IdentExt,
     parse::{Parse, ParseStream},
     spanned::Spanned
 };
@@ -212,8 +213,15 @@ pub struct FieldAttrs {
     pub from:           Option<Attribute>,
     pub source:         Option<Attribute>,
     pub backtrace:      Option<Attribute>,
+    pub provides:       Vec<ProvideSpec>,
     inferred_source:    bool,
     inferred_backtrace: bool
+}
+
+#[derive(Debug)]
+pub struct ProvideSpec {
+    pub reference: Option<TypePath>,
+    pub value:     Option<TypePath>
 }
 
 impl FieldAttrs {
@@ -256,6 +264,11 @@ impl FieldAttrs {
                     continue;
                 }
                 result.backtrace = Some(attr.clone());
+            } else if path_is(attr, "provide") {
+                match parse_provide_attribute(attr) {
+                    Ok(spec) => result.provides.push(spec),
+                    Err(err) => errors.push(err)
+                }
             }
         }
 
@@ -307,6 +320,63 @@ impl FieldAttrs {
     pub fn backtrace_attribute(&self) -> Option<&Attribute> {
         self.backtrace.as_ref()
     }
+}
+
+fn parse_provide_attribute(attr: &Attribute) -> Result<ProvideSpec, Error> {
+    attr.parse_args_with(|input: ParseStream| {
+        let mut reference = None;
+        let mut value = None;
+
+        while !input.is_empty() {
+            let ident: Ident = input.call(Ident::parse_any)?;
+            let name = ident.to_string();
+            match name.as_str() {
+                "ref" => {
+                    if reference.is_some() {
+                        return Err(Error::new(ident.span(), "duplicate `ref` specification"));
+                    }
+                    input.parse::<Token![=]>()?;
+                    let ty: TypePath = input.parse()?;
+                    reference = Some(ty);
+                }
+                "value" => {
+                    if value.is_some() {
+                        return Err(Error::new(ident.span(), "duplicate `value` specification"));
+                    }
+                    input.parse::<Token![=]>()?;
+                    let ty: TypePath = input.parse()?;
+                    value = Some(ty);
+                }
+                other => {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!("unknown #[provide] option `{}`", other)
+                    ));
+                }
+            }
+
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            } else if !input.is_empty() {
+                return Err(Error::new(
+                    input.span(),
+                    "expected `,` or end of input in #[provide(...)]"
+                ));
+            }
+        }
+
+        if reference.is_none() && value.is_none() {
+            return Err(Error::new(
+                attr.span(),
+                "`#[provide]` requires at least one of `ref = ...` or `value = ...`"
+            ));
+        }
+
+        Ok(ProvideSpec {
+            reference,
+            value
+        })
+    })
 }
 
 #[derive(Debug)]

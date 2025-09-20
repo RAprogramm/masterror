@@ -15,7 +15,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{DeriveInput, Error, parse_macro_input};
 
-#[proc_macro_derive(Error, attributes(error, source, from, backtrace, app_error))]
+#[proc_macro_derive(Error, attributes(error, source, from, backtrace, app_error, provide))]
 pub fn derive_error(tokens: TokenStream) -> TokenStream {
     let input = parse_macro_input!(tokens as DeriveInput);
     match expand(input) {
