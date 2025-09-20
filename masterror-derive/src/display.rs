@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{borrow::Cow, collections::HashMap};
 
 use masterror_template::template::{TemplateFormatter, TemplateFormatterKind};
 use proc_macro2::{Ident, Literal, Span, TokenStream};
@@ -318,7 +318,7 @@ impl<'a> EnvFormatArg<'a> {
     ) -> Result<ResolvedPlaceholderExpr, Error> {
         match (&self.binding, &self.arg.value) {
             (Some(binding), FormatArgValue::Expr(_)) => {
-                if needs_pointer_value(placeholder.formatter) {
+                if needs_pointer_value(&placeholder.formatter) {
                     Ok(ResolvedPlaceholderExpr::with(quote!(#binding), true))
                 } else {
                     Ok(ResolvedPlaceholderExpr::new(quote!(&#binding)))
@@ -377,10 +377,10 @@ fn resolve_struct_shorthand(
     let (expr, first_field, has_tail) = struct_projection_expr(fields, projection)?;
 
     if !has_tail && let Some(field) = first_field {
-        return Ok(struct_field_expr(field, placeholder.formatter));
+        return Ok(struct_field_expr(field, &placeholder.formatter));
     }
 
-    if needs_pointer_value(placeholder.formatter) {
+    if needs_pointer_value(&placeholder.formatter) {
         Ok(ResolvedPlaceholderExpr::with(expr, false))
     } else {
         Ok(ResolvedPlaceholderExpr::new(quote!(&(#expr))))
@@ -444,9 +444,9 @@ fn resolve_variant_shorthand(
             if projection.segments.len() == 1 {
                 Ok(ResolvedPlaceholderExpr::with(
                     expr,
-                    needs_pointer_value(placeholder.formatter)
+                    needs_pointer_value(&placeholder.formatter)
                 ))
-            } else if needs_pointer_value(placeholder.formatter) {
+            } else if needs_pointer_value(&placeholder.formatter) {
                 Ok(ResolvedPlaceholderExpr::with(expr, false))
             } else {
                 Ok(ResolvedPlaceholderExpr::new(quote!(&(#expr))))
@@ -479,9 +479,9 @@ fn resolve_variant_shorthand(
             if projection.segments.len() == 1 {
                 Ok(ResolvedPlaceholderExpr::with(
                     expr,
-                    needs_pointer_value(placeholder.formatter)
+                    needs_pointer_value(&placeholder.formatter)
                 ))
-            } else if needs_pointer_value(placeholder.formatter) {
+            } else if needs_pointer_value(&placeholder.formatter) {
                 Ok(ResolvedPlaceholderExpr::with(expr, false))
             } else {
                 Ok(ResolvedPlaceholderExpr::new(quote!(&(#expr))))
@@ -723,7 +723,7 @@ where
                 if matches!(placeholder.identifier, TemplateIdentifierSpec::Implicit(_)) {
                     has_implicit_placeholders = true;
                 }
-                if placeholder_requires_format_engine(placeholder.formatter) {
+                if placeholder_requires_format_engine(&placeholder.formatter) {
                     requires_format_engine = true;
                 }
 
@@ -731,7 +731,7 @@ where
                 format_buffer.push_str(&placeholder_format_fragment(placeholder));
                 segments.push(RenderedSegment::Placeholder(PlaceholderRender {
                     identifier: placeholder.identifier.clone(),
-                    formatter: placeholder.formatter,
+                    formatter: placeholder.formatter.clone(),
                     span: placeholder.span,
                     resolved
                 }));
@@ -875,8 +875,8 @@ fn build_template_arguments(segments: &[RenderedSegment]) -> Vec<TokenStream> {
     arguments
 }
 
-fn placeholder_requires_format_engine(formatter: TemplateFormatter) -> bool {
-    !matches!(formatter, TemplateFormatter::Display)
+fn placeholder_requires_format_engine(formatter: &TemplateFormatter) -> bool {
+    formatter.kind() != TemplateFormatterKind::Display || formatter.has_display_spec()
 }
 
 fn push_literal_fragment(buffer: &mut String, literal: &str) {
@@ -898,91 +898,17 @@ fn placeholder_format_fragment(placeholder: &TemplatePlaceholderSpec) -> String 
         TemplateIdentifierSpec::Implicit(_) => {}
     }
 
-    if let Some(spec) = formatter_format_fragment(placeholder.formatter) {
+    if let Some(spec) = formatter_format_fragment(&placeholder.formatter) {
         fragment.push(':');
-        fragment.push_str(spec);
+        fragment.push_str(spec.as_ref());
     }
 
     fragment.push('}');
     fragment
 }
 
-fn formatter_format_fragment(formatter: TemplateFormatter) -> Option<&'static str> {
-    match formatter {
-        TemplateFormatter::Display => None,
-        TemplateFormatter::Debug {
-            alternate
-        } => {
-            if alternate {
-                Some("#?")
-            } else {
-                Some("?")
-            }
-        }
-        TemplateFormatter::LowerHex {
-            alternate
-        } => {
-            if alternate {
-                Some("#x")
-            } else {
-                Some("x")
-            }
-        }
-        TemplateFormatter::UpperHex {
-            alternate
-        } => {
-            if alternate {
-                Some("#X")
-            } else {
-                Some("X")
-            }
-        }
-        TemplateFormatter::Pointer {
-            alternate
-        } => {
-            if alternate {
-                Some("#p")
-            } else {
-                Some("p")
-            }
-        }
-        TemplateFormatter::Binary {
-            alternate
-        } => {
-            if alternate {
-                Some("#b")
-            } else {
-                Some("b")
-            }
-        }
-        TemplateFormatter::Octal {
-            alternate
-        } => {
-            if alternate {
-                Some("#o")
-            } else {
-                Some("o")
-            }
-        }
-        TemplateFormatter::LowerExp {
-            alternate
-        } => {
-            if alternate {
-                Some("#e")
-            } else {
-                Some("e")
-            }
-        }
-        TemplateFormatter::UpperExp {
-            alternate
-        } => {
-            if alternate {
-                Some("#E")
-            } else {
-                Some("E")
-            }
-        }
-    }
+fn formatter_format_fragment<'a>(formatter: &'a TemplateFormatter) -> Option<Cow<'a, str>> {
+    formatter.format_fragment()
 }
 
 fn struct_placeholder_expr(
@@ -996,7 +922,7 @@ fn struct_placeholder_expr(
     ) {
         return Ok(ResolvedPlaceholderExpr::with(
             quote!(self),
-            needs_pointer_value(placeholder.formatter)
+            needs_pointer_value(&placeholder.formatter)
         ));
     }
 
@@ -1009,23 +935,23 @@ fn struct_placeholder_expr(
     match &placeholder.identifier {
         TemplateIdentifierSpec::Named(name) => {
             if let Some(field) = fields.get_named(name) {
-                Ok(struct_field_expr(field, placeholder.formatter))
+                Ok(struct_field_expr(field, &placeholder.formatter))
             } else {
                 Err(placeholder_error(placeholder.span, &placeholder.identifier))
             }
         }
         TemplateIdentifierSpec::Positional(index) => fields
             .get_positional(*index)
-            .map(|field| struct_field_expr(field, placeholder.formatter))
+            .map(|field| struct_field_expr(field, &placeholder.formatter))
             .ok_or_else(|| placeholder_error(placeholder.span, &placeholder.identifier)),
         TemplateIdentifierSpec::Implicit(index) => fields
             .get_positional(*index)
-            .map(|field| struct_field_expr(field, placeholder.formatter))
+            .map(|field| struct_field_expr(field, &placeholder.formatter))
             .ok_or_else(|| placeholder_error(placeholder.span, &placeholder.identifier))
     }
 }
 
-fn struct_field_expr(field: &Field, formatter: TemplateFormatter) -> ResolvedPlaceholderExpr {
+fn struct_field_expr(field: &Field, formatter: &TemplateFormatter) -> ResolvedPlaceholderExpr {
     let member = &field.member;
 
     if needs_pointer_value(formatter) && pointer_prefers_value(&field.ty) {
@@ -1035,8 +961,8 @@ fn struct_field_expr(field: &Field, formatter: TemplateFormatter) -> ResolvedPla
     }
 }
 
-fn needs_pointer_value(formatter: TemplateFormatter) -> bool {
-    matches!(formatter, TemplateFormatter::Pointer { .. })
+fn needs_pointer_value(formatter: &TemplateFormatter) -> bool {
+    formatter.kind() == TemplateFormatterKind::Pointer
 }
 
 fn pointer_prefers_value(ty: &syn::Type) -> bool {
@@ -1064,7 +990,7 @@ fn variant_tuple_placeholder(
     ) {
         return Ok(ResolvedPlaceholderExpr::with(
             quote!(self),
-            needs_pointer_value(placeholder.formatter)
+            needs_pointer_value(&placeholder.formatter)
         ));
     }
 
@@ -1083,7 +1009,7 @@ fn variant_tuple_placeholder(
             .map(|binding| {
                 ResolvedPlaceholderExpr::with(
                     quote!(#binding),
-                    needs_pointer_value(placeholder.formatter)
+                    needs_pointer_value(&placeholder.formatter)
                 )
             })
             .ok_or_else(|| placeholder_error(placeholder.span, &placeholder.identifier)),
@@ -1092,7 +1018,7 @@ fn variant_tuple_placeholder(
             .map(|binding| {
                 ResolvedPlaceholderExpr::with(
                     quote!(#binding),
-                    needs_pointer_value(placeholder.formatter)
+                    needs_pointer_value(&placeholder.formatter)
                 )
             })
             .ok_or_else(|| placeholder_error(placeholder.span, &placeholder.identifier))
@@ -1111,7 +1037,7 @@ fn variant_named_placeholder(
     ) {
         return Ok(ResolvedPlaceholderExpr::with(
             quote!(self),
-            needs_pointer_value(placeholder.formatter)
+            needs_pointer_value(&placeholder.formatter)
         ));
     }
 
@@ -1130,7 +1056,7 @@ fn variant_named_placeholder(
                 let binding = &bindings[index];
                 Ok(ResolvedPlaceholderExpr::with(
                     quote!(#binding),
-                    needs_pointer_value(placeholder.formatter)
+                    needs_pointer_value(&placeholder.formatter)
                 ))
             } else {
                 Err(placeholder_error(placeholder.span, &placeholder.identifier))
@@ -1156,35 +1082,85 @@ fn format_placeholder(
         pointer_value
     } = resolved;
 
-    let (kind, alternate) = match formatter {
-        TemplateFormatter::Display => (TemplateFormatterKind::Display, false),
+    match formatter {
+        TemplateFormatter::Display {
+            spec: Some(spec)
+        } => {
+            let format_literal = Literal::string(&format!("{{:{spec}}}"));
+            quote! {
+                ::core::write!(f, #format_literal, #expr)?;
+            }
+        }
+        TemplateFormatter::Display {
+            spec: None
+        } => {
+            format_with_formatter_kind(expr, pointer_value, TemplateFormatterKind::Display, false)
+        }
         TemplateFormatter::Debug {
             alternate
-        } => (TemplateFormatterKind::Debug, alternate),
+        } => format_with_formatter_kind(
+            expr,
+            pointer_value,
+            TemplateFormatterKind::Debug,
+            alternate
+        ),
         TemplateFormatter::LowerHex {
             alternate
-        } => (TemplateFormatterKind::LowerHex, alternate),
+        } => format_with_formatter_kind(
+            expr,
+            pointer_value,
+            TemplateFormatterKind::LowerHex,
+            alternate
+        ),
         TemplateFormatter::UpperHex {
             alternate
-        } => (TemplateFormatterKind::UpperHex, alternate),
+        } => format_with_formatter_kind(
+            expr,
+            pointer_value,
+            TemplateFormatterKind::UpperHex,
+            alternate
+        ),
         TemplateFormatter::Pointer {
             alternate
-        } => (TemplateFormatterKind::Pointer, alternate),
+        } => format_with_formatter_kind(
+            expr,
+            pointer_value,
+            TemplateFormatterKind::Pointer,
+            alternate
+        ),
         TemplateFormatter::Binary {
             alternate
-        } => (TemplateFormatterKind::Binary, alternate),
+        } => format_with_formatter_kind(
+            expr,
+            pointer_value,
+            TemplateFormatterKind::Binary,
+            alternate
+        ),
         TemplateFormatter::Octal {
             alternate
-        } => (TemplateFormatterKind::Octal, alternate),
+        } => format_with_formatter_kind(
+            expr,
+            pointer_value,
+            TemplateFormatterKind::Octal,
+            alternate
+        ),
         TemplateFormatter::LowerExp {
             alternate
-        } => (TemplateFormatterKind::LowerExp, alternate),
+        } => format_with_formatter_kind(
+            expr,
+            pointer_value,
+            TemplateFormatterKind::LowerExp,
+            alternate
+        ),
         TemplateFormatter::UpperExp {
             alternate
-        } => (TemplateFormatterKind::UpperExp, alternate)
-    };
-
-    format_with_formatter_kind(expr, pointer_value, kind, alternate)
+        } => format_with_formatter_kind(
+            expr,
+            pointer_value,
+            TemplateFormatterKind::UpperExp,
+            alternate
+        )
+    }
 }
 
 fn format_with_formatter_kind(

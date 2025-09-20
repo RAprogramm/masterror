@@ -129,7 +129,9 @@ fn build_placeholder<'a>(
         return Ok(TemplatePlaceholder {
             span,
             identifier,
-            formatter: TemplateFormatter::Display
+            formatter: TemplateFormatter::Display {
+                spec: None
+            }
         });
     }
 
@@ -161,7 +163,9 @@ fn split_placeholder<'a>(
     let identifier = parse_identifier(identifier_text, span.clone(), implicit_counter)?;
 
     let formatter = match parts.next().map(str::trim) {
-        None => TemplateFormatter::Display,
+        None => TemplateFormatter::Display {
+            spec: None
+        },
         Some("") => {
             return Err(TemplateError::InvalidFormatter {
                 span
@@ -185,12 +189,30 @@ pub(super) fn parse_formatter_spec(spec: &str) -> Option<TemplateFormatter> {
         return None;
     }
 
-    let (last_index, ty) = trimmed.char_indices().next_back()?;
-    let prefix = &trimmed[..last_index];
-    let kind = TemplateFormatterKind::from_specifier(ty)?;
-    let alternate = detect_alternate_flag(prefix)?;
+    if let Some((last_index, ty)) = trimmed.char_indices().next_back() {
+        if let Some(kind) = TemplateFormatterKind::from_specifier(ty) {
+            let prefix = &trimmed[..last_index];
+            let alternate = detect_alternate_flag(prefix)?;
 
-    Some(TemplateFormatter::from_kind(kind, alternate))
+            return Some(TemplateFormatter::from_kind(kind, alternate));
+        }
+
+        if ty.is_ascii_alphabetic() {
+            return None;
+        }
+    }
+
+    if trimmed.contains('#') {
+        return None;
+    }
+
+    if trimmed.chars().any(|ch| matches!(ch, '%' | '{' | '}')) {
+        return None;
+    }
+
+    Some(TemplateFormatter::Display {
+        spec: Some(trimmed.to_owned().into_boxed_str())
+    })
 }
 
 fn detect_alternate_flag(prefix: &str) -> Option<bool> {
@@ -452,7 +474,7 @@ mod tests {
 
             assert_eq!(
                 placeholder.formatter(),
-                *expected_formatter,
+                expected_formatter,
                 "case: {source}"
             );
         }
@@ -465,7 +487,6 @@ mod tests {
             "{value:#}",
             "{value:>8q}",
             "{value:#>}",
-            "{value:*>}",
             "{value:##x}"
         ];
 
@@ -478,6 +499,27 @@ mod tests {
     }
 
     #[test]
+    fn parses_display_format_specs() {
+        let cases = [
+            ("{value:>8}", ">8"),
+            ("{value:.3}", ".3"),
+            ("{value:*<10}", "*<10")
+        ];
+
+        for (source, expected_spec) in cases {
+            let segments = parse_template(source).expect("template parsed");
+            let placeholder = match segments.first() {
+                Some(TemplateSegment::Placeholder(placeholder)) => placeholder,
+                other => panic!("unexpected segments for {source:?}: {other:?}")
+            };
+
+            let formatter = placeholder.formatter();
+            assert!(formatter.display_spec().is_some());
+            assert_eq!(formatter.display_spec(), Some(expected_spec));
+        }
+    }
+
+    #[test]
     fn parses_empty_braces_as_implicit_display() {
         let segments = parse_template("{}").expect("template parsed");
         let placeholder = match segments.first() {
@@ -486,7 +528,12 @@ mod tests {
         };
 
         assert_eq!(placeholder.identifier(), &TemplateIdentifier::Implicit(0));
-        assert_eq!(placeholder.formatter(), TemplateFormatter::Display);
+        assert_eq!(
+            placeholder.formatter(),
+            &TemplateFormatter::Display {
+                spec: None
+            }
+        );
     }
 
     #[test]
@@ -515,7 +562,7 @@ mod tests {
         );
         assert_eq!(
             placeholders[2].formatter(),
-            TemplateFormatter::Debug {
+            &TemplateFormatter::Debug {
                 alternate: false
             }
         );

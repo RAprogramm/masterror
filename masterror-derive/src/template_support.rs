@@ -56,7 +56,7 @@ pub fn parse_display_template(lit: LitStr) -> Result<DisplayTemplate, Error> {
                 segments.push(TemplateSegmentSpec::Placeholder(TemplatePlaceholderSpec {
                     span,
                     identifier,
-                    formatter: placeholder.formatter()
+                    formatter: placeholder.formatter().clone()
                 }));
             }
         }

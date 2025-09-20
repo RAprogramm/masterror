@@ -410,6 +410,24 @@ struct UpperExpFormatterError {
     value: f64
 }
 
+#[derive(Debug, Error)]
+#[error("{value:>8}", value = .value)]
+struct DisplayAlignmentError {
+    value: &'static str
+}
+
+#[derive(Debug, Error)]
+#[error("{value:.3}", value = .value)]
+struct DisplayPrecisionError {
+    value: f64
+}
+
+#[derive(Debug, Error)]
+#[error("{value:*<6}", value = .value)]
+struct DisplayFillError {
+    value: &'static str
+}
+
 #[cfg(error_generic_member_access)]
 fn assert_backtrace_interfaces<E>(error: &E, expected: &std::backtrace::Backtrace)
 where
@@ -1046,4 +1064,22 @@ fn formatter_variants_render_expected_output() {
     let upper_exp_expected = format!("upper={value:E} #upper={value:#E}", value = FLOAT_VALUE);
     assert_eq!(upper_exp.to_string(), upper_exp_expected);
     assert_ne!(format!("{FLOAT_VALUE:e}"), format!("{FLOAT_VALUE:E}"));
+}
+
+#[test]
+fn display_format_specs_match_standard_formatting() {
+    let alignment = DisplayAlignmentError {
+        value: "x"
+    };
+    assert_eq!(alignment.to_string(), format!("{:>8}", "x"));
+
+    let precision = DisplayPrecisionError {
+        value: 123.456_f64
+    };
+    assert_eq!(precision.to_string(), format!("{:.3}", 123.456_f64));
+
+    let fill = DisplayFillError {
+        value: "ab"
+    };
+    assert_eq!(fill.to_string(), format!("{:*<6}", "ab"));
 }
