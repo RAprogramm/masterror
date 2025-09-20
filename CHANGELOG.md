@@ -3,6 +3,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.7] - 2025-09-22
+
+### Changed
+- Added an owning `From<AppError>` conversion for `ErrorResponse` and updated the
+  Axum adapter to use it, eliminating redundant clones when building HTTP error
+  bodies.
+
 ## [0.10.6] - 2025-09-21
 
 ### Fixed
