@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use proc_macro2::Span;
 use syn::{
     Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Expr, ExprPath, Field as SynField,
-    Fields as SynFields, GenericArgument, Ident, LitInt, LitStr, Token,
+    Fields as SynFields, GenericArgument, Ident, LitBool, LitInt, LitStr, Token,
     parse::{Parse, ParseStream},
     spanned::Spanned
 };
@@ -28,7 +28,8 @@ pub struct StructData {
     pub fields:      Fields,
     pub display:     DisplaySpec,
     #[allow(dead_code)]
-    pub format_args: FormatArgsSpec
+    pub format_args: FormatArgsSpec,
+    pub app_error:   Option<AppErrorSpec>
 }
 
 #[derive(Debug)]
@@ -38,7 +39,16 @@ pub struct VariantData {
     pub display:     DisplaySpec,
     #[allow(dead_code)]
     pub format_args: FormatArgsSpec,
+    pub app_error:   Option<AppErrorSpec>,
     pub span:        Span
+}
+
+#[derive(Clone, Debug)]
+pub struct AppErrorSpec {
+    pub kind:           ExprPath,
+    pub code:           Option<ExprPath>,
+    pub expose_message: bool,
+    pub attribute_span: Span
 }
 
 #[derive(Debug)]
@@ -396,6 +406,7 @@ fn parse_struct(
     errors: &mut Vec<Error>
 ) -> Result<ErrorData, ()> {
     let display = extract_display_spec(attrs, ident.span(), errors)?;
+    let app_error = extract_app_error_spec(attrs, errors)?;
     let fields = Fields::from_syn(&data.fields, errors);
 
     validate_from_usage(&fields, &display, errors);
@@ -405,7 +416,8 @@ fn parse_struct(
     Ok(ErrorData::Struct(Box::new(StructData {
         fields,
         display,
-        format_args: FormatArgsSpec::default()
+        format_args: FormatArgsSpec::default(),
+        app_error
     })))
 }
 
@@ -443,6 +455,7 @@ fn parse_variant(variant: syn::Variant, errors: &mut Vec<Error>) -> Result<Varia
     }
 
     let display = extract_display_spec(&variant.attrs, span, errors)?;
+    let app_error = extract_app_error_spec(&variant.attrs, errors)?;
     let fields = Fields::from_syn(&variant.fields, errors);
 
     validate_from_usage(&fields, &display, errors);
@@ -454,8 +467,42 @@ fn parse_variant(variant: syn::Variant, errors: &mut Vec<Error>) -> Result<Varia
         fields,
         display,
         format_args: FormatArgsSpec::default(),
+        app_error,
         span
     })
+}
+
+fn extract_app_error_spec(
+    attrs: &[Attribute],
+    errors: &mut Vec<Error>
+) -> Result<Option<AppErrorSpec>, ()> {
+    let mut spec = None;
+    let mut had_error = false;
+
+    for attr in attrs {
+        if !path_is(attr, "app_error") {
+            continue;
+        }
+
+        if spec.is_some() {
+            errors.push(Error::new_spanned(
+                attr,
+                "duplicate #[app_error(...)] attribute"
+            ));
+            had_error = true;
+            continue;
+        }
+
+        match parse_app_error_attribute(attr) {
+            Ok(parsed) => spec = Some(parsed),
+            Err(err) => {
+                errors.push(err);
+                had_error = true;
+            }
+        }
+    }
+
+    if had_error { Err(()) } else { Ok(spec) }
 }
 
 fn extract_display_spec(
@@ -493,6 +540,81 @@ fn extract_display_spec(
             Err(())
         }
     }
+}
+
+fn parse_app_error_attribute(attr: &Attribute) -> Result<AppErrorSpec, Error> {
+    attr.parse_args_with(|input: ParseStream| {
+        let mut kind = None;
+        let mut code = None;
+        let mut expose_message = false;
+
+        while !input.is_empty() {
+            let ident: Ident = input.parse()?;
+            let name = ident.to_string();
+            match name.as_str() {
+                "kind" => {
+                    if kind.is_some() {
+                        return Err(Error::new(ident.span(), "duplicate kind specification"));
+                    }
+                    input.parse::<Token![=]>()?;
+                    let value: ExprPath = input.parse()?;
+                    kind = Some(value);
+                }
+                "code" => {
+                    if code.is_some() {
+                        return Err(Error::new(ident.span(), "duplicate code specification"));
+                    }
+                    input.parse::<Token![=]>()?;
+                    let value: ExprPath = input.parse()?;
+                    code = Some(value);
+                }
+                "message" => {
+                    if expose_message {
+                        return Err(Error::new(ident.span(), "duplicate message flag"));
+                    }
+                    if input.peek(Token![=]) {
+                        input.parse::<Token![=]>()?;
+                        let value: LitBool = input.parse()?;
+                        expose_message = value.value;
+                    } else {
+                        expose_message = true;
+                    }
+                }
+                other => {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!("unknown #[app_error] option `{}`", other)
+                    ));
+                }
+            }
+
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            } else if !input.is_empty() {
+                return Err(Error::new(
+                    input.span(),
+                    "expected `,` or end of input in #[app_error(...)]"
+                ));
+            }
+        }
+
+        let kind = match kind {
+            Some(kind) => kind,
+            None => {
+                return Err(Error::new(
+                    attr.span(),
+                    "missing `kind = ...` in #[app_error(...)]"
+                ));
+            }
+        };
+
+        Ok(AppErrorSpec {
+            kind,
+            code,
+            expose_message,
+            attribute_span: attr.span()
+        })
+    })
 }
 
 fn parse_error_attribute(attr: &Attribute) -> Result<DisplaySpec, Error> {

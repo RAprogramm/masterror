@@ -29,9 +29,9 @@ Stable categories, conservative HTTP mapping, no `unsafe`.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.6.5", default-features = false }
+masterror = { version = "0.7.0", default-features = false }
 # or with features:
-# masterror = { version = "0.6.5", features = [
+# masterror = { version = "0.7.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -66,10 +66,10 @@ masterror = { version = "0.6.5", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.6.5", default-features = false }
+masterror = { version = "0.7.0", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.6.5", features = [
+# masterror = { version = "0.7.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -149,6 +149,10 @@ assert_eq!(wrapped.to_string(), "I/O failed: disk offline");
   valid.
 - `#[error(transparent)]` enforces single-field wrappers that forward
   `Display`/`source` to the inner error.
+- `#[app_error(kind = AppErrorKind::..., code = AppCode::..., message)]` maps the
+  derived error into `AppError`/`AppCode`. The optional `code = ...` arm emits an
+  `AppCode` conversion, while the `message` flag forwards the derived
+  `Display` output as the public message instead of producing a bare error.
 - `masterror::error::template::ErrorTemplate` parses `#[error("...")]`
   strings, exposing literal and placeholder segments so custom derives can be
   implemented without relying on `thiserror`.
@@ -158,6 +162,54 @@ assert_eq!(wrapped.to_string(), "I/O failed: disk offline");
 - `TemplateFormatterKind` exposes the formatter trait requested by a
   placeholder, making it easy to branch on the requested rendering behaviour
   without manually matching every enum variant.
+
+#### AppError conversions
+
+Annotating structs or enum variants with `#[app_error(...)]` captures the
+metadata required to convert the domain error into `AppError` (and optionally
+`AppCode`). Every variant in an enum must provide the mapping when any variant
+requests it.
+
+~~~rust
+use masterror::{AppCode, AppError, AppErrorKind, Error};
+
+#[derive(Debug, Error)]
+#[error("missing flag: {name}")]
+#[app_error(kind = AppErrorKind::BadRequest, code = AppCode::BadRequest, message)]
+struct MissingFlag {
+    name: &'static str,
+}
+
+let app: AppError = MissingFlag { name: "feature" }.into();
+assert!(matches!(app.kind, AppErrorKind::BadRequest));
+assert_eq!(app.message.as_deref(), Some("missing flag: feature"));
+
+let code: AppCode = MissingFlag { name: "feature" }.into();
+assert!(matches!(code, AppCode::BadRequest));
+~~~
+
+For enums, each variant specifies the mapping while the derive generates a
+single `From<Enum>` implementation that matches every variant:
+
+~~~rust
+#[derive(Debug, Error)]
+enum ApiError {
+    #[error("missing resource {id}")]
+    #[app_error(
+        kind = AppErrorKind::NotFound,
+        code = AppCode::NotFound,
+        message
+    )]
+    Missing { id: u64 },
+    #[error("backend unavailable")]
+    #[app_error(kind = AppErrorKind::Service, code = AppCode::Service)]
+    Backend,
+}
+
+let missing = ApiError::Missing { id: 7 };
+let as_app: AppError = missing.into();
+assert_eq!(as_app.message.as_deref(), Some("missing resource 7"));
+~~~
 
 #### Formatter traits
 
@@ -383,13 +435,13 @@ assert_eq!(resp.status, 401);
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.6.5", default-features = false }
+masterror = { version = "0.7.0", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.6.5", features = [
+masterror = { version = "0.7.0", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -398,7 +450,7 @@ masterror = { version = "0.6.5", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.6.5", features = [
+masterror = { version = "0.7.0", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
