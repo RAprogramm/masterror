@@ -18,4 +18,16 @@ struct Fill {
     value: &'static str,
 }
 
+#[derive(Debug, Error)]
+#[error("{value:#>4}", value = .value)]
+struct HashFill {
+    value: &'static str,
+}
+
+#[derive(Debug, Error)]
+#[error("{value:#>+6}", value = .value)]
+struct HashFillWithSign {
+    value: i32,
+}
+
 fn main() {}

@@ -3,6 +3,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.1] - 2025-10-22
+
+### Changed
+- Relaxed template formatter parsing so only typed formatters treat `#` as the
+  alternate flag, allowing display placeholders such as `{value:#>4}` to round-
+  trip without spurious `TemplateError::InvalidFormatter` errors.
+
+### Tests
+- Extended formatter unit tests and UI derive coverage to exercise hash-filled
+  display specs and ensure they parse correctly.
+
+### Documentation
+- Documented the broader display formatter support (including `#` as a fill
+  character) in the templating README section.
+
 ## [0.10.0] - 2025-10-21
 
 ### Added

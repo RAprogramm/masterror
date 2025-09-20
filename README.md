@@ -29,9 +29,9 @@ Stable categories, conservative HTTP mapping, no `unsafe`.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.10.0", default-features = false }
+masterror = { version = "0.10.1", default-features = false }
 # or with features:
-# masterror = { version = "0.10.0", features = [
+# masterror = { version = "0.10.1", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -66,10 +66,10 @@ masterror = { version = "0.10.0", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.10.0", default-features = false }
+masterror = { version = "0.10.1", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.10.0", features = [
+# masterror = { version = "0.10.1", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -374,8 +374,9 @@ assert!(matches!(
 assert!(pretty_debug.is_alternate());
 ~~~
 
-Display-only format specs (alignment, precision, fill) are preserved so you can
-forward them to `write!` without rebuilding the fragment:
+Display-only format specs (alignment, precision, fill — including `#` as a fill
+character) are preserved so you can forward them to `write!` without rebuilding
+the fragment:
 
 ~~~rust
 use masterror::error::template::ErrorTemplate;
@@ -389,6 +390,20 @@ assert_eq!(
         .format_fragment()
         .as_deref(),
     Some(">8")
+);
+
+let hashed = ErrorTemplate::parse("{value:#>4}").expect("parse");
+let hash_placeholder = hashed
+    .placeholders()
+    .next()
+    .expect("hash-fill display placeholder");
+assert_eq!(hash_placeholder.formatter().display_spec(), Some("#>4"));
+assert_eq!(
+    hash_placeholder
+        .formatter()
+        .format_fragment()
+        .as_deref(),
+    Some("#>4")
 );
 ~~~
 
@@ -505,13 +520,13 @@ assert_eq!(resp.status, 401);
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.10.0", default-features = false }
+masterror = { version = "0.10.1", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.10.0", features = [
+masterror = { version = "0.10.1", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -520,7 +535,7 @@ masterror = { version = "0.10.0", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.10.0", features = [
+masterror = { version = "0.10.1", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }

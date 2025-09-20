@@ -1,6 +1,6 @@
 [package]
 name = "masterror"
-version = "0.10.0"
+version = "0.10.1"
 rust-version = "1.90"
 edition = "2024"
 license = "MIT OR Apache-2.0"
@@ -50,7 +50,7 @@ openapi = ["dep:utoipa"]
 
 [workspace.dependencies]
 masterror-derive = { version = "0.6.0", path = "masterror-derive" }
-masterror-template = { version = "0.3.0", path = "masterror-template" }
+masterror-template = { version = "0.3.1", path = "masterror-template" }
 
 [dependencies]
 masterror-derive = { workspace = true }
