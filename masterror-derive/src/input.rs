@@ -529,7 +529,9 @@ fn parse_format_args(input: ParseStream) -> Result<FormatArgsSpec, Error> {
 
     let mut seen_named = HashSet::new();
 
-    for (index, raw) in parsed.into_iter().enumerate() {
+    let mut positional_index = 0usize;
+
+    for raw in parsed {
         match raw {
             RawFormatArg::Named {
                 ident,
@@ -556,6 +558,8 @@ fn parse_format_args(input: ParseStream) -> Result<FormatArgsSpec, Error> {
                 expr,
                 span
             } => {
+                let index = positional_index;
+                positional_index += 1;
                 let tokens = expr.to_token_stream();
                 args.args.push(FormatArg {
                     tokens,

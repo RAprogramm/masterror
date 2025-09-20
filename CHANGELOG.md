@@ -4,7 +4,13 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- _Nothing yet._
+- Resolve `#[error("...")]` format arguments when generating `Display`
+  implementations, supporting named bindings, explicit indices and implicit
+  placeholders via a shared argument environment.
+
+### Tests
+- Cover named format argument expressions, implicit placeholder ordering and
+  enum variants using format arguments.
 
 ## [0.6.0] - 2025-10-08
 
