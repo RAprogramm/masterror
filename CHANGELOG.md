@@ -3,6 +3,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.7] - 2025-10-24
+
+### Changed
+- Precomputed lowercase Turnkey classifier needles with a stack-backed buffer
+  to remove repeated transformations while keeping the common zero-allocation
+  path for short patterns.
+
+### Tests
+- Added regression coverage for long classifier needles to exercise the
+  heap-allocation fallback.
+
 ## [0.10.6] - 2025-09-21
 
 ### Fixed
