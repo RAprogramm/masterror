@@ -3,12 +3,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [0.10.7] - 2025-09-22
+## [0.10.7] - 2025-10-24
+
+### Tests
+- Added regression coverage for long classifier needles to exercise the
+  heap-allocation fallback.
 
 ### Changed
 - Added an owning `From<AppError>` conversion for `ErrorResponse` and updated the
   Axum adapter to use it, eliminating redundant clones when building HTTP error
   bodies.
+ - Precomputed lowercase Turnkey classifier needles with a stack-backed buffer
+  to remove repeated transformations while keeping the common zero-allocation
+  path for short patterns.
+
 
 ## [0.10.6] - 2025-09-21
 
