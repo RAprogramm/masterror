@@ -77,7 +77,7 @@ impl IntoResponse for AppError {
         #[cfg(feature = "serde_json")]
         {
             // Build the stable wire contract (includes `code`).
-            let body: ErrorResponse = (&self).into();
+            let body: ErrorResponse = self.into();
             return body.into_response();
         }
 

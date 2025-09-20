@@ -13,6 +13,33 @@ impl Display for ErrorResponse {
     }
 }
 
+impl From<AppError> for ErrorResponse {
+    fn from(err: AppError) -> Self {
+        let AppError {
+            kind,
+            message,
+            retry,
+            www_authenticate
+        } = err;
+
+        let status = kind.http_status();
+        let code = AppCode::from(kind);
+        let message = match message {
+            Some(msg) => msg.into_owned(),
+            None => String::from("An error occurred")
+        };
+
+        Self {
+            status,
+            code,
+            message,
+            details: None,
+            retry,
+            www_authenticate
+        }
+    }
+}
+
 impl From<&AppError> for ErrorResponse {
     fn from(err: &AppError) -> Self {
         let status = err.kind.http_status();

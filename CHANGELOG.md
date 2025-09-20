@@ -9,13 +9,23 @@ All notable changes to this project will be documented in this file.
 - Published the shared template parser crate so `masterror-derive` no longer
   depends on a workspace-only package when uploaded to crates.io.
 
-### Changed
-- Bumped `masterror-derive` to `0.6.6` and `masterror-template` to `0.3.6` so
-  downstream users rely on the newly published parser crate.
-
 ### Documentation
 - Added a dedicated README for `masterror-template` describing installation,
   parsing examples and formatter metadata for crates.io readers.
+### Tests
+- Added regression coverage for long classifier needles to exercise the
+  heap-allocation fallback.
+
+### Changed
+- Added an owning `From<AppError>` conversion for `ErrorResponse` and updated the
+  Axum adapter to use it, eliminating redundant clones when building HTTP error
+  bodies.
+ - Precomputed lowercase Turnkey classifier needles with a stack-backed buffer
+  to remove repeated transformations while keeping the common zero-allocation
+  path for short patterns.
+- Bumped `masterror-derive` to `0.6.6` and `masterror-template` to `0.3.6` so
+  downstream users rely on the newly published parser crate.
+
 
 ## [0.10.6] - 2025-09-21
 
