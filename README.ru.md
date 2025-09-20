@@ -28,9 +28,9 @@
 ~~~toml
 [dependencies]
 # минимальное ядро
-masterror = { version = "0.10.3", default-features = false }
+masterror = { version = "0.10.4", default-features = false }
 # или с нужными интеграциями
-# masterror = { version = "0.10.3", features = [
+# masterror = { version = "0.10.4", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",

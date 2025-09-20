@@ -1,6 +1,6 @@
 [package]
 name = "masterror"
-version = "0.10.3"
+version = "0.10.4"
 rust-version = "1.90"
 edition = "2024"
 license = "MIT OR Apache-2.0"
@@ -11,6 +11,28 @@ documentation = "https://docs.rs/masterror"
 build = "build.rs"
 categories = ["rust-patterns", "web-programming"]
 keywords = ["error", "api", "framework"]
+include = [
+  "Cargo.toml",
+  "Cargo.lock",
+  "build.rs",
+  "src/**",
+  "tests/**",
+  "README.md",
+  "README.ru.md",
+  "README.template.md",
+  "CHANGELOG.md",
+  "LICENSE-APACHE",
+  "LICENSE-MIT",
+  "Makefile.toml",
+  "deny.toml",
+  "idea.md",
+  "target.md",
+  "build/**",
+  "masterror-derive/**",
+  "masterror-template/**",
+  ".cargo/audit.toml",
+  ".cargo/config.toml"
+]
 
 [workspace]
 members = ["masterror-derive", "masterror-template"]
@@ -49,8 +71,8 @@ turnkey = []
 openapi = ["dep:utoipa"]
 
 [workspace.dependencies]
-masterror-derive = { version = "0.6.0", path = "masterror-derive" }
-masterror-template = { version = "0.3.1", path = "masterror-template" }
+masterror-derive = { version = "0.6.0" }
+masterror-template = { version = "0.3.1" }
 
 [dependencies]
 masterror-derive = { workspace = true }
