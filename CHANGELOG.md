@@ -8,6 +8,14 @@ All notable changes to this project will be documented in this file.
   end-to-end examples in the derive guide ([README](README.md#structured-telemetry-providers-and-apperror-mappings),
   [README.ru](README.ru.md#%D0%B0%D1%82%D1%80%D0%B8%D0%B1%D1%83%D1%82%D1%8B-provide-%D0%B8-apperror)).
 
+## [0.10.4] - 2025-09-20
+
+### Fixed
+- Ensured `cargo package --locked` passes by switching workspace dependencies on
+  `masterror-derive` / `masterror-template` to registry entries and overriding
+  them locally through `.cargo/config`, keeping CI dry runs green without
+  breaking local development.
+
 ## [0.10.2] - 2025-10-23
 
 ### Added
