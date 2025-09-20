@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use masterror_template::template::{TemplateFormatter, TemplateFormatterKind};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
@@ -5,8 +7,8 @@ use syn::{Error, spanned::Spanned};
 
 use crate::{
     input::{
-        DisplaySpec, ErrorData, ErrorInput, Field, Fields, StructData, VariantData,
-        placeholder_error
+        DisplaySpec, ErrorData, ErrorInput, Field, Fields, FormatArg, FormatArgsSpec,
+        FormatBindingKind, StructData, VariantData, placeholder_error
     },
     template_support::{
         DisplayTemplate, TemplateIdentifierSpec, TemplatePlaceholderSpec, TemplateSegmentSpec
@@ -25,12 +27,19 @@ fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, E
         DisplaySpec::Transparent {
             ..
         } => render_struct_transparent(&data.fields),
-        DisplaySpec::Template(template)
-        | DisplaySpec::TemplateWithArgs {
-            template, ..
-        } => render_template(template, |placeholder| {
-            struct_placeholder_expr(&data.fields, placeholder)
+        DisplaySpec::Template(template) => render_template(template, Vec::new(), |placeholder| {
+            struct_placeholder_expr(&data.fields, placeholder, None)
         })?,
+        DisplaySpec::TemplateWithArgs {
+            template,
+            args
+        } => {
+            let mut env = FormatArgumentsEnv::new(args);
+            let preludes = env.prelude_tokens();
+            render_template(template, preludes, |placeholder| {
+                struct_placeholder_expr(&data.fields, placeholder, Some(&mut env))
+            })?
+        }
         DisplaySpec::FormatterPath {
             path, ..
         } => {
@@ -89,10 +98,11 @@ fn render_variant(variant: &VariantData) -> Result<TokenStream, Error> {
         DisplaySpec::Transparent {
             ..
         } => render_variant_transparent(variant),
-        DisplaySpec::Template(template)
-        | DisplaySpec::TemplateWithArgs {
-            template, ..
-        } => render_variant_template(variant, template),
+        DisplaySpec::Template(template) => render_variant_template(variant, template, None),
+        DisplaySpec::TemplateWithArgs {
+            template,
+            args
+        } => render_variant_template(variant, template, Some(args)),
         DisplaySpec::FormatterPath {
             path, ..
         } => Err(Error::new(path.span(), "`fmt = ...` is not supported yet"))
@@ -118,6 +128,100 @@ impl ResolvedPlaceholderExpr {
         Self {
             expr,
             pointer_value
+        }
+    }
+}
+
+#[derive(Debug)]
+struct FormatArgumentsEnv<'a> {
+    args:       Vec<EnvFormatArg<'a>>,
+    named:      HashMap<String, usize>,
+    positional: HashMap<usize, usize>,
+    implicit:   Vec<Option<usize>>
+}
+
+#[derive(Debug)]
+struct EnvFormatArg<'a> {
+    binding: Ident,
+    arg:     &'a FormatArg
+}
+
+impl<'a> FormatArgumentsEnv<'a> {
+    fn new(spec: &'a FormatArgsSpec) -> Self {
+        let mut env = Self {
+            args:       Vec::new(),
+            named:      HashMap::new(),
+            positional: HashMap::new(),
+            implicit:   Vec::new()
+        };
+
+        for (index, arg) in spec.args.iter().enumerate() {
+            let binding = format_ident!("__masterror_format_arg_{}", index);
+            let arg_index = env.args.len();
+            env.args.push(EnvFormatArg {
+                binding,
+                arg
+            });
+
+            match &arg.kind {
+                FormatBindingKind::Named(ident) => {
+                    env.named.insert(ident.to_string(), arg_index);
+                }
+                FormatBindingKind::Positional(pos_index) => {
+                    env.positional.insert(*pos_index, arg_index);
+                    env.implicit.push(Some(arg_index));
+                }
+                FormatBindingKind::Implicit(implicit_index) => {
+                    env.register_implicit(*implicit_index, arg_index);
+                }
+            }
+        }
+
+        env
+    }
+
+    fn prelude_tokens(&self) -> Vec<TokenStream> {
+        self.args.iter().map(EnvFormatArg::prelude_tokens).collect()
+    }
+
+    fn resolve_placeholder(
+        &mut self,
+        placeholder: &TemplatePlaceholderSpec
+    ) -> Option<ResolvedPlaceholderExpr> {
+        let arg_index = match &placeholder.identifier {
+            TemplateIdentifierSpec::Named(name) => self.named.get(name).copied(),
+            TemplateIdentifierSpec::Positional(index) => self.positional.get(index).copied(),
+            TemplateIdentifierSpec::Implicit(index) => {
+                self.implicit.get(*index).and_then(|slot| *slot)
+            }
+        }?;
+
+        Some(self.args[arg_index].resolved_expr(placeholder.formatter))
+    }
+
+    fn register_implicit(&mut self, index: usize, arg_index: usize) {
+        if self.implicit.len() <= index {
+            self.implicit.resize(index + 1, None);
+        }
+        self.implicit[index] = Some(arg_index);
+    }
+}
+
+impl<'a> EnvFormatArg<'a> {
+    fn prelude_tokens(&self) -> TokenStream {
+        let binding = &self.binding;
+        let expr = &self.arg.expr;
+        quote! {
+            let #binding = #expr;
+        }
+    }
+
+    fn resolved_expr(&self, formatter: TemplateFormatter) -> ResolvedPlaceholderExpr {
+        let binding = &self.binding;
+        if needs_pointer_value(formatter) {
+            ResolvedPlaceholderExpr::with(quote!(#binding), true)
+        } else {
+            ResolvedPlaceholderExpr::new(quote!(&#binding))
         }
     }
 }
@@ -159,17 +263,26 @@ fn render_variant_transparent(variant: &VariantData) -> Result<TokenStream, Erro
 
 fn render_variant_template(
     variant: &VariantData,
-    template: &DisplayTemplate
+    template: &DisplayTemplate,
+    format_args: Option<&FormatArgsSpec>
 ) -> Result<TokenStream, Error> {
     let variant_ident = &variant.ident;
+    let mut env = format_args.map(FormatArgumentsEnv::new);
 
     match &variant.fields {
         Fields::Unit => {
-            let body = render_template(template, |_placeholder| {
-                Err(Error::new(
-                    variant.span,
-                    "unit variants cannot reference fields"
-                ))
+            let preludes = env
+                .as_ref()
+                .map(|env| env.prelude_tokens())
+                .unwrap_or_default();
+            let span = variant.span;
+            let body = render_template(template, preludes, |placeholder| {
+                if let Some(env) = env.as_mut()
+                    && let Some(resolved) = env.resolve_placeholder(placeholder)
+                {
+                    return Ok(resolved);
+                }
+                Err(Error::new(span, "unit variants cannot reference fields"))
             })?;
             Ok(quote! {
                 Self::#variant_ident => {
@@ -180,8 +293,12 @@ fn render_variant_template(
         Fields::Unnamed(fields) => {
             let bindings: Vec<_> = fields.iter().map(binding_ident).collect();
             let pattern = quote!(Self::#variant_ident(#(#bindings),*));
-            let body = render_template(template, |placeholder| {
-                variant_tuple_placeholder(&bindings, placeholder)
+            let preludes = env
+                .as_ref()
+                .map(|env| env.prelude_tokens())
+                .unwrap_or_default();
+            let body = render_template(template, preludes, |placeholder| {
+                variant_tuple_placeholder(&bindings, placeholder, env.as_mut())
             })?;
             Ok(quote! {
                 #pattern => {
@@ -195,8 +312,12 @@ fn render_variant_template(
                 .map(|field| field.ident.clone().expect("named field"))
                 .collect();
             let pattern = quote!(Self::#variant_ident { #(#bindings),* });
-            let body = render_template(template, |placeholder| {
-                variant_named_placeholder(fields, &bindings, placeholder)
+            let preludes = env
+                .as_ref()
+                .map(|env| env.prelude_tokens())
+                .unwrap_or_default();
+            let body = render_template(template, preludes, |placeholder| {
+                variant_named_placeholder(fields, &bindings, placeholder, env.as_mut())
             })?;
             Ok(quote! {
                 #pattern => {
@@ -207,11 +328,15 @@ fn render_variant_template(
     }
 }
 
-fn render_template<F>(template: &DisplayTemplate, resolver: F) -> Result<TokenStream, Error>
+fn render_template<F>(
+    template: &DisplayTemplate,
+    preludes: Vec<TokenStream>,
+    mut resolver: F
+) -> Result<TokenStream, Error>
 where
-    F: Fn(&TemplatePlaceholderSpec) -> Result<ResolvedPlaceholderExpr, Error>
+    F: FnMut(&TemplatePlaceholderSpec) -> Result<ResolvedPlaceholderExpr, Error>
 {
-    let mut pieces = Vec::new();
+    let mut pieces = preludes;
     for segment in &template.segments {
         match segment {
             TemplateSegmentSpec::Literal(text) => {
@@ -232,15 +357,26 @@ where
 
 fn struct_placeholder_expr(
     fields: &Fields,
-    placeholder: &TemplatePlaceholderSpec
+    placeholder: &TemplatePlaceholderSpec,
+    env: Option<&mut FormatArgumentsEnv<'_>>
 ) -> Result<ResolvedPlaceholderExpr, Error> {
+    if matches!(
+        &placeholder.identifier,
+        TemplateIdentifierSpec::Named(name) if name == "self"
+    ) {
+        return Ok(ResolvedPlaceholderExpr::with(
+            quote!(self),
+            needs_pointer_value(placeholder.formatter)
+        ));
+    }
+
+    if let Some(env) = env
+        && let Some(resolved) = env.resolve_placeholder(placeholder)
+    {
+        return Ok(resolved);
+    }
+
     match &placeholder.identifier {
-        TemplateIdentifierSpec::Named(name) if name == "self" => {
-            Ok(ResolvedPlaceholderExpr::with(
-                quote!(self),
-                needs_pointer_value(placeholder.formatter)
-            ))
-        }
         TemplateIdentifierSpec::Named(name) => {
             if let Some(field) = fields.get_named(name) {
                 Ok(struct_field_expr(field, placeholder.formatter))
@@ -289,15 +425,26 @@ fn pointer_prefers_value(ty: &syn::Type) -> bool {
 
 fn variant_tuple_placeholder(
     bindings: &[Ident],
-    placeholder: &TemplatePlaceholderSpec
+    placeholder: &TemplatePlaceholderSpec,
+    env: Option<&mut FormatArgumentsEnv<'_>>
 ) -> Result<ResolvedPlaceholderExpr, Error> {
+    if matches!(
+        &placeholder.identifier,
+        TemplateIdentifierSpec::Named(name) if name == "self"
+    ) {
+        return Ok(ResolvedPlaceholderExpr::with(
+            quote!(self),
+            needs_pointer_value(placeholder.formatter)
+        ));
+    }
+
+    if let Some(env) = env
+        && let Some(resolved) = env.resolve_placeholder(placeholder)
+    {
+        return Ok(resolved);
+    }
+
     match &placeholder.identifier {
-        TemplateIdentifierSpec::Named(name) if name == "self" => {
-            Ok(ResolvedPlaceholderExpr::with(
-                quote!(self),
-                needs_pointer_value(placeholder.formatter)
-            ))
-        }
         TemplateIdentifierSpec::Named(_) => {
             Err(placeholder_error(placeholder.span, &placeholder.identifier))
         }
@@ -325,15 +472,26 @@ fn variant_tuple_placeholder(
 fn variant_named_placeholder(
     fields: &[Field],
     bindings: &[Ident],
-    placeholder: &TemplatePlaceholderSpec
+    placeholder: &TemplatePlaceholderSpec,
+    env: Option<&mut FormatArgumentsEnv<'_>>
 ) -> Result<ResolvedPlaceholderExpr, Error> {
+    if matches!(
+        &placeholder.identifier,
+        TemplateIdentifierSpec::Named(name) if name == "self"
+    ) {
+        return Ok(ResolvedPlaceholderExpr::with(
+            quote!(self),
+            needs_pointer_value(placeholder.formatter)
+        ));
+    }
+
+    if let Some(env) = env
+        && let Some(resolved) = env.resolve_placeholder(placeholder)
+    {
+        return Ok(resolved);
+    }
+
     match &placeholder.identifier {
-        TemplateIdentifierSpec::Named(name) if name == "self" => {
-            Ok(ResolvedPlaceholderExpr::with(
-                quote!(self),
-                needs_pointer_value(placeholder.formatter)
-            ))
-        }
         TemplateIdentifierSpec::Named(name) => {
             if let Some(index) = fields
                 .iter()

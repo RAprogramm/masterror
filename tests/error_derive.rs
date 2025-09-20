@@ -216,6 +216,40 @@ struct FormatterDebugShowcase {
 }
 
 #[derive(Debug, Error)]
+#[error("{formatted}", formatted = self.message.to_uppercase())]
+struct FormatArgExpressionError {
+    message: &'static str
+}
+
+#[derive(Debug, Error)]
+#[error("{}, {label}, {}", label = self.label, self.first, self.second)]
+struct MixedImplicitArgsError {
+    label:  &'static str,
+    first:  &'static str,
+    second: &'static str
+}
+
+#[derive(Debug, Error)]
+enum FormatArgEnum {
+    #[error("{detail}", detail = detail.to_uppercase())]
+    Upper { detail: String }
+}
+
+#[derive(Debug, Error)]
+#[error("{1}::{0}", self.first, self.second)]
+struct ExplicitIndexArgsError {
+    first:  &'static str,
+    second: &'static str
+}
+
+#[derive(Debug, Error)]
+#[error("{0}::{label}", label = self.label, self.value)]
+struct MixedNamedPositionalArgsError {
+    label: &'static str,
+    value: &'static str
+}
+
+#[derive(Debug, Error)]
 #[error("{value}")]
 struct DisplayFormatterError {
     value: &'static str
@@ -323,6 +357,50 @@ fn enum_variants_cover_display_and_source() {
     let pair = EnumError::Pair("left".into(), LeafError);
     assert!(pair.to_string().starts_with("left"));
     assert_eq!(StdError::source(&pair).unwrap().to_string(), "leaf failure");
+}
+
+#[test]
+fn named_format_arg_expression_is_used() {
+    let err = FormatArgExpressionError {
+        message: "value"
+    };
+    assert_eq!(err.to_string(), "VALUE");
+}
+
+#[test]
+fn implicit_format_args_follow_positional_ordering() {
+    let err = MixedImplicitArgsError {
+        label:  "tag",
+        first:  "one",
+        second: "two"
+    };
+    assert_eq!(err.to_string(), "one, tag, two");
+}
+
+#[test]
+fn explicit_format_arg_indices_resolve() {
+    let err = ExplicitIndexArgsError {
+        first:  "left",
+        second: "right"
+    };
+    assert_eq!(err.to_string(), "right::left");
+}
+
+#[test]
+fn mixed_named_and_positional_indices_resolve() {
+    let err = MixedNamedPositionalArgsError {
+        label: "tag",
+        value: "item"
+    };
+    assert_eq!(err.to_string(), "item::tag");
+}
+
+#[test]
+fn enum_variant_format_args_resolve_bindings() {
+    let err = FormatArgEnum::Upper {
+        detail: String::from("variant")
+    };
+    assert_eq!(err.to_string(), "VARIANT");
 }
 
 #[test]
