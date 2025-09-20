@@ -29,9 +29,9 @@ Stable categories, conservative HTTP mapping, no `unsafe`.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.7.0", default-features = false }
+masterror = { version = "0.9.0", default-features = false }
 # or with features:
-# masterror = { version = "0.7.0", features = [
+# masterror = { version = "0.9.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -66,10 +66,10 @@ masterror = { version = "0.7.0", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.7.0", default-features = false }
+masterror = { version = "0.9.0", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.7.0", features = [
+# masterror = { version = "0.9.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -162,6 +162,54 @@ assert_eq!(wrapped.to_string(), "I/O failed: disk offline");
 - `TemplateFormatterKind` exposes the formatter trait requested by a
   placeholder, making it easy to branch on the requested rendering behaviour
   without manually matching every enum variant.
+
+#### Display shorthand projections
+
+`#[error("...")]` supports the same shorthand syntax as `thiserror` for
+referencing fields with `.field` or `.0`. The derive now understands chained
+segments, so projections like `.limits.lo`, `.0.data` or
+`.suggestion.as_ref().map_or_else(...)` keep compiling unchanged. Raw
+identifiers and tuple indices are preserved, ensuring keywords such as
+`r#type` and tuple fields continue to work even when you call methods on the
+projected value.
+
+~~~rust
+use masterror::Error;
+
+#[derive(Debug)]
+struct Limits {
+    lo: i32,
+    hi: i32,
+}
+
+#[derive(Debug, Error)]
+#[error(
+    "range {lo}-{hi} suggestion {suggestion}",
+    lo = .limits.lo,
+    hi = .limits.hi,
+    suggestion = .suggestion.as_ref().map_or_else(|| "<none>", |s| s.as_str())
+)]
+struct RangeError {
+    limits: Limits,
+    suggestion: Option<String>,
+}
+
+#[derive(Debug)]
+struct Payload {
+    data: &'static str,
+}
+
+#[derive(Debug, Error)]
+enum UiError {
+    #[error("tuple data {data}", data = .0.data)]
+    Tuple(Payload),
+    #[error(
+        "named suggestion {value}",
+        value = .suggestion.as_ref().map_or_else(|| "<none>", |s| s.as_str())
+    )]
+    Named { suggestion: Option<String> },
+}
+~~~
 
 #### AppError conversions
 
@@ -435,13 +483,13 @@ assert_eq!(resp.status, 401);
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.7.0", default-features = false }
+masterror = { version = "0.9.0", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.7.0", features = [
+masterror = { version = "0.9.0", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -450,7 +498,7 @@ masterror = { version = "0.7.0", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.7.0", features = [
+masterror = { version = "0.9.0", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }

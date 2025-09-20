@@ -2,10 +2,14 @@ use std::collections::HashSet;
 
 use proc_macro2::Span;
 use syn::{
-    Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Expr, ExprPath, Field as SynField,
-    Fields as SynFields, GenericArgument, Ident, LitBool, LitInt, LitStr, Token,
+    AngleBracketedGenericArguments, Attribute, Data, DataEnum, DataStruct, DeriveInput, Error,
+    Expr, ExprPath, Field as SynField, Fields as SynFields, GenericArgument, Ident, LitBool,
+    LitInt, LitStr, Token, TypePath,
+    ext::IdentExt,
     parse::{Parse, ParseStream},
-    spanned::Spanned
+    punctuated::Punctuated,
+    spanned::Spanned,
+    token::Paren
 };
 
 use crate::template_support::{DisplayTemplate, TemplateIdentifierSpec, parse_display_template};
@@ -212,8 +216,15 @@ pub struct FieldAttrs {
     pub from:           Option<Attribute>,
     pub source:         Option<Attribute>,
     pub backtrace:      Option<Attribute>,
+    pub provides:       Vec<ProvideSpec>,
     inferred_source:    bool,
     inferred_backtrace: bool
+}
+
+#[derive(Debug)]
+pub struct ProvideSpec {
+    pub reference: Option<TypePath>,
+    pub value:     Option<TypePath>
 }
 
 impl FieldAttrs {
@@ -256,6 +267,11 @@ impl FieldAttrs {
                     continue;
                 }
                 result.backtrace = Some(attr.clone());
+            } else if path_is(attr, "provide") {
+                match parse_provide_attribute(attr) {
+                    Ok(spec) => result.provides.push(spec),
+                    Err(err) => errors.push(err)
+                }
             }
         }
 
@@ -309,6 +325,63 @@ impl FieldAttrs {
     }
 }
 
+fn parse_provide_attribute(attr: &Attribute) -> Result<ProvideSpec, Error> {
+    attr.parse_args_with(|input: ParseStream| {
+        let mut reference = None;
+        let mut value = None;
+
+        while !input.is_empty() {
+            let ident: Ident = input.call(Ident::parse_any)?;
+            let name = ident.to_string();
+            match name.as_str() {
+                "ref" => {
+                    if reference.is_some() {
+                        return Err(Error::new(ident.span(), "duplicate `ref` specification"));
+                    }
+                    input.parse::<Token![=]>()?;
+                    let ty: TypePath = input.parse()?;
+                    reference = Some(ty);
+                }
+                "value" => {
+                    if value.is_some() {
+                        return Err(Error::new(ident.span(), "duplicate `value` specification"));
+                    }
+                    input.parse::<Token![=]>()?;
+                    let ty: TypePath = input.parse()?;
+                    value = Some(ty);
+                }
+                other => {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!("unknown #[provide] option `{}`", other)
+                    ));
+                }
+            }
+
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            } else if !input.is_empty() {
+                return Err(Error::new(
+                    input.span(),
+                    "expected `,` or end of input in #[provide(...)]"
+                ));
+            }
+        }
+
+        if reference.is_none() && value.is_none() {
+            return Err(Error::new(
+                attr.span(),
+                "`#[provide]` requires at least one of `ref = ...` or `value = ...`"
+            ));
+        }
+
+        Ok(ProvideSpec {
+            reference,
+            value
+        })
+    })
+}
+
 #[derive(Debug)]
 pub enum DisplaySpec {
     Transparent {
@@ -351,9 +424,53 @@ pub enum FormatArgValue {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum FormatArgShorthand {
-    Named(Ident),
-    Positional { index: usize, span: Span }
+    Projection(FormatArgProjection)
 }
+
+#[derive(Debug)]
+pub struct FormatArgProjection {
+    pub segments: Vec<FormatArgProjectionSegment>,
+    pub span:     Span
+}
+
+#[derive(Debug)]
+pub enum FormatArgProjectionSegment {
+    Field(Ident),
+    Index { index: usize, span: Span },
+    MethodCall(FormatArgProjectionMethodCall)
+}
+
+impl FormatArgProjectionSegment {
+    fn span(&self) -> Span {
+        match self {
+            Self::Field(ident) => ident.span(),
+            Self::Index {
+                span, ..
+            } => *span,
+            Self::MethodCall(call) => call.span
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct FormatArgProjectionMethodCall {
+    pub method:    Ident,
+    pub turbofish: Option<FormatArgMethodTurbofish>,
+    pub args:      Punctuated<Expr, Token![,]>,
+    pub span:      Span
+}
+
+#[derive(Debug)]
+pub struct FormatArgMethodTurbofish {
+    pub colon2_token: Token![::],
+    pub generics:     AngleBracketedGenericArguments
+}
+
+type MethodCallSuffix = Option<(
+    Option<FormatArgMethodTurbofish>,
+    Paren,
+    Punctuated<Expr, Token![,]>
+)>;
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -799,36 +916,134 @@ impl Parse for RawFormatArg {
 fn parse_format_arg_value(input: ParseStream) -> syn::Result<FormatArgValue> {
     if input.peek(Token![.]) {
         let dot: Token![.] = input.parse()?;
-
-        if input.peek(Ident) {
-            let ident: Ident = input.parse()?;
-            Ok(FormatArgValue::Shorthand(FormatArgShorthand::Named(ident)))
-        } else if input.peek(LitInt) {
-            let literal: LitInt = input.parse()?;
-            let index = literal.base10_parse::<usize>()?;
-            Ok(FormatArgValue::Shorthand(FormatArgShorthand::Positional {
-                index,
-                span: literal.span()
-            }))
-        } else {
-            Err(syn::Error::new(
-                dot.span,
-                "expected field name or index after `.`"
-            ))
-        }
+        let projection = parse_projection_segments(input, dot.span)?;
+        Ok(FormatArgValue::Shorthand(FormatArgShorthand::Projection(
+            projection
+        )))
     } else {
         let expr: Expr = input.parse()?;
         Ok(FormatArgValue::Expr(expr))
     }
 }
 
+fn parse_projection_segments(
+    input: ParseStream,
+    dot_span: Span
+) -> syn::Result<FormatArgProjection> {
+    let first = parse_projection_segment(input, true)?;
+    let mut segments = vec![first];
+
+    while input.peek(Token![.]) {
+        input.parse::<Token![.]>()?;
+        segments.push(parse_projection_segment(input, false)?);
+    }
+
+    let mut span = join_spans(dot_span, segments[0].span());
+    for segment in segments.iter().skip(1) {
+        span = join_spans(span, segment.span());
+    }
+
+    Ok(FormatArgProjection {
+        segments,
+        span
+    })
+}
+
+fn parse_projection_segment(
+    input: ParseStream,
+    first: bool
+) -> syn::Result<FormatArgProjectionSegment> {
+    if input.peek(LitInt) {
+        let literal: LitInt = input.parse()?;
+        let index = literal.base10_parse::<usize>()?;
+        return Ok(FormatArgProjectionSegment::Index {
+            index,
+            span: literal.span()
+        });
+    }
+
+    if input.peek(Ident) {
+        let ident: Ident = input.parse()?;
+        if let Some((turbofish, paren_token, args)) = parse_method_call_suffix(input)? {
+            let span = method_call_span(&ident, turbofish.as_ref(), &paren_token);
+            return Ok(FormatArgProjectionSegment::MethodCall(
+                FormatArgProjectionMethodCall {
+                    method: ident,
+                    turbofish,
+                    args,
+                    span
+                }
+            ));
+        }
+
+        return Ok(FormatArgProjectionSegment::Field(ident));
+    }
+
+    let span = input.span();
+    if first {
+        Err(syn::Error::new(
+            span,
+            "expected field, index, or method call after `.`"
+        ))
+    } else {
+        Err(syn::Error::new(
+            span,
+            "expected field, index, or method call in projection"
+        ))
+    }
+}
+
+fn parse_method_call_suffix(input: ParseStream) -> syn::Result<MethodCallSuffix> {
+    let ahead = input.fork();
+
+    let has_turbofish = ahead.peek(Token![::]);
+    if has_turbofish {
+        let _: Token![::] = ahead.parse()?;
+        let _: AngleBracketedGenericArguments = ahead.parse()?;
+    }
+
+    if !ahead.peek(Paren) {
+        return Ok(None);
+    }
+
+    let turbofish = if has_turbofish {
+        let colon2_token = input.parse::<Token![::]>()?;
+        let generics = input.parse::<AngleBracketedGenericArguments>()?;
+        Some(FormatArgMethodTurbofish {
+            colon2_token,
+            generics
+        })
+    } else {
+        None
+    };
+
+    let content;
+    let paren_token = syn::parenthesized!(content in input);
+    let args = Punctuated::<Expr, Token![,]>::parse_terminated(&content)?;
+
+    Ok(Some((turbofish, paren_token, args)))
+}
+
+fn method_call_span(
+    method: &Ident,
+    turbofish: Option<&FormatArgMethodTurbofish>,
+    paren_token: &Paren
+) -> Span {
+    let mut span = method.span();
+    if let Some(turbofish) = turbofish {
+        span = join_spans(span, turbofish.generics.gt_token.span);
+    }
+    join_spans(span, paren_token.span.close())
+}
+
+fn join_spans(lhs: Span, rhs: Span) -> Span {
+    lhs.join(rhs).unwrap_or(lhs)
+}
+
 fn format_arg_value_span(value: &FormatArgValue) -> Span {
     match value {
         FormatArgValue::Expr(expr) => expr.span(),
-        FormatArgValue::Shorthand(FormatArgShorthand::Named(ident)) => ident.span(),
-        FormatArgValue::Shorthand(FormatArgShorthand::Positional {
-            span, ..
-        }) => *span
+        FormatArgValue::Shorthand(FormatArgShorthand::Projection(projection)) => projection.span
     }
 }
 

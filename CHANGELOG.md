@@ -3,6 +3,44 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.9.0] - 2025-10-20
+
+### Added
+- Parsed dot-prefixed display shorthands into a projection AST so `.limits.lo`,
+  `.0.data`, and chained method calls like `.suggestion.as_ref().map_or_else(...)`
+  resolve against struct fields and variant bindings.
+- Extended the `error_derive` integration suite and trybuild fixtures with
+  regressions covering nested projections for named and tuple variants.
+
+### Changed
+- Shorthand resolution now builds expressions from the projection AST, preserving
+  raw identifiers, tuple indices, and method invocations when generating code.
+
+### Documentation
+- Documented the richer shorthand projection support in the README and template
+  so downstream users know complex field/method chains are available.
+
+## [0.8.0] - 2025-10-14
+
+### Added
+- Recognised `#[provide(ref = ..., value = ...)]` on struct and enum fields,
+  allowing derived errors to surface domain telemetry through
+  `std::error::Request` alongside backtraces.
+
+### Changed
+- `masterror-derive` now generates `provide` implementations whenever custom
+  telemetry is requested, forwarding `Request` values to sources and invoking
+  `provide_ref`/`provide_value` with proper `Option` handling.
+
+### Tests
+- Extended the `error_derive` integration suite with regressions covering
+  telemetry provided by structs, tuple variants and optional fields, including
+  both reference and owned payloads.
+
+### Documentation
+- Documented the `#[provide(...)]` attribute in the README with examples showing
+  reference and owned telemetry as well as optional fields.
+
 ## [0.7.0] - 2025-10-13
 
 ### Added

@@ -150,6 +150,52 @@ enum EnumWithBacktrace {
     Unit
 }
 
+#[cfg_attr(not(error_generic_member_access), allow(dead_code))]
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct TelemetrySnapshot {
+    name:  &'static str,
+    value: u64
+}
+
+#[cfg_attr(not(error_generic_member_access), allow(dead_code))]
+#[derive(Debug, Error)]
+#[error("structured telemetry {snapshot:?}")]
+struct StructuredTelemetryError {
+    #[provide(ref = TelemetrySnapshot, value = TelemetrySnapshot)]
+    snapshot: TelemetrySnapshot
+}
+
+#[cfg_attr(not(error_generic_member_access), allow(dead_code))]
+#[derive(Debug, Error)]
+#[error("optional telemetry {telemetry:?}")]
+struct OptionalTelemetryError {
+    #[provide(ref = TelemetrySnapshot)]
+    telemetry: Option<TelemetrySnapshot>
+}
+
+#[cfg_attr(not(error_generic_member_access), allow(dead_code))]
+#[derive(Debug, Error)]
+#[error("optional owned telemetry {telemetry:?}")]
+struct OptionalOwnedTelemetryError {
+    #[provide(value = TelemetrySnapshot)]
+    telemetry: Option<TelemetrySnapshot>
+}
+
+#[cfg_attr(not(error_generic_member_access), allow(dead_code))]
+#[derive(Debug, Error)]
+enum EnumTelemetryError {
+    #[error("named {label}")]
+    Named {
+        label:    &'static str,
+        #[provide(ref = TelemetrySnapshot)]
+        snapshot: TelemetrySnapshot
+    },
+    #[error("optional tuple")]
+    Optional(#[provide(ref = TelemetrySnapshot)] Option<TelemetrySnapshot>),
+    #[error("owned tuple")]
+    Owned(#[provide(value = TelemetrySnapshot)] TelemetrySnapshot)
+}
+
 #[derive(Debug, Error)]
 #[error("{source:?}")]
 struct DelegatedBacktraceFromSource {
@@ -276,6 +322,40 @@ struct FieldShortcutError {
 #[error("{}, {}", .0, .1)]
 struct TupleShortcutError(&'static str, &'static str);
 
+#[derive(Debug)]
+struct RangeLimits {
+    lo: i32,
+    hi: i32
+}
+
+#[derive(Debug, Error)]
+#[error(
+    "range {lo}-{hi} suggestion {suggestion}",
+    lo = .limits.lo,
+    hi = .limits.hi,
+    suggestion = .suggestion.as_ref().map_or_else(|| "<none>", |s| s.as_str())
+)]
+struct ProjectionStructError {
+    limits:     RangeLimits,
+    suggestion: Option<String>
+}
+
+#[derive(Debug)]
+struct TuplePayload {
+    data: &'static str
+}
+
+#[derive(Debug, Error)]
+enum ProjectionEnumError {
+    #[error("tuple data {data}", data = .0.data)]
+    Tuple(TuplePayload),
+    #[error(
+        "named suggestion {value}",
+        value = .suggestion.as_ref().map_or_else(|| "<none>", |s| s.as_str())
+    )]
+    Named { suggestion: Option<String> }
+}
+
 #[derive(Debug, Error)]
 #[error("{value}")]
 struct DisplayFormatterError {
@@ -347,6 +427,97 @@ fn assert_backtrace_interfaces<E>(_error: &E, _expected: &std::backtrace::Backtr
 where
     E: StdError + ?Sized
 {
+}
+
+#[cfg(error_generic_member_access)]
+#[test]
+fn struct_provides_custom_telemetry() {
+    let telemetry = TelemetrySnapshot {
+        name:  "job",
+        value: 7
+    };
+    let err = StructuredTelemetryError {
+        snapshot: telemetry.clone()
+    };
+
+    let provided_ref =
+        std::error::request_ref::<TelemetrySnapshot>(&err).expect("telemetry reference");
+    assert!(ptr::eq(provided_ref, &err.snapshot));
+
+    let provided_value =
+        std::error::request_value::<TelemetrySnapshot>(&err).expect("telemetry value");
+    assert_eq!(provided_value, telemetry);
+}
+
+#[cfg(error_generic_member_access)]
+#[test]
+fn option_telemetry_only_provided_when_present() {
+    let snapshot = TelemetrySnapshot {
+        name:  "task",
+        value: 13
+    };
+
+    let with_value = OptionalTelemetryError {
+        telemetry: Some(snapshot.clone())
+    };
+    let provided =
+        std::error::request_ref::<TelemetrySnapshot>(&with_value).expect("optional telemetry");
+    let inner = with_value.telemetry.as_ref().expect("inner telemetry");
+    assert!(ptr::eq(provided, inner));
+
+    let without = OptionalTelemetryError {
+        telemetry: None
+    };
+    assert!(std::error::request_ref::<TelemetrySnapshot>(&without).is_none());
+
+    let owned_value = OptionalOwnedTelemetryError {
+        telemetry: Some(snapshot.clone())
+    };
+    let provided_owned =
+        std::error::request_value::<TelemetrySnapshot>(&owned_value).expect("owned telemetry");
+    assert_eq!(provided_owned, snapshot);
+
+    let owned_none = OptionalOwnedTelemetryError {
+        telemetry: None
+    };
+    assert!(std::error::request_value::<TelemetrySnapshot>(&owned_none).is_none());
+}
+
+#[cfg(error_generic_member_access)]
+#[test]
+fn enum_variants_provide_custom_telemetry() {
+    let named_snapshot = TelemetrySnapshot {
+        name:  "span",
+        value: 21
+    };
+
+    let named = EnumTelemetryError::Named {
+        label:    "named",
+        snapshot: named_snapshot.clone()
+    };
+    let provided_named =
+        std::error::request_ref::<TelemetrySnapshot>(&named).expect("named telemetry");
+    if let EnumTelemetryError::Named {
+        snapshot, ..
+    } = &named
+    {
+        assert!(ptr::eq(provided_named, snapshot));
+    }
+
+    let optional = EnumTelemetryError::Optional(Some(named_snapshot.clone()));
+    let provided_optional =
+        std::error::request_ref::<TelemetrySnapshot>(&optional).expect("optional telemetry");
+    if let EnumTelemetryError::Optional(Some(snapshot)) = &optional {
+        assert!(ptr::eq(provided_optional, snapshot));
+    }
+
+    let optional_none = EnumTelemetryError::Optional(None);
+    assert!(std::error::request_ref::<TelemetrySnapshot>(&optional_none).is_none());
+
+    let owned = EnumTelemetryError::Owned(named_snapshot.clone());
+    let provided_owned =
+        std::error::request_value::<TelemetrySnapshot>(&owned).expect("owned telemetry");
+    assert_eq!(provided_owned, named_snapshot);
 }
 
 #[test]
@@ -651,6 +822,43 @@ fn supports_display_and_debug_formatters() {
 
     assert_eq!(err.to_string(), expected);
     assert!(StdError::source(&err).is_none());
+}
+
+#[test]
+fn struct_projection_shorthand_handles_nested_segments() {
+    let err = ProjectionStructError {
+        limits:     RangeLimits {
+            lo: 2, hi: 5
+        },
+        suggestion: Some("retry".to_string())
+    };
+    assert_eq!(err.to_string(), "range 2-5 suggestion retry");
+
+    let none = ProjectionStructError {
+        limits:     RangeLimits {
+            lo: -1, hi: 3
+        },
+        suggestion: None
+    };
+    assert_eq!(none.to_string(), "range -1-3 suggestion <none>");
+}
+
+#[test]
+fn enum_projection_shorthand_handles_nested_segments() {
+    let tuple = ProjectionEnumError::Tuple(TuplePayload {
+        data: "payload"
+    });
+    assert_eq!(tuple.to_string(), "tuple data payload");
+
+    let named = ProjectionEnumError::Named {
+        suggestion: Some("escalate".to_string())
+    };
+    assert_eq!(named.to_string(), "named suggestion escalate");
+
+    let fallback = ProjectionEnumError::Named {
+        suggestion: None
+    };
+    assert_eq!(fallback.to_string(), "named suggestion <none>");
 }
 
 #[test]
