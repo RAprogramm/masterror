@@ -3,6 +3,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.6] - 2025-09-21
+
+### Fixed
+- Added a crate-local README for `masterror-derive` so `cargo publish` passes
+  when crates.io validates the `readme` manifest key.
+
+### Changed
+- Bumped `masterror-derive` to `0.6.2` to capture the packaging fix.
+
+### Documentation
+- Documented the derive macros and supported attributes in
+  `masterror-derive/README.md` for crates.io readers.
+
 ## [0.10.5] - 2025-09-20
 
 ### Added
