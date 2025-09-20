@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use masterror_template::template::{TemplateFormatter, TemplateFormatterKind};
-use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote};
+use proc_macro2::{Ident, Literal, Span, TokenStream};
+use quote::{format_ident, quote, quote_spanned};
 use syn::{Error, spanned::Spanned};
 
 use crate::{
@@ -130,6 +130,24 @@ impl ResolvedPlaceholderExpr {
             pointer_value
         }
     }
+
+    fn expr_tokens(&self) -> TokenStream {
+        self.expr.clone()
+    }
+}
+
+#[derive(Debug)]
+enum RenderedSegment {
+    Literal(String),
+    Placeholder(PlaceholderRender)
+}
+
+#[derive(Debug)]
+struct PlaceholderRender {
+    identifier: TemplateIdentifierSpec,
+    formatter:  TemplateFormatter,
+    span:       Span,
+    resolved:   ResolvedPlaceholderExpr
 }
 
 #[derive(Debug)]
@@ -336,15 +354,71 @@ fn render_template<F>(
 where
     F: FnMut(&TemplatePlaceholderSpec) -> Result<ResolvedPlaceholderExpr, Error>
 {
-    let mut pieces = preludes;
+    let mut segments = Vec::new();
+    let mut literal_buffer = String::new();
+    let mut format_buffer = String::new();
+    let mut has_placeholder = false;
+    let mut has_implicit_placeholders = false;
+    let mut requires_format_engine = false;
+
     for segment in &template.segments {
         match segment {
             TemplateSegmentSpec::Literal(text) => {
-                pieces.push(quote! { f.write_str(#text)?; });
+                literal_buffer.push_str(text);
+                push_literal_fragment(&mut format_buffer, text);
+                segments.push(RenderedSegment::Literal(text.clone()));
             }
             TemplateSegmentSpec::Placeholder(placeholder) => {
+                has_placeholder = true;
+                if matches!(placeholder.identifier, TemplateIdentifierSpec::Implicit(_)) {
+                    has_implicit_placeholders = true;
+                }
+                if placeholder_requires_format_engine(placeholder.formatter) {
+                    requires_format_engine = true;
+                }
+
                 let resolved = resolver(placeholder)?;
-                pieces.push(format_placeholder(resolved, placeholder.formatter));
+                format_buffer.push_str(&placeholder_format_fragment(placeholder));
+                segments.push(RenderedSegment::Placeholder(PlaceholderRender {
+                    identifier: placeholder.identifier.clone(),
+                    formatter: placeholder.formatter,
+                    span: placeholder.span,
+                    resolved
+                }));
+            }
+        }
+    }
+
+    let has_additional_arguments = !preludes.is_empty();
+
+    if !has_placeholder && !has_additional_arguments {
+        let literal = Literal::string(&literal_buffer);
+        return Ok(quote! {
+            #(#preludes)*
+            f.write_str(#literal)
+        });
+    }
+
+    if has_additional_arguments || has_implicit_placeholders || requires_format_engine {
+        let format_literal = Literal::string(&format_buffer);
+        let args = build_template_arguments(&segments);
+        return Ok(quote! {
+            #(#preludes)*
+            ::core::write!(f, #format_literal #(, #args)*)
+        });
+    }
+
+    let mut pieces = preludes;
+    for segment in segments {
+        match segment {
+            RenderedSegment::Literal(text) => {
+                pieces.push(quote! { f.write_str(#text)?; });
+            }
+            RenderedSegment::Placeholder(placeholder) => {
+                pieces.push(format_placeholder(
+                    placeholder.resolved,
+                    placeholder.formatter
+                ));
             }
         }
     }
@@ -353,6 +427,212 @@ where
     Ok(quote! {
         #(#pieces)*
     })
+}
+
+#[derive(Debug)]
+struct NamedArgument {
+    name: String,
+    span: Span,
+    expr: TokenStream
+}
+
+#[derive(Debug)]
+struct IndexedArgument {
+    index: usize,
+    expr:  TokenStream
+}
+
+fn build_template_arguments(segments: &[RenderedSegment]) -> Vec<TokenStream> {
+    let mut named = Vec::new();
+    let mut positional = Vec::new();
+    let mut implicit = Vec::new();
+
+    for segment in segments {
+        let RenderedSegment::Placeholder(placeholder) = segment else {
+            continue;
+        };
+
+        match &placeholder.identifier {
+            TemplateIdentifierSpec::Named(name) => {
+                if named
+                    .iter()
+                    .any(|argument: &NamedArgument| argument.name == *name)
+                {
+                    continue;
+                }
+
+                named.push(NamedArgument {
+                    name: name.clone(),
+                    span: placeholder.span,
+                    expr: placeholder.resolved.expr_tokens()
+                });
+            }
+            TemplateIdentifierSpec::Positional(index) => {
+                if positional
+                    .iter()
+                    .any(|argument: &IndexedArgument| argument.index == *index)
+                {
+                    continue;
+                }
+
+                positional.push(IndexedArgument {
+                    index: *index,
+                    expr:  placeholder.resolved.expr_tokens()
+                });
+            }
+            TemplateIdentifierSpec::Implicit(index) => {
+                if implicit
+                    .iter()
+                    .any(|argument: &IndexedArgument| argument.index == *index)
+                {
+                    continue;
+                }
+
+                implicit.push(IndexedArgument {
+                    index: *index,
+                    expr:  placeholder.resolved.expr_tokens()
+                });
+            }
+        }
+    }
+
+    positional.sort_by_key(|argument| argument.index);
+    implicit.sort_by_key(|argument| argument.index);
+
+    let mut arguments = Vec::with_capacity(named.len() + positional.len() + implicit.len());
+    for IndexedArgument {
+        expr, ..
+    } in positional
+    {
+        arguments.push(expr);
+    }
+    for IndexedArgument {
+        expr, ..
+    } in implicit
+    {
+        arguments.push(expr);
+    }
+    for NamedArgument {
+        name,
+        span,
+        expr
+    } in named
+    {
+        let ident = format_ident!("{}", name, span = span);
+        arguments.push(quote_spanned!(span => #ident = #expr));
+    }
+
+    arguments
+}
+
+fn placeholder_requires_format_engine(formatter: TemplateFormatter) -> bool {
+    !matches!(formatter, TemplateFormatter::Display)
+}
+
+fn push_literal_fragment(buffer: &mut String, literal: &str) {
+    for ch in literal.chars() {
+        match ch {
+            '{' => buffer.push_str("{{"),
+            '}' => buffer.push_str("}}"),
+            _ => buffer.push(ch)
+        }
+    }
+}
+
+fn placeholder_format_fragment(placeholder: &TemplatePlaceholderSpec) -> String {
+    let mut fragment = String::from("{");
+
+    match &placeholder.identifier {
+        TemplateIdentifierSpec::Named(name) => fragment.push_str(name),
+        TemplateIdentifierSpec::Positional(index) => fragment.push_str(&index.to_string()),
+        TemplateIdentifierSpec::Implicit(_) => {}
+    }
+
+    if let Some(spec) = formatter_format_fragment(placeholder.formatter) {
+        fragment.push(':');
+        fragment.push_str(spec);
+    }
+
+    fragment.push('}');
+    fragment
+}
+
+fn formatter_format_fragment(formatter: TemplateFormatter) -> Option<&'static str> {
+    match formatter {
+        TemplateFormatter::Display => None,
+        TemplateFormatter::Debug {
+            alternate
+        } => {
+            if alternate {
+                Some("#?")
+            } else {
+                Some("?")
+            }
+        }
+        TemplateFormatter::LowerHex {
+            alternate
+        } => {
+            if alternate {
+                Some("#x")
+            } else {
+                Some("x")
+            }
+        }
+        TemplateFormatter::UpperHex {
+            alternate
+        } => {
+            if alternate {
+                Some("#X")
+            } else {
+                Some("X")
+            }
+        }
+        TemplateFormatter::Pointer {
+            alternate
+        } => {
+            if alternate {
+                Some("#p")
+            } else {
+                Some("p")
+            }
+        }
+        TemplateFormatter::Binary {
+            alternate
+        } => {
+            if alternate {
+                Some("#b")
+            } else {
+                Some("b")
+            }
+        }
+        TemplateFormatter::Octal {
+            alternate
+        } => {
+            if alternate {
+                Some("#o")
+            } else {
+                Some("o")
+            }
+        }
+        TemplateFormatter::LowerExp {
+            alternate
+        } => {
+            if alternate {
+                Some("#e")
+            } else {
+                Some("e")
+            }
+        }
+        TemplateFormatter::UpperExp {
+            alternate
+        } => {
+            if alternate {
+                Some("#E")
+            } else {
+                Some("E")
+            }
+        }
+    }
 }
 
 fn struct_placeholder_expr(

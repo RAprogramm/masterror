@@ -3,10 +3,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.6.2] - 2025-10-09
+
 ### Added
 - Resolve `#[error("...")]` format arguments when generating `Display`
   implementations, supporting named bindings, explicit indices and implicit
   placeholders via a shared argument environment.
+
+### Changed
+- Detect additional format arguments, implicit placeholders and non-`Display`
+  formatters in `render_template`, delegating complex cases to a single
+  `write!` invocation while retaining the lightweight `f.write_str` path for
+  literal-only templates. The helper that assembles format arguments now keeps
+  positional/implicit bindings ahead of named ones to satisfy the formatting
+  macro contract.
 
 ### Tests
 - Cover named format argument expressions, implicit placeholder ordering and
