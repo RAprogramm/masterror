@@ -3,6 +3,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.2] - 2025-10-23
+
+### Added
+- Forward dynamic width and precision specifiers by emitting every declared
+  format argument into the generated `write!` call, so placeholders like
+  `{value:>width$}` and `{value:.precision$}` remain valid when deriving
+  `Display`.
+
+### Changed
+- `FormatArgumentsEnv` now surfaces tokens for all named, positional and
+  implicit bindings—even when they are only referenced from format specs—so
+  width/precision values reach the formatting engine.
+- `render_template`/`build_template_arguments` combine the resolved
+  placeholders with the full format argument list, ensuring the macro invocation
+  always receives the required bindings.
+
+### Tests
+- Added UI fixtures and integration assertions covering dynamic width and
+  precision formatting to guard against regressions.
+
+### Documentation
+- Documented the dynamic width/precision support alongside the formatting
+  guidance (including the Russian translation).
+
 ## [0.10.1] - 2025-10-22
 
 ### Changed

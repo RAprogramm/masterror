@@ -29,16 +29,19 @@ fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, E
         DisplaySpec::Transparent {
             ..
         } => render_struct_transparent(&data.fields),
-        DisplaySpec::Template(template) => render_template(template, Vec::new(), |placeholder| {
-            struct_placeholder_expr(&data.fields, placeholder, None)
-        })?,
+        DisplaySpec::Template(template) => {
+            render_template(template, Vec::new(), Vec::new(), |placeholder| {
+                struct_placeholder_expr(&data.fields, placeholder, None)
+            })?
+        }
         DisplaySpec::TemplateWithArgs {
             template,
             args
         } => {
             let mut env = FormatArgumentsEnv::new_struct(args, &data.fields);
             let preludes = env.prelude_tokens();
-            render_template(template, preludes, |placeholder| {
+            let format_arguments = env.argument_tokens()?;
+            render_template(template, preludes, format_arguments, |placeholder| {
                 struct_placeholder_expr(&data.fields, placeholder, Some(&mut env))
             })?
         }
@@ -176,6 +179,19 @@ struct PlaceholderRender {
 }
 
 #[derive(Debug)]
+struct ResolvedFormatArgument {
+    kind: ResolvedFormatArgumentKind,
+    expr: TokenStream
+}
+
+#[derive(Debug)]
+enum ResolvedFormatArgumentKind {
+    Named(Ident),
+    Positional(usize),
+    Implicit(usize)
+}
+
+#[derive(Debug)]
 struct FormatArgumentsEnv<'a> {
     context:    FormatArgContext<'a>,
     args:       Vec<EnvFormatArg<'a>>,
@@ -256,6 +272,13 @@ impl<'a> FormatArgumentsEnv<'a> {
         self.args.iter().map(EnvFormatArg::prelude_tokens).collect()
     }
 
+    fn argument_tokens(&self) -> Result<Vec<ResolvedFormatArgument>, Error> {
+        self.args
+            .iter()
+            .map(|arg| arg.argument_tokens(self))
+            .collect()
+    }
+
     fn resolve_placeholder(
         &mut self,
         placeholder: &TemplatePlaceholderSpec
@@ -299,6 +322,21 @@ impl<'a> FormatArgumentsEnv<'a> {
             } => resolve_variant_shorthand(fields, bindings, shorthand, placeholder)
         }
     }
+
+    fn resolve_shorthand_argument(
+        &self,
+        shorthand: &FormatArgShorthand
+    ) -> Result<TokenStream, Error> {
+        match &self.context {
+            FormatArgContext::Struct(fields) => {
+                resolve_struct_shorthand_argument(fields, shorthand)
+            }
+            FormatArgContext::Variant {
+                fields,
+                bindings
+            } => resolve_variant_shorthand_argument(fields, bindings, shorthand)
+        }
+    }
 }
 
 impl<'a> EnvFormatArg<'a> {
@@ -329,6 +367,31 @@ impl<'a> EnvFormatArg<'a> {
             }
             _ => unreachable!()
         }
+    }
+
+    fn argument_tokens(
+        &self,
+        env: &FormatArgumentsEnv<'_>
+    ) -> Result<ResolvedFormatArgument, Error> {
+        let expr = match (&self.binding, &self.arg.value) {
+            (Some(binding), FormatArgValue::Expr(_)) => Ok(quote!(#binding)),
+            (_, FormatArgValue::Shorthand(shorthand)) => env.resolve_shorthand_argument(shorthand),
+            _ => Err(Error::new(
+                self.arg.span,
+                "format argument expression binding was not generated"
+            ))
+        }?;
+
+        let kind = match &self.arg.kind {
+            FormatBindingKind::Named(ident) => ResolvedFormatArgumentKind::Named(ident.clone()),
+            FormatBindingKind::Positional(index) => ResolvedFormatArgumentKind::Positional(*index),
+            FormatBindingKind::Implicit(index) => ResolvedFormatArgumentKind::Implicit(*index)
+        };
+
+        Ok(ResolvedFormatArgument {
+            kind,
+            expr
+        })
     }
 }
 
@@ -494,6 +557,105 @@ fn resolve_variant_shorthand(
     }
 }
 
+fn resolve_struct_shorthand_argument(
+    fields: &Fields,
+    shorthand: &FormatArgShorthand
+) -> Result<TokenStream, Error> {
+    let FormatArgShorthand::Projection(projection) = shorthand;
+    let (expr, ..) = struct_projection_expr(fields, projection)?;
+    Ok(expr)
+}
+
+fn resolve_variant_shorthand_argument(
+    fields: &Fields,
+    bindings: &[Ident],
+    shorthand: &FormatArgShorthand
+) -> Result<TokenStream, Error> {
+    let FormatArgShorthand::Projection(projection) = shorthand;
+
+    let Some(first_segment) = projection.segments.first() else {
+        return Err(Error::new(
+            projection.span,
+            "empty shorthand projection is not supported"
+        ));
+    };
+
+    match first_segment {
+        FormatArgProjectionSegment::Field(ident) => {
+            let Fields::Named(named_fields) = fields else {
+                return Err(Error::new(
+                    ident.span(),
+                    format!(
+                        "named field `{}` is not available for tuple variants",
+                        ident
+                    )
+                ));
+            };
+
+            let position = named_fields.iter().position(|field| {
+                field
+                    .ident
+                    .as_ref()
+                    .is_some_and(|field_ident| field_ident == ident)
+            });
+
+            let index = position.ok_or_else(|| {
+                Error::new(
+                    ident.span(),
+                    format!("unknown field `{}` in format arguments", ident)
+                )
+            })?;
+
+            let binding = bindings.get(index).ok_or_else(|| {
+                Error::new(
+                    ident.span(),
+                    format!("field `{}` is not available in format arguments", ident)
+                )
+            })?;
+
+            if projection.segments.len() == 1 {
+                Ok(quote!(#binding))
+            } else {
+                Ok(append_projection_segments(
+                    quote!(#binding),
+                    &projection.segments[1..]
+                ))
+            }
+        }
+        FormatArgProjectionSegment::Index {
+            index,
+            span
+        } => {
+            let Fields::Unnamed(_) = fields else {
+                return Err(Error::new(
+                    *span,
+                    "positional fields are not available for struct variants"
+                ));
+            };
+
+            let binding = bindings.get(*index).ok_or_else(|| {
+                Error::new(
+                    *span,
+                    format!("field `{}` is not available in format arguments", index)
+                )
+            })?;
+
+            if projection.segments.len() == 1 {
+                Ok(quote!(#binding))
+            } else {
+                Ok(append_projection_segments(
+                    quote!(#binding),
+                    &projection.segments[1..]
+                ))
+            }
+        }
+        FormatArgProjectionSegment::MethodCall(call) => Err(Error::new(
+            call.span,
+            "variant format projections must start with a field or index"
+        ))
+    }
+}
+
 fn struct_projection_expr<'a>(
     fields: &'a Fields,
     projection: &'a FormatArgProjection
@@ -639,8 +801,13 @@ fn render_variant_template(
                 .as_ref()
                 .map(|env| env.prelude_tokens())
                 .unwrap_or_default();
+            let format_arguments = if let Some(env) = env.as_ref() {
+                env.argument_tokens()?
+            } else {
+                Vec::new()
+            };
             let span = variant.span;
-            let body = render_template(template, preludes, |placeholder| {
+            let body = render_template(template, preludes, format_arguments, |placeholder| {
                 if let Some(env) = env.as_mut()
                     && let Some(resolved) = env.resolve_placeholder(placeholder)?
                 {
@@ -663,7 +830,12 @@ fn render_variant_template(
                 .as_ref()
                 .map(|env| env.prelude_tokens())
                 .unwrap_or_default();
-            let body = render_template(template, preludes, |placeholder| {
+            let format_arguments = if let Some(env) = env.as_ref() {
+                env.argument_tokens()?
+            } else {
+                Vec::new()
+            };
+            let body = render_template(template, preludes, format_arguments, |placeholder| {
                 variant_tuple_placeholder(&bindings, placeholder, env.as_mut())
             })?;
             Ok(quote! {
@@ -684,7 +856,12 @@ fn render_variant_template(
                 .as_ref()
                 .map(|env| env.prelude_tokens())
                 .unwrap_or_default();
-            let body = render_template(template, preludes, |placeholder| {
+            let format_arguments = if let Some(env) = env.as_ref() {
+                env.argument_tokens()?
+            } else {
+                Vec::new()
+            };
+            let body = render_template(template, preludes, format_arguments, |placeholder| {
                 variant_named_placeholder(fields, &bindings, placeholder, env.as_mut())
             })?;
             Ok(quote! {
@@ -699,6 +876,7 @@ fn render_variant_template(
 fn render_template<F>(
     template: &DisplayTemplate,
     preludes: Vec<TokenStream>,
+    format_args: Vec<ResolvedFormatArgument>,
     mut resolver: F
 ) -> Result<TokenStream, Error>
 where
@@ -739,7 +917,7 @@ where
         }
     }
 
-    let has_additional_arguments = !preludes.is_empty();
+    let has_additional_arguments = !preludes.is_empty() || !format_args.is_empty();
 
     if !has_placeholder && !has_additional_arguments {
         let literal = Literal::string(&literal_buffer);
@@ -751,7 +929,7 @@ where
 
     if has_additional_arguments || has_implicit_placeholders || requires_format_engine {
         let format_literal = Literal::string(&format_buffer);
-        let args = build_template_arguments(&segments);
+        let args = build_template_arguments(&segments, format_args);
         return Ok(quote! {
             #(#preludes)*
             ::core::write!(f, #format_literal #(, #args)*)
@@ -792,7 +970,10 @@ struct IndexedArgument {
     expr:  TokenStream
 }
 
-fn build_template_arguments(segments: &[RenderedSegment]) -> Vec<TokenStream> {
+fn build_template_arguments(
+    segments: &[RenderedSegment],
+    format_args: Vec<ResolvedFormatArgument>
+) -> Vec<TokenStream> {
     let mut named = Vec::new();
     let mut positional = Vec::new();
     let mut implicit = Vec::new();
@@ -841,6 +1022,56 @@ fn build_template_arguments(segments: &[RenderedSegment]) -> Vec<TokenStream> {
                 implicit.push(IndexedArgument {
                     index: *index,
                     expr:  placeholder.resolved.expr_tokens()
+                });
+            }
+        }
+    }
+
+    for argument in format_args {
+        match argument.kind {
+            ResolvedFormatArgumentKind::Named(ident) => {
+                let name = ident.to_string();
+                if named
+                    .iter()
+                    .any(|existing: &NamedArgument| existing.name == name)
+                {
+                    continue;
+                }
+
+                let span = ident.span();
+                named.push(NamedArgument {
+                    name,
+                    span,
+                    expr: argument.expr
+                });
+            }
+            ResolvedFormatArgumentKind::Positional(index) => {
+                if positional
+                    .iter()
+                    .any(|existing: &IndexedArgument| existing.index == index)
+                    || implicit
+                        .iter()
+                        .any(|existing: &IndexedArgument| existing.index == index)
+                {
+                    continue;
+                }
+
+                positional.push(IndexedArgument {
+                    index,
+                    expr: argument.expr
+                });
+            }
+            ResolvedFormatArgumentKind::Implicit(index) => {
+                if implicit
+                    .iter()
+                    .any(|existing: &IndexedArgument| existing.index == index)
+                {
+                    continue;
+                }
+
+                implicit.push(IndexedArgument {
+                    index,
+                    expr: argument.expr
                 });
             }
         }

@@ -212,6 +212,43 @@ assert_eq!(
 );
 ~~~
 
+Динамические ширина и точность (`{value:>width$}`, `{value:.precision$}`)
+тоже доходят до вызова `write!`, если объявить соответствующие аргументы в
+атрибуте `#[error(...)]`:
+
+~~~rust
+use masterror::Error;
+
+#[derive(Debug, Error)]
+#[error("{value:>width$}", value = .value, width = .width)]
+struct DynamicWidth {
+    value: &'static str,
+    width: usize,
+}
+
+#[derive(Debug, Error)]
+#[error("{value:.precision$}", value = .value, precision = .precision)]
+struct DynamicPrecision {
+    value: f64,
+    precision: usize,
+}
+
+let width = DynamicWidth {
+    value: "x",
+    width: 5,
+};
+let precision = DynamicPrecision {
+    value: 123.456_f64,
+    precision: 4,
+};
+
+assert_eq!(width.to_string(), format!("{value:>width$}", value = "x", width = 5));
+assert_eq!(
+    precision.to_string(),
+    format!("{value:.precision$}", value = 123.456_f64, precision = 4)
+);
+~~~
+
 > **Совместимость с `thiserror` v2.** Доступные спецификаторы, сообщения об
 > ошибках и поведение совпадают с `thiserror` 2.x, поэтому миграция с
 > `thiserror::Error` на `masterror::Error` не требует переписывать шаблоны.

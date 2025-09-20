@@ -428,6 +428,20 @@ struct DisplayFillError {
     value: &'static str
 }
 
+#[derive(Debug, Error)]
+#[error("{value:>width$}", value = .value, width = .width)]
+struct DisplayDynamicWidthError {
+    value: &'static str,
+    width: usize
+}
+
+#[derive(Debug, Error)]
+#[error("{value:.precision$}", value = .value, precision = .precision)]
+struct DisplayDynamicPrecisionError {
+    value:     f64,
+    precision: usize
+}
+
 #[cfg(error_generic_member_access)]
 fn assert_backtrace_interfaces<E>(error: &E, expected: &std::backtrace::Backtrace)
 where
@@ -1082,4 +1096,22 @@ fn display_format_specs_match_standard_formatting() {
         value: "ab"
     };
     assert_eq!(fill.to_string(), format!("{:*<6}", "ab"));
+
+    let dynamic_width = DisplayDynamicWidthError {
+        value: "x",
+        width: 5
+    };
+    assert_eq!(
+        dynamic_width.to_string(),
+        format!("{value:>width$}", value = "x", width = 5)
+    );
+
+    let dynamic_precision = DisplayDynamicPrecisionError {
+        value:     123.456_f64,
+        precision: 4
+    };
+    assert_eq!(
+        dynamic_precision.to_string(),
+        format!("{value:.precision$}", value = 123.456_f64, precision = 4)
+    );
 }
