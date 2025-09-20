@@ -3,6 +3,7 @@
 //! This crate is not intended to be used directly. Re-exported as
 //! `masterror::Error`.
 
+mod app_error_impl;
 mod display;
 mod error_trait;
 mod from_impl;
@@ -14,7 +15,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{DeriveInput, Error, parse_macro_input};
 
-#[proc_macro_derive(Error, attributes(error, source, from, backtrace))]
+#[proc_macro_derive(Error, attributes(error, source, from, backtrace, app_error))]
 pub fn derive_error(tokens: TokenStream) -> TokenStream {
     let input = parse_macro_input!(tokens as DeriveInput);
     match expand(input) {
@@ -28,10 +29,12 @@ fn expand(input: DeriveInput) -> Result<proc_macro2::TokenStream, Error> {
     let display_impl = display::expand(&parsed)?;
     let error_impl = error_trait::expand(&parsed)?;
     let from_impls = from_impl::expand(&parsed)?;
+    let app_error_impls = app_error_impl::expand(&parsed)?;
 
     Ok(quote! {
         #display_impl
         #error_impl
         #(#from_impls)*
+        #(#app_error_impls)*
     })
 }

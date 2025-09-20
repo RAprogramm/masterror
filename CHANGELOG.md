@@ -3,6 +3,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.7.0] - 2025-10-13
+
+### Added
+- Recognised `#[app_error(...)]` on derived structs and enum variants, capturing
+  the mapped `AppErrorKind`, optional `AppCode` and whether the formatted
+  `Display` output should become the public message.
+- Generated `From<Error>` implementations that construct `masterror::AppError`
+  (and, when requested, `AppCode`) by matching on enum variants and invoking
+  `AppError::with`/`AppError::bare`.
+
+### Tests
+- Introduced trybuild fixtures covering successful struct/enum conversions and
+  compile failures for missing metadata, including message propagation checks in
+  the passing cases.
+
+### Documentation
+- Documented the `#[app_error(...)]` attribute in the README, outlining the
+  struct and enum mapping patterns and the `message` flag behaviour.
+
 ## [0.6.5] - 2025-10-12
 
 ### Added
