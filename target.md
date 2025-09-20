@@ -42,3 +42,41 @@ MSRV/скорость компиляции
 MSRV = актуальный LTS/твоя корпоративная, без «танцев» в макросе.
 
 Меньше генерируемого кода: без дублирующих From/Display там, где можно обойтись общими трейтом-адаптерами.
+
+---
+
+Реализация: план работ
+
+core
+
+Трейты MasterError, ErrorCategory, Context, итератор chain(), Report для красивого вывода.
+
+Фичи: backtrace, serde, anyhow, miette.
+
+derive
+
+Парсер атрибутов (только syn/quote).
+
+Проверки: единственный #[source]; запрет transparent вместе с кастомным #[error("…")]; обязательность #[code(..)].
+
+Генерация Display с match, без промежуточных String.
+
+интеграции
+
+impl From<T> for E только по явному #[from].
+
+Into<anyhow::Error> по фиче: сохраняем code/domain в anyhow::Context через newtype-адаптер и downcast_ref.
+
+UX-инструменты
+
+err! и bail! макросы, которые не плодят типы, а создают твой enum? Нет. Оставь это anyhow. Дай макрос ensure!(cond, MyError::X { … }) как удобство, но без магии.
+
+#[deny(masterror::missing_code)] внутренняя диагностическая либа на базе rustc lints через proc_macro_diagnostic для ранней обратной связи.
+
+Документация и примеры
+
+Cookbook: «миграция с thiserror за 15 минут».
+
+Пример с Axum: маппинг на HTTP-статусы по category() и логирование кода/домена.
+
+Выход на прод: чек-лист
