@@ -3,9 +3,3 @@ error: placeholder spanning bytes 0..11 uses an unsupported formatter
   |
 4 | #[error("{value:##x}")]
   |         ^^^^^^^^^^^^^
-
-error: missing #[error(...)] attribute
- --> tests/ui/formatter/fail/unsupported_flag.rs:5:8
-  |
-5 | struct UnsupportedFlag {
-  |        ^^^^^^^^^^^^^^^

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use masterror_template::template::{TemplateFormatter, TemplateFormatterKind};
 use proc_macro2::{Ident, Literal, Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned};
-use syn::{Error, spanned::Spanned};
+use syn::Error;
 
 use crate::{
     input::{
@@ -42,9 +42,7 @@ fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, E
         }
         DisplaySpec::FormatterPath {
             path, ..
-        } => {
-            return Err(Error::new(path.span(), "`fmt = ...` is not supported yet"));
-        }
+        } => render_struct_formatter_path(&data.fields, path)
     };
 
     let ident = &input.ident;
@@ -93,6 +91,26 @@ fn render_struct_transparent(fields: &Fields) -> TokenStream {
     }
 }
 
+fn struct_formatter_arguments(fields: &Fields) -> Vec<TokenStream> {
+    match fields {
+        Fields::Unit => Vec::new(),
+        Fields::Named(fields) | Fields::Unnamed(fields) => fields
+            .iter()
+            .map(|field| {
+                let member = &field.member;
+                quote!(&self.#member)
+            })
+            .collect()
+    }
+}
+
+fn formatter_path_call(path: &syn::ExprPath, mut args: Vec<TokenStream>) -> TokenStream {
+    args.push(quote!(f));
+    quote! {
+        #path(#(#args),*)
+    }
+}
+
 fn render_variant(variant: &VariantData) -> Result<TokenStream, Error> {
     match &variant.display {
         DisplaySpec::Transparent {
@@ -105,8 +123,13 @@ fn render_variant(variant: &VariantData) -> Result<TokenStream, Error> {
         } => render_variant_template(variant, template, Some(args)),
         DisplaySpec::FormatterPath {
             path, ..
-        } => Err(Error::new(path.span(), "`fmt = ...` is not supported yet"))
+        } => render_variant_formatter_path(variant, path)
     }
+}
+
+fn render_struct_formatter_path(fields: &Fields, path: &syn::ExprPath) -> TokenStream {
+    let args = struct_formatter_arguments(fields);
+    formatter_path_call(path, args)
 }
 
 #[derive(Debug)]
@@ -277,6 +300,47 @@ fn render_variant_transparent(variant: &VariantData) -> Result<TokenStream, Erro
             })
         }
     }
+}
+
+fn render_variant_formatter_path(
+    variant: &VariantData,
+    path: &syn::ExprPath
+) -> Result<TokenStream, Error> {
+    let variant_ident = &variant.ident;
+    match &variant.fields {
+        Fields::Unit => {
+            let call = formatter_path_call(path, Vec::new());
+            Ok(quote! {
+                Self::#variant_ident => {
+                    #call
+                }
+            })
+        }
+        Fields::Unnamed(fields) => {
+            let bindings: Vec<_> = fields.iter().map(binding_ident).collect();
+            let pattern = quote!(Self::#variant_ident(#(#bindings),*));
+            let call = formatter_path_call(path, variant_formatter_arguments(&bindings));
+            Ok(quote! {
+                #pattern => {
+                    #call
+                }
+            })
+        }
+        Fields::Named(fields) => {
+            let bindings: Vec<_> = fields.iter().map(binding_ident).collect();
+            let pattern = quote!(Self::#variant_ident { #(#bindings),* });
+            let call = formatter_path_call(path, variant_formatter_arguments(&bindings));
+            Ok(quote! {
+                #pattern => {
+                    #call
+                }
+            })
+        }
+    }
+}
+
+fn variant_formatter_arguments(bindings: &[Ident]) -> Vec<TokenStream> {
+    bindings.iter().map(|binding| quote!(#binding)).collect()
 }
 
 fn render_variant_template(
