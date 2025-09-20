@@ -202,7 +202,7 @@ pub(super) fn parse_formatter_spec(spec: &str) -> Option<TemplateFormatter> {
         }
     }
 
-    if trimmed.contains('#') {
+    if !display_allows_hash(trimmed) {
         return None;
     }
 
@@ -253,6 +253,26 @@ fn detect_alternate_flag(prefix: &str) -> Option<bool> {
             }
             _ => return Some(false)
         }
+    }
+}
+
+fn display_allows_hash(spec: &str) -> bool {
+    match spec.find('#') {
+        None => true,
+        Some(0) => {
+            let mut chars = spec.chars();
+            let _ = chars.next();
+            let Some(align) = chars.next() else {
+                return false;
+            };
+
+            if !matches!(align, '<' | '>' | '^' | '=') {
+                return false;
+            }
+
+            chars.all(|ch| ch != '#')
+        }
+        Some(_) => false
     }
 }
 
@@ -485,8 +505,8 @@ mod tests {
         let cases = [
             "{value:}",
             "{value:#}",
+            "{value:#4}",
             "{value:>8q}",
-            "{value:#>}",
             "{value:##x}"
         ];
 
@@ -503,7 +523,9 @@ mod tests {
         let cases = [
             ("{value:>8}", ">8"),
             ("{value:.3}", ".3"),
-            ("{value:*<10}", "*<10")
+            ("{value:*<10}", "*<10"),
+            ("{value:#>4}", "#>4"),
+            ("{value:#>+6}", "#>+6")
         ];
 
         for (source, expected_spec) in cases {

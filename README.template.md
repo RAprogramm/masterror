@@ -368,8 +368,9 @@ assert!(matches!(
 assert!(pretty_debug.is_alternate());
 ~~~
 
-Display-only format specs (alignment, precision, fill) are preserved so you can
-forward them to `write!` without rebuilding the fragment:
+Display-only format specs (alignment, precision, fill — including `#` as a fill
+character) are preserved so you can forward them to `write!` without rebuilding
+the fragment:
 
 ~~~rust
 use masterror::error::template::ErrorTemplate;
@@ -383,6 +384,20 @@ assert_eq!(
         .format_fragment()
         .as_deref(),
     Some(">8")
+);
+
+let hashed = ErrorTemplate::parse("{value:#>4}").expect("parse");
+let hash_placeholder = hashed
+    .placeholders()
+    .next()
+    .expect("hash-fill display placeholder");
+assert_eq!(hash_placeholder.formatter().display_spec(), Some("#>4"));
+assert_eq!(
+    hash_placeholder
+        .formatter()
+        .format_fragment()
+        .as_deref(),
+    Some("#>4")
 );
 ~~~
 

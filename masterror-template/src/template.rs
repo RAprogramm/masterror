@@ -832,6 +832,24 @@ mod tests {
     }
 
     #[test]
+    fn preserves_hash_fill_display_specs() {
+        let template = ErrorTemplate::parse("{value:#>4}").expect("parse");
+        let placeholder = template.placeholders().next().expect("placeholder present");
+
+        assert_eq!(placeholder.formatter().display_spec(), Some("#>4"));
+        assert_eq!(
+            placeholder.formatter().format_fragment().as_deref(),
+            Some("#>4")
+        );
+
+        let expected = TemplateFormatter::Display {
+            spec: Some("#>4".into())
+        };
+
+        assert_eq!(placeholder.formatter(), &expected);
+    }
+
+    #[test]
     fn formatter_kind_helpers_cover_all_variants() {
         let table = [
             (TemplateFormatterKind::Debug, '?'),
