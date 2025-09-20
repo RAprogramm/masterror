@@ -1,0 +1,75 @@
+[package]
+name = "telegram-webapp-sdk"
+version = "0.2.0"
+rust-version = "1.89"
+edition = "2024"
+description = "Telegram WebApp SDK for Rust"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/RAprogramm/telegram-webapp-sdk"
+readme = "README.md"
+documentation = "https://docs.rs/telegram-webapp-sdk"
+keywords = ["telegram", "webapp", "wasm"]
+categories = ["web-programming", "wasm"]
+
+[workspace.package]
+rust-version = "1.89"
+
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde-wasm-bindgen = "0.6"
+serde_urlencoded = "0.7"
+once_cell = "1.21"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+  "Event",
+  "Window",
+  "Document",
+  "Element",
+  "HtmlElement",
+  "console",
+  "Location",
+  "CssStyleDeclaration",
+] }
+hmac-sha256 = "1"
+hex = "0.4"
+percent-encoding = "2"
+base64 = "0.22"
+ed25519-dalek = "2"
+thiserror = "2"
+masterror = { path = "..", version = "0.10.4", optional = true }
+urlencoding = { version = "2", optional = true }
+inventory = { version = "0.3", optional = true }
+toml = "0.8"
+
+[dependencies.yew]
+version = "0.21"
+optional = true
+default-features = false
+features = ["csr"]
+
+[dependencies.leptos]
+version = "0.8"
+optional = true
+default-features = false
+features = ["csr"]
+
+[features]
+default = []
+macros = ["dep:inventory"]
+yew = ["dep:yew"]
+leptos = ["dep:leptos"]
+mock = ["dep:urlencoding"]
+
+[workspace]
+members = ["demo"]
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+wasm-bindgen-futures = "0.4"

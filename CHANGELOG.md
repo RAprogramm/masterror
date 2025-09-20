@@ -3,6 +3,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.4] - 2025-10-24
+
+### Changed
+- Vendored `telegram-webapp-sdk` locally and patched it to use the workspace `masterror` implementation,
+  replacing the outdated crates.io release that depended on `masterror 0.3.5`.
+- Marked the SDK's `masterror` dependency optional so disabling the `telegram-webapp-sdk` feature no longer
+  pulls the crate transitively.
+
+### Build
+- Added a `[patch.crates-io]` override for `telegram-webapp-sdk` to ensure the workspace uses the vendored
+  source and derives against the current `masterror` APIs.
+
 ### Documentation
 - Described `#[provide]` telemetry providers and `#[app_error]` conversions with
   end-to-end examples in the derive guide ([README](README.md#structured-telemetry-providers-and-apperror-mappings),
