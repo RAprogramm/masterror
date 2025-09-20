@@ -1527,7 +1527,7 @@ dependencies = [
 
 [[package]]
 name = "masterror"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "actix-web",
  "axum",
@@ -1557,7 +1557,7 @@ dependencies = [
 
 [[package]]
 name = "masterror-derive"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "masterror-template",
  "proc-macro2",

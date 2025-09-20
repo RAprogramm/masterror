@@ -150,6 +150,47 @@ enum EnumWithBacktrace {
     Unit
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct TelemetrySnapshot {
+    name:  &'static str,
+    value: u64
+}
+
+#[derive(Debug, Error)]
+#[error("structured telemetry {snapshot:?}")]
+struct StructuredTelemetryError {
+    #[provide(ref = TelemetrySnapshot, value = TelemetrySnapshot)]
+    snapshot: TelemetrySnapshot
+}
+
+#[derive(Debug, Error)]
+#[error("optional telemetry {telemetry:?}")]
+struct OptionalTelemetryError {
+    #[provide(ref = TelemetrySnapshot)]
+    telemetry: Option<TelemetrySnapshot>
+}
+
+#[derive(Debug, Error)]
+#[error("optional owned telemetry {telemetry:?}")]
+struct OptionalOwnedTelemetryError {
+    #[provide(value = TelemetrySnapshot)]
+    telemetry: Option<TelemetrySnapshot>
+}
+
+#[derive(Debug, Error)]
+enum EnumTelemetryError {
+    #[error("named {label}")]
+    Named {
+        label:    &'static str,
+        #[provide(ref = TelemetrySnapshot)]
+        snapshot: TelemetrySnapshot
+    },
+    #[error("optional tuple")]
+    Optional(#[provide(ref = TelemetrySnapshot)] Option<TelemetrySnapshot>),
+    #[error("owned tuple")]
+    Owned(#[provide(value = TelemetrySnapshot)] TelemetrySnapshot)
+}
+
 #[derive(Debug, Error)]
 #[error("{source:?}")]
 struct DelegatedBacktraceFromSource {
@@ -347,6 +388,97 @@ fn assert_backtrace_interfaces<E>(_error: &E, _expected: &std::backtrace::Backtr
 where
     E: StdError + ?Sized
 {
+}
+
+#[cfg(error_generic_member_access)]
+#[test]
+fn struct_provides_custom_telemetry() {
+    let telemetry = TelemetrySnapshot {
+        name:  "job",
+        value: 7
+    };
+    let err = StructuredTelemetryError {
+        snapshot: telemetry.clone()
+    };
+
+    let provided_ref =
+        std::error::request_ref::<TelemetrySnapshot>(&err).expect("telemetry reference");
+    assert!(ptr::eq(provided_ref, &err.snapshot));
+
+    let provided_value =
+        std::error::request_value::<TelemetrySnapshot>(&err).expect("telemetry value");
+    assert_eq!(provided_value, telemetry);
+}
+
+#[cfg(error_generic_member_access)]
+#[test]
+fn option_telemetry_only_provided_when_present() {
+    let snapshot = TelemetrySnapshot {
+        name:  "task",
+        value: 13
+    };
+
+    let with_value = OptionalTelemetryError {
+        telemetry: Some(snapshot.clone())
+    };
+    let provided =
+        std::error::request_ref::<TelemetrySnapshot>(&with_value).expect("optional telemetry");
+    let inner = with_value.telemetry.as_ref().expect("inner telemetry");
+    assert!(ptr::eq(provided, inner));
+
+    let without = OptionalTelemetryError {
+        telemetry: None
+    };
+    assert!(std::error::request_ref::<TelemetrySnapshot>(&without).is_none());
+
+    let owned_value = OptionalOwnedTelemetryError {
+        telemetry: Some(snapshot.clone())
+    };
+    let provided_owned =
+        std::error::request_value::<TelemetrySnapshot>(&owned_value).expect("owned telemetry");
+    assert_eq!(provided_owned, snapshot);
+
+    let owned_none = OptionalOwnedTelemetryError {
+        telemetry: None
+    };
+    assert!(std::error::request_value::<TelemetrySnapshot>(&owned_none).is_none());
+}
+
+#[cfg(error_generic_member_access)]
+#[test]
+fn enum_variants_provide_custom_telemetry() {
+    let named_snapshot = TelemetrySnapshot {
+        name:  "span",
+        value: 21
+    };
+
+    let named = EnumTelemetryError::Named {
+        label:    "named",
+        snapshot: named_snapshot.clone()
+    };
+    let provided_named =
+        std::error::request_ref::<TelemetrySnapshot>(&named).expect("named telemetry");
+    if let EnumTelemetryError::Named {
+        snapshot, ..
+    } = &named
+    {
+        assert!(ptr::eq(provided_named, snapshot));
+    }
+
+    let optional = EnumTelemetryError::Optional(Some(named_snapshot.clone()));
+    let provided_optional =
+        std::error::request_ref::<TelemetrySnapshot>(&optional).expect("optional telemetry");
+    if let EnumTelemetryError::Optional(Some(snapshot)) = &optional {
+        assert!(ptr::eq(provided_optional, snapshot));
+    }
+
+    let optional_none = EnumTelemetryError::Optional(None);
+    assert!(std::error::request_ref::<TelemetrySnapshot>(&optional_none).is_none());
+
+    let owned = EnumTelemetryError::Owned(named_snapshot.clone());
+    let provided_owned =
+        std::error::request_value::<TelemetrySnapshot>(&owned).expect("owned telemetry");
+    assert_eq!(provided_owned, named_snapshot);
 }
 
 #[test]

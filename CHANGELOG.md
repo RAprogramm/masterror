@@ -3,6 +3,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.8.0] - 2025-10-14
+
+### Added
+- Recognised `#[provide(ref = ..., value = ...)]` on struct and enum fields,
+  allowing derived errors to surface domain telemetry through
+  `std::error::Request` alongside backtraces.
+
+### Changed
+- `masterror-derive` now generates `provide` implementations whenever custom
+  telemetry is requested, forwarding `Request` values to sources and invoking
+  `provide_ref`/`provide_value` with proper `Option` handling.
+
+### Tests
+- Extended the `error_derive` integration suite with regressions covering
+  telemetry provided by structs, tuple variants and optional fields, including
+  both reference and owned payloads.
+
+### Documentation
+- Documented the `#[provide(...)]` attribute in the README with examples showing
+  reference and owned telemetry as well as optional fields.
+
 ## [0.7.0] - 2025-10-13
 
 ### Added
