@@ -28,9 +28,9 @@
 ~~~toml
 [dependencies]
 # минимальное ядро
-masterror = { version = "0.5.15", default-features = false }
+masterror = { version = "0.10.3", default-features = false }
 # или с нужными интеграциями
-# masterror = { version = "0.5.15", features = [
+# masterror = { version = "0.10.3", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -78,6 +78,106 @@ fn do_work(flag: bool) -> AppResult<()> {
 - `telegram-webapp-sdk` — обработка ошибок валидации данных Telegram WebApp.
 - `frontend` — логирование в браузере и преобразование в `JsValue` для WASM.
 - `turnkey` — расширение таксономии для Turnkey SDK.
+
+## Атрибуты `#[provide]` и `#[app_error]`
+
+Атрибут `#[provide(...)]` позволяет передавать структурированную телеметрию через
+`std::error::Request`, а `#[app_error(...)]` описывает прямой маппинг доменной
+ошибки в `AppError` и `AppCode`. Дерив сохраняет синтаксис `thiserror`, но
+дополняет его провайдерами телеметрии и готовыми конверсиями в типы `masterror`.
+
+~~~rust
+use std::error::request_ref;
+
+use masterror::{AppCode, AppError, AppErrorKind, Error};
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct TelemetrySnapshot {
+    name:  &'static str,
+    value: u64,
+}
+
+#[derive(Debug, Error)]
+#[error("structured telemetry {snapshot:?}")]
+#[app_error(kind = AppErrorKind::Service, code = AppCode::Service)]
+struct StructuredTelemetryError {
+    #[provide(ref = TelemetrySnapshot, value = TelemetrySnapshot)]
+    snapshot: TelemetrySnapshot,
+}
+
+let err = StructuredTelemetryError {
+    snapshot: TelemetrySnapshot {
+        name: "db.query",
+        value: 42,
+    },
+};
+
+let snapshot = request_ref::<TelemetrySnapshot>(&err).expect("telemetry");
+assert_eq!(snapshot.value, 42);
+
+let app: AppError = err.into();
+let via_app = request_ref::<TelemetrySnapshot>(&app).expect("telemetry");
+assert_eq!(via_app.name, "db.query");
+~~~
+
+Опциональные поля автоматически пропускаются, если значения нет. При запросе
+значения `Option<T>` можно вернуть как по ссылке, так и передать владение:
+
+~~~rust
+use masterror::{AppCode, AppErrorKind, Error};
+
+#[derive(Debug, Error)]
+#[error("optional telemetry {telemetry:?}")]
+#[app_error(kind = AppErrorKind::Internal, code = AppCode::Internal)]
+struct OptionalTelemetryError {
+    #[provide(ref = TelemetrySnapshot, value = TelemetrySnapshot)]
+    telemetry: Option<TelemetrySnapshot>,
+}
+
+let noisy = OptionalTelemetryError {
+    telemetry: Some(TelemetrySnapshot {
+        name: "queue.depth",
+        value: 17,
+    }),
+};
+let silent = OptionalTelemetryError { telemetry: None };
+
+assert!(request_ref::<TelemetrySnapshot>(&noisy).is_some());
+assert!(request_ref::<TelemetrySnapshot>(&silent).is_none());
+~~~
+
+Для перечислений каждая ветка может задавать собственную телеметрию и
+конверсию. Дерив сгенерирует единый `From<Enum>` для `AppError`/`AppCode`:
+
+~~~rust
+#[derive(Debug, Error)]
+enum EnumTelemetryError {
+    #[error("named {label}")]
+    #[app_error(kind = AppErrorKind::NotFound, code = AppCode::NotFound)]
+    Named {
+        label:    &'static str,
+        #[provide(ref = TelemetrySnapshot)]
+        snapshot: TelemetrySnapshot,
+    },
+    #[error("optional tuple")]
+    #[app_error(kind = AppErrorKind::Timeout, code = AppCode::Timeout)]
+    Optional(#[provide(ref = TelemetrySnapshot)] Option<TelemetrySnapshot>),
+    #[error("owned tuple")]
+    #[app_error(kind = AppErrorKind::Service, code = AppCode::Service)]
+    Owned(#[provide(value = TelemetrySnapshot)] TelemetrySnapshot),
+}
+
+let owned = EnumTelemetryError::Owned(TelemetrySnapshot {
+    name: "redis.latency",
+    value: 3,
+});
+let app: AppError = owned.into();
+assert!(matches!(app.kind, AppErrorKind::Service));
+~~~
+
+В отличие от `thiserror`, вы получаете дополнительную структурированную
+информацию и прямой маппинг в `AppError`/`AppCode` без ручных реализаций
+`From`.
 
 ## Форматирование шаблонов `#[error]`
 

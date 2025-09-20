@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Documentation
+- Described `#[provide]` telemetry providers and `#[app_error]` conversions with
+  end-to-end examples in the derive guide ([README](README.md#structured-telemetry-providers-and-apperror-mappings),
+  [README.ru](README.ru.md#%D0%B0%D1%82%D1%80%D0%B8%D0%B1%D1%83%D1%82%D1%8B-provide-%D0%B8-apperror)).
+
 ## [0.10.2] - 2025-10-23
 
 ### Added
