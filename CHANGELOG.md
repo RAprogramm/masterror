@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 
 ## [0.10.7] - 2025-10-24
 
+### Fixed
+- Published the shared template parser crate so `masterror-derive` no longer
+  depends on a workspace-only package when uploaded to crates.io.
+
+### Documentation
+- Added a dedicated README for `masterror-template` describing installation,
+  parsing examples and formatter metadata for crates.io readers.
 ### Tests
 - Added regression coverage for long classifier needles to exercise the
   heap-allocation fallback.
@@ -16,6 +23,8 @@ All notable changes to this project will be documented in this file.
  - Precomputed lowercase Turnkey classifier needles with a stack-backed buffer
   to remove repeated transformations while keeping the common zero-allocation
   path for short patterns.
+- Bumped `masterror-derive` to `0.6.6` and `masterror-template` to `0.3.6` so
+  downstream users rely on the newly published parser crate.
 
 
 ## [0.10.6] - 2025-09-21
@@ -167,6 +176,12 @@ All notable changes to this project will be documented in this file.
 ### Documentation
 - Documented the `#[app_error(...)]` attribute in the README, outlining the
   struct and enum mapping patterns and the `message` flag behaviour.
+
+## [0.6.6] - 2025-10-24
+
+### Fixed
+- Pointed the derive crate at the published `masterror-template` dependency so
+  `cargo publish` succeeds without private workspace patches.
 
 ## [0.6.5] - 2025-10-12
 
@@ -465,6 +480,15 @@ All notable changes to this project will be documented in this file.
 ### Documentation
 - Documented browser/WASM support and console logging workflow in the README and crate docs.
 
+## [0.3.6] - 2025-10-24
+
+### Added
+- Wrote a README for crates.io explaining installation and parser usage.
+
+### Fixed
+- Removed the `publish = false` flag so the shared template parser can be
+  released alongside the derive crate.
+
 ## [0.3.5] - 2025-09-12
 ### Added
 - Conversion from `teloxide_core::RequestError` into `AppError` (feature `teloxide`).
@@ -565,10 +589,19 @@ All notable changes to this project will be documented in this file.
 - **MSRV:** 1.89
 - **No unsafe:** the crate forbids `unsafe`.
 
+[0.10.7]: https://github.com/RAprogramm/masterror/releases/tag/v0.10.7
+[0.10.6]: https://github.com/RAprogramm/masterror/releases/tag/v0.10.6
+[0.6.6]: https://github.com/RAprogramm/masterror/releases/tag/v0.6.6
+[0.6.5]: https://github.com/RAprogramm/masterror/releases/tag/v0.6.5
+[0.6.4]: https://github.com/RAprogramm/masterror/releases/tag/v0.6.4
+[0.6.3]: https://github.com/RAprogramm/masterror/releases/tag/v0.6.3
+[0.6.2]: https://github.com/RAprogramm/masterror/releases/tag/v0.6.2
+[0.6.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.6.0
 [0.5.2]: https://github.com/RAprogramm/masterror/releases/tag/v0.5.2
 [0.5.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.5.1
 [0.5.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.5.0
 [0.4.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.4.0
+[0.3.6]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.6
 [0.3.5]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.5
 [0.3.4]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.4
 [0.3.3]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.3
