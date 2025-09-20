@@ -267,6 +267,16 @@ struct MixedNamedPositionalArgsError {
 }
 
 #[derive(Debug, Error)]
+#[error("{value}", value = .value)]
+struct FieldShortcutError {
+    value: &'static str
+}
+
+#[derive(Debug, Error)]
+#[error("{}, {}", .0, .1)]
+struct TupleShortcutError(&'static str, &'static str);
+
+#[derive(Debug, Error)]
 #[error("{value}")]
 struct DisplayFormatterError {
     value: &'static str
@@ -410,6 +420,20 @@ fn mixed_named_and_positional_indices_resolve() {
         value: "item"
     };
     assert_eq!(err.to_string(), "item::tag");
+}
+
+#[test]
+fn field_shorthand_arguments_use_struct_fields() {
+    let err = FieldShortcutError {
+        value: "shortcut"
+    };
+    assert_eq!(err.to_string(), "shortcut");
+}
+
+#[test]
+fn tuple_shorthand_arguments_resolve_positions() {
+    let err = TupleShortcutError("first", "second");
+    assert_eq!(err.to_string(), "first, second");
 }
 
 #[test]

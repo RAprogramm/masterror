@@ -1,10 +1,9 @@
 use std::collections::HashSet;
 
-use proc_macro2::{Span, TokenStream};
-use quote::{ToTokens, quote};
+use proc_macro2::Span;
 use syn::{
     Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Expr, ExprPath, Field as SynField,
-    Fields as SynFields, GenericArgument, Ident, LitStr, Token,
+    Fields as SynFields, GenericArgument, Ident, LitInt, LitStr, Token,
     parse::{Parse, ParseStream},
     spanned::Spanned
 };
@@ -327,10 +326,23 @@ pub struct FormatArgsSpec {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct FormatArg {
-    pub tokens: TokenStream,
-    pub expr:   Expr,
-    pub kind:   FormatBindingKind,
-    pub span:   Span
+    pub value: FormatArgValue,
+    pub kind:  FormatBindingKind,
+    pub span:  Span
+}
+
+#[allow(dead_code)]
+#[derive(Debug)]
+pub enum FormatArgValue {
+    Expr(Expr),
+    Shorthand(FormatArgShorthand)
+}
+
+#[allow(dead_code)]
+#[derive(Debug)]
+pub enum FormatArgShorthand {
+    Named(Ident),
+    Positional { index: usize, span: Span }
 }
 
 #[allow(dead_code)]
@@ -588,7 +600,7 @@ fn parse_format_args(input: ParseStream) -> Result<FormatArgsSpec, Error> {
         match raw {
             RawFormatArg::Named {
                 ident,
-                expr,
+                value,
                 span
             } => {
                 let name_key = ident.to_string();
@@ -599,24 +611,20 @@ fn parse_format_args(input: ParseStream) -> Result<FormatArgsSpec, Error> {
                     ));
                 }
 
-                let tokens = quote!(#ident = #expr);
                 args.args.push(FormatArg {
-                    tokens,
-                    expr,
+                    value,
                     kind: FormatBindingKind::Named(ident),
                     span
                 });
             }
             RawFormatArg::Positional {
-                expr,
+                value,
                 span
             } => {
                 let index = positional_index;
                 positional_index += 1;
-                let tokens = expr.to_token_stream();
                 args.args.push(FormatArg {
-                    tokens,
-                    expr,
+                    value,
                     kind: FormatBindingKind::Positional(index),
                     span
                 });
@@ -630,12 +638,12 @@ fn parse_format_args(input: ParseStream) -> Result<FormatArgsSpec, Error> {
 enum RawFormatArg {
     Named {
         ident: Ident,
-        expr:  Expr,
+        value: FormatArgValue,
         span:  Span
     },
     Positional {
-        expr: Expr,
-        span: Span
+        value: FormatArgValue,
+        span:  Span
     }
 }
 
@@ -644,24 +652,61 @@ impl Parse for RawFormatArg {
         if input.peek(Ident) && input.peek2(Token![=]) {
             let ident: Ident = input.parse()?;
             input.parse::<Token![=]>()?;
-            let expr: Expr = input.parse()?;
+            let value = parse_format_arg_value(input)?;
+            let value_span = format_arg_value_span(&value);
             let span = ident
                 .span()
-                .join(expr.span())
+                .join(value_span)
                 .unwrap_or_else(|| ident.span());
             Ok(Self::Named {
                 ident,
-                expr,
+                value,
                 span
             })
         } else {
-            let expr: Expr = input.parse()?;
-            let span = expr.span();
+            let value = parse_format_arg_value(input)?;
+            let span = format_arg_value_span(&value);
             Ok(Self::Positional {
-                expr,
+                value,
                 span
             })
         }
+    }
+}
+
+fn parse_format_arg_value(input: ParseStream) -> syn::Result<FormatArgValue> {
+    if input.peek(Token![.]) {
+        let dot: Token![.] = input.parse()?;
+
+        if input.peek(Ident) {
+            let ident: Ident = input.parse()?;
+            Ok(FormatArgValue::Shorthand(FormatArgShorthand::Named(ident)))
+        } else if input.peek(LitInt) {
+            let literal: LitInt = input.parse()?;
+            let index = literal.base10_parse::<usize>()?;
+            Ok(FormatArgValue::Shorthand(FormatArgShorthand::Positional {
+                index,
+                span: literal.span()
+            }))
+        } else {
+            Err(syn::Error::new(
+                dot.span,
+                "expected field name or index after `.`"
+            ))
+        }
+    } else {
+        let expr: Expr = input.parse()?;
+        Ok(FormatArgValue::Expr(expr))
+    }
+}
+
+fn format_arg_value_span(value: &FormatArgValue) -> Span {
+    match value {
+        FormatArgValue::Expr(expr) => expr.span(),
+        FormatArgValue::Shorthand(FormatArgShorthand::Named(ident)) => ident.span(),
+        FormatArgValue::Shorthand(FormatArgShorthand::Positional {
+            span, ..
+        }) => *span
     }
 }
 
