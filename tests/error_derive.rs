@@ -151,6 +151,23 @@ enum EnumWithBacktrace {
 }
 
 #[derive(Debug, Error)]
+#[error("{source:?}")]
+struct DelegatedBacktraceFromSource {
+    #[from]
+    #[source]
+    #[backtrace]
+    source: StructWithBacktrace
+}
+
+#[derive(Debug, Error)]
+#[error("{source:?}")]
+struct OptionalDelegatedBacktrace {
+    #[source]
+    #[backtrace]
+    source: Option<StructWithBacktrace>
+}
+
+#[derive(Debug, Error)]
 #[error("auto {source}")]
 struct AutoSourceStruct {
     source: LeafError
@@ -214,6 +231,50 @@ struct FormatterDebugShowcase {
     value: PrettyDebugValue,
     tuple: (&'static str, u8)
 }
+
+#[derive(Debug, Error)]
+#[error("{formatted}", formatted = self.message.to_uppercase())]
+struct FormatArgExpressionError {
+    message: &'static str
+}
+
+#[derive(Debug, Error)]
+#[error("{}, {label}, {}", label = self.label, self.first, self.second)]
+struct MixedImplicitArgsError {
+    label:  &'static str,
+    first:  &'static str,
+    second: &'static str
+}
+
+#[derive(Debug, Error)]
+enum FormatArgEnum {
+    #[error("{detail}", detail = detail.to_uppercase())]
+    Upper { detail: String }
+}
+
+#[derive(Debug, Error)]
+#[error("{1}::{0}", self.first, self.second)]
+struct ExplicitIndexArgsError {
+    first:  &'static str,
+    second: &'static str
+}
+
+#[derive(Debug, Error)]
+#[error("{0}::{label}", label = self.label, self.value)]
+struct MixedNamedPositionalArgsError {
+    label: &'static str,
+    value: &'static str
+}
+
+#[derive(Debug, Error)]
+#[error("{value}", value = .value)]
+struct FieldShortcutError {
+    value: &'static str
+}
+
+#[derive(Debug, Error)]
+#[error("{}, {}", .0, .1)]
+struct TupleShortcutError(&'static str, &'static str);
 
 #[derive(Debug, Error)]
 #[error("{value}")]
@@ -323,6 +384,64 @@ fn enum_variants_cover_display_and_source() {
     let pair = EnumError::Pair("left".into(), LeafError);
     assert!(pair.to_string().starts_with("left"));
     assert_eq!(StdError::source(&pair).unwrap().to_string(), "leaf failure");
+}
+
+#[test]
+fn named_format_arg_expression_is_used() {
+    let err = FormatArgExpressionError {
+        message: "value"
+    };
+    assert_eq!(err.to_string(), "VALUE");
+}
+
+#[test]
+fn implicit_format_args_follow_positional_ordering() {
+    let err = MixedImplicitArgsError {
+        label:  "tag",
+        first:  "one",
+        second: "two"
+    };
+    assert_eq!(err.to_string(), "one, tag, two");
+}
+
+#[test]
+fn explicit_format_arg_indices_resolve() {
+    let err = ExplicitIndexArgsError {
+        first:  "left",
+        second: "right"
+    };
+    assert_eq!(err.to_string(), "right::left");
+}
+
+#[test]
+fn mixed_named_and_positional_indices_resolve() {
+    let err = MixedNamedPositionalArgsError {
+        label: "tag",
+        value: "item"
+    };
+    assert_eq!(err.to_string(), "item::tag");
+}
+
+#[test]
+fn field_shorthand_arguments_use_struct_fields() {
+    let err = FieldShortcutError {
+        value: "shortcut"
+    };
+    assert_eq!(err.to_string(), "shortcut");
+}
+
+#[test]
+fn tuple_shorthand_arguments_resolve_positions() {
+    let err = TupleShortcutError("first", "second");
+    assert_eq!(err.to_string(), "first, second");
+}
+
+#[test]
+fn enum_variant_format_args_resolve_bindings() {
+    let err = FormatArgEnum::Upper {
+        detail: String::from("variant")
+    };
+    assert_eq!(err.to_string(), "VARIANT");
 }
 
 #[test]
@@ -441,6 +560,44 @@ fn struct_backtrace_field_is_returned() {
     };
     assert_backtrace_interfaces(&err, &err.trace);
     assert!(StdError::source(&err).is_none());
+}
+
+#[test]
+fn struct_backtrace_attribute_on_source_delegates() {
+    let source = StructWithBacktrace {
+        trace: std::backtrace::Backtrace::capture()
+    };
+    let err = DelegatedBacktraceFromSource::from(source);
+    let inner = StdError::source(&err)
+        .and_then(|source| source.downcast_ref::<StructWithBacktrace>())
+        .expect("delegated source");
+    assert_backtrace_interfaces(&err, &inner.trace);
+}
+
+#[test]
+fn optional_source_backtrace_attribute_delegates() {
+    let err = OptionalDelegatedBacktrace {
+        source: Some(StructWithBacktrace {
+            trace: std::backtrace::Backtrace::capture()
+        })
+    };
+    let inner = StdError::source(&err)
+        .and_then(|source| source.downcast_ref::<StructWithBacktrace>())
+        .expect("optional delegated source");
+    assert_backtrace_interfaces(&err, &inner.trace);
+}
+
+#[test]
+fn optional_source_backtrace_absent_when_none() {
+    let err = OptionalDelegatedBacktrace {
+        source: None
+    };
+    assert!(StdError::source(&err).is_none());
+    #[cfg(error_generic_member_access)]
+    {
+        assert!(std::error::Error::backtrace(&err).is_none());
+        assert!(std::error::request_ref::<std::backtrace::Backtrace>(&err).is_none());
+    }
 }
 
 #[test]

@@ -3,8 +3,82 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.6.5] - 2025-10-12
+
 ### Added
-- _Nothing yet._
+- Accepted `.field` and `.0` shorthand expressions in `#[error("...")]` format
+  argument lists, resolving them against struct and variant fields without
+  moving the original values.
+
+### Changed
+- The format argument resolver now tracks whether it operates on a struct or a
+  destructured enum variant, allowing field shorthands to reuse local bindings
+  and honour pointer formatting requirements.
+
+### Tests
+- Added trybuild pass cases covering named, positional and implicit arguments,
+  formatter path handlers and the new field shorthand expressions.
+- Introduced compile-fail fixtures for duplicate argument names, mixing
+  implicit placeholders after explicitly indexed ones and combining
+  `transparent` with `fmt` handlers.
+- Extended the runtime `error_derive` suite with assertions exercising the
+  shorthand field accessors.
+
+## [0.6.4] - 2025-10-11
+
+### Added
+- Exposed an internal `provide` shim that mirrors `thiserror`'s
+  `ThiserrorProvide`, enabling derived errors to forward
+  `core::error::Request` values to their sources.
+
+### Changed
+- Allow `#[backtrace]` to be paired with `#[source]`/`#[from]` fields when the
+  field type implements `Error`, while retaining diagnostics for incompatible
+  non-source fields.
+- Track whether backtrace detection is explicit or inferred so generated
+  implementations avoid providing the same backtrace twice when delegating to
+  sources.
+- Update the generated `provide` methods to call `thiserror_provide` on source
+  fields before exposing the stored backtrace, ensuring delegated traces reach
+  callers.
+
+### Tests
+- Added regression tests covering direct and optional sources annotated with
+  `#[backtrace]`, validating delegated backtrace propagation and `None`
+  handling.
+
+## [0.6.3] - 2025-10-10
+
+### Added
+- Invoke custom `#[error(fmt = <path>)]` handlers for structs and enum variants,
+  borrowing fields and forwarding the formatter reference just like `thiserror`.
+
+### Changed
+- Ensure duplicate `fmt` attributes report a single diagnostic without
+  suppressing the derived display implementation.
+
+### Tests
+- Extend the formatter trybuild suite with success cases covering struct and
+  enum formatter paths.
+
+## [0.6.2] - 2025-10-09
+
+### Added
+- Resolve `#[error("...")]` format arguments when generating `Display`
+  implementations, supporting named bindings, explicit indices and implicit
+  placeholders via a shared argument environment.
+
+### Changed
+- Detect additional format arguments, implicit placeholders and non-`Display`
+  formatters in `render_template`, delegating complex cases to a single
+  `write!` invocation while retaining the lightweight `f.write_str` path for
+  literal-only templates. The helper that assembles format arguments now keeps
+  positional/implicit bindings ahead of named ones to satisfy the formatting
+  macro contract.
+
+### Tests
+- Cover named format argument expressions, implicit placeholder ordering and
+  enum variants using format arguments.
 
 ## [0.6.0] - 2025-10-08
 

@@ -187,6 +187,9 @@ mod code;
 mod convert;
 pub mod error;
 mod kind;
+#[cfg(error_generic_member_access)]
+#[doc(hidden)]
+pub mod provide;
 mod response;
 
 #[cfg(feature = "frontend")]
