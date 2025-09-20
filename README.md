@@ -709,4 +709,3 @@ MSRV = 1.90 (may raise in minor, never in patch).
 Apache-2.0 OR MIT, at your option.
 
 </details>
-
