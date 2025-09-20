@@ -3,6 +3,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.5] - 2025-09-20
+
+### Added
+- Re-exported `masterror-derive` macros from `masterror` so consumers only depend on a single crate while deriving application errors.
+
+### Changed
+- Published `masterror-derive` as a standalone crate (`0.6.1`) and configured the release workflow to publish it before `masterror` with retries and tag/MSRV validation.
+
 ### Documentation
 - Described `#[provide]` telemetry providers and `#[app_error]` conversions with
   end-to-end examples in the derive guide ([README](README.md#structured-telemetry-providers-and-apperror-mappings),

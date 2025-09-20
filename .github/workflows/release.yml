@@ -17,7 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Install a minimal Rust toolchain so that `cargo metadata` is available.
       - name: Install Rust (stable, minimal)
         uses: dtolnay/rust-toolchain@v1
         with:
@@ -50,7 +49,6 @@ jobs:
             echo "rust-version is not set for crate: ${CRATE_NAME}"
             exit 1
           fi
-          # Normalize X.Y to X.Y.0
           if [[ "$RV" =~ ^[0-9]+\.[0-9]+$ ]]; then
             RV="${RV}.0"
           fi
@@ -84,8 +82,49 @@ jobs:
         with:
           toolchain: ${{ steps.msrv.outputs.msrv }}
 
-      - name: Publish to crates.io
+      - name: Maybe publish masterror-derive
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: cargo +${{ steps.msrv.outputs.msrv }} publish --locked --token "$CARGO_REGISTRY_TOKEN"
+        shell: bash
+        run: |
+          set -euo pipefail
+          if cargo metadata --no-deps --format-version=1 \
+             | jq -e '.packages[] | select(.name=="masterror-derive" and .source==null)' >/dev/null; then
+            echo "Publishing masterror-derive..."
+            n=0
+            until [ $n -ge 5 ]
+            do
+              if cargo +${{ steps.msrv.outputs.msrv }} publish -p masterror-derive --locked --token "$CARGO_REGISTRY_TOKEN"; then
+                echo "masterror-derive published."
+                break
+              fi
+              n=$((n+1))
+              echo "Retry $n/5 for masterror-derive..."
+              sleep $((5*n))
+            done
+          else
+            echo "No local masterror-derive found; skipping."
+          fi
 
+      - name: Wait for crates.io index sync
+        run: sleep 15
+
+      - name: Publish masterror
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          n=0
+          until [ $n -ge 5 ]
+          do
+            if cargo +${{ steps.msrv.outputs.msrv }} publish -p masterror --locked --token "$CARGO_REGISTRY_TOKEN"; then
+              echo "masterror published."
+              exit 0
+            fi
+            n=$((n+1))
+            echo "Retry $n/5 for masterror..."
+            sleep $((10*n))
+          done
+          echo "Failed to publish masterror after retries."
+          exit 1
