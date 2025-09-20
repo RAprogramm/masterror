@@ -17,32 +17,65 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Read MSRV from Cargo.toml
-        id: msrv
+      # Install a minimal Rust toolchain so that `cargo metadata` is available.
+      - name: Install Rust (stable, minimal)
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+
+      - name: Ensure jq is available
         shell: bash
         run: |
           set -euo pipefail
           if ! command -v jq >/dev/null 2>&1; then
             sudo apt-get update -y && sudo apt-get install -y jq
           fi
-          RV=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].rust_version // empty')
-          if [ -z "$RV" ]; then
-            echo "rust-version is not set in Cargo.toml"
+
+      - name: Read MSRV from Cargo.toml (crate = masterror)
+        id: msrv
+        shell: bash
+        run: |
+          set -euo pipefail
+          CRATE_NAME="masterror"
+          RV="$(
+            cargo metadata --no-deps --format-version=1 |
+              jq -r --arg name "$CRATE_NAME" '
+                .packages[]
+                | select(.name == $name and .source == null)
+                | .rust_version // empty
+              ' | head -n1
+          )"
+          if [ -z "${RV:-}" ]; then
+            echo "rust-version is not set for crate: ${CRATE_NAME}"
             exit 1
           fi
+          # Normalize X.Y to X.Y.0
           if [[ "$RV" =~ ^[0-9]+\.[0-9]+$ ]]; then
             RV="${RV}.0"
           fi
           echo "msrv=${RV}" >> "$GITHUB_OUTPUT"
 
-      - name: Ensure tag matches Cargo.toml version
+      - name: Ensure tag matches Cargo.toml version (crate = masterror)
         shell: bash
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF#refs/tags/}"
-          FILE_VER=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')
+          CRATE_NAME="masterror"
+          FILE_VER="$(
+            cargo metadata --no-deps --format-version=1 |
+              jq -r --arg name "$CRATE_NAME" '
+                .packages[]
+                | select(.name == $name and .source == null)
+                | .version
+              ' | head -n1
+          )"
+          if [ -z "${FILE_VER:-}" ]; then
+            echo "Cannot determine version for crate: ${CRATE_NAME}"
+            exit 1
+          fi
           if [ "v${FILE_VER}" != "${TAG}" ]; then
-            echo "Tag ${TAG} != Cargo.toml version v${FILE_VER}"
+            echo "Tag ${TAG} != ${CRATE_NAME} version v${FILE_VER}"
             exit 1
           fi
 
@@ -55,3 +88,4 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: cargo +${{ steps.msrv.outputs.msrv }} publish --locked --token "$CARGO_REGISTRY_TOKEN"
+
