@@ -3,6 +3,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.10] - 2025-10-27
+
+### Fixed
+- Closed the `Web framework integrations` accordion so nested integration
+  sections expand and collapse independently without affecting neighbouring
+  details blocks.
+
+### Documentation
+- Regenerated the README from the updated template to keep the published
+  markup balanced.
+
 ## [0.10.9] - 2025-10-26
 
 ### Fixed
