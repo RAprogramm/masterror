@@ -3,6 +3,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.9] - 2025-10-26
+
+### Changed
+- Raised the documented MSRV to Rust 1.90 to match the `rust-version`
+  requirement.
+
+### Documentation
+- Regenerated the README from the template so installation snippets reflect the
+  new crate version and MSRV statement.
+
 ## [0.10.8] - 2025-10-25
 
 ### Fixed
