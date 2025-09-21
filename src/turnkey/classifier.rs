@@ -106,7 +106,7 @@ fn contains_any_nocase(haystack: &str, needles: &[&str]) -> bool {
 /// Converts ASCII letters to lowercase and leaves other bytes unchanged.
 #[inline]
 const fn ascii_lower(b: u8) -> u8 {
-    // ASCII-only fold without RangeInclusive to keep const-friendly on MSRV 1.89
+    // ASCII-only fold without RangeInclusive to keep const-friendly on MSRV 1.90
     if b >= b'A' && b <= b'Z' { b + 32 } else { b }
 }
 
