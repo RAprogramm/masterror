@@ -3,6 +3,40 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.11.0] - 2025-10-26
+
+### Changed
+- Updated `AppError::database` to accept `Option<Cow<'static, str>>`, allowing
+  bare `None` calls without type annotations, and added the helper
+  `AppError::database_with_message` for the common message-bearing path.
+
+### Documentation
+- Refreshed the `AppError::database` docs to illustrate the new constructor
+  behavior and helper usage.
+
+### Tests
+- Expanded database constructor tests to cover both the helper and bare `None`
+  scenario.
+
+## [0.10.9] - 2025-10-26
+
+### Fixed
+- Tightened Turnkey rate-limit heuristics to require explicit phrases while
+  preserving stack-backed searches for short ASCII patterns, preventing matches
+  on unrelated words such as "corporate".
+
+### Tests
+- Added regression coverage to ensure corporate network outages and operational
+  failure rates classify as network/service issues rather than rate limits.
+  
+### Changed
+- Raised the documented MSRV to Rust 1.90 to match the `rust-version`
+  requirement.
+
+### Documentation
+- Regenerated the README from the template so installation snippets reflect the
+  new crate version and MSRV statement.
+
 ## [0.10.8] - 2025-10-25
 
 ### Fixed

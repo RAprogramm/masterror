@@ -29,9 +29,9 @@ Stable categories, conservative HTTP mapping, no `unsafe`.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.10.8", default-features = false }
+masterror = { version = "0.11.0", default-features = false }
 # or with features:
-# masterror = { version = "0.10.8", features = [
+# masterror = { version = "0.11.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -66,10 +66,11 @@ masterror = { version = "0.10.8", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.10.8", default-features = false }
+masterror = { version = "0.11.0", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.10.8", features = [
+# masterror = { version = "0.11.0", features = [
+
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -378,7 +379,7 @@ diagnostics.
 
 | Specifier        | `core::fmt` trait          | Example output         | Notes |
 |------------------|----------------------------|------------------------|-------|
-| _default_        | `core::fmt::Display`       | `value`                | User-facing strings; `#` has no effect. |
+| *default*        | `core::fmt::Display`       | `value`                | User-facing strings; `#` has no effect. |
 | `:?` / `:#?`     | `core::fmt::Debug`         | `Struct { .. }` / multi-line | Mirrors `Debug`; `#` pretty-prints structs. |
 | `:x` / `:#x`     | `core::fmt::LowerHex`      | `0x2a`                 | Hexadecimal; `#` prepends `0x`. |
 | `:X` / `:#X`     | `core::fmt::UpperHex`      | `0x2A`                 | Uppercase hex; `#` prepends `0x`. |
@@ -578,6 +579,8 @@ assert_eq!(resp.status, 401);
 
 </details>
 
+</details>
+
 <details>
   <summary><b>Feature flags</b></summary>
 
@@ -623,13 +626,13 @@ assert_eq!(resp.status, 401);
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.10.8", default-features = false }
+masterror = { version = "0.11.0", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.10.8", features = [
+masterror = { version = "0.11.0", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -638,7 +641,7 @@ masterror = { version = "0.10.8", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.10.8", features = [
+masterror = { version = "0.11.0", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -709,4 +712,3 @@ MSRV = 1.90 (may raise in minor, never in patch).
 Apache-2.0 OR MIT, at your option.
 
 </details>
-
