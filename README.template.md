@@ -572,6 +572,8 @@ assert_eq!(resp.status, 401);
 
 </details>
 
+</details>
+
 <details>
   <summary><b>Feature flags</b></summary>
 

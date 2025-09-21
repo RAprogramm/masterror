@@ -379,7 +379,7 @@ diagnostics.
 
 | Specifier        | `core::fmt` trait          | Example output         | Notes |
 |------------------|----------------------------|------------------------|-------|
-| _default_        | `core::fmt::Display`       | `value`                | User-facing strings; `#` has no effect. |
+| *default*        | `core::fmt::Display`       | `value`                | User-facing strings; `#` has no effect. |
 | `:?` / `:#?`     | `core::fmt::Debug`         | `Struct { .. }` / multi-line | Mirrors `Debug`; `#` pretty-prints structs. |
 | `:x` / `:#x`     | `core::fmt::LowerHex`      | `0x2a`                 | Hexadecimal; `#` prepends `0x`. |
 | `:X` / `:#X`     | `core::fmt::UpperHex`      | `0x2A`                 | Uppercase hex; `#` prepends `0x`. |
@@ -576,6 +576,8 @@ assert_eq!(resp.status, 401);
   `BrowserConsoleError::UnsupportedTarget`.
 - `BrowserConsoleError::context()` exposes optional browser diagnostics for
   logging/telemetry when console logging fails.
+
+</details>
 
 </details>
 
