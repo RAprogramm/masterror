@@ -51,15 +51,38 @@ impl AppError {
     }
     /// Build a `Database` error with an optional message.
     ///
-    /// Accepts `Option` to avoid gratuitous `.map(|...| ...)` at call sites
-    /// when you may or may not have a safe-to-print string at hand.
-    pub fn database(msg: Option<impl Into<Cow<'static, str>>>) -> Self {
+    /// This constructor accepts a pre-built [`Cow`] so callers that already
+    /// manage ownership can pass either borrowed or owned strings. When you
+    /// have plain string data, prefer [`AppError::database_with_message`].
+    ///
+    /// ```rust
+    /// use masterror::AppError;
+    ///
+    /// let err = AppError::database(None);
+    /// assert!(err.message.is_none());
+    /// ```
+    pub fn database(msg: Option<Cow<'static, str>>) -> Self {
         Self {
             kind:             AppErrorKind::Database,
-            message:          msg.map(Into::into),
+            message:          msg,
             retry:            None,
             www_authenticate: None
         }
+    }
+
+    /// Build a `Database` error with a message.
+    ///
+    /// Convenience wrapper around [`AppError::database`] for the common case
+    /// where you start from a plain string-like value.
+    ///
+    /// ```rust
+    /// use masterror::AppError;
+    ///
+    /// let err = AppError::database_with_message("db down");
+    /// assert_eq!(err.message.as_deref(), Some("db down"));
+    /// ```
+    pub fn database_with_message(msg: impl Into<Cow<'static, str>>) -> Self {
+        Self::database(Some(msg.into()))
     }
     /// Build a `Config` error.
     pub fn config(msg: impl Into<Cow<'static, str>>) -> Self {

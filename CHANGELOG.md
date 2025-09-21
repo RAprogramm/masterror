@@ -3,16 +3,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [0.10.10] - 2025-10-27
+## [0.11.0] - 2025-10-26
 
-### Fixed
-- Closed the `Web framework integrations` accordion so nested integration
-  sections expand and collapse independently without affecting neighbouring
-  details blocks.
+### Changed
+- Updated `AppError::database` to accept `Option<Cow<'static, str>>`, allowing
+  bare `None` calls without type annotations, and added the helper
+  `AppError::database_with_message` for the common message-bearing path.
 
 ### Documentation
-- Regenerated the README from the updated template to keep the published
-  markup balanced.
+- Refreshed the `AppError::database` docs to illustrate the new constructor
+  behavior and helper usage.
+
+### Tests
+- Expanded database constructor tests to cover both the helper and bare `None`
+  scenario.
 
 ## [0.10.9] - 2025-10-26
 

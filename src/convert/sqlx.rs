@@ -50,7 +50,7 @@ impl From<SqlxError> for AppError {
     fn from(err: SqlxError) -> Self {
         match err {
             SqlxError::RowNotFound => AppError::not_found("Record not found"),
-            other => AppError::database(Some(other.to_string()))
+            other => AppError::database_with_message(other.to_string())
         }
     }
 }
@@ -63,7 +63,7 @@ impl From<SqlxError> for AppError {
 #[cfg_attr(docsrs, doc(cfg(feature = "sqlx-migrate")))]
 impl From<MigrateError> for AppError {
     fn from(err: MigrateError) -> Self {
-        AppError::database(Some(err.to_string()))
+        AppError::database_with_message(err.to_string())
     }
 }
 

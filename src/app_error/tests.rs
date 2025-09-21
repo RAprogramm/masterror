@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use super::{AppResult, core::AppError};
 use crate::AppErrorKind;
 
@@ -108,10 +110,13 @@ fn constructors_match_kinds() {
 
 #[test]
 fn database_accepts_optional_message() {
-    let with_msg = AppError::database(Some("db down"));
+    let with_msg = AppError::database_with_message("db down");
     assert_err_with_msg(with_msg, AppErrorKind::Database, "db down");
 
-    let without = AppError::database(None::<&str>);
+    let via_option = AppError::database(Some(Cow::Borrowed("db down")));
+    assert_err_with_msg(via_option, AppErrorKind::Database, "db down");
+
+    let without = AppError::database(None);
     assert_err_bare(without, AppErrorKind::Database);
 }
 
