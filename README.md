@@ -70,7 +70,6 @@ masterror = { version = "0.11.0", default-features = false }
 
 # with Axum/Actix + JSON + integrations
 # masterror = { version = "0.11.0", features = [
-
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -379,7 +378,7 @@ diagnostics.
 
 | Specifier        | `core::fmt` trait          | Example output         | Notes |
 |------------------|----------------------------|------------------------|-------|
-| *default*        | `core::fmt::Display`       | `value`                | User-facing strings; `#` has no effect. |
+| _default_        | `core::fmt::Display`       | `value`                | User-facing strings; `#` has no effect. |
 | `:?` / `:#?`     | `core::fmt::Debug`         | `Struct { .. }` / multi-line | Mirrors `Debug`; `#` pretty-prints structs. |
 | `:x` / `:#x`     | `core::fmt::LowerHex`      | `0x2a`                 | Hexadecimal; `#` prepends `0x`. |
 | `:X` / `:#X`     | `core::fmt::UpperHex`      | `0x2A`                 | Uppercase hex; `#` prepends `0x`. |
@@ -712,3 +711,4 @@ MSRV = 1.90 (may raise in minor, never in patch).
 Apache-2.0 OR MIT, at your option.
 
 </details>
+
