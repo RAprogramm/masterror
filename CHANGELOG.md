@@ -3,6 +3,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.11.1] - 2025-10-27
+
+### Documentation
+- Highlighted the native derive macros, typed telemetry, browser logging, and
+  Turnkey taxonomy across the README template and regenerated README.
+- Refreshed the Russian README with the same capability summary and updated the
+  installation snippets to `0.11.1`.
+- Expanded the crate-level documentation to cover `#[app_error]`/`#[provide]`
+  usage and link to `std::error::Request` telemetry extraction.
+
 ## [0.11.0] - 2025-10-26
 
 ### Changed

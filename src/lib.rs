@@ -52,6 +52,33 @@
 //! - `turnkey` — domain taxonomy and conversions for Turnkey errors, exposed in
 //!   the `turnkey` module
 //!
+//! # Derive macros and telemetry
+//!
+//! The [`masterror::Error`](crate::Error) derive mirrors `thiserror` while
+//! adding `#[app_error]` and `#[provide]` attributes. Annotate your domain
+//! errors once to surface structured telemetry via [`std::error::Request`] and
+//! generate conversions into [`AppError`] / [`AppCode`].
+//!
+//! ```rust
+//! use masterror::{AppCode, AppError, AppErrorKind, Error};
+//!
+//! #[derive(Debug, Error)]
+//! #[error("missing flag: {name}")]
+//! #[app_error(kind = AppErrorKind::BadRequest, code = AppCode::BadRequest, message)]
+//! struct MissingFlag {
+//!     name: &'static str
+//! }
+//!
+//! let app: AppError = MissingFlag {
+//!     name: "feature"
+//! }
+//! .into();
+//! assert!(matches!(app.kind, AppErrorKind::BadRequest));
+//! ```
+//!
+//! Use `#[provide]` to forward typed telemetry that downstream consumers can
+//! extract from [`AppError`] via `std::error::Request`.
+//!
 //! # Domain integrations: Turnkey
 //!
 //! With the `turnkey` feature enabled, the crate exports a `turnkey` module

@@ -14,14 +14,18 @@
 
 > 🇷🇺 Читайте README на [русском языке](README.ru.md).
 
-Small, pragmatic error model for API-heavy Rust services.
+Small, pragmatic error model for API-heavy Rust services with native derives
+and typed telemetry.
 Core is framework-agnostic; integrations are opt-in via feature flags.
 Stable categories, conservative HTTP mapping, no `unsafe`.
 
 - Core types: `AppError`, `AppErrorKind`, `AppResult`, `AppCode`, `ErrorResponse`
-- Optional Axum/Actix integration
+- Derive macros: `#[derive(Error)]`, `#[app_error]`, `#[provide]` for domain
+  mappings and structured telemetry
+- Optional Axum/Actix integration and browser/WASM console logging
 - Optional OpenAPI schema (via `utoipa`)
 - Conversions from `sqlx`, `reqwest`, `redis`, `validator`, `config`, `tokio`
+- Turnkey domain taxonomy and helpers (`turnkey` feature)
 
 ---
 
@@ -29,9 +33,9 @@ Stable categories, conservative HTTP mapping, no `unsafe`.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.11.0", default-features = false }
+masterror = { version = "0.11.1", default-features = false }
 # or with features:
-# masterror = { version = "0.11.0", features = [
+# masterror = { version = "0.11.1", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -66,10 +70,10 @@ masterror = { version = "0.11.0", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.11.0", default-features = false }
+masterror = { version = "0.11.1", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.11.0", features = [
+# masterror = { version = "0.11.1", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -625,13 +629,13 @@ assert_eq!(resp.status, 401);
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.11.0", default-features = false }
+masterror = { version = "0.11.1", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.11.0", features = [
+masterror = { version = "0.11.1", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -640,7 +644,7 @@ masterror = { version = "0.11.0", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.11.0", features = [
+masterror = { version = "0.11.1", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -711,4 +715,3 @@ MSRV = 1.90 (may raise in minor, never in patch).
 Apache-2.0 OR MIT, at your option.
 
 </details>
-
