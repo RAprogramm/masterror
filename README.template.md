@@ -14,14 +14,21 @@
 
 > 🇷🇺 Читайте README на [русском языке](README.ru.md).
 
-Small, pragmatic error model for API-heavy Rust services.
+Small, pragmatic error model for API-heavy Rust services with native derives
+and typed telemetry.
 Core is framework-agnostic; integrations are opt-in via feature flags.
 Stable categories, conservative HTTP mapping, no `unsafe`.
 
 - Core types: `AppError`, `AppErrorKind`, `AppResult`, `AppCode`, `ErrorResponse`
-- Optional Axum/Actix integration
+- Derive macros: `#[derive(Error)]`, `#[app_error]`, `#[provide]` for domain
+  mappings and structured telemetry
+- Optional Axum/Actix integration and browser/WASM console logging
 - Optional OpenAPI schema (via `utoipa`)
 - Conversions from `sqlx`, `reqwest`, `redis`, `validator`, `config`, `tokio`
+- Turnkey domain taxonomy and helpers (`turnkey` feature)
+
+👉 Explore the new [error-handling wiki](docs/wiki/index.md) for step-by-step
+guides, comparisons with `thiserror`/`anyhow`, and troubleshooting recipes.
 
 ---
 
