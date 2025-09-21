@@ -3,6 +3,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.8] - 2025-10-25
+
+### Fixed
+- Updated the release workflow to publish `masterror-template` before
+  `masterror-derive`, ensuring crates.io recognises the shared dependency during
+  release automation.
+
 ## [0.10.7] - 2025-10-24
 
 ### Fixed
