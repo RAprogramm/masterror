@@ -13,6 +13,14 @@ All notable changes to this project will be documented in this file.
 ### Tests
 - Added regression coverage to ensure corporate network outages and operational
   failure rates classify as network/service issues rather than rate limits.
+  
+### Changed
+- Raised the documented MSRV to Rust 1.90 to match the `rust-version`
+  requirement.
+
+### Documentation
+- Regenerated the README from the template so installation snippets reflect the
+  new crate version and MSRV statement.
 
 ## [0.10.8] - 2025-10-25
 
