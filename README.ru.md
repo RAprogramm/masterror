@@ -11,15 +11,24 @@
 [![Security audit](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main&label=Security%20audit)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
 [![Cargo Deny](https://img.shields.io/github/actions/workflow/status/RAprogramm/masterror/ci.yml?branch=main&label=Cargo%20Deny)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
 
-Небольшая прагматичная модель ошибок для Rust-сервисов с выраженным API. Основной крейт не зависит от веб-фреймворков, а расширения включаются через фичи. Таксономия ошибок стабильна, соответствие HTTP-кодам консервативно, `unsafe` запрещён.
+Небольшая прагматичная модель ошибок для Rust-сервисов с выраженным API и
+встроенными деривами.
+Основной крейт не зависит от веб-фреймворков, а расширения включаются через
+фичи. Таксономия ошибок стабильна, соответствие HTTP-кодам консервативно,
+`unsafe` запрещён.
 
 ## Основные возможности
 
 - Базовые типы: `AppError`, `AppErrorKind`, `AppResult`, `AppCode`, `ErrorResponse`.
-- Адаптеры для Axum и Actix (опционально).
+- Деривы `#[derive(Error)]`, `#[app_error]`, `#[provide]` для типизированного
+  телеметрического контекста и прямых конверсий доменных ошибок.
+- Адаптеры для Axum и Actix плюс логирование в браузер/`JsValue` для WASM (по
+  фичам).
 - Генерация схем OpenAPI через `utoipa`.
-- Конверсии из распространённых библиотек (`sqlx`, `reqwest`, `redis`, `validator`, `config`, `tokio` и др.).
-- Готовый прелюдия-модуль, реэкспортирующий наиболее востребованные типы и трейты.
+- Конверсии из распространённых библиотек (`sqlx`, `reqwest`, `redis`,
+  `validator`, `config`, `tokio` и др.).
+- Готовый прелюдия-модуль и расширение `turnkey` с собственной таксономией
+  ошибок.
 
 ## Установка
 
@@ -28,9 +37,9 @@
 ~~~toml
 [dependencies]
 # минимальное ядро
-masterror = { version = "0.10.4", default-features = false }
+masterror = { version = "0.11.1", default-features = false }
 # или с нужными интеграциями
-# masterror = { version = "0.10.4", features = [
+# masterror = { version = "0.11.1", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",

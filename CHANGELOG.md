@@ -11,6 +11,12 @@ All notable changes to this project will be documented in this file.
   `anyhow`.
 - Linked the wiki from the README template so crate consumers can discover it
   directly on crates.io and docs.rs.
+- Highlighted the native derive macros, typed telemetry, browser logging, and
+  Turnkey taxonomy across the README template and regenerated README.
+- Refreshed the Russian README with the same capability summary and updated the
+  installation snippets to `0.11.1`.
+- Expanded the crate-level documentation to cover `#[app_error]`/`#[provide]`
+  usage and link to `std::error::Request` telemetry extraction.
 
 ## [0.11.0] - 2025-10-26
 
