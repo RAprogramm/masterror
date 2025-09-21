@@ -49,7 +49,10 @@ fn classifier_rate_limited() {
     for s in [
         "429 Too Many Requests",
         "rate limit exceeded",
-        "throttled by upstream"
+        "throttled by upstream",
+        "client ratelimited",
+        "rate-limited by upstream",
+        "rate limiting in effect"
     ] {
         assert!(
             matches!(classify_turnkey_error(s), TurnkeyErrorKind::RateLimited),
@@ -89,7 +92,8 @@ fn classifier_network() {
         "connection reset",
         "DNS failure",
         "TLS handshake",
-        "socket hang up"
+        "socket hang up",
+        "Corporate network outage"
     ] {
         assert!(
             matches!(classify_turnkey_error(s), TurnkeyErrorKind::Network),
@@ -100,10 +104,12 @@ fn classifier_network() {
 
 #[test]
 fn classifier_service_fallback() {
-    assert!(matches!(
-        classify_turnkey_error("unrecognized issue"),
-        TurnkeyErrorKind::Service
-    ));
+    for s in ["unrecognized issue", "operational failure rate"] {
+        assert!(
+            matches!(classify_turnkey_error(s), TurnkeyErrorKind::Service),
+            "failed on: {s}"
+        );
+    }
 }
 
 #[test]

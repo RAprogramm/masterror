@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 
 ## [0.10.9] - 2025-10-26
 
+### Fixed
+- Tightened Turnkey rate-limit heuristics to require explicit phrases while
+  preserving stack-backed searches for short ASCII patterns, preventing matches
+  on unrelated words such as "corporate".
+
+### Tests
+- Added regression coverage to ensure corporate network outages and operational
+  failure rates classify as network/service issues rather than rate limits.
+  
 ### Changed
 - Raised the documented MSRV to Rust 1.90 to match the `rust-version`
   requirement.
