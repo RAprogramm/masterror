@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file.
 ## [0.11.1] - 2025-10-27
 
 ### Documentation
+- Added a multi-page error-handling wiki (`docs/wiki`) with beginner-friendly
+  walkthroughs, framework patterns, and comparisons against `thiserror` and
+  `anyhow`.
+- Linked the wiki from the README template so crate consumers can discover it
+  directly on crates.io and docs.rs.
 - Highlighted the native derive macros, typed telemetry, browser logging, and
   Turnkey taxonomy across the README template and regenerated README.
 - Refreshed the Russian README with the same capability summary and updated the

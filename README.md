@@ -27,6 +27,9 @@ Stable categories, conservative HTTP mapping, no `unsafe`.
 - Conversions from `sqlx`, `reqwest`, `redis`, `validator`, `config`, `tokio`
 - Turnkey domain taxonomy and helpers (`turnkey` feature)
 
+👉 Explore the new [error-handling wiki](docs/wiki/index.md) for step-by-step
+guides, comparisons with `thiserror`/`anyhow`, and troubleshooting recipes.
+
 ---
 
 ### TL;DR
