@@ -3,6 +3,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.11.0] - 2025-10-26
+
+### Changed
+- Updated `AppError::database` to accept `Option<Cow<'static, str>>`, allowing
+  bare `None` calls without type annotations, and added the helper
+  `AppError::database_with_message` for the common message-bearing path.
+
+### Documentation
+- Refreshed the `AppError::database` docs to illustrate the new constructor
+  behavior and helper usage.
+
+### Tests
+- Expanded database constructor tests to cover both the helper and bare `None`
+  scenario.
+
 ## [0.10.8] - 2025-10-25
 
 ### Fixed
