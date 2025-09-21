@@ -43,6 +43,7 @@ pub fn classify_turnkey_error(msg: &str) -> TurnkeyErrorKind {
         "rate limit",
         "rate limited",
         "rate limiting",
+        "rate-limit",
         "rate-limited",
         "rate-limiting",
         "ratelimit",
