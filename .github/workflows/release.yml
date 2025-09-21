@@ -82,6 +82,33 @@ jobs:
         with:
           toolchain: ${{ steps.msrv.outputs.msrv }}
 
+      - name: Maybe publish masterror-template
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if cargo metadata --no-deps --format-version=1 \
+             | jq -e '.packages[] | select(.name=="masterror-template" and .source==null)' >/dev/null; then
+            echo "Publishing masterror-template..."
+            n=0
+            until [ $n -ge 5 ]
+            do
+              if cargo +${{ steps.msrv.outputs.msrv }} publish -p masterror-template --locked --token "$CARGO_REGISTRY_TOKEN"; then
+                echo "masterror-template published."
+                break
+              fi
+              n=$((n+1))
+              echo "Retry $n/5 for masterror-template..."
+              sleep $((5*n))
+            done
+          else
+            echo "No local masterror-template found; skipping."
+          fi
+
+      - name: Wait for crates.io index sync (after template)
+        run: sleep 15
+
       - name: Maybe publish masterror-derive
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
