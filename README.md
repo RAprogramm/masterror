@@ -70,6 +70,7 @@ masterror = { version = "0.11.0", default-features = false }
 
 # with Axum/Actix + JSON + integrations
 # masterror = { version = "0.11.0", features = [
+
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -709,4 +710,3 @@ MSRV = 1.90 (may raise in minor, never in patch).
 Apache-2.0 OR MIT, at your option.
 
 </details>
-
