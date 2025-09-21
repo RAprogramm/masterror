@@ -23,6 +23,9 @@ Stable categories, conservative HTTP mapping, no `unsafe`.
 - Optional OpenAPI schema (via `utoipa`)
 - Conversions from `sqlx`, `reqwest`, `redis`, `validator`, `config`, `tokio`
 
+👉 Explore the new [error-handling wiki](docs/wiki/index.md) for step-by-step
+guides, comparisons with `thiserror`/`anyhow`, and troubleshooting recipes.
+
 ---
 
 ### TL;DR

@@ -3,6 +3,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.11.1] - 2025-10-27
+
+### Documentation
+- Added a multi-page error-handling wiki (`docs/wiki`) with beginner-friendly
+  walkthroughs, framework patterns, and comparisons against `thiserror` and
+  `anyhow`.
+- Linked the wiki from the README template so crate consumers can discover it
+  directly on crates.io and docs.rs.
+
 ## [0.11.0] - 2025-10-26
 
 ### Changed
