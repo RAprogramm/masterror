@@ -58,6 +58,7 @@
 
 mod core;
 mod details;
+pub mod internal;
 mod legacy;
 mod mapping;
 mod metadata;

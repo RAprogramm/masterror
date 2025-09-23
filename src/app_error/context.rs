@@ -2,7 +2,7 @@ use std::{error::Error as StdError, panic::Location};
 
 use super::{
     core::{AppError, Error, MessageEditPolicy},
-    metadata::{Field, FieldValue}
+    metadata::{Field, FieldRedaction, FieldValue}
 };
 use crate::{AppCode, AppErrorKind};
 
@@ -41,6 +41,7 @@ pub struct Context {
     code:            AppCode,
     category:        AppErrorKind,
     fields:          Vec<Field>,
+    field_policies:  Vec<(&'static str, FieldRedaction)>,
     edit_policy:     MessageEditPolicy,
     caller_location: Option<&'static Location<'static>>,
     code_overridden: bool
@@ -57,6 +58,7 @@ impl Context {
             code: AppCode::from(category),
             category,
             fields: Vec::new(),
+            field_policies: Vec::new(),
             edit_policy: MessageEditPolicy::Preserve,
             caller_location: None,
             code_overridden: false
@@ -88,6 +90,21 @@ impl Context {
     #[must_use]
     pub fn with(mut self, field: Field) -> Self {
         self.fields.push(field);
+        self.apply_field_redactions();
+        self
+    }
+
+    /// Override the redaction policy for a metadata field.
+    #[must_use]
+    pub fn redact_field(mut self, name: &'static str, redaction: FieldRedaction) -> Self {
+        self.field_policies
+            .retain(|(existing, _)| *existing != name);
+        self.field_policies.push((name, redaction));
+        for field in &mut self.fields {
+            if field.name() == name {
+                field.set_redaction(redaction);
+            }
+        }
         self
     }
 
@@ -132,7 +149,11 @@ impl Context {
         let mut error = AppError::new_raw(self.category, None);
         error.code = self.code;
         if !self.fields.is_empty() {
+            self.apply_field_redactions();
             error.metadata.extend(self.fields);
+        }
+        for &(name, redaction) in &self.field_policies {
+            error = error.redact_field(name, redaction);
         }
         if matches!(self.edit_policy, MessageEditPolicy::Redact) {
             error.edit_policy = MessageEditPolicy::Redact;
@@ -140,5 +161,23 @@ impl Context {
         let error = error.with_source(source);
         error.emit_telemetry();
         error
+    }
+}
+
+impl Context {
+    fn apply_field_redactions(&mut self) {
+        if self.field_policies.is_empty() {
+            return;
+        }
+        for field in &mut self.fields {
+            if let Some((_, policy)) = self
+                .field_policies
+                .iter()
+                .rev()
+                .find(|(name, _)| *name == field.name())
+            {
+                field.set_redaction(*policy);
+            }
+        }
     }
 }

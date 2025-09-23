@@ -21,7 +21,7 @@ use std::{
 #[cfg(feature = "tracing")]
 use tracing::{Level, event};
 
-use super::metadata::{Field, Metadata};
+use super::metadata::{Field, FieldRedaction, Metadata};
 use crate::{AppCode, AppErrorKind, RetryAdvice};
 
 /// Controls whether the public message may be redacted before exposure.
@@ -380,6 +380,14 @@ impl Error {
     #[must_use]
     pub fn with_fields(mut self, fields: impl IntoIterator<Item = Field>) -> Self {
         self.metadata.extend(fields);
+        self.mark_dirty();
+        self
+    }
+
+    /// Override the redaction policy for a stored metadata field.
+    #[must_use]
+    pub fn redact_field(mut self, name: &'static str, redaction: FieldRedaction) -> Self {
+        self.metadata.set_redaction(name, redaction);
         self.mark_dirty();
         self
     }

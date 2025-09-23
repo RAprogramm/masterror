@@ -31,7 +31,8 @@ use tonic::{
 #[cfg(test)]
 use crate::CODE_MAPPINGS;
 use crate::{
-    AppErrorKind, Error, FieldValue, MessageEditPolicy, Metadata, RetryAdvice, mapping_for_code
+    AppErrorKind, Error, FieldRedaction, FieldValue, MessageEditPolicy, Metadata, RetryAdvice,
+    mapping_for_code
 };
 
 impl TryFrom<Error> for Status {
@@ -102,7 +103,10 @@ fn insert_retry(meta: &mut MetadataMap, retry: RetryAdvice) {
 
 fn attach_metadata(meta: &mut MetadataMap, metadata: Metadata) {
     for field in metadata {
-        let (name, value) = field.into_parts();
+        let (name, value, redaction) = field.into_parts();
+        if !matches!(redaction, FieldRedaction::None) {
+            continue;
+        }
         if !is_safe_metadata_key(name) {
             continue;
         }

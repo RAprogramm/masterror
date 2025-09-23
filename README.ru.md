@@ -212,7 +212,7 @@ use masterror::{
     code = AppCode::NotFound,
     category = AppErrorKind::NotFound,
     message,
-    redact(message),
+    redact(message, fields("user_id" = hash)),
     telemetry(
         Some(masterror::field::str("user_id", user_id.clone())),
         attempt.map(|value| masterror::field::u64("attempt", value))
@@ -250,7 +250,8 @@ assert_eq!(
   [`AppErrorKind`].
 - `message` включает текст, возвращаемый [`Display`], в публичное сообщение.
 - `redact(message)` выставляет [`MessageEditPolicy`] в режим редактирования на
-  транспортной границе.
+  транспортной границе, `fields("name" = hash, "card" = last4)` переопределяет
+  обработку метаданных (`hash`, `last4`, `redact`, `none`).
 - `telemetry(...)` принимает выражения, возвращающие
   `Option<masterror::Field>`. Каждое присутствующее поле добавляется в
   [`Metadata`]; пустые выражения пропускаются.

@@ -70,7 +70,7 @@ mod metadata;
 pub use core::{AppError, AppResult, Error, MessageEditPolicy};
 
 pub use context::Context;
-pub use metadata::{Field, FieldValue, Metadata, field};
+pub use metadata::{Field, FieldRedaction, FieldValue, Metadata, field};
 
 #[cfg(test)]
 mod tests;

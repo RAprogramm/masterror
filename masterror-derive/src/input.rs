@@ -6,7 +6,7 @@ use syn::{
     Expr, ExprPath, Field as SynField, Fields as SynFields, GenericArgument, Ident, LitBool,
     LitInt, LitStr, Token, TypePath,
     ext::IdentExt,
-    parse::{Parse, ParseStream},
+    parse::{Parse, ParseBuffer, ParseStream},
     punctuated::Punctuated,
     spanned::Spanned,
     token::Paren
@@ -62,12 +62,32 @@ pub struct MasterrorSpec {
     pub code:           Expr,
     pub category:       ExprPath,
     pub expose_message: bool,
-    pub redact_message: bool,
+    pub redact:         RedactSpec,
     pub telemetry:      Vec<Expr>,
     pub map_grpc:       Option<Expr>,
     pub map_problem:    Option<Expr>,
     #[allow(dead_code)]
     pub attribute_span: Span
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct RedactSpec {
+    pub message: bool,
+    pub fields:  Vec<FieldRedactionSpec>
+}
+
+#[derive(Clone, Debug)]
+pub struct FieldRedactionSpec {
+    pub name:   LitStr,
+    pub policy: FieldRedactionKind
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FieldRedactionKind {
+    None,
+    Redact,
+    Hash,
+    Last4
 }
 
 #[derive(Debug)]
@@ -791,7 +811,8 @@ fn parse_masterror_attribute(attr: &Attribute) -> Result<MasterrorSpec, Error> {
         let mut code = None;
         let mut category = None;
         let mut expose_message = false;
-        let mut redact_message = false;
+        let mut redact = RedactSpec::default();
+        let mut seen_redact = false;
         let mut telemetry = None;
         let mut map_grpc = None;
         let mut map_problem = None;
@@ -822,10 +843,11 @@ fn parse_masterror_attribute(attr: &Attribute) -> Result<MasterrorSpec, Error> {
                     expose_message = parse_flag_value(input)?;
                 }
                 "redact" => {
-                    if redact_message {
+                    if seen_redact {
                         return Err(Error::new(ident.span(), "duplicate redact(...) block"));
                     }
-                    redact_message = parse_redact_block(input, ident.span())?;
+                    redact = parse_redact_block(input, ident.span())?;
+                    seen_redact = true;
                 }
                 "telemetry" => {
                     if telemetry.is_some() {
@@ -909,7 +931,7 @@ fn parse_masterror_attribute(attr: &Attribute) -> Result<MasterrorSpec, Error> {
             code,
             category,
             expose_message,
-            redact_message,
+            redact,
             telemetry: telemetry.unwrap_or_default(),
             map_grpc,
             map_problem,
@@ -928,7 +950,7 @@ fn parse_flag_value(input: ParseStream) -> Result<bool, Error> {
     }
 }
 
-fn parse_redact_block(input: ParseStream, span: Span) -> Result<bool, Error> {
+fn parse_redact_block(input: ParseStream, span: Span) -> Result<RedactSpec, Error> {
     let content;
     syn::parenthesized!(content in input);
 
@@ -936,22 +958,31 @@ fn parse_redact_block(input: ParseStream, span: Span) -> Result<bool, Error> {
         return Err(Error::new(span, "redact(...) requires at least one option"));
     }
 
-    let mut redact_message = false;
+    let mut spec = RedactSpec::default();
 
     while !content.is_empty() {
         let ident: Ident = content.call(Ident::parse_any)?;
         match ident.to_string().as_str() {
             "message" => {
-                if redact_message {
+                if spec.message {
                     return Err(Error::new(ident.span(), "duplicate redact(message) option"));
                 }
                 if content.peek(Token![=]) {
                     content.parse::<Token![=]>()?;
                     let value: LitBool = content.parse()?;
-                    redact_message = value.value;
+                    spec.message = value.value;
                 } else {
-                    redact_message = true;
+                    spec.message = true;
                 }
+            }
+            "fields" => {
+                if !spec.fields.is_empty() {
+                    return Err(Error::new(
+                        ident.span(),
+                        "duplicate redact(fields(...)) option"
+                    ));
+                }
+                spec.fields = parse_redact_fields(&content, ident.span())?;
             }
             other => {
                 return Err(Error::new(
@@ -971,7 +1002,60 @@ fn parse_redact_block(input: ParseStream, span: Span) -> Result<bool, Error> {
         }
     }
 
-    Ok(redact_message)
+    Ok(spec)
+}
+
+fn parse_redact_fields(
+    content: &ParseBuffer<'_>,
+    span: Span
+) -> Result<Vec<FieldRedactionSpec>, Error> {
+    let inner;
+    syn::parenthesized!(inner in *content);
+
+    if inner.is_empty() {
+        return Err(Error::new(
+            span,
+            "redact(fields(...)) requires at least one field"
+        ));
+    }
+
+    let mut fields = Vec::new();
+    while !inner.is_empty() {
+        let name: LitStr = inner.parse()?;
+        let policy = if inner.peek(Token![=]) {
+            inner.parse::<Token![=]>()?;
+            let ident: Ident = inner.call(Ident::parse_any)?;
+            match ident.to_string().to_ascii_lowercase().as_str() {
+                "none" => FieldRedactionKind::None,
+                "redact" => FieldRedactionKind::Redact,
+                "hash" => FieldRedactionKind::Hash,
+                "last4" | "last_four" => FieldRedactionKind::Last4,
+                other => {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!("unknown redact policy `{other}` in fields(...)")
+                    ));
+                }
+            }
+        } else {
+            FieldRedactionKind::Redact
+        };
+        fields.push(FieldRedactionSpec {
+            name,
+            policy
+        });
+
+        if inner.peek(Token![,]) {
+            inner.parse::<Token![,]>()?;
+        } else if !inner.is_empty() {
+            return Err(Error::new(
+                inner.span(),
+                "expected `,` or end of input in redact(fields(...))"
+            ));
+        }
+    }
+
+    Ok(fields)
 }
 
 fn parse_telemetry_block(input: ParseStream, span: Span) -> Result<Vec<Expr>, Error> {
