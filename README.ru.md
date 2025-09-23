@@ -20,8 +20,9 @@
 ## Основные возможности
 
 - Базовые типы: `AppError`, `AppErrorKind`, `AppResult`, `AppCode`, `ErrorResponse`, `Metadata`.
-- Деривы `#[derive(Error)]`, `#[app_error]`, `#[provide]` для типизированного
-  телеметрического контекста и прямых конверсий доменных ошибок.
+- Деривы `#[derive(Error)]`, `#[derive(Masterror)]`, `#[app_error]`,
+  `#[masterror(...)]`, `#[provide]` для типизированного телеметрического
+  контекста и прямых конверсий доменных ошибок.
 - Адаптеры для Axum и Actix плюс логирование в браузер/`JsValue` для WASM (по
   фичам).
 - Генерация схем OpenAPI через `utoipa`.
@@ -38,9 +39,9 @@
 ~~~toml
 [dependencies]
 # минимальное ядро
-masterror = { version = "0.12.1", default-features = false }
+masterror = { version = "0.13.0", default-features = false }
 # или с нужными интеграциями
-# masterror = { version = "0.12.1", features = [
+# masterror = { version = "0.13.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -192,6 +193,73 @@ assert!(matches!(app.kind, AppErrorKind::Service));
 В отличие от `thiserror`, вы получаете дополнительную структурированную
 информацию и прямой маппинг в `AppError`/`AppCode` без ручных реализаций
 `From`.
+
+## `#[derive(Masterror)]` и атрибут `#[masterror(...)]`
+
+Когда нужно сразу получить [`masterror::Error`], используйте `#[derive(Masterror)]`.
+Атрибут `#[masterror(...)]` описывает код, категорию, телеметрию, политику
+редактирования и транспортные подсказки:
+
+~~~rust
+use masterror::{
+    mapping::HttpMapping, AppCode, AppErrorKind, Error, Masterror, MessageEditPolicy
+};
+
+#[derive(Debug, Masterror)]
+#[error("пользователь {user_id} без флага {flag}")]
+#[masterror(
+    code = AppCode::NotFound,
+    category = AppErrorKind::NotFound,
+    message,
+    redact(message),
+    telemetry(
+        Some(masterror::field::str("user_id", user_id.clone())),
+        attempt.map(|value| masterror::field::u64("attempt", value))
+    ),
+    map.grpc = 5,
+    map.problem = "https://errors.example.com/not-found"
+)]
+struct MissingFlag {
+    user_id: String,
+    flag: &'static str,
+    attempt: Option<u64>,
+    #[source]
+    source: Option<std::io::Error>,
+}
+
+let err = MissingFlag {
+    user_id: "alice".into(),
+    flag: "beta",
+    attempt: Some(2),
+    source: None,
+};
+let converted: Error = err.into();
+assert_eq!(converted.code, AppCode::NotFound);
+assert_eq!(converted.kind, AppErrorKind::NotFound);
+assert_eq!(converted.edit_policy, MessageEditPolicy::Redact);
+assert!(converted.metadata().get("user_id").is_some());
+
+assert_eq!(
+    MissingFlag::HTTP_MAPPING,
+    HttpMapping::new(AppCode::NotFound, AppErrorKind::NotFound)
+);
+~~~
+
+- `code` / `category` задают публичный [`AppCode`] и внутренний
+  [`AppErrorKind`].
+- `message` включает текст, возвращаемый [`Display`], в публичное сообщение.
+- `redact(message)` выставляет [`MessageEditPolicy`] в режим редактирования на
+  транспортной границе.
+- `telemetry(...)` принимает выражения, возвращающие
+  `Option<masterror::Field>`. Каждое присутствующее поле добавляется в
+  [`Metadata`]; пустые выражения пропускаются.
+- `map.grpc` / `map.problem` позволяют зафиксировать код gRPC (целое `i32`) и
+  URI для problem+json. Дерив генерирует таблицы `TYPE::HTTP_MAPPING`,
+  `TYPE::GRPC_MAPPING` и `TYPE::PROBLEM_MAPPING` (или срезы для перечислений)
+  для дальнейшей интеграции.
+
+Атрибуты `#[from]`, `#[source]`, `#[backtrace]` продолжают работать: источники и
+бектрейсы автоматически прикрепляются к результирующему [`masterror::Error`].
 
 ## Форматирование шаблонов `#[error]`
 

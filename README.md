@@ -20,8 +20,9 @@ Core is framework-agnostic; integrations are opt-in via feature flags.
 Stable categories, conservative HTTP mapping, no `unsafe`.
 
 - Core types: `AppError`, `AppErrorKind`, `AppResult`, `AppCode`, `ErrorResponse`, `Metadata`
-- Derive macros: `#[derive(Error)]`, `#[app_error]`, `#[provide]` for domain
-  mappings and structured telemetry
+- Derive macros: `#[derive(Error)]`, `#[derive(Masterror)]`, `#[app_error]`,
+  `#[masterror(...)]`, `#[provide]` for domain mappings and structured
+  telemetry
 - Optional Axum/Actix integration and browser/WASM console logging
 - Optional OpenAPI schema (via `utoipa`)
 - Structured metadata helpers via `field::*` builders
@@ -37,9 +38,9 @@ guides, comparisons with `thiserror`/`anyhow`, and troubleshooting recipes.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.12.1", default-features = false }
+masterror = { version = "0.13.0", default-features = false }
 # or with features:
-# masterror = { version = "0.12.1", features = [
+# masterror = { version = "0.13.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -75,10 +76,10 @@ masterror = { version = "0.12.1", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.12.1", default-features = false }
+masterror = { version = "0.13.0", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.12.1", features = [
+# masterror = { version = "0.13.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -178,6 +179,77 @@ assert_eq!(wrapped.to_string(), "I/O failed: disk offline");
 - `TemplateFormatterKind` exposes the formatter trait requested by a
   placeholder, making it easy to branch on the requested rendering behaviour
   without manually matching every enum variant.
+
+#### `#[derive(Masterror)]` and `#[masterror(...)]`
+
+`#[derive(Masterror)]` wires a domain error directly into [`masterror::Error`],
+augmenting it with metadata, redaction policy and optional transport mappings.
+The accompanying `#[masterror(...)]` attribute mirrors the `#[app_error]`
+syntax while remaining explicit about telemetry:
+
+~~~rust
+use masterror::{
+    mapping::HttpMapping, AppCode, AppErrorKind, Error, Masterror, MessageEditPolicy
+};
+
+#[derive(Debug, Masterror)]
+#[error("user {user_id} missing flag {flag}")]
+#[masterror(
+    code = AppCode::NotFound,
+    category = AppErrorKind::NotFound,
+    message,
+    redact(message),
+    telemetry(
+        Some(masterror::field::str("user_id", user_id.clone())),
+        attempt.map(|value| masterror::field::u64("attempt", value))
+    ),
+    map.grpc = 5,
+    map.problem = "https://errors.example.com/not-found"
+)]
+struct MissingFlag {
+    user_id: String,
+    flag: &'static str,
+    attempt: Option<u64>,
+    #[source]
+    source: Option<std::io::Error>
+}
+
+let err = MissingFlag {
+    user_id: "alice".into(),
+    flag: "beta",
+    attempt: Some(2),
+    source: None
+};
+let converted: Error = err.into();
+assert_eq!(converted.code, AppCode::NotFound);
+assert_eq!(converted.kind, AppErrorKind::NotFound);
+assert_eq!(converted.edit_policy, MessageEditPolicy::Redact);
+assert!(converted.metadata().get("user_id").is_some());
+
+assert_eq!(
+    MissingFlag::HTTP_MAPPING,
+    HttpMapping::new(AppCode::NotFound, AppErrorKind::NotFound)
+);
+~~~
+
+- `code` / `category` pick the public [`AppCode`] and internal
+  [`AppErrorKind`].
+- `message` forwards the formatted [`Display`] output as the safe public
+  message. Omit it to keep the message private.
+- `redact(message)` flips [`MessageEditPolicy`] to redactable at the transport
+  boundary.
+- `telemetry(...)` accepts expressions that evaluate to
+  `Option<masterror::Field>`. Each populated field is inserted into the
+  resulting [`Metadata`]; use `telemetry()` when no fields are attached.
+- `map.grpc` / `map.problem` capture optional gRPC status codes (as `i32`) and
+  RFC 7807 `type` URIs. The derive emits tables such as
+  `MyError::HTTP_MAPPING`, `MyError::GRPC_MAPPING` and
+  `MyError::PROBLEM_MAPPING` (or slice variants for enums) for downstream
+  integrations.
+
+All familiar field-level attributes (`#[from]`, `#[source]`, `#[backtrace]`)
+are still honoured. Sources and backtraces are automatically attached to the
+generated [`masterror::Error`].
 
 #### Display shorthand projections
 
@@ -637,13 +709,13 @@ assert_eq!(resp.status, 401);
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.12.1", default-features = false }
+masterror = { version = "0.13.0", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.12.1", features = [
+masterror = { version = "0.13.0", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -652,7 +724,7 @@ masterror = { version = "0.12.1", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.12.1", features = [
+masterror = { version = "0.13.0", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
