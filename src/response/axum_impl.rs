@@ -42,8 +42,9 @@ impl IntoResponse for ErrorResponse {
 /// Convert `AppError` into the stable wire model and reuse its `IntoResponse`.
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        // Use the canonical mapping defined in `From<&AppError> for ErrorResponse`
-        let wire: ErrorResponse = (&self).into();
+        let err = self;
+        err.emit_telemetry();
+        let wire: ErrorResponse = err.into();
         wire.into_response()
     }
 }

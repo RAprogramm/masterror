@@ -53,11 +53,14 @@
 //! }
 //! ```
 //!
-//! ## Logging
+//! ## Telemetry
 //!
-//! [`AppError::log`] emits a single structured `tracing::error!` event with
-//! `kind`, `code` and optional `message` fields. Prefer calling it at the
-//! transport boundary (e.g. in `IntoResponse`) to avoid duplicate logs.
+//! [`AppError::log`] flushes telemetry once: it emits a structured `tracing`
+//! event (when the `tracing` feature is enabled), increments the
+//! `error_total{code,category}` counter (with the `metrics` feature) and
+//! captures a lazy [`Backtrace`] snapshot (with the `backtrace` feature).
+//! Constructors and framework integrations call it automatically, so manual
+//! usage is rarely required.
 
 mod constructors;
 mod context;

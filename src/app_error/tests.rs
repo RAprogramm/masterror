@@ -201,6 +201,215 @@ fn log_uses_kind_and_code() {
     err.log();
 }
 
+#[cfg(feature = "tracing")]
+#[test]
+fn telemetry_emits_single_tracing_event_with_trace_id() {
+    use std::{
+        fmt,
+        sync::{Arc, Mutex}
+    };
+
+    use tracing::{
+        Dispatch, Event, Subscriber, dispatcher,
+        field::{Field, Visit}
+    };
+    use tracing_subscriber::{
+        Registry,
+        layer::{Context, Layer, SubscriberExt}
+    };
+
+    #[derive(Default, Clone)]
+    struct RecordedEvent {
+        trace_id: Option<String>,
+        code:     Option<String>,
+        category: Option<String>
+    }
+
+    struct RecordingLayer {
+        events: Arc<Mutex<Vec<RecordedEvent>>>
+    }
+
+    impl<S> Layer<S> for RecordingLayer
+    where
+        S: Subscriber
+    {
+        fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, S>) {
+            if event.metadata().target() != "masterror::error" {
+                return;
+            }
+
+            let mut record = RecordedEvent::default();
+            event.record(&mut EventVisitor {
+                record: &mut record
+            });
+            self.events.lock().expect("events lock").push(record);
+        }
+    }
+
+    struct EventVisitor<'a> {
+        record: &'a mut RecordedEvent
+    }
+
+    impl<'a> Visit for EventVisitor<'a> {
+        fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
+            let normalized = normalize_debug(value);
+            match field.name() {
+                "trace_id" => self.record.trace_id = Some(normalized),
+                "code" => self.record.code = Some(normalized),
+                "category" => self.record.category = Some(normalized),
+                _ => {}
+            }
+        }
+    }
+
+    fn normalize_debug(value: &dyn fmt::Debug) -> String {
+        let mut rendered = format!("{value:?}");
+        while let Some(stripped) = rendered
+            .strip_prefix("Some(")
+            .and_then(|s| s.strip_suffix(')'))
+        {
+            rendered = stripped.to_owned();
+        }
+        rendered.trim_matches('"').to_owned()
+    }
+
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let layer = RecordingLayer {
+        events: events.clone()
+    };
+    let subscriber = Registry::default().with(layer);
+    let dispatch = Dispatch::new(subscriber);
+
+    dispatcher::with_default(&dispatch, || {
+        log_mdc::insert("trace_id", "trace-123");
+        let err = AppError::internal("boom");
+        err.log();
+        log_mdc::remove("trace_id");
+
+        let events = events.lock().expect("events lock");
+        assert_eq!(events.len(), 1, "expected exactly one tracing event");
+
+        let event = &events[0];
+        assert_eq!(event.code.as_deref(), Some(AppCode::Internal.as_str()));
+        assert_eq!(event.category.as_deref(), Some("Internal"));
+        assert!(
+            event
+                .trace_id
+                .as_deref()
+                .is_some_and(|value| value.contains("trace-123"))
+        );
+    });
+}
+
+#[cfg(feature = "metrics")]
+#[test]
+fn metrics_counter_is_incremented_once() {
+    use std::{
+        collections::HashMap,
+        sync::{Arc, Mutex}
+    };
+
+    use metrics::{
+        Counter, CounterFn, Gauge, Histogram, Key, KeyName, Metadata, Recorder, SharedString, Unit
+    };
+
+    #[derive(Clone)]
+    struct MetricsCounterHandle {
+        name:   String,
+        labels: Vec<(String, String)>,
+        counts: Arc<Mutex<HashMap<(String, Vec<(String, String)>), u64>>>
+    }
+
+    impl CounterFn for MetricsCounterHandle {
+        fn increment(&self, value: u64) {
+            let mut map = self.counts.lock().expect("counter map");
+            *map.entry((self.name.clone(), self.labels.clone()))
+                .or_default() += value;
+        }
+
+        fn absolute(&self, value: u64) {
+            let mut map = self.counts.lock().expect("counter map");
+            map.insert((self.name.clone(), self.labels.clone()), value);
+        }
+    }
+
+    struct CountingRecorder {
+        counts: Arc<Mutex<HashMap<(String, Vec<(String, String)>), u64>>>
+    }
+
+    impl Recorder for CountingRecorder {
+        fn describe_counter(
+            &self,
+            _key: KeyName,
+            _unit: Option<Unit>,
+            _description: SharedString
+        ) {
+        }
+
+        fn describe_gauge(&self, _key: KeyName, _unit: Option<Unit>, _description: SharedString) {}
+
+        fn describe_histogram(
+            &self,
+            _key: KeyName,
+            _unit: Option<Unit>,
+            _description: SharedString
+        ) {
+        }
+
+        fn register_counter(&self, key: &Key, _metadata: &Metadata<'_>) -> Counter {
+            let labels = key
+                .labels()
+                .map(|label| (label.key().to_owned(), label.value().to_owned()))
+                .collect::<Vec<_>>();
+            Counter::from_arc(Arc::new(MetricsCounterHandle {
+                name: key.name().to_owned(),
+                labels,
+                counts: self.counts.clone()
+            }))
+        }
+
+        fn register_gauge(&self, _key: &Key, _metadata: &Metadata<'_>) -> Gauge {
+            Gauge::noop()
+        }
+
+        fn register_histogram(&self, _key: &Key, _metadata: &Metadata<'_>) -> Histogram {
+            Histogram::noop()
+        }
+    }
+
+    use std::sync::OnceLock;
+
+    static RECORDER_COUNTS: OnceLock<Arc<Mutex<HashMap<(String, Vec<(String, String)>), u64>>>> =
+        OnceLock::new();
+
+    let counts = RECORDER_COUNTS
+        .get_or_init(|| {
+            let counts = Arc::new(Mutex::new(HashMap::new()));
+            metrics::set_global_recorder(CountingRecorder {
+                counts: counts.clone()
+            })
+            .expect("install recorder");
+            counts
+        })
+        .clone();
+
+    counts.lock().expect("counter map").clear();
+
+    let err = AppError::forbidden("denied");
+    err.log();
+
+    let key = (
+        "error_total".to_owned(),
+        vec![
+            ("code".to_owned(), AppCode::Forbidden.as_str().to_owned()),
+            ("category".to_owned(), "Forbidden".to_owned()),
+        ]
+    );
+
+    let counts = counts.lock().expect("counter map");
+    assert_eq!(counts.get(&key).copied(), Some(1));
+}
+
 #[test]
 fn result_alias_is_generic() {
     // The alias intentionally preserves the full AppError payload size.

@@ -3,6 +3,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.14.0] - 2025-09-24
+
+### Added
+- Introduced optional `tracing`, `metrics` and `backtrace` features. When
+  enabled they emit structured `tracing` events, increment the
+  `error_total{code,category}` counter and capture lazy [`Backtrace`] snapshots
+  from a new `AppError::emit_telemetry` hook.
+
+### Changed
+- Reworked the `AppError` core to emit telemetry exactly once, track dirty
+  mutations and expose a crate-private `new_raw` constructor for contexts that
+  enrich errors before flushing instrumentation.
+- Updated Axum and Actix integrations to rely on the telemetry hook instead of
+  manually logging errors while preserving backward-compatible APIs.
+
+### Tests
+- Added tracing dispatcher coverage to assert a single telemetry event with MDC
+  propagated `trace_id` values.
+- Installed a deterministic metrics recorder in unit tests to confirm
+  `error_total` increments once per error.
+
 ## [0.13.1] - 2025-09-23
 
 ### Fixed

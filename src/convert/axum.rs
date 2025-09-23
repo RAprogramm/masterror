@@ -9,7 +9,8 @@
 //!   Err(...)` or directly `return AppError::...(...)` and get a JSON error
 //!   body (when the `serde_json` feature is enabled) or an empty body
 //!   otherwise.
-//! - Logs each error once at the HTTP boundary using `tracing::error`.
+//! - Flushes [`AppError`] telemetry at the HTTP boundary (tracing event,
+//!   metrics counter, lazy backtrace).
 //!
 //! ## Wire payload
 //!
@@ -44,7 +45,6 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response}
 };
-use tracing::error;
 
 use crate::AppError;
 #[cfg(feature = "serde_json")]
@@ -64,20 +64,14 @@ impl AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        let status = self.http_status();
-
-        // Log once at the boundary with stable fields.
-        error!(
-            status = status.as_u16(),
-            kind = ?self.kind,
-            msg = self.message.as_deref().unwrap_or(""),
-            "AppError -> HTTP response"
-        );
+        let err = self;
+        err.emit_telemetry();
+        let status = err.http_status();
 
         #[cfg(feature = "serde_json")]
         {
             // Build the stable wire contract (includes `code`).
-            let body: ErrorResponse = self.into();
+            let body: ErrorResponse = err.into();
             return body.into_response();
         }
 

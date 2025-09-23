@@ -62,8 +62,8 @@ impl AppError {
     /// assert!(err.message.is_none());
     /// ```
     pub fn database(msg: Option<Cow<'static, str>>) -> Self {
-        let mut err = Self::bare(AppErrorKind::Database);
-        err.message = msg;
+        let err = Self::new_raw(AppErrorKind::Database, msg);
+        err.emit_telemetry();
         err
     }
 
