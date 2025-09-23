@@ -1,0 +1,141 @@
+use std::{error::Error as StdError, panic::Location};
+
+use super::{
+    core::{AppError, Error, MessageEditPolicy},
+    metadata::{Field, FieldValue}
+};
+use crate::{AppCode, AppErrorKind};
+
+/// Builder describing how to convert an external error into [`AppError`].
+///
+/// The context captures the target [`AppCode`], [`AppErrorKind`], optional
+/// metadata fields and redaction policy. It is primarily consumed by
+/// [`ResultExt`](crate::ResultExt) when promoting `Result<T, E>` values into
+/// [`AppError`].
+///
+/// # Examples
+///
+/// ```rust
+/// use std::io::{Error as IoError, ErrorKind};
+///
+/// use masterror::{AppErrorKind, Context, ResultExt, field};
+///
+/// fn failing_io() -> Result<(), IoError> {
+///     Err(IoError::from(ErrorKind::Other))
+/// }
+///
+/// let err = failing_io()
+///     .ctx(|| {
+///         Context::new(AppErrorKind::Service)
+///             .with(field::str("operation", "sync"))
+///             .redact(true)
+///             .track_caller()
+///     })
+///     .unwrap_err();
+///
+/// assert_eq!(err.kind, AppErrorKind::Service);
+/// assert!(err.metadata().get("operation").is_some());
+/// ```
+#[derive(Debug, Clone)]
+pub struct Context {
+    code:            AppCode,
+    category:        AppErrorKind,
+    fields:          Vec<Field>,
+    edit_policy:     MessageEditPolicy,
+    caller_location: Option<&'static Location<'static>>,
+    code_overridden: bool
+}
+
+impl Context {
+    /// Create a new [`Context`] targeting the provided [`AppErrorKind`].
+    ///
+    /// The initial [`AppCode`] defaults to the canonical mapping for the
+    /// supplied kind. Use [`Context::code`] to override it.
+    #[must_use]
+    pub fn new(category: AppErrorKind) -> Self {
+        Self {
+            code: AppCode::from(category),
+            category,
+            fields: Vec::new(),
+            edit_policy: MessageEditPolicy::Preserve,
+            caller_location: None,
+            code_overridden: false
+        }
+    }
+
+    /// Override the public [`AppCode`].
+    #[must_use]
+    pub fn code(mut self, code: AppCode) -> Self {
+        self.code = code;
+        self.code_overridden = true;
+        self
+    }
+
+    /// Update the [`AppErrorKind`].
+    ///
+    /// When the code has not been overridden explicitly, it is kept in sync
+    /// with the new kind.
+    #[must_use]
+    pub fn category(mut self, category: AppErrorKind) -> Self {
+        self.category = category;
+        if !self.code_overridden {
+            self.code = AppCode::from(category);
+        }
+        self
+    }
+
+    /// Attach a metadata [`Field`].
+    #[must_use]
+    pub fn with(mut self, field: Field) -> Self {
+        self.fields.push(field);
+        self
+    }
+
+    /// Toggle message redaction policy.
+    #[must_use]
+    pub fn redact(mut self, redact: bool) -> Self {
+        self.edit_policy = if redact {
+            MessageEditPolicy::Redact
+        } else {
+            MessageEditPolicy::Preserve
+        };
+        self
+    }
+
+    /// Capture caller location and store it as metadata.
+    #[must_use]
+    #[track_caller]
+    pub fn track_caller(mut self) -> Self {
+        self.caller_location = Some(Location::caller());
+        self
+    }
+
+    pub(crate) fn into_error<E>(mut self, source: E) -> Error
+    where
+        E: StdError + Send + Sync + 'static
+    {
+        if let Some(location) = self.caller_location {
+            self.fields.push(Field::new(
+                "caller.file",
+                FieldValue::Str(location.file().into())
+            ));
+            self.fields.push(Field::new(
+                "caller.line",
+                FieldValue::U64(u64::from(location.line()))
+            ));
+            self.fields.push(Field::new(
+                "caller.column",
+                FieldValue::U64(u64::from(location.column()))
+            ));
+        }
+
+        let mut error = AppError::bare(self.category).with_code(self.code);
+        if !self.fields.is_empty() {
+            error = error.with_fields(self.fields);
+        }
+        if matches!(self.edit_policy, MessageEditPolicy::Redact) {
+            error = error.redactable();
+        }
+        error.with_source(source)
+    }
+}
