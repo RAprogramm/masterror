@@ -19,7 +19,7 @@ and typed telemetry.
 Core is framework-agnostic; integrations are opt-in via feature flags.
 Stable categories, conservative HTTP mapping, no `unsafe`.
 
-- Core types: `AppError`, `AppErrorKind`, `AppResult`, `AppCode`, `ErrorResponse`, `Metadata`
+- Core types: `AppError`, `AppErrorKind`, `AppResult`, `AppCode`, `ProblemJson`, `ErrorResponse`, `Metadata`
 - Derive macros: `#[derive(Error)]`, `#[derive(Masterror)]`, `#[app_error]`,
   `#[masterror(...)]`, `#[provide]` for domain mappings and structured
   telemetry
@@ -38,20 +38,22 @@ guides, comparisons with `thiserror`/`anyhow`, and troubleshooting recipes.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.14.1", default-features = false }
+masterror = { version = "0.15.0", default-features = false }
 # or with features:
-# masterror = { version = "0.14.1", features = [
+# masterror = { version = "0.15.0", features = [
+
 #   "axum", "actix", "openapi", "serde_json",
 #   "tracing", "metrics", "backtrace", "sqlx",
 #   "sqlx-migrate", "reqwest", "redis", "validator",
 #   "config", "tokio", "multipart", "teloxide",
-#   "telegram-webapp-sdk", "frontend", "turnkey"
+#   "telegram-webapp-sdk", "tonic", "frontend", "turnkey"
 # ] }
 ~~~
 
 *Since v0.5.0: derive custom errors via `#[derive(Error)]` (`use masterror::Error;`) and inspect browser logging failures with `BrowserConsoleError::context()`.*
 *Since v0.4.0: optional `frontend` feature for WASM/browser console logging.*
 *Since v0.3.0: stable `AppCode` enum and extended `ErrorResponse` with retry/authentication metadata.*
+*Since v0.15.0: RFC7807 `ProblemJson` responses for HTTP integrations and `tonic::Status` conversion.*
 
 ---
 
@@ -61,7 +63,7 @@ masterror = { version = "0.14.1", default-features = false }
 - **Stable taxonomy.** Small set of `AppErrorKind` categories mapping conservatively to HTTP.
 - **Framework-agnostic.** No assumptions, no `unsafe`, MSRV pinned.
 - **Opt-in integrations.** Zero default features; you enable what you need.
-- **Clean wire contract.** `ErrorResponse { status, code, message, details?, retry?, www_authenticate? }`.
+- **Clean wire contract.** `ProblemJson { type?, title, status, detail?, code, grpc?, metadata? }` with `Retry-After` / `WWW-Authenticate` headers when present.
 - **Typed telemetry.** `Metadata` preserves structured key/value context without `String` maps.
 - **One log at boundary.** Log once with `tracing`.
 - **Less boilerplate.** Built-in conversions, compact prelude, and the
@@ -77,15 +79,15 @@ masterror = { version = "0.14.1", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.14.1", default-features = false }
+masterror = { version = "0.15.0", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.14.1", features = [
+# masterror = { version = "0.15.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "tracing", "metrics", "backtrace", "sqlx",
 #   "sqlx-migrate", "reqwest", "redis", "validator",
 #   "config", "tokio", "multipart", "teloxide",
-#   "telegram-webapp-sdk", "frontend", "turnkey"
+#   "telegram-webapp-sdk", "tonic", "frontend", "turnkey"
 # ] }
 ~~~
 
@@ -619,15 +621,18 @@ assert_eq!(display.to_string(), "404: Not Found");
   <summary><b>Error response payload</b></summary>
 
 ~~~rust
-use masterror::{AppError, AppErrorKind, AppCode, ErrorResponse};
+use masterror::{AppError, AppErrorKind, ProblemJson};
 use std::time::Duration;
 
-let app_err = AppError::new(AppErrorKind::Unauthorized, "Token expired");
-let resp: ErrorResponse = (&app_err).into()
-    .with_retry_after_duration(Duration::from_secs(30))
-    .with_www_authenticate(r#"Bearer realm="api", error="invalid_token""#);
+let problem = ProblemJson::from_app_error(
+    AppError::new(AppErrorKind::Unauthorized, "Token expired")
+        .with_retry_after_duration(Duration::from_secs(30))
+        .with_www_authenticate(r#"Bearer realm="api", error="invalid_token""#)
+);
 
-assert_eq!(resp.status, 401);
+assert_eq!(problem.status, 401);
+assert_eq!(problem.retry_after, Some(30));
+assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 ~~~
 
 </details>
@@ -686,6 +691,7 @@ assert_eq!(resp.status, 401);
 - `multipart` — Handle axum multipart extraction errors
 - `teloxide` — Convert teloxide_core::RequestError into domain errors
 - `telegram-webapp-sdk` — Surface Telegram WebApp validation failures
+- `tonic` — Convert AppError into tonic::Status with redaction
 - `frontend` — Log to the browser console and convert to JsValue on WASM
 - `turnkey` — Ship Turnkey-specific error taxonomy and conversions
 
@@ -714,13 +720,13 @@ assert_eq!(resp.status, 401);
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.14.1", default-features = false }
+masterror = { version = "0.15.0", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.14.1", features = [
+masterror = { version = "0.15.0", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -729,7 +735,7 @@ masterror = { version = "0.14.1", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.14.1", features = [
+masterror = { version = "0.15.0", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }

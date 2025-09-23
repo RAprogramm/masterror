@@ -2,29 +2,26 @@
 //!
 //! # Purpose
 //!
-//! [`ErrorResponse`] is a stable JSON structure intended to be returned
-//! directly from HTTP handlers. It represents the **public-facing contract**
-//! for error reporting in web APIs.
+//! [`ProblemJson`] serializes an RFC7807 payload designed for HTTP responses.
+//! It augments the legacy [`ErrorResponse`] (still available for manual usage)
+//! with:
 //!
-//! It deliberately contains only *safe-to-expose* fields:
+//! - canonical problem `type` URIs derived from [`AppCode`]
+//! - a `title` computed from [`AppErrorKind`]
+//! - the stable machine code plus optional gRPC mapping (`grpc.code`,
+//!   `grpc.value`)
+//! - retry/authentication hints surfaced via the `Retry-After` and
+//!   `WWW-Authenticate` headers
+//! - sanitized [`Metadata`] values when the error is not marked redactable
 //!
-//! - [`status`](ErrorResponse::status): HTTP status code chosen by the service
-//! - [`code`](ErrorResponse::code): stable, machine-readable error code
-//!   ([`AppCode`])
-//! - [`message`](ErrorResponse::message): human-oriented, non-sensitive text
-//! - [`details`](ErrorResponse::details): optional structured payload
-//!   (`serde_json::Value` if the `serde_json` feature is enabled, otherwise
-//!   plain text)
-//! - [`retry`](ErrorResponse::retry): optional retry advice, rendered as the
-//!   `Retry-After` header in HTTP adapters; set via
-//!   [`with_retry_after_secs`](ErrorResponse::with_retry_after_secs) or
-//!   [`with_retry_after_duration`](ErrorResponse::with_retry_after_duration)
-//! - [`www_authenticate`](ErrorResponse::www_authenticate): optional
-//!   authentication challenge string, rendered as the `WWW-Authenticate` header
+//! When the message is tagged redactable (`AppError::redactable` or
+//! `Context::redact(true)`), both `detail` and metadata are omitted to avoid
+//! leaking sensitive information. The HTTP adapters (`axum`, `actix`) emit
+//! `application/problem+json` bodies automatically via [`ProblemJson`].
 //!
-//! Internal error sources (the [`std::error::Error`] chain inside [`AppError`])
-//! are **never leaked** into this type. They should be logged at the boundary,
-//! but not serialized into responses.
+//! [`ErrorResponse`] remains available for backwards compatibility with
+//! existing wire contracts and can be converted into [`ProblemJson`] via
+//! [`ProblemJson::from_error_response`].
 //!
 //! # Example
 //!
@@ -64,14 +61,17 @@ mod details;
 mod legacy;
 mod mapping;
 mod metadata;
+pub mod problem_json;
 
 #[cfg(feature = "axum")]
 mod axum_impl;
 
 #[cfg(feature = "actix")]
-mod actix_impl;
+pub(crate) mod actix_impl;
 
 pub use core::{ErrorResponse, RetryAdvice};
+
+pub use problem_json::ProblemJson;
 
 #[cfg(test)]
 mod tests;

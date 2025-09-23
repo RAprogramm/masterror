@@ -11,7 +11,8 @@
 //!   transport hints
 //! - [`AppErrorKind`] — stable internal taxonomy of application errors
 //! - [`AppResult`] — convenience alias for returning [`AppError`]
-//! - [`ErrorResponse`] — stable wire-level JSON payload for HTTP APIs
+//! - [`ProblemJson`] — RFC7807 payload emitted by HTTP/gRPC adapters
+//! - [`ErrorResponse`] — legacy wire-level JSON payload for HTTP APIs
 //! - [`AppCode`] — public, machine-readable error code for clients
 //! - [`Metadata`] — structured telemetry attached to [`AppError`]
 //! - [`field`] — helper functions to build [`Metadata`] without manual enums
@@ -33,10 +34,12 @@
 //!
 //! Enable only what you need:
 //!
-//! - `axum` — implements `IntoResponse` for [`AppError`] and [`ErrorResponse`]
-//!   with JSON body
-//! - `actix` — implements `Responder` for [`ErrorResponse`] (and Actix
-//!   integration for [`AppError`])
+//! - `axum` — implements `IntoResponse` for [`AppError`] and [`ProblemJson`]
+//!   with RFC7807 body
+//! - `actix` — implements `Responder` for [`ProblemJson`] and Actix
+//!   `ResponseError` for [`AppError`]
+//! - `tonic` — converts [`struct@Error`] into `tonic::Status` with
+//!   sanitized metadata
 //! - `openapi` — derives an OpenAPI schema for [`ErrorResponse`] (via `utoipa`)
 //! - `sqlx` — `From<sqlx::Error>` mapping
 //! - `redis` — `From<redis::RedisError>` mapping
@@ -50,8 +53,8 @@
 //!   mapping
 //! - `frontend` — convert errors into `wasm_bindgen::JsValue` and emit
 //!   `console.error` logs in WASM/browser contexts
-//! - `serde_json` — support for structured JSON details in [`ErrorResponse`];
-//!   also pulled transitively by `axum`
+//! - `serde_json` — support for structured JSON details in [`ErrorResponse`]
+//!   and [`ProblemJson`]; also pulled transitively by `axum`
 //! - `multipart` — compatibility flag for Axum multipart
 //! - `turnkey` — domain taxonomy and conversions for Turnkey errors, exposed in
 //!   the `turnkey` module
@@ -350,5 +353,11 @@ pub use kind::AppErrorKind;
 /// assert!(matches!(code, AppCode::BadRequest));
 /// ```
 pub use masterror_derive::{Error, Masterror};
-pub use response::{ErrorResponse, RetryAdvice};
+pub use response::{
+    ErrorResponse, ProblemJson, RetryAdvice,
+    problem_json::{
+        CODE_MAPPINGS, CodeMapping, GrpcCode, ProblemMetadata, ProblemMetadataValue,
+        mapping_for_code
+    }
+};
 pub use result_ext::ResultExt;

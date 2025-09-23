@@ -19,7 +19,7 @@
 
 ## Основные возможности
 
-- Базовые типы: `AppError`, `AppErrorKind`, `AppResult`, `AppCode`, `ErrorResponse`, `Metadata`.
+- Базовые типы: `AppError`, `AppErrorKind`, `AppResult`, `AppCode`, `ProblemJson`, `ErrorResponse`, `Metadata`.
 - Деривы `#[derive(Error)]`, `#[derive(Masterror)]`, `#[app_error]`,
   `#[masterror(...)]`, `#[provide]` для типизированного телеметрического
   контекста и прямых конверсий доменных ошибок.
@@ -39,9 +39,9 @@
 ~~~toml
 [dependencies]
 # минимальное ядро
-masterror = { version = "0.13.1", default-features = false }
+masterror = { version = "0.15.0", default-features = false }
 # или с нужными интеграциями
-# masterror = { version = "0.13.1", features = [
+# masterror = { version = "0.15.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -91,6 +91,7 @@ fn do_work(flag: bool) -> AppResult<()> {
 - `multipart` — обработка ошибок извлечения multipart в Axum.
 - `teloxide` — маппинг `teloxide_core::RequestError` в доменные категории.
 - `telegram-webapp-sdk` — обработка ошибок валидации данных Telegram WebApp.
+- `tonic` — преобразование `AppError` в `tonic::Status` с учётом редактирования.
 - `frontend` — логирование в браузере и преобразование в `JsValue` для WASM.
 - `turnkey` — расширение таксономии для Turnkey SDK.
 
