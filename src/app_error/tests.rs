@@ -1,7 +1,7 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, error::Error as StdError, fmt::Display, sync::Arc};
 
-use super::{AppResult, core::AppError};
-use crate::AppErrorKind;
+use super::{AppError, FieldValue, MessageEditPolicy, field};
+use crate::{AppCode, AppErrorKind};
 
 // --- Helpers -------------------------------------------------------------
 
@@ -138,6 +138,62 @@ fn retry_and_www_authenticate_are_attached() {
 }
 
 #[test]
+fn render_message_does_not_allocate_for_borrowed_str() {
+    let err = AppError::new(AppErrorKind::BadRequest, "borrowed");
+    let rendered = err.render_message();
+    assert!(matches!(rendered, Cow::Borrowed("borrowed")));
+    assert!(std::ptr::eq(rendered.as_ref(), "borrowed"));
+}
+
+#[test]
+fn metadata_and_code_are_preserved() {
+    let err = AppError::service("downstream")
+        .with_field(field::str("request_id", "abc-123"))
+        .with_field(field::i64("attempt", 2))
+        .with_code(AppCode::Service);
+
+    assert_eq!(err.code, AppCode::Service);
+    let metadata = err.metadata();
+    assert_eq!(metadata.len(), 2);
+    assert_eq!(
+        metadata.get("request_id"),
+        Some(&FieldValue::Str(Cow::Borrowed("abc-123")))
+    );
+    assert_eq!(metadata.get("attempt"), Some(&FieldValue::I64(2)));
+}
+
+#[derive(Debug)]
+struct DummyError;
+
+impl Display for DummyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("dummy")
+    }
+}
+
+impl StdError for DummyError {}
+
+#[test]
+fn source_is_preserved_without_extra_allocation() {
+    let source = Arc::new(DummyError);
+    let err = AppError::internal("boom").with_source(source.clone());
+
+    assert_eq!(Arc::strong_count(&source), 2);
+
+    let stored = err.source_ref().expect("source");
+    let stored_arc = stored
+        .downcast_ref::<Arc<DummyError>>()
+        .expect("arc should be preserved");
+    assert!(Arc::ptr_eq(stored_arc, &source));
+}
+
+#[test]
+fn redactable_policy_is_exposed() {
+    let err = AppError::internal("boom").redactable();
+    assert!(matches!(err.edit_policy, MessageEditPolicy::Redact));
+}
+
+#[test]
 fn log_uses_kind_and_code() {
     // Smoke test to ensure the method is callable; tracing output isn't asserted
     // here.
@@ -147,11 +203,11 @@ fn log_uses_kind_and_code() {
 
 #[test]
 fn result_alias_is_generic() {
-    fn app() -> AppResult<u8> {
+    fn app() -> super::AppResult<u8> {
         Ok(1)
     }
 
-    fn other() -> AppResult<u8, &'static str> {
+    fn other() -> super::AppResult<u8, &'static str> {
         Ok(2)
     }
 

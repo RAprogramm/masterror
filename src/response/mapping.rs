@@ -1,10 +1,7 @@
-use std::{
-    borrow::Cow,
-    fmt::{Display, Formatter, Result as FmtResult}
-};
+use std::fmt::{Display, Formatter, Result as FmtResult};
 
 use super::core::ErrorResponse;
-use crate::{AppCode, AppError};
+use crate::AppError;
 
 impl Display for ErrorResponse {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
@@ -16,14 +13,15 @@ impl Display for ErrorResponse {
 impl From<AppError> for ErrorResponse {
     fn from(err: AppError) -> Self {
         let AppError {
+            code,
             kind,
             message,
             retry,
-            www_authenticate
+            www_authenticate,
+            ..
         } = err;
 
         let status = kind.http_status();
-        let code = AppCode::from(kind);
         let message = match message {
             Some(msg) => msg.into_owned(),
             None => kind.to_string()
@@ -43,17 +41,11 @@ impl From<AppError> for ErrorResponse {
 impl From<&AppError> for ErrorResponse {
     fn from(err: &AppError) -> Self {
         let status = err.kind.http_status();
-        let code = AppCode::from(err.kind);
-
-        let message = err
-            .message
-            .clone()
-            .unwrap_or_else(|| Cow::Owned(err.kind.to_string()))
-            .into_owned();
+        let message = err.render_message().into_owned();
 
         Self {
             status,
-            code,
+            code: err.code,
             message,
             details: None,
             retry: err.retry,

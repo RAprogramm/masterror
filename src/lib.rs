@@ -7,15 +7,19 @@
 //! feature flags.
 //!
 //! Core types:
-//! - [`AppError`] — thin wrapper around a semantic error kind and optional
-//!   message
+//! - [`AppError`] — rich error capturing code, taxonomy, message, metadata and
+//!   transport hints
 //! - [`AppErrorKind`] — stable internal taxonomy of application errors
 //! - [`AppResult`] — convenience alias for returning [`AppError`]
 //! - [`ErrorResponse`] — stable wire-level JSON payload for HTTP APIs
 //! - [`AppCode`] — public, machine-readable error code for clients
+//! - [`Metadata`] — structured telemetry attached to [`AppError`]
+//! - [`field`] — helper functions to build [`Metadata`] without manual enums
 //!
 //! Key properties:
 //! - Stable, predictable error categories (`AppErrorKind`).
+//! - Explicit, overridable machine-readable codes (`AppCode`).
+//! - Structured metadata for observability without ad-hoc `String` maps.
 //! - Conservative and stable HTTP mappings.
 //! - Internal error sources are never serialized to clients (only logged).
 //! - Messages are safe to expose (human-oriented, non-sensitive).
@@ -54,10 +58,11 @@
 //!
 //! # Derive macros and telemetry
 //!
-//! The [`masterror::Error`](crate::Error) derive mirrors `thiserror` while
-//! adding `#[app_error]` and `#[provide]` attributes. Annotate your domain
-//! errors once to surface structured telemetry via [`std::error::Request`] and
-//! generate conversions into [`AppError`] / [`AppCode`].
+//! The [`masterror::Error`](derive@crate::Error) derive mirrors `thiserror`
+//! while adding `#[app_error]` and `#[provide]` attributes. Annotate your
+//! domain errors once to surface structured telemetry via
+//! [`std::error::Request`] and generate conversions into [`AppError`] /
+//! [`AppCode`].
 //!
 //! ```rust
 //! use masterror::{AppCode, AppError, AppErrorKind, Error};
@@ -123,6 +128,16 @@
 //!
 //! let err = AppError::new(AppErrorKind::BadRequest, "Flag must be set");
 //! assert!(matches!(err.kind, AppErrorKind::BadRequest));
+//! ```
+//!
+//! Attach structured metadata for telemetry and logging:
+//! ```rust
+//! use masterror::{AppError, AppErrorKind, field};
+//!
+//! let err = AppError::service("downstream degraded")
+//!     .with_field(field::str("request_id", "abc123"))
+//!     .with_field(field::i64("attempt", 2));
+//! assert_eq!(err.metadata().len(), 2);
 //! ```
 //!
 //! [`AppErrorKind`] controls the default HTTP status mapping.  
@@ -230,7 +245,9 @@ pub mod turnkey;
 /// Minimal prelude re-exporting core types for handler signatures.
 pub mod prelude;
 
-pub use app_error::{AppError, AppResult};
+pub use app_error::{
+    AppError, AppResult, Error, Field, FieldValue, MessageEditPolicy, Metadata, field
+};
 pub use code::AppCode;
 pub use kind::AppErrorKind;
 /// Re-export derive macros so users only depend on [`masterror`].
