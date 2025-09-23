@@ -193,7 +193,7 @@ use masterror::{
     code = AppCode::NotFound,
     category = AppErrorKind::NotFound,
     message,
-    redact(message),
+    redact(message, fields("user_id" = hash)),
     telemetry(
         Some(masterror::field::str("user_id", user_id.clone())),
         attempt.map(|value| masterror::field::u64("attempt", value))
@@ -232,7 +232,8 @@ assert_eq!(
 - `message` forwards the formatted [`Display`] output as the safe public
   message. Omit it to keep the message private.
 - `redact(message)` flips [`MessageEditPolicy`] to redactable at the transport
-  boundary.
+  boundary, `fields("name" = hash, "card" = last4)` overrides metadata
+  policies (`hash`, `last4`, `redact`, `none`).
 - `telemetry(...)` accepts expressions that evaluate to
   `Option<masterror::Field>`. Each populated field is inserted into the
   resulting [`Metadata`]; use `telemetry()` when no fields are attached.

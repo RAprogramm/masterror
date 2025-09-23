@@ -1,6 +1,6 @@
 [package]
 name = "masterror"
-version = "0.16.0"
+version = "0.17.0"
 rust-version = "1.90"
 edition = "2024"
 license = "MIT OR Apache-2.0"
@@ -75,11 +75,11 @@ tonic = ["dep:tonic"]
 openapi = ["dep:utoipa"]
 
 [workspace.dependencies]
-masterror-derive = { version = "0.7.1" }
+masterror-derive = { version = "0.8.0" }
 masterror-template = { version = "0.3.6" }
 
 [dependencies]
-masterror-derive = { version = "0.7" }
+masterror-derive = { version = "0.8" }
 masterror-template = { workspace = true }
 tracing = { version = "0.1", optional = true }
 log = { version = "0.4", optional = true }
@@ -89,6 +89,7 @@ metrics = { version = "0.24", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", optional = true }
 http = "1"
+sha2 = "0.10"
 
 # optional integrations
 axum = { version = "0.8", optional = true, default-features = false, features = [

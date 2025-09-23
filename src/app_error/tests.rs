@@ -8,7 +8,7 @@ use super::core::reset_backtrace_preference;
 #[cfg(feature = "backtrace")]
 static BACKTRACE_ENV_GUARD: Mutex<()> = Mutex::new(());
 
-use super::{AppError, FieldValue, MessageEditPolicy, field};
+use super::{AppError, FieldRedaction, FieldValue, MessageEditPolicy, field};
 use crate::{AppCode, AppErrorKind};
 
 // --- Helpers -------------------------------------------------------------
@@ -168,6 +168,37 @@ fn metadata_and_code_are_preserved() {
         Some(&FieldValue::Str(Cow::Borrowed("abc-123")))
     );
     assert_eq!(metadata.get("attempt"), Some(&FieldValue::I64(2)));
+}
+
+#[test]
+fn context_redact_field_overrides_policy() {
+    let err = super::Context::new(AppErrorKind::Service)
+        .with(field::str("token", "super-secret"))
+        .redact_field("token", FieldRedaction::Redact)
+        .into_error(DummyError);
+
+    let metadata = err.metadata();
+    assert_eq!(
+        metadata.get("token"),
+        Some(&FieldValue::Str(Cow::Borrowed("super-secret")))
+    );
+    assert_eq!(metadata.redaction("token"), Some(FieldRedaction::Redact));
+}
+
+#[test]
+fn app_error_redact_field_updates_metadata() {
+    let err = AppError::internal("boom")
+        .with_field(field::str("api_key", "key"))
+        .redact_field("api_key", FieldRedaction::Hash);
+
+    assert_eq!(
+        err.metadata().redaction("api_key"),
+        Some(FieldRedaction::Hash)
+    );
+    assert_eq!(
+        err.metadata().get("api_key"),
+        Some(&FieldValue::Str(Cow::Borrowed("key")))
+    );
 }
 
 #[derive(Debug)]

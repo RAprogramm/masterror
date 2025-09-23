@@ -1727,7 +1727,7 @@ dependencies = [
 
 [[package]]
 name = "masterror"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "actix-web",
  "axum 0.8.4",
@@ -1744,6 +1744,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
+ "sha2",
  "sqlx",
  "sqlx-core",
  "telegram-webapp-sdk",
@@ -1763,7 +1764,7 @@ dependencies = [
 
 [[package]]
 name = "masterror-derive"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "masterror-template",
  "proc-macro2",

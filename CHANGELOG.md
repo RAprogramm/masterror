@@ -3,6 +3,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.17.0] - 2025-09-27
+
+### Added
+- Per-field redaction metadata via a new [`FieldRedaction`] enum, default
+  heuristics for common secret keys (passwords, tokens, card numbers) and the
+  `Context::redact_field` / `AppError::redact_field` helpers.
+- `#[masterror(redact(fields(...)))]` support in the derive macro to configure
+  metadata policies alongside message redaction.
+- Opt-in internal formatters for [`ErrorResponse`] and [`ProblemJson`] that are
+  safe to use in diagnostic logs without additional serialization boilerplate.
+
+### Changed
+- Problem JSON and legacy `ErrorResponse` serialization now hash, mask or drop
+  metadata according to per-field policies while honoring the global redaction
+  flag.
+- Redaction-aware conversions ensure redactable messages fall back to the error
+  kind across HTTP and gRPC mappings.
+
 ## [0.16.0] - 2025-09-26
 
 ### Changed

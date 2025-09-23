@@ -16,11 +16,12 @@ impl From<AppError> for ErrorResponse {
         let code = err.code;
         let retry = err.retry.take();
         let www_authenticate = err.www_authenticate.take();
+        let policy = err.edit_policy;
 
         let status = kind.http_status();
         let message = match err.message.take() {
-            Some(msg) => msg.into_owned(),
-            None => kind.to_string()
+            Some(msg) if !matches!(policy, crate::MessageEditPolicy::Redact) => msg.into_owned(),
+            _ => kind.to_string()
         };
 
         Self {
@@ -37,7 +38,11 @@ impl From<AppError> for ErrorResponse {
 impl From<&AppError> for ErrorResponse {
     fn from(err: &AppError) -> Self {
         let status = err.kind.http_status();
-        let message = err.render_message().into_owned();
+        let message = if matches!(err.edit_policy, crate::MessageEditPolicy::Redact) {
+            err.kind.to_string()
+        } else {
+            err.render_message().into_owned()
+        };
 
         Self {
             status,

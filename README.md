@@ -38,9 +38,9 @@ guides, comparisons with `thiserror`/`anyhow`, and troubleshooting recipes.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.16.0", default-features = false }
+masterror = { version = "0.17.0", default-features = false }
 # or with features:
-# masterror = { version = "0.16.0", features = [
+# masterror = { version = "0.17.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "tracing", "metrics", "backtrace", "sqlx",
 #   "sqlx-migrate", "reqwest", "redis", "validator",
@@ -78,10 +78,10 @@ masterror = { version = "0.16.0", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.16.0", default-features = false }
+masterror = { version = "0.17.0", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.16.0", features = [
+# masterror = { version = "0.17.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "tracing", "metrics", "backtrace", "sqlx",
 #   "sqlx-migrate", "reqwest", "redis", "validator",
@@ -201,7 +201,7 @@ use masterror::{
     code = AppCode::NotFound,
     category = AppErrorKind::NotFound,
     message,
-    redact(message),
+    redact(message, fields("user_id" = hash)),
     telemetry(
         Some(masterror::field::str("user_id", user_id.clone())),
         attempt.map(|value| masterror::field::u64("attempt", value))
@@ -240,7 +240,8 @@ assert_eq!(
 - `message` forwards the formatted [`Display`] output as the safe public
   message. Omit it to keep the message private.
 - `redact(message)` flips [`MessageEditPolicy`] to redactable at the transport
-  boundary.
+  boundary, `fields("name" = hash, "card" = last4)` overrides metadata
+  policies (`hash`, `last4`, `redact`, `none`).
 - `telemetry(...)` accepts expressions that evaluate to
   `Option<masterror::Field>`. Each populated field is inserted into the
   resulting [`Metadata`]; use `telemetry()` when no fields are attached.
@@ -719,13 +720,13 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.16.0", default-features = false }
+masterror = { version = "0.17.0", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.16.0", features = [
+masterror = { version = "0.17.0", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -734,7 +735,7 @@ masterror = { version = "0.16.0", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.16.0", features = [
+masterror = { version = "0.17.0", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }

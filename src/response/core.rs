@@ -92,4 +92,10 @@ impl ErrorResponse {
     pub fn status_code(&self) -> StatusCode {
         StatusCode::from_u16(self.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
     }
+
+    /// Formatter exposing internals for diagnostic logs.
+    #[must_use]
+    pub fn internal(&self) -> crate::response::internal::ErrorResponseFormatter<'_> {
+        crate::response::internal::ErrorResponseFormatter::new(self)
+    }
 }

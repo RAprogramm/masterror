@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use masterror::{
-    AppCode, AppErrorKind, Error as MasterrorError, Masterror, MessageEditPolicy,
+    AppCode, AppErrorKind, Error as MasterrorError, FieldRedaction, Masterror, MessageEditPolicy,
     mapping::{GrpcMapping, HttpMapping, ProblemMapping}
 };
 
@@ -13,7 +13,7 @@ use masterror::{
     code = AppCode::NotFound,
     category = AppErrorKind::NotFound,
     message,
-    redact(message),
+    redact(message, fields("user_id" = hash)),
     telemetry(
         Some(masterror::field::str("user_id", user_id.clone())),
         attempt.map(|value| masterror::field::u64("attempt", value))
@@ -57,7 +57,7 @@ enum ApiError {
 
 #[test]
 fn struct_masterror_conversion_populates_metadata_and_source() {
-    let source = std::io::Error::new(std::io::ErrorKind::Other, "backend down");
+    let source = std::io::Error::other("backend down");
     let err = MissingFlag {
         user_id: "alice".into(),
         flag:    "beta",
@@ -100,6 +100,10 @@ fn struct_masterror_conversion_populates_metadata_and_source() {
     assert_eq!(
         MissingFlag::HTTP_MAPPING,
         HttpMapping::new(AppCode::NotFound, AppErrorKind::NotFound)
+    );
+    assert_eq!(
+        converted.metadata().redaction("user_id"),
+        Some(FieldRedaction::Hash)
     );
     assert_eq!(MissingFlag::HTTP_MAPPING.status(), 404);
 

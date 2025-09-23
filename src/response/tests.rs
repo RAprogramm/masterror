@@ -1,5 +1,5 @@
 use super::ErrorResponse;
-use crate::{AppCode, AppError, AppErrorKind};
+use crate::{AppCode, AppError, AppErrorKind, ProblemJson};
 
 // --- Basic constructors and fields --------------------------------------
 
@@ -181,6 +181,18 @@ fn from_app_error_bare_uses_kind_display_as_message() {
     assert_eq!(resp.message, AppErrorKind::Timeout.to_string());
 }
 
+#[test]
+fn from_app_error_redacts_message_when_policy_allows() {
+    let app = AppError::internal("sensitive").redactable();
+    let resp: ErrorResponse = app.into();
+
+    assert_eq!(resp.message, AppErrorKind::Internal.to_string());
+
+    let borrowed = AppError::internal("private").redactable();
+    let resp_ref: ErrorResponse = (&borrowed).into();
+    assert_eq!(resp_ref.message, AppErrorKind::Internal.to_string());
+}
+
 // --- Display formatting --------------------------------------------------
 
 #[test]
@@ -299,6 +311,17 @@ fn serialized_json_contains_core_fields() {
     // Retry advice is serialized as nested object
     assert!(s.contains("\"retry\""));
     assert!(s.contains("\"after_seconds\":1"));
+}
+
+#[test]
+fn internal_formatters_are_opt_in() {
+    let resp = ErrorResponse::new(404, AppCode::NotFound, "missing").expect("status");
+    let formatted = format!("{:?}", resp.internal());
+    assert!(formatted.contains("ErrorResponse"));
+
+    let problem = ProblemJson::from_ref(&AppError::not_found("missing"));
+    let formatted_problem = format!("{:?}", problem.internal());
+    assert!(formatted_problem.contains("ProblemJson"));
 }
 
 #[cfg(feature = "axum")]

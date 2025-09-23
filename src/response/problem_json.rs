@@ -1,10 +1,13 @@
-use std::{borrow::Cow, collections::BTreeMap};
+use std::{borrow::Cow, collections::BTreeMap, fmt::Write};
 
 use http::StatusCode;
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 
 use super::core::ErrorResponse;
-use crate::{AppCode, AppError, AppErrorKind, FieldValue, MessageEditPolicy, Metadata};
+use crate::{
+    AppCode, AppError, AppErrorKind, FieldRedaction, FieldValue, MessageEditPolicy, Metadata
+};
 
 /// Canonical mapping for a public [`AppCode`].
 ///
@@ -260,6 +263,12 @@ impl ProblemJson {
             Err(_) => StatusCode::INTERNAL_SERVER_ERROR
         }
     }
+
+    /// Formatter exposing internals for diagnostic logging.
+    #[must_use]
+    pub fn internal(&self) -> crate::response::internal::ProblemJsonFormatter<'_> {
+        crate::response::internal::ProblemJsonFormatter::new(self)
+    }
 }
 
 /// Metadata section of a [`ProblemJson`] payload.
@@ -291,7 +300,7 @@ impl ProblemMetadata {
 /// ```rust
 /// use masterror::{ProblemMetadataValue, field};
 ///
-/// let (_name, field_value) = field::u64("attempt", 2).into_parts();
+/// let (_name, field_value, _redaction) = field::u64("attempt", 2).into_parts();
 /// let value = ProblemMetadataValue::from(field_value);
 /// assert!(matches!(value, ProblemMetadataValue::U64(2)));
 /// ```
@@ -362,8 +371,10 @@ fn sanitize_metadata_owned(
 
     let mut public = BTreeMap::new();
     for field in metadata {
-        let (name, value) = field.into_parts();
-        public.insert(name, ProblemMetadataValue::from(value));
+        let (name, value, redaction) = field.into_parts();
+        if let Some(sanitized) = sanitize_problem_metadata_value_owned(value, redaction) {
+            public.insert(name, sanitized);
+        }
     }
 
     if public.is_empty() {
@@ -382,8 +393,10 @@ fn sanitize_metadata_ref(
     }
 
     let mut public = BTreeMap::new();
-    for (name, value) in metadata.iter() {
-        public.insert(name, ProblemMetadataValue::from(value));
+    for (name, value, redaction) in metadata.iter_with_redaction() {
+        if let Some(sanitized) = sanitize_problem_metadata_value_ref(value, redaction) {
+            public.insert(name, sanitized);
+        }
     }
 
     if public.is_empty() {
@@ -391,6 +404,103 @@ fn sanitize_metadata_ref(
     } else {
         Some(ProblemMetadata(public))
     }
+}
+
+const REDACTED_PLACEHOLDER: &str = "[REDACTED]";
+
+fn sanitize_problem_metadata_value_owned(
+    value: FieldValue,
+    redaction: FieldRedaction
+) -> Option<ProblemMetadataValue> {
+    match redaction {
+        FieldRedaction::None => Some(ProblemMetadataValue::from(value)),
+        FieldRedaction::Redact => Some(ProblemMetadataValue::String(Cow::Borrowed(
+            REDACTED_PLACEHOLDER
+        ))),
+        FieldRedaction::Hash => Some(ProblemMetadataValue::String(Cow::Owned(hash_field_value(
+            &value
+        )))),
+        FieldRedaction::Last4 => mask_last4_field_value(&value)
+            .map(|masked| ProblemMetadataValue::String(Cow::Owned(masked)))
+    }
+}
+
+fn sanitize_problem_metadata_value_ref(
+    value: &FieldValue,
+    redaction: FieldRedaction
+) -> Option<ProblemMetadataValue> {
+    match redaction {
+        FieldRedaction::None => Some(ProblemMetadataValue::from(value)),
+        FieldRedaction::Redact => Some(ProblemMetadataValue::String(Cow::Borrowed(
+            REDACTED_PLACEHOLDER
+        ))),
+        FieldRedaction::Hash => Some(ProblemMetadataValue::String(Cow::Owned(hash_field_value(
+            value
+        )))),
+        FieldRedaction::Last4 => mask_last4_field_value(value)
+            .map(|masked| ProblemMetadataValue::String(Cow::Owned(masked)))
+    }
+}
+
+fn hash_field_value(value: &FieldValue) -> String {
+    let mut hasher = Sha256::new();
+    match value {
+        FieldValue::Str(value) => hasher.update(value.as_ref().as_bytes()),
+        FieldValue::I64(value) => {
+            let string = value.to_string();
+            hasher.update(string.as_bytes());
+        }
+        FieldValue::U64(value) => {
+            let string = value.to_string();
+            hasher.update(string.as_bytes());
+        }
+        FieldValue::Bool(value) => {
+            if *value {
+                hasher.update(b"true");
+            } else {
+                hasher.update(b"false");
+            }
+        }
+        FieldValue::Uuid(value) => {
+            let string = value.to_string();
+            hasher.update(string.as_bytes());
+        }
+    }
+    let digest = hasher.finalize();
+    let mut hex = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        let _ = write!(&mut hex, "{:02x}", byte);
+    }
+    hex
+}
+
+fn mask_last4_field_value(value: &FieldValue) -> Option<String> {
+    match value {
+        FieldValue::Str(value) => Some(mask_last4(value.as_ref())),
+        FieldValue::I64(value) => Some(mask_last4(&value.to_string())),
+        FieldValue::U64(value) => Some(mask_last4(&value.to_string())),
+        FieldValue::Uuid(value) => Some(mask_last4(&value.to_string())),
+        FieldValue::Bool(_) => None
+    }
+}
+
+fn mask_last4(value: &str) -> String {
+    let chars: Vec<char> = value.chars().collect();
+    let total = chars.len();
+    if total == 0 {
+        return String::new();
+    }
+
+    let keep = if total <= 4 { 1 } else { 4 };
+    let mask_len = total.saturating_sub(keep);
+    let mut masked = String::with_capacity(value.len());
+    for _ in 0..mask_len {
+        masked.push('*');
+    }
+    for ch in chars.iter().skip(mask_len) {
+        masked.push(*ch);
+    }
+    masked
 }
 
 /// Canonical mapping table covering every built-in [`AppCode`].
@@ -740,6 +850,51 @@ mod tests {
         let problem = ProblemJson::from_ref(&err);
         let metadata = problem.metadata.expect("metadata");
         assert!(!metadata.is_empty());
+    }
+
+    #[test]
+    fn redacted_metadata_uses_placeholder() {
+        let err = AppError::internal("oops").with_field(crate::field::str("password", "secret"));
+        let problem = ProblemJson::from_ref(&err);
+        let metadata = problem.metadata.expect("metadata");
+        let value = metadata.0.get("password").expect("password field");
+        match value {
+            ProblemMetadataValue::String(text) => {
+                assert_eq!(text.as_ref(), super::REDACTED_PLACEHOLDER);
+            }
+            other => panic!("unexpected metadata value: {other:?}")
+        }
+    }
+
+    #[test]
+    fn hashed_metadata_masks_original_value() {
+        let err = AppError::internal("oops").with_field(crate::field::str("token", "super"));
+        let problem = ProblemJson::from_ref(&err);
+        let metadata = problem.metadata.expect("metadata");
+        let value = metadata.0.get("token").expect("token field");
+        match value {
+            ProblemMetadataValue::String(text) => {
+                assert_eq!(text.len(), 64);
+                assert_ne!(text.as_ref(), "super");
+            }
+            other => panic!("unexpected metadata value: {other:?}")
+        }
+    }
+
+    #[test]
+    fn last4_metadata_preserves_suffix() {
+        let err = AppError::internal("oops")
+            .with_field(crate::field::str("card_number", "4111111111111111"));
+        let problem = ProblemJson::from_ref(&err);
+        let metadata = problem.metadata.expect("metadata");
+        let value = metadata.0.get("card_number").expect("card number");
+        match value {
+            ProblemMetadataValue::String(text) => {
+                assert!(text.ends_with("1111"));
+                assert!(text.starts_with("************"));
+            }
+            other => panic!("unexpected metadata value: {other:?}")
+        }
     }
 
     #[test]

@@ -106,7 +106,7 @@
 //!     code = AppCode::NotFound,
 //!     category = AppErrorKind::NotFound,
 //!     message,
-//!     redact(message),
+//!     redact(message, fields("user_id" = hash)),
 //!     telemetry(
 //!         Some(masterror::field::str("user_id", user_id.clone())),
 //!         attempt.map(|value| masterror::field::u64("attempt", value))
@@ -144,7 +144,8 @@
 //! - `message` — expose the formatted [`core::fmt::Display`] output as the
 //!   public message.
 //! - `redact(message)` — mark the message as redactable at the transport
-//!   boundary.
+//!   boundary, `fields("name" = hash, "card" = last4)` override metadata
+//!   policies (`hash`, `last4`, `redact`, `none`).
 //! - `telemetry(...)` — list of expressions producing
 //!   `Option<masterror::Field>` to be inserted into [`Metadata`].
 //! - `map.grpc` / `map.problem` — optional gRPC status (as `i32`) and
@@ -322,7 +323,8 @@ pub mod prelude;
 pub mod mapping;
 
 pub use app_error::{
-    AppError, AppResult, Context, Error, Field, FieldValue, MessageEditPolicy, Metadata, field
+    AppError, AppResult, Context, Error, Field, FieldRedaction, FieldValue, MessageEditPolicy,
+    Metadata, field
 };
 pub use code::AppCode;
 pub use kind::AppErrorKind;

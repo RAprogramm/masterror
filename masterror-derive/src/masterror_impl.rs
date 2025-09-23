@@ -3,8 +3,8 @@ use quote::{format_ident, quote};
 use syn::{Error, Expr, ExprPath, Index};
 
 use crate::input::{
-    ErrorData, ErrorInput, Field, Fields, MasterrorSpec, StructData, VariantData, is_arc_type,
-    is_option_type, option_inner_type
+    ErrorData, ErrorInput, Field, FieldRedactionKind, Fields, MasterrorSpec, RedactSpec,
+    StructData, VariantData, is_arc_type, is_option_type, option_inner_type
 };
 
 pub fn expand(input: &ErrorInput) -> Result<TokenStream, Error> {
@@ -75,7 +75,7 @@ fn struct_conversion_impl(
     let field_usage = field_usage_tokens(&bound_fields);
     let telemetry_init = telemetry_initialization(&spec.telemetry);
     let metadata_attach = metadata_attach_tokens();
-    let redact_tokens = redact_tokens(spec.redact_message);
+    let redact_tokens = redact_tokens(&spec.redact);
     let source_tokens = source_attachment_tokens(&bound_fields);
     let backtrace_tokens = backtrace_attachment_tokens(&data.fields, &bound_fields);
 
@@ -117,7 +117,7 @@ fn enum_conversion_impl(input: &ErrorInput, variants: &[VariantData]) -> TokenSt
         let field_usage = field_usage_tokens(&bound_fields);
         let telemetry_init = telemetry_initialization(&spec.telemetry);
         let metadata_attach = metadata_attach_tokens();
-        let redact_tokens = redact_tokens(spec.redact_message);
+        let redact_tokens = redact_tokens(&spec.redact);
         let source_tokens = source_attachment_tokens(&bound_fields);
         let backtrace_tokens = backtrace_attachment_tokens(&variant.fields, &bound_fields);
         message_arms.push(enum_message_arm(ident, variant, spec.expose_message));
@@ -420,13 +420,35 @@ fn metadata_attach_tokens() -> TokenStream {
     }
 }
 
-fn redact_tokens(enabled: bool) -> TokenStream {
-    if enabled {
+fn redact_tokens(spec: &RedactSpec) -> TokenStream {
+    let message = if spec.message {
         quote!(
             __masterror_error = __masterror_error.redactable();
         )
     } else {
         TokenStream::new()
+    };
+
+    let field_updates = spec.fields.iter().map(|field| {
+        let name = &field.name;
+        let policy = field_redaction_tokens(field.policy);
+        quote!(
+            __masterror_error = __masterror_error.redact_field(#name, #policy);
+        )
+    });
+
+    quote! {
+        #message
+        #( #field_updates )*
+    }
+}
+
+fn field_redaction_tokens(kind: FieldRedactionKind) -> TokenStream {
+    match kind {
+        FieldRedactionKind::None => quote!(masterror::FieldRedaction::None),
+        FieldRedactionKind::Redact => quote!(masterror::FieldRedaction::Redact),
+        FieldRedactionKind::Hash => quote!(masterror::FieldRedaction::Hash),
+        FieldRedactionKind::Last4 => quote!(masterror::FieldRedaction::Last4)
     }
 }
 
