@@ -38,8 +38,8 @@
 //!   with RFC7807 body
 //! - `actix` — implements `Responder` for [`ProblemJson`] and Actix
 //!   `ResponseError` for [`AppError`]
-//! - `tonic` — converts [`struct@Error`] into `tonic::Status` with
-//!   sanitized metadata
+//! - `tonic` — converts [`struct@Error`] into `tonic::Status` with sanitized
+//!   metadata
 //! - `openapi` — derives an OpenAPI schema for [`ErrorResponse`] (via `utoipa`)
 //! - `sqlx` — `From<sqlx::Error>` mapping
 //! - `redis` — `From<redis::RedisError>` mapping

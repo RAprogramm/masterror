@@ -3,7 +3,8 @@ use quote::{format_ident, quote};
 use syn::{Error, Expr, ExprPath, Index};
 
 use crate::input::{
-    ErrorData, ErrorInput, Field, Fields, MasterrorSpec, StructData, VariantData, is_option_type
+    ErrorData, ErrorInput, Field, Fields, MasterrorSpec, StructData, VariantData, is_arc_type,
+    is_option_type, option_inner_type
 };
 
 pub fn expand(input: &ErrorInput) -> Result<TokenStream, Error> {
@@ -433,13 +434,27 @@ fn source_attachment_tokens(bound_fields: &[BoundField<'_>]) -> TokenStream {
     for bound in bound_fields {
         if bound.field.attrs.has_source() {
             let binding = &bound.binding;
-            if is_option_type(&bound.field.ty) {
+            let ty = &bound.field.ty;
+            if is_option_type(ty) {
+                let arc_inner = option_inner_type(ty).is_some_and(is_arc_type);
+                if arc_inner {
+                    return quote! {
+                        if let Some(source) = #binding {
+                            __masterror_error = __masterror_error.with_source_arc(source);
+                        }
+                    };
+                }
                 return quote! {
                     if let Some(source) = #binding {
                         __masterror_error = __masterror_error.with_source(source);
                     }
                 };
             } else {
+                if is_arc_type(ty) {
+                    return quote! {
+                        __masterror_error = __masterror_error.with_source_arc(#binding);
+                    };
+                }
                 return quote! {
                     __masterror_error = __masterror_error.with_source(#binding);
                 };

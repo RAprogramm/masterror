@@ -138,19 +138,16 @@ impl ProblemJson {
     /// assert_eq!(problem.status, 409);
     /// ```
     #[must_use]
-    pub fn from_app_error(error: AppError) -> Self {
-        let err = error;
-        err.emit_telemetry();
-        let AppError {
-            code,
-            kind,
-            message,
-            metadata,
-            edit_policy,
-            retry,
-            www_authenticate,
-            ..
-        } = err;
+    pub fn from_app_error(mut error: AppError) -> Self {
+        error.emit_telemetry();
+
+        let code = error.code;
+        let kind = error.kind;
+        let message = error.message.take();
+        let metadata = core::mem::take(&mut error.metadata);
+        let edit_policy = error.edit_policy;
+        let retry = error.retry.take();
+        let www_authenticate = error.www_authenticate.take();
 
         let mapping = mapping_for_code(code);
         let status = kind.http_status();

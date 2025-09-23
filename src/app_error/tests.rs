@@ -1,4 +1,12 @@
 use std::{borrow::Cow, error::Error as StdError, fmt::Display, sync::Arc};
+#[cfg(feature = "backtrace")]
+use std::{env, sync::Mutex};
+
+#[cfg(feature = "backtrace")]
+use super::core::reset_backtrace_preference;
+
+#[cfg(feature = "backtrace")]
+static BACKTRACE_ENV_GUARD: Mutex<()> = Mutex::new(());
 
 use super::{AppError, FieldValue, MessageEditPolicy, field};
 use crate::{AppCode, AppErrorKind};
@@ -176,15 +184,74 @@ impl StdError for DummyError {}
 #[test]
 fn source_is_preserved_without_extra_allocation() {
     let source = Arc::new(DummyError);
-    let err = AppError::internal("boom").with_source(source.clone());
+    let err = AppError::internal("boom").with_source_arc(source.clone());
 
     assert_eq!(Arc::strong_count(&source), 2);
 
     let stored = err.source_ref().expect("source");
-    let stored_arc = stored
-        .downcast_ref::<Arc<DummyError>>()
-        .expect("arc should be preserved");
-    assert!(Arc::ptr_eq(stored_arc, &source));
+    let stored_dummy = stored
+        .downcast_ref::<DummyError>()
+        .expect("dummy should be preserved");
+    assert!(std::ptr::eq(stored_dummy, &*source));
+}
+
+#[test]
+fn error_chain_is_preserved() {
+    #[derive(Debug)]
+    struct NestedError {
+        inner: DummyError
+    }
+
+    impl Display for NestedError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            self.inner.fmt(f)
+        }
+    }
+
+    impl StdError for NestedError {
+        fn source(&self) -> Option<&(dyn StdError + 'static)> {
+            Some(&self.inner)
+        }
+    }
+
+    let err = AppError::internal("boom").with_source(NestedError {
+        inner: DummyError
+    });
+    let top_source = StdError::source(&err).expect("top source");
+    assert!(top_source.is::<NestedError>());
+    let nested = top_source.source().expect("nested source");
+    assert!(nested.is::<DummyError>());
+}
+
+#[cfg(feature = "backtrace")]
+fn with_backtrace_env<F: FnOnce()>(value: Option<&str>, test: F) {
+    let _guard = BACKTRACE_ENV_GUARD.lock().expect("env guard");
+    reset_backtrace_preference();
+    match value {
+        Some(val) => env::set_var("RUST_BACKTRACE", val),
+        None => env::remove_var("RUST_BACKTRACE")
+    }
+    test();
+    env::remove_var("RUST_BACKTRACE");
+    reset_backtrace_preference();
+}
+
+#[cfg(feature = "backtrace")]
+#[test]
+fn backtrace_respects_disabled_env() {
+    with_backtrace_env(Some("0"), || {
+        let err = AppError::internal("boom");
+        assert!(err.backtrace().is_none());
+    });
+}
+
+#[cfg(feature = "backtrace")]
+#[test]
+fn backtrace_enabled_when_env_requests() {
+    with_backtrace_env(Some("1"), || {
+        let err = AppError::internal("boom");
+        assert!(err.backtrace().is_some());
+    });
 }
 
 #[test]

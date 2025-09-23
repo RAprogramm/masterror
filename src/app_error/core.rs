@@ -1,12 +1,21 @@
 #[cfg(feature = "backtrace")]
-use std::sync::OnceLock;
 use std::{
     backtrace::Backtrace,
+    env,
+    sync::{
+        OnceLock,
+        atomic::{AtomicU8, Ordering as AtomicOrdering}
+    }
+};
+use std::{
     borrow::Cow,
     error::Error as StdError,
     fmt::{Display, Formatter, Result as FmtResult},
     ops::{Deref, DerefMut},
-    sync::atomic::{AtomicBool, Ordering}
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering}
+    }
 };
 
 #[cfg(feature = "tracing")]
@@ -50,9 +59,7 @@ impl BacktraceSlot {
     }
 
     fn capture_if_absent(&self) -> Option<&Backtrace> {
-        self.cell
-            .get_or_init(|| Some(Backtrace::capture()))
-            .as_ref()
+        self.cell.get_or_init(capture_backtrace_snapshot).as_ref()
     }
 }
 
@@ -64,7 +71,19 @@ impl Default for BacktraceSlot {
 }
 
 #[cfg(not(feature = "backtrace"))]
-type BacktraceSlot = Option<Backtrace>;
+#[derive(Debug, Default)]
+struct BacktraceSlot {
+    _marker: ()
+}
+
+#[cfg(not(feature = "backtrace"))]
+impl BacktraceSlot {
+    fn set(&mut self, _backtrace: std::backtrace::Backtrace) {}
+
+    fn capture_if_absent(&self) -> Option<&std::backtrace::Backtrace> {
+        None
+    }
+}
 
 #[derive(Debug)]
 #[doc(hidden)]
@@ -83,9 +102,69 @@ pub struct ErrorInner {
     pub retry:            Option<RetryAdvice>,
     /// Optional authentication challenge for `WWW-Authenticate`.
     pub www_authenticate: Option<String>,
-    source:               Option<Box<dyn StdError + Send + Sync + 'static>>,
+    source:               Option<Arc<dyn StdError + Send + Sync + 'static>>,
     backtrace:            BacktraceSlot,
     telemetry_dirty:      AtomicBool
+}
+
+#[cfg(feature = "backtrace")]
+const BACKTRACE_STATE_UNSET: u8 = 0;
+#[cfg(feature = "backtrace")]
+const BACKTRACE_STATE_ENABLED: u8 = 1;
+#[cfg(feature = "backtrace")]
+const BACKTRACE_STATE_DISABLED: u8 = 2;
+
+#[cfg(feature = "backtrace")]
+static BACKTRACE_STATE: AtomicU8 = AtomicU8::new(BACKTRACE_STATE_UNSET);
+
+#[cfg(feature = "backtrace")]
+fn capture_backtrace_snapshot() -> Option<Backtrace> {
+    if should_capture_backtrace() {
+        Some(Backtrace::capture())
+    } else {
+        None
+    }
+}
+
+#[cfg(feature = "backtrace")]
+fn should_capture_backtrace() -> bool {
+    match BACKTRACE_STATE.load(AtomicOrdering::Acquire) {
+        BACKTRACE_STATE_ENABLED => true,
+        BACKTRACE_STATE_DISABLED => false,
+        _ => {
+            let enabled = detect_backtrace_preference();
+            BACKTRACE_STATE.store(
+                if enabled {
+                    BACKTRACE_STATE_ENABLED
+                } else {
+                    BACKTRACE_STATE_DISABLED
+                },
+                AtomicOrdering::Release
+            );
+            enabled
+        }
+    }
+}
+
+#[cfg(feature = "backtrace")]
+fn detect_backtrace_preference() -> bool {
+    match env::var_os("RUST_BACKTRACE") {
+        None => false,
+        Some(value) => {
+            let value = value.to_string_lossy();
+            let trimmed = value.trim();
+            if trimmed.is_empty() {
+                return false;
+            }
+            let lowered = trimmed.to_ascii_lowercase();
+            !(matches!(lowered.as_str(), "0" | "off" | "false"))
+        }
+    }
+}
+
+#[cfg(all(test, feature = "backtrace"))]
+pub(crate) fn reset_backtrace_preference() {
+    BACKTRACE_STATE.store(BACKTRACE_STATE_UNSET, AtomicOrdering::Release);
 }
 
 /// Rich application error preserving domain code, taxonomy and metadata.
@@ -117,8 +196,13 @@ impl Display for Error {
 impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         self.source
-            .as_ref()
-            .map(|source| &**source as &(dyn StdError + 'static))
+            .as_deref()
+            .map(|source| source as &(dyn StdError + 'static))
+    }
+
+    #[cfg(feature = "backtrace")]
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.capture_backtrace()
     }
 }
 
@@ -173,24 +257,12 @@ impl Error {
         self.telemetry_dirty.swap(false, Ordering::AcqRel)
     }
 
-    #[cfg(feature = "backtrace")]
-    fn capture_backtrace(&self) -> Option<&Backtrace> {
+    fn capture_backtrace(&self) -> Option<&std::backtrace::Backtrace> {
         self.backtrace.capture_if_absent()
     }
 
-    #[cfg(not(feature = "backtrace"))]
-    fn capture_backtrace(&self) -> Option<&Backtrace> {
-        self.backtrace.as_ref()
-    }
-
-    #[cfg(feature = "backtrace")]
-    fn set_backtrace_slot(&mut self, backtrace: Backtrace) {
+    fn set_backtrace_slot(&mut self, backtrace: std::backtrace::Backtrace) {
         self.backtrace.set(backtrace);
-    }
-
-    #[cfg(not(feature = "backtrace"))]
-    fn set_backtrace_slot(&mut self, backtrace: Backtrace) {
-        self.backtrace = Some(backtrace);
     }
 
     pub(crate) fn emit_telemetry(&self) {
@@ -331,14 +403,35 @@ impl Error {
     /// Attach a source error for diagnostics.
     #[must_use]
     pub fn with_source(mut self, source: impl StdError + Send + Sync + 'static) -> Self {
-        self.source = Some(Box::new(source));
+        self.source = Some(Arc::new(source));
+        self.mark_dirty();
+        self
+    }
+
+    /// Attach a shared source error without cloning the underlying `Arc`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::sync::Arc;
+    ///
+    /// use masterror::{AppError, AppErrorKind};
+    ///
+    /// let source = Arc::new(std::io::Error::new(std::io::ErrorKind::Other, "boom"));
+    /// let err = AppError::internal("boom").with_source_arc(source.clone());
+    /// assert!(err.source_ref().is_some());
+    /// assert_eq!(Arc::strong_count(&source), 2);
+    /// ```
+    #[must_use]
+    pub fn with_source_arc(mut self, source: Arc<dyn StdError + Send + Sync + 'static>) -> Self {
+        self.source = Some(source);
         self.mark_dirty();
         self
     }
 
     /// Attach a captured backtrace.
     #[must_use]
-    pub fn with_backtrace(mut self, backtrace: Backtrace) -> Self {
+    pub fn with_backtrace(mut self, backtrace: std::backtrace::Backtrace) -> Self {
         self.set_backtrace_slot(backtrace);
         self.mark_dirty();
         self
@@ -353,7 +446,7 @@ impl Error {
     /// Borrow the backtrace, capturing it lazily when the `backtrace` feature
     /// is enabled.
     #[must_use]
-    pub fn backtrace(&self) -> Option<&Backtrace> {
+    pub fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
         self.capture_backtrace()
     }
 
