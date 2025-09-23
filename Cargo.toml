@@ -1,6 +1,6 @@
 [package]
 name = "masterror"
-version = "0.14.0"
+version = "0.14.1"
 rust-version = "1.90"
 edition = "2024"
 license = "MIT OR Apache-2.0"

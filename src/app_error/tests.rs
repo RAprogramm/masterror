@@ -412,8 +412,6 @@ fn metrics_counter_is_incremented_once() {
 
 #[test]
 fn result_alias_is_generic() {
-    // The alias intentionally preserves the full AppError payload size.
-    #[allow(clippy::result_large_err)]
     fn app() -> super::AppResult<u8> {
         Ok(1)
     }
