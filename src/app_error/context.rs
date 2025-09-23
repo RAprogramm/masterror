@@ -129,13 +129,16 @@ impl Context {
             ));
         }
 
-        let mut error = AppError::bare(self.category).with_code(self.code);
+        let mut error = AppError::new_raw(self.category, None);
+        error.code = self.code;
         if !self.fields.is_empty() {
-            error = error.with_fields(self.fields);
+            error.metadata.extend(self.fields);
         }
         if matches!(self.edit_policy, MessageEditPolicy::Redact) {
-            error = error.redactable();
+            error.edit_policy = MessageEditPolicy::Redact;
         }
-        error.with_source(source)
+        let error = error.with_source(source);
+        error.emit_telemetry();
+        error
     }
 }

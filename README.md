@@ -38,13 +38,14 @@ guides, comparisons with `thiserror`/`anyhow`, and troubleshooting recipes.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.13.1", default-features = false }
+masterror = { version = "0.14.0", default-features = false }
 # or with features:
-# masterror = { version = "0.13.1", features = [
+# masterror = { version = "0.14.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
-#   "sqlx", "sqlx-migrate", "reqwest", "redis",
-#   "validator", "config", "tokio", "multipart",
-#   "teloxide", "telegram-webapp-sdk", "frontend", "turnkey"
+#   "tracing", "metrics", "backtrace", "sqlx",
+#   "sqlx-migrate", "reqwest", "redis", "validator",
+#   "config", "tokio", "multipart", "teloxide",
+#   "telegram-webapp-sdk", "frontend", "turnkey"
 # ] }
 ~~~
 
@@ -76,14 +77,15 @@ masterror = { version = "0.13.1", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.13.1", default-features = false }
+masterror = { version = "0.14.0", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.13.1", features = [
+# masterror = { version = "0.14.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
-#   "sqlx", "sqlx-migrate", "reqwest", "redis",
-#   "validator", "config", "tokio", "multipart",
-#   "teloxide", "telegram-webapp-sdk", "frontend", "turnkey"
+#   "tracing", "metrics", "backtrace", "sqlx",
+#   "sqlx-migrate", "reqwest", "redis", "validator",
+#   "config", "tokio", "multipart", "teloxide",
+#   "telegram-webapp-sdk", "frontend", "turnkey"
 # ] }
 ~~~
 
@@ -671,6 +673,9 @@ assert_eq!(resp.status, 401);
 - `actix` — Actix Web ResponseError and Responder implementations
 - `openapi` — Generate utoipa OpenAPI schema for ErrorResponse
 - `serde_json` — Attach structured JSON details to AppError
+- `tracing` — Emit structured tracing events when errors are constructed
+- `metrics` — Increment `error_total{code,category}` counter for each AppError
+- `backtrace` — Capture lazy `Backtrace` snapshots when telemetry is flushed
 - `sqlx` — Classify sqlx_core::Error variants into AppError kinds
 - `sqlx-migrate` — Map sqlx::migrate::MigrateError into AppError (Database)
 - `reqwest` — Classify reqwest::Error as timeout/network/external API
@@ -709,13 +714,13 @@ assert_eq!(resp.status, 401);
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.13.1", default-features = false }
+masterror = { version = "0.14.0", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.13.1", features = [
+masterror = { version = "0.14.0", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -724,7 +729,7 @@ masterror = { version = "0.13.1", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.13.1", features = [
+masterror = { version = "0.14.0", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }

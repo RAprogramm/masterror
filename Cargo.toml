@@ -1,6 +1,6 @@
 [package]
 name = "masterror"
-version = "0.13.1"
+version = "0.14.0"
 rust-version = "1.90"
 edition = "2024"
 license = "MIT OR Apache-2.0"
@@ -50,6 +50,9 @@ readme = "README.md"
 
 [features]
 default = []
+tracing = ["dep:tracing", "dep:log", "dep:log-mdc"]
+metrics = ["dep:metrics"]
+backtrace = []
 axum = ["dep:axum", "dep:serde_json"]
 actix = ["dep:actix-web", "dep:serde_json"]
 
@@ -77,7 +80,10 @@ masterror-template = { version = "0.3.6" }
 [dependencies]
 masterror-derive = { version = "0.7" }
 masterror-template = { workspace = true }
-tracing = "0.1"
+tracing = { version = "0.1", optional = true }
+log = { version = "0.4", optional = true }
+log-mdc = { version = "0.1", optional = true }
+metrics = { version = "0.24", optional = true }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", optional = true }
@@ -125,6 +131,7 @@ tokio = { version = "1", features = [
 trybuild = "1"
 toml = "0.9"
 tempfile = "3"
+tracing-subscriber = { version = "0.3", features = ["registry"] }
 
 [build-dependencies]
 serde = { version = "1", features = ["derive"] }
@@ -136,6 +143,9 @@ feature_order = [
   "actix",
   "openapi",
   "serde_json",
+  "tracing",
+  "metrics",
+  "backtrace",
   "sqlx",
   "sqlx-migrate",
   "reqwest",
@@ -175,6 +185,15 @@ description = "Generate utoipa OpenAPI schema for ErrorResponse"
 
 [package.metadata.masterror.readme.features.serde_json]
 description = "Attach structured JSON details to AppError"
+
+[package.metadata.masterror.readme.features.tracing]
+description = "Emit structured tracing events when errors are constructed"
+
+[package.metadata.masterror.readme.features.metrics]
+description = "Increment `error_total{code,category}` counter for each AppError"
+
+[package.metadata.masterror.readme.features.backtrace]
+description = "Capture lazy `Backtrace` snapshots when telemetry is flushed"
 
 [package.metadata.masterror.readme.features.sqlx]
 description = "Classify sqlx_core::Error variants into AppError kinds"

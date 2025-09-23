@@ -85,6 +85,7 @@ impl ResponseError for AppError {
 
     /// Produce JSON body with `ErrorResponse`. Does not leak sources.
     fn error_response(&self) -> HttpResponse {
+        self.emit_telemetry();
         let body = ErrorResponse::from(self);
         let mut builder = HttpResponse::build(self.status_code());
         if let Some(retry) = body.retry {

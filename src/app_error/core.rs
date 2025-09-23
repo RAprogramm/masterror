@@ -1,11 +1,15 @@
+#[cfg(feature = "backtrace")]
+use std::sync::OnceLock;
 use std::{
     backtrace::Backtrace,
     borrow::Cow,
     error::Error as StdError,
-    fmt::{Display, Formatter, Result as FmtResult}
+    fmt::{Display, Formatter, Result as FmtResult},
+    sync::atomic::{AtomicBool, Ordering}
 };
 
-use tracing::error;
+#[cfg(feature = "tracing")]
+use tracing::{Level, event};
 
 use super::metadata::{Field, Metadata};
 use crate::{AppCode, AppErrorKind, RetryAdvice};
@@ -19,6 +23,51 @@ pub enum MessageEditPolicy {
     /// Message may be redacted or replaced at the transport boundary.
     Redact
 }
+
+#[cfg(feature = "backtrace")]
+#[derive(Debug)]
+struct BacktraceSlot {
+    cell: OnceLock<Option<Backtrace>>
+}
+
+#[cfg(feature = "backtrace")]
+impl BacktraceSlot {
+    const fn new() -> Self {
+        Self {
+            cell: OnceLock::new()
+        }
+    }
+
+    fn with(backtrace: Backtrace) -> Self {
+        let slot = Self::new();
+        let _ = slot.cell.set(Some(backtrace));
+        slot
+    }
+
+    fn set(&mut self, backtrace: Backtrace) {
+        *self = Self::with(backtrace);
+    }
+
+    fn get(&self) -> Option<&Backtrace> {
+        self.cell.get().and_then(|value| value.as_ref())
+    }
+
+    fn capture_if_absent(&self) -> Option<&Backtrace> {
+        self.cell
+            .get_or_init(|| Some(Backtrace::capture()))
+            .as_ref()
+    }
+}
+
+#[cfg(feature = "backtrace")]
+impl Default for BacktraceSlot {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(not(feature = "backtrace"))]
+type BacktraceSlot = Option<Backtrace>;
 
 /// Rich application error preserving domain code, taxonomy and metadata.
 #[derive(Debug)]
@@ -38,7 +87,8 @@ pub struct Error {
     /// Optional authentication challenge for `WWW-Authenticate`.
     pub www_authenticate: Option<String>,
     source:               Option<Box<dyn StdError + Send + Sync + 'static>>,
-    backtrace:            Option<Backtrace>
+    backtrace:            BacktraceSlot,
+    telemetry_dirty:      AtomicBool
 }
 
 impl Display for Error {
@@ -81,6 +131,86 @@ impl StdError for Error {
 pub type AppResult<T, E = Error> = Result<T, E>;
 
 impl Error {
+    pub(crate) fn new_raw(kind: AppErrorKind, message: Option<Cow<'static, str>>) -> Self {
+        Self {
+            code: AppCode::from(kind),
+            kind,
+            message,
+            metadata: Metadata::new(),
+            edit_policy: MessageEditPolicy::Preserve,
+            retry: None,
+            www_authenticate: None,
+            source: None,
+            backtrace: BacktraceSlot::default(),
+            telemetry_dirty: AtomicBool::new(true)
+        }
+    }
+
+    fn mark_dirty(&self) {
+        self.telemetry_dirty.store(true, Ordering::Release);
+    }
+
+    fn take_dirty(&self) -> bool {
+        self.telemetry_dirty.swap(false, Ordering::AcqRel)
+    }
+
+    #[cfg(feature = "backtrace")]
+    fn capture_backtrace(&self) -> Option<&Backtrace> {
+        self.backtrace.capture_if_absent()
+    }
+
+    #[cfg(not(feature = "backtrace"))]
+    fn capture_backtrace(&self) -> Option<&Backtrace> {
+        self.backtrace.as_ref()
+    }
+
+    #[cfg(feature = "backtrace")]
+    fn set_backtrace_slot(&mut self, backtrace: Backtrace) {
+        self.backtrace.set(backtrace);
+    }
+
+    #[cfg(not(feature = "backtrace"))]
+    fn set_backtrace_slot(&mut self, backtrace: Backtrace) {
+        self.backtrace = Some(backtrace);
+    }
+
+    pub(crate) fn emit_telemetry(&self) {
+        if self.take_dirty() {
+            #[cfg(feature = "backtrace")]
+            let _ = self.capture_backtrace();
+
+            #[cfg(feature = "metrics")]
+            {
+                metrics::counter!(
+                    "error_total",
+                    "code" => self.code.as_str(),
+                    "category" => kind_label(self.kind)
+                )
+                .increment(1);
+            }
+
+            #[cfg(feature = "tracing")]
+            {
+                let message = self.message.as_deref();
+                let retry_seconds = self.retry.map(|value| value.after_seconds);
+                let trace_id = log_mdc::get("trace_id", |value| value.map(str::to_owned));
+                event!(
+                    target: "masterror::error",
+                    Level::ERROR,
+                    code = self.code.as_str(),
+                    category = kind_label(self.kind),
+                    message = message,
+                    retry_seconds,
+                    redactable = matches!(self.edit_policy, MessageEditPolicy::Redact),
+                    metadata_len = self.metadata.len() as u64,
+                    www_authenticate = self.www_authenticate.as_deref(),
+                    trace_id = trace_id.as_deref(),
+                    "app error constructed"
+                );
+            }
+        }
+    }
+
     /// Create a new [`Error`] with a kind and message.
     ///
     /// This is equivalent to [`Error::with`], provided for API symmetry and to
@@ -104,17 +234,9 @@ impl Error {
     /// intent.
     #[must_use]
     pub fn with(kind: AppErrorKind, msg: impl Into<Cow<'static, str>>) -> Self {
-        Self {
-            code: AppCode::from(kind),
-            kind,
-            message: Some(msg.into()),
-            metadata: Metadata::new(),
-            edit_policy: MessageEditPolicy::Preserve,
-            retry: None,
-            www_authenticate: None,
-            source: None,
-            backtrace: None
-        }
+        let err = Self::new_raw(kind, Some(msg.into()));
+        err.emit_telemetry();
+        err
     }
 
     /// Create a message-less error with the given kind.
@@ -122,23 +244,16 @@ impl Error {
     /// Useful when the kind alone conveys sufficient information to the client.
     #[must_use]
     pub fn bare(kind: AppErrorKind) -> Self {
-        Self {
-            code: AppCode::from(kind),
-            kind,
-            message: None,
-            metadata: Metadata::new(),
-            edit_policy: MessageEditPolicy::Preserve,
-            retry: None,
-            www_authenticate: None,
-            source: None,
-            backtrace: None
-        }
+        let err = Self::new_raw(kind, None);
+        err.emit_telemetry();
+        err
     }
 
     /// Override the machine-readable [`AppCode`].
     #[must_use]
     pub fn with_code(mut self, code: AppCode) -> Self {
         self.code = code;
+        self.mark_dirty();
         self
     }
 
@@ -150,6 +265,7 @@ impl Error {
         self.retry = Some(RetryAdvice {
             after_seconds: secs
         });
+        self.mark_dirty();
         self
     }
 
@@ -157,6 +273,7 @@ impl Error {
     #[must_use]
     pub fn with_www_authenticate(mut self, value: impl Into<String>) -> Self {
         self.www_authenticate = Some(value.into());
+        self.mark_dirty();
         self
     }
 
@@ -164,6 +281,7 @@ impl Error {
     #[must_use]
     pub fn with_field(mut self, field: Field) -> Self {
         self.metadata.insert(field);
+        self.mark_dirty();
         self
     }
 
@@ -171,6 +289,7 @@ impl Error {
     #[must_use]
     pub fn with_fields(mut self, fields: impl IntoIterator<Item = Field>) -> Self {
         self.metadata.extend(fields);
+        self.mark_dirty();
         self
     }
 
@@ -178,6 +297,7 @@ impl Error {
     #[must_use]
     pub fn with_metadata(mut self, metadata: Metadata) -> Self {
         self.metadata = metadata;
+        self.mark_dirty();
         self
     }
 
@@ -185,6 +305,7 @@ impl Error {
     #[must_use]
     pub fn redactable(mut self) -> Self {
         self.edit_policy = MessageEditPolicy::Redact;
+        self.mark_dirty();
         self
     }
 
@@ -192,13 +313,15 @@ impl Error {
     #[must_use]
     pub fn with_source(mut self, source: impl StdError + Send + Sync + 'static) -> Self {
         self.source = Some(Box::new(source));
+        self.mark_dirty();
         self
     }
 
     /// Attach a captured backtrace.
     #[must_use]
     pub fn with_backtrace(mut self, backtrace: Backtrace) -> Self {
-        self.backtrace = Some(backtrace);
+        self.set_backtrace_slot(backtrace);
+        self.mark_dirty();
         self
     }
 
@@ -208,10 +331,11 @@ impl Error {
         &self.metadata
     }
 
-    /// Borrow the backtrace if present.
+    /// Borrow the backtrace, capturing it lazily when the `backtrace` feature
+    /// is enabled.
     #[must_use]
     pub fn backtrace(&self) -> Option<&Backtrace> {
-        self.backtrace.as_ref()
+        self.capture_backtrace()
     }
 
     /// Borrow the source if present.
@@ -229,26 +353,43 @@ impl Error {
         }
     }
 
-    /// Log the error once at the boundary with stable fields.
+    /// Emit telemetry (`tracing` event, metrics counter, backtrace capture).
     ///
-    /// Emits a `tracing::error!` with `kind`, `code`, optional `message` and
-    /// metadata length. No internals or sources are leaked.
+    /// Downstream code can call this to guarantee telemetry after mutating the
+    /// error. It is automatically invoked by constructors and conversions.
     pub fn log(&self) {
-        match &self.message {
-            Some(m) => error!(
-                kind = ?self.kind,
-                code = %self.code,
-                message = %m,
-                metadata_len = self.metadata.len()
-            ),
-            None => error!(
-                kind = ?self.kind,
-                code = %self.code,
-                metadata_len = self.metadata.len()
-            )
-        }
+        self.emit_telemetry();
     }
 }
 
 /// Backwards-compatible export using the historical name.
 pub use Error as AppError;
+
+#[cfg(any(feature = "metrics", feature = "tracing"))]
+fn kind_label(kind: AppErrorKind) -> &'static str {
+    match kind {
+        AppErrorKind::NotFound => "NotFound",
+        AppErrorKind::Validation => "Validation",
+        AppErrorKind::Conflict => "Conflict",
+        AppErrorKind::Unauthorized => "Unauthorized",
+        AppErrorKind::Forbidden => "Forbidden",
+        AppErrorKind::NotImplemented => "NotImplemented",
+        AppErrorKind::Internal => "Internal",
+        AppErrorKind::BadRequest => "BadRequest",
+        AppErrorKind::TelegramAuth => "TelegramAuth",
+        AppErrorKind::InvalidJwt => "InvalidJwt",
+        AppErrorKind::Database => "Database",
+        AppErrorKind::Service => "Service",
+        AppErrorKind::Config => "Config",
+        AppErrorKind::Turnkey => "Turnkey",
+        AppErrorKind::Timeout => "Timeout",
+        AppErrorKind::Network => "Network",
+        AppErrorKind::RateLimited => "RateLimited",
+        AppErrorKind::DependencyUnavailable => "DependencyUnavailable",
+        AppErrorKind::Serialization => "Serialization",
+        AppErrorKind::Deserialization => "Deserialization",
+        AppErrorKind::ExternalApi => "ExternalApi",
+        AppErrorKind::Queue => "Queue",
+        AppErrorKind::Cache => "Cache"
+    }
+}
