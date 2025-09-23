@@ -11,18 +11,13 @@ use super::metadata::{Field, Metadata};
 use crate::{AppCode, AppErrorKind, RetryAdvice};
 
 /// Controls whether the public message may be redacted before exposure.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum MessageEditPolicy {
     /// Message must be preserved as-is.
+    #[default]
     Preserve,
     /// Message may be redacted or replaced at the transport boundary.
     Redact
-}
-
-impl Default for MessageEditPolicy {
-    fn default() -> Self {
-        Self::Preserve
-    }
 }
 
 /// Rich application error preserving domain code, taxonomy and metadata.

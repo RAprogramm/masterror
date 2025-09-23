@@ -84,6 +84,75 @@
 //! Use `#[provide]` to forward typed telemetry that downstream consumers can
 //! extract from [`AppError`] via `std::error::Request`.
 //!
+//! ## Masterror derive: end-to-end domain errors
+//!
+//! `#[derive(Masterror)]` builds on top of `#[derive(Error)]`, wiring a domain
+//! error directly into [`struct@crate::Error`] with typed telemetry, redaction
+//! policy and transport hints. The `#[masterror(...)]` attribute mirrors the
+//! `thiserror` style while keeping redaction decisions and metadata in one
+//! place.
+//!
+//! ```rust
+//! use masterror::{
+//!     AppCode, AppErrorKind, Error, Masterror, MessageEditPolicy, mapping::HttpMapping
+//! };
+//!
+//! #[derive(Debug, Masterror)]
+//! #[error("user {user_id} missing flag {flag}")]
+//! #[masterror(
+//!     code = AppCode::NotFound,
+//!     category = AppErrorKind::NotFound,
+//!     message,
+//!     redact(message),
+//!     telemetry(
+//!         Some(masterror::field::str("user_id", user_id.clone())),
+//!         attempt.map(|value| masterror::field::u64("attempt", value))
+//!     ),
+//!     map.grpc = 5,
+//!     map.problem = "https://errors.example.com/not-found"
+//! )]
+//! struct MissingFlag {
+//!     user_id: String,
+//!     flag:    &'static str,
+//!     attempt: Option<u64>,
+//!     #[source]
+//!     source:  Option<std::io::Error>
+//! }
+//!
+//! let err = MissingFlag {
+//!     user_id: "alice".into(),
+//!     flag:    "beta",
+//!     attempt: Some(2),
+//!     source:  None
+//! };
+//! let converted: Error = err.into();
+//! assert_eq!(converted.code, AppCode::NotFound);
+//! assert_eq!(converted.kind, AppErrorKind::NotFound);
+//! assert_eq!(converted.edit_policy, MessageEditPolicy::Redact);
+//! assert!(converted.metadata().get("user_id").is_some());
+//! assert_eq!(
+//!     MissingFlag::HTTP_MAPPING,
+//!     HttpMapping::new(AppCode::NotFound, AppErrorKind::NotFound)
+//! );
+//! ```
+//!
+//! - `code` — public [`AppCode`].
+//! - `category` — semantic [`AppErrorKind`].
+//! - `message` — expose the formatted [`core::fmt::Display`] output as the
+//!   public message.
+//! - `redact(message)` — mark the message as redactable at the transport
+//!   boundary.
+//! - `telemetry(...)` — list of expressions producing
+//!   `Option<masterror::Field>` to be inserted into [`Metadata`].
+//! - `map.grpc` / `map.problem` — optional gRPC status (as `i32`) and
+//!   problem+json type for generated mapping tables. Access them via
+//!   `TYPE::HTTP_MAPPING`, `TYPE::GRPC_MAPPING`/`MAPPINGS` and
+//!   `TYPE::PROBLEM_MAPPING`/`MAPPINGS`.
+//!
+//! The derive continues to honour `#[from]`, `#[source]` and `#[backtrace]`
+//! field attributes, automatically attaching sources and captured backtraces to
+//! the resulting [`struct@Error`].
+//!
 //! # Domain integrations: Turnkey
 //!
 //! With the `turnkey` feature enabled, the crate exports a `turnkey` module
@@ -246,12 +315,15 @@ pub mod turnkey;
 /// Minimal prelude re-exporting core types for handler signatures.
 pub mod prelude;
 
+/// Transport mapping descriptors for generated domain errors.
+pub mod mapping;
+
 pub use app_error::{
     AppError, AppResult, Context, Error, Field, FieldValue, MessageEditPolicy, Metadata, field
 };
 pub use code::AppCode;
 pub use kind::AppErrorKind;
-/// Re-export derive macros so users only depend on [`masterror`].
+/// Re-export derive macros so users only depend on this crate.
 ///
 /// # Examples
 ///
@@ -277,6 +349,6 @@ pub use kind::AppErrorKind;
 /// .into();
 /// assert!(matches!(code, AppCode::BadRequest));
 /// ```
-pub use masterror_derive::*;
+pub use masterror_derive::{Error, Masterror};
 pub use response::{ErrorResponse, RetryAdvice};
 pub use result_ext::ResultExt;
