@@ -3,6 +3,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.15.0] - 2025-09-25
+
+### Added
+- Introduced a `response::problem_json` module with an RFC7807 `ProblemJson`
+  payload that serializes metadata, gRPC mappings and retry/authentication
+  hints while respecting the message redaction policy.
+- Added an optional `tonic` feature exposing `TryFrom<Error> for tonic::Status`
+  with sanitized metadata and canonical gRPC code mapping.
+- Published a compile-time `CODE_MAPPINGS` table mapping each `AppCode` to
+  HTTP, gRPC and problem type information for reuse across transports.
+
+### Changed
+- Updated Axum and Actix integrations to emit `application/problem+json`
+  bodies, attach `Retry-After`/`WWW-Authenticate` headers automatically and
+  avoid leaking redactable messages or metadata.
+- Re-exported `ProblemJson` from the crate root alongside `ErrorResponse` for
+  direct construction in custom handlers.
+
+### Tests
+- Added unit coverage for the problem+json metadata sanitizer, header
+  propagation in Axum, and gRPC code mapping under the new `tonic` feature.
+
 ## [0.14.0] - 2025-09-24
 
 ### Added

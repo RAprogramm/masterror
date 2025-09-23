@@ -1,0 +1,756 @@
+use std::{borrow::Cow, collections::BTreeMap};
+
+use http::StatusCode;
+use serde::Serialize;
+
+use super::core::ErrorResponse;
+use crate::{AppCode, AppError, AppErrorKind, FieldValue, MessageEditPolicy, Metadata};
+
+/// Canonical mapping for a public [`AppCode`].
+///
+/// # Examples
+///
+/// ```rust
+/// use masterror::{AppCode, mapping_for_code};
+///
+/// let mapping = mapping_for_code(AppCode::NotFound);
+/// assert_eq!(mapping.http_status(), 404);
+/// assert_eq!(
+///     mapping.problem_type(),
+///     "https://errors.masterror.rs/not-found"
+/// );
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CodeMapping {
+    http_status:  u16,
+    grpc:         GrpcCode,
+    problem_type: &'static str,
+    kind:         AppErrorKind
+}
+
+impl CodeMapping {
+    /// HTTP status code associated with the [`AppCode`].
+    #[cfg_attr(not(any(test, feature = "tonic")), allow(dead_code))]
+    #[must_use]
+    pub const fn http_status(&self) -> u16 {
+        self.http_status
+    }
+
+    /// gRPC code mapping (`tonic::Code` discriminant).
+    #[must_use]
+    pub const fn grpc(&self) -> GrpcCode {
+        self.grpc
+    }
+
+    /// Canonical RFC 7807 problem type URI.
+    #[must_use]
+    pub const fn problem_type(&self) -> &'static str {
+        self.problem_type
+    }
+
+    /// Canonical error kind for presentation.
+    #[must_use]
+    pub const fn kind(&self) -> AppErrorKind {
+        self.kind
+    }
+}
+
+/// gRPC status metadata used in RFC7807 payloads and tonic mapping.
+///
+/// The `value` matches the discriminant of `tonic::Code`, allowing direct
+/// conversion when the `tonic` feature is enabled.
+///
+/// # Examples
+///
+/// ```rust
+/// use masterror::{AppCode, mapping_for_code};
+///
+/// let grpc = mapping_for_code(AppCode::Internal).grpc();
+/// assert_eq!(grpc.name, "INTERNAL");
+/// assert_eq!(grpc.value, 13);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct GrpcCode {
+    /// Canonical name (e.g. `"NOT_FOUND"`).
+    pub name:  &'static str,
+    /// Numeric discriminant matching `tonic::Code`.
+    pub value: i32
+}
+
+/// RFC7807 `application/problem+json` payload enriched with machine-readable
+/// metadata.
+///
+/// Instances are produced by [`ProblemJson::from_app_error`] or
+/// [`ProblemJson::from_ref`]. They power the HTTP adapters and expose
+/// transport-neutral data for tests.
+///
+/// # Examples
+///
+/// ```rust
+/// use masterror::{AppError, ProblemJson};
+///
+/// let problem = ProblemJson::from_ref(&AppError::not_found("missing"));
+/// assert_eq!(problem.status, 404);
+/// assert_eq!(problem.code.as_str(), "NOT_FOUND");
+/// ```
+#[derive(Clone, Debug, Serialize)]
+pub struct ProblemJson {
+    /// Canonical type URI describing the problem class.
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub type_uri:         Option<&'static str>,
+    /// Short, human-friendly title describing the error category.
+    pub title:            Cow<'static, str>,
+    /// HTTP status code returned to the client.
+    pub status:           u16,
+    /// Optional human-readable detail (redacted when marked private).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail:           Option<Cow<'static, str>>,
+    /// Stable machine-readable code.
+    pub code:             AppCode,
+    /// Optional gRPC mapping for multi-protocol clients.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grpc:             Option<GrpcCode>,
+    /// Structured metadata derived from [`Metadata`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata:         Option<ProblemMetadata>,
+    /// Retry advice propagated as the `Retry-After` header.
+    #[serde(skip)]
+    pub retry_after:      Option<u64>,
+    /// Authentication challenge propagated as `WWW-Authenticate`.
+    #[serde(skip)]
+    pub www_authenticate: Option<String>
+}
+
+impl ProblemJson {
+    /// Build a problem payload from an owned [`AppError`].
+    ///
+    /// # Preconditions
+    /// - `error.code` must be a public [`AppCode`] (guaranteed by
+    ///   construction).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use masterror::{AppCode, AppError, ProblemJson};
+    ///
+    /// let problem = ProblemJson::from_app_error(AppError::conflict("exists"));
+    /// assert_eq!(problem.code, AppCode::Conflict);
+    /// assert_eq!(problem.status, 409);
+    /// ```
+    #[must_use]
+    pub fn from_app_error(error: AppError) -> Self {
+        let err = error;
+        err.emit_telemetry();
+        let AppError {
+            code,
+            kind,
+            message,
+            metadata,
+            edit_policy,
+            retry,
+            www_authenticate,
+            ..
+        } = err;
+
+        let mapping = mapping_for_code(code);
+        let status = kind.http_status();
+        let title = Cow::Owned(kind.to_string());
+        let detail = sanitize_detail(message, kind, edit_policy);
+        let metadata = sanitize_metadata_owned(metadata, edit_policy);
+
+        Self {
+            type_uri: Some(mapping.problem_type()),
+            title,
+            status,
+            detail,
+            code,
+            grpc: Some(mapping.grpc()),
+            metadata,
+            retry_after: retry.map(|value| value.after_seconds),
+            www_authenticate
+        }
+    }
+
+    /// Build a problem payload from a borrowed [`AppError`].
+    ///
+    /// This is useful inside middleware that logs while forwarding the error
+    /// downstream without consuming it.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use masterror::{AppError, ProblemJson};
+    ///
+    /// let err = AppError::bad_request("invalid");
+    /// let problem = ProblemJson::from_ref(&err);
+    /// assert_eq!(problem.status, 400);
+    /// assert!(problem.detail.is_some());
+    /// ```
+    #[must_use]
+    pub fn from_ref(error: &AppError) -> Self {
+        let mapping = mapping_for_code(error.code);
+        let status = error.kind.http_status();
+        let title = Cow::Owned(error.kind.to_string());
+        let detail = sanitize_detail_ref(error);
+        let metadata = sanitize_metadata_ref(error.metadata(), error.edit_policy);
+
+        Self {
+            type_uri: Some(mapping.problem_type()),
+            title,
+            status,
+            detail,
+            code: error.code,
+            grpc: Some(mapping.grpc()),
+            metadata,
+            retry_after: error.retry.map(|value| value.after_seconds),
+            www_authenticate: error.www_authenticate.clone()
+        }
+    }
+
+    /// Build a problem payload from a plain [`ErrorResponse`].
+    ///
+    /// Metadata and redaction hints are not available in this conversion.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use masterror::{AppCode, ErrorResponse, ProblemJson};
+    ///
+    /// let legacy = ErrorResponse::new(404, AppCode::NotFound, "missing").expect("status");
+    /// let problem = ProblemJson::from_error_response(legacy);
+    /// assert_eq!(problem.status, 404);
+    /// assert_eq!(problem.code.as_str(), "NOT_FOUND");
+    /// ```
+    #[must_use]
+    pub fn from_error_response(response: ErrorResponse) -> Self {
+        let mapping = mapping_for_code(response.code);
+        let detail = if response.message.is_empty() {
+            None
+        } else {
+            Some(Cow::Owned(response.message))
+        };
+
+        Self {
+            type_uri: Some(mapping.problem_type()),
+            title: Cow::Owned(mapping.kind().to_string()),
+            status: response.status,
+            detail,
+            code: response.code,
+            grpc: Some(mapping.grpc()),
+            metadata: None,
+            retry_after: response.retry.map(|value| value.after_seconds),
+            www_authenticate: response.www_authenticate
+        }
+    }
+
+    /// Convert numeric status into [`StatusCode`].
+    ///
+    /// Falls back to `500 Internal Server Error` if the value is invalid.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use http::StatusCode;
+    /// use masterror::{AppError, ProblemJson};
+    ///
+    /// let problem = ProblemJson::from_app_error(AppError::service("oops"));
+    /// assert_eq!(problem.status_code(), StatusCode::INTERNAL_SERVER_ERROR);
+    /// ```
+    #[must_use]
+    pub fn status_code(&self) -> StatusCode {
+        match StatusCode::from_u16(self.status) {
+            Ok(status) => status,
+            Err(_) => StatusCode::INTERNAL_SERVER_ERROR
+        }
+    }
+}
+
+/// Metadata section of a [`ProblemJson`] payload.
+///
+/// # Examples
+///
+/// ```rust
+/// use masterror::{AppError, ProblemJson};
+///
+/// let err = AppError::service("retry").with_field(masterror::field::u64("attempt", 1));
+/// let problem = ProblemJson::from_ref(&err);
+/// assert!(problem.metadata.is_some());
+/// ```
+#[derive(Clone, Debug, Serialize)]
+#[serde(transparent)]
+pub struct ProblemMetadata(BTreeMap<&'static str, ProblemMetadataValue>);
+
+impl ProblemMetadata {
+    #[cfg(test)]
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+/// Individual metadata value serialized in problem payloads.
+///
+/// # Examples
+///
+/// ```rust
+/// use masterror::{ProblemMetadataValue, field};
+///
+/// let (_name, field_value) = field::u64("attempt", 2).into_parts();
+/// let value = ProblemMetadataValue::from(field_value);
+/// assert!(matches!(value, ProblemMetadataValue::U64(2)));
+/// ```
+#[derive(Clone, Debug, Serialize)]
+#[serde(untagged)]
+pub enum ProblemMetadataValue {
+    /// String value preserved as-is.
+    String(Cow<'static, str>),
+    /// Signed 64-bit integer.
+    I64(i64),
+    /// Unsigned 64-bit integer.
+    U64(u64),
+    /// Boolean flag serialized as `true`/`false`.
+    Bool(bool)
+}
+
+impl From<FieldValue> for ProblemMetadataValue {
+    fn from(value: FieldValue) -> Self {
+        match value {
+            FieldValue::Str(value) => Self::String(value),
+            FieldValue::I64(value) => Self::I64(value),
+            FieldValue::U64(value) => Self::U64(value),
+            FieldValue::Bool(value) => Self::Bool(value),
+            FieldValue::Uuid(value) => Self::String(Cow::Owned(value.to_string()))
+        }
+    }
+}
+
+impl From<&FieldValue> for ProblemMetadataValue {
+    fn from(value: &FieldValue) -> Self {
+        match value {
+            FieldValue::Str(value) => Self::String(value.clone()),
+            FieldValue::I64(value) => Self::I64(*value),
+            FieldValue::U64(value) => Self::U64(*value),
+            FieldValue::Bool(value) => Self::Bool(*value),
+            FieldValue::Uuid(value) => Self::String(Cow::Owned(value.to_string()))
+        }
+    }
+}
+
+fn sanitize_detail(
+    message: Option<Cow<'static, str>>,
+    kind: AppErrorKind,
+    policy: MessageEditPolicy
+) -> Option<Cow<'static, str>> {
+    if matches!(policy, MessageEditPolicy::Redact) {
+        return None;
+    }
+
+    Some(message.unwrap_or_else(|| Cow::Owned(kind.to_string())))
+}
+
+fn sanitize_detail_ref(error: &AppError) -> Option<Cow<'static, str>> {
+    if matches!(error.edit_policy, MessageEditPolicy::Redact) {
+        return None;
+    }
+
+    Some(Cow::Owned(error.render_message().into_owned()))
+}
+
+fn sanitize_metadata_owned(
+    metadata: Metadata,
+    policy: MessageEditPolicy
+) -> Option<ProblemMetadata> {
+    if matches!(policy, MessageEditPolicy::Redact) || metadata.is_empty() {
+        return None;
+    }
+
+    let mut public = BTreeMap::new();
+    for field in metadata {
+        let (name, value) = field.into_parts();
+        public.insert(name, ProblemMetadataValue::from(value));
+    }
+
+    if public.is_empty() {
+        None
+    } else {
+        Some(ProblemMetadata(public))
+    }
+}
+
+fn sanitize_metadata_ref(
+    metadata: &Metadata,
+    policy: MessageEditPolicy
+) -> Option<ProblemMetadata> {
+    if matches!(policy, MessageEditPolicy::Redact) || metadata.is_empty() {
+        return None;
+    }
+
+    let mut public = BTreeMap::new();
+    for (name, value) in metadata.iter() {
+        public.insert(name, ProblemMetadataValue::from(value));
+    }
+
+    if public.is_empty() {
+        None
+    } else {
+        Some(ProblemMetadata(public))
+    }
+}
+
+/// Canonical mapping table covering every built-in [`AppCode`].
+///
+/// # Examples
+///
+/// ```rust
+/// use masterror::CODE_MAPPINGS;
+///
+/// assert!(
+///     CODE_MAPPINGS
+///         .iter()
+///         .any(|(code, _)| code.as_str() == "NOT_FOUND")
+/// );
+/// ```
+pub const CODE_MAPPINGS: &[(AppCode, CodeMapping)] = &[
+    (
+        AppCode::NotFound,
+        CodeMapping {
+            http_status:  404,
+            grpc:         GrpcCode {
+                name:  "NOT_FOUND",
+                value: 5
+            },
+            problem_type: "https://errors.masterror.rs/not-found",
+            kind:         AppErrorKind::NotFound
+        }
+    ),
+    (
+        AppCode::Validation,
+        CodeMapping {
+            http_status:  422,
+            grpc:         GrpcCode {
+                name:  "INVALID_ARGUMENT",
+                value: 3
+            },
+            problem_type: "https://errors.masterror.rs/validation",
+            kind:         AppErrorKind::Validation
+        }
+    ),
+    (
+        AppCode::Conflict,
+        CodeMapping {
+            http_status:  409,
+            grpc:         GrpcCode {
+                name:  "ALREADY_EXISTS",
+                value: 6
+            },
+            problem_type: "https://errors.masterror.rs/conflict",
+            kind:         AppErrorKind::Conflict
+        }
+    ),
+    (
+        AppCode::Unauthorized,
+        CodeMapping {
+            http_status:  401,
+            grpc:         GrpcCode {
+                name:  "UNAUTHENTICATED",
+                value: 16
+            },
+            problem_type: "https://errors.masterror.rs/unauthorized",
+            kind:         AppErrorKind::Unauthorized
+        }
+    ),
+    (
+        AppCode::Forbidden,
+        CodeMapping {
+            http_status:  403,
+            grpc:         GrpcCode {
+                name:  "PERMISSION_DENIED",
+                value: 7
+            },
+            problem_type: "https://errors.masterror.rs/forbidden",
+            kind:         AppErrorKind::Forbidden
+        }
+    ),
+    (
+        AppCode::NotImplemented,
+        CodeMapping {
+            http_status:  501,
+            grpc:         GrpcCode {
+                name:  "UNIMPLEMENTED",
+                value: 12
+            },
+            problem_type: "https://errors.masterror.rs/not-implemented",
+            kind:         AppErrorKind::NotImplemented
+        }
+    ),
+    (
+        AppCode::BadRequest,
+        CodeMapping {
+            http_status:  400,
+            grpc:         GrpcCode {
+                name:  "INVALID_ARGUMENT",
+                value: 3
+            },
+            problem_type: "https://errors.masterror.rs/bad-request",
+            kind:         AppErrorKind::BadRequest
+        }
+    ),
+    (
+        AppCode::RateLimited,
+        CodeMapping {
+            http_status:  429,
+            grpc:         GrpcCode {
+                name:  "RESOURCE_EXHAUSTED",
+                value: 8
+            },
+            problem_type: "https://errors.masterror.rs/rate-limited",
+            kind:         AppErrorKind::RateLimited
+        }
+    ),
+    (
+        AppCode::TelegramAuth,
+        CodeMapping {
+            http_status:  401,
+            grpc:         GrpcCode {
+                name:  "UNAUTHENTICATED",
+                value: 16
+            },
+            problem_type: "https://errors.masterror.rs/telegram-auth",
+            kind:         AppErrorKind::TelegramAuth
+        }
+    ),
+    (
+        AppCode::InvalidJwt,
+        CodeMapping {
+            http_status:  401,
+            grpc:         GrpcCode {
+                name:  "UNAUTHENTICATED",
+                value: 16
+            },
+            problem_type: "https://errors.masterror.rs/invalid-jwt",
+            kind:         AppErrorKind::InvalidJwt
+        }
+    ),
+    (
+        AppCode::Internal,
+        CodeMapping {
+            http_status:  500,
+            grpc:         GrpcCode {
+                name:  "INTERNAL",
+                value: 13
+            },
+            problem_type: "https://errors.masterror.rs/internal",
+            kind:         AppErrorKind::Internal
+        }
+    ),
+    (
+        AppCode::Database,
+        CodeMapping {
+            http_status:  500,
+            grpc:         GrpcCode {
+                name:  "INTERNAL",
+                value: 13
+            },
+            problem_type: "https://errors.masterror.rs/database",
+            kind:         AppErrorKind::Database
+        }
+    ),
+    (
+        AppCode::Service,
+        CodeMapping {
+            http_status:  500,
+            grpc:         GrpcCode {
+                name:  "INTERNAL",
+                value: 13
+            },
+            problem_type: "https://errors.masterror.rs/service",
+            kind:         AppErrorKind::Service
+        }
+    ),
+    (
+        AppCode::Config,
+        CodeMapping {
+            http_status:  500,
+            grpc:         GrpcCode {
+                name:  "INTERNAL",
+                value: 13
+            },
+            problem_type: "https://errors.masterror.rs/config",
+            kind:         AppErrorKind::Config
+        }
+    ),
+    (
+        AppCode::Turnkey,
+        CodeMapping {
+            http_status:  500,
+            grpc:         GrpcCode {
+                name:  "INTERNAL",
+                value: 13
+            },
+            problem_type: "https://errors.masterror.rs/turnkey",
+            kind:         AppErrorKind::Turnkey
+        }
+    ),
+    (
+        AppCode::Timeout,
+        CodeMapping {
+            http_status:  504,
+            grpc:         GrpcCode {
+                name:  "DEADLINE_EXCEEDED",
+                value: 4
+            },
+            problem_type: "https://errors.masterror.rs/timeout",
+            kind:         AppErrorKind::Timeout
+        }
+    ),
+    (
+        AppCode::Network,
+        CodeMapping {
+            http_status:  503,
+            grpc:         GrpcCode {
+                name:  "UNAVAILABLE",
+                value: 14
+            },
+            problem_type: "https://errors.masterror.rs/network",
+            kind:         AppErrorKind::Network
+        }
+    ),
+    (
+        AppCode::DependencyUnavailable,
+        CodeMapping {
+            http_status:  503,
+            grpc:         GrpcCode {
+                name:  "UNAVAILABLE",
+                value: 14
+            },
+            problem_type: "https://errors.masterror.rs/dependency-unavailable",
+            kind:         AppErrorKind::DependencyUnavailable
+        }
+    ),
+    (
+        AppCode::Serialization,
+        CodeMapping {
+            http_status:  500,
+            grpc:         GrpcCode {
+                name:  "INTERNAL",
+                value: 13
+            },
+            problem_type: "https://errors.masterror.rs/serialization",
+            kind:         AppErrorKind::Serialization
+        }
+    ),
+    (
+        AppCode::Deserialization,
+        CodeMapping {
+            http_status:  500,
+            grpc:         GrpcCode {
+                name:  "INTERNAL",
+                value: 13
+            },
+            problem_type: "https://errors.masterror.rs/deserialization",
+            kind:         AppErrorKind::Deserialization
+        }
+    ),
+    (
+        AppCode::ExternalApi,
+        CodeMapping {
+            http_status:  500,
+            grpc:         GrpcCode {
+                name:  "UNAVAILABLE",
+                value: 14
+            },
+            problem_type: "https://errors.masterror.rs/external-api",
+            kind:         AppErrorKind::ExternalApi
+        }
+    ),
+    (
+        AppCode::Queue,
+        CodeMapping {
+            http_status:  500,
+            grpc:         GrpcCode {
+                name:  "UNAVAILABLE",
+                value: 14
+            },
+            problem_type: "https://errors.masterror.rs/queue",
+            kind:         AppErrorKind::Queue
+        }
+    ),
+    (
+        AppCode::Cache,
+        CodeMapping {
+            http_status:  500,
+            grpc:         GrpcCode {
+                name:  "UNAVAILABLE",
+                value: 14
+            },
+            problem_type: "https://errors.masterror.rs/cache",
+            kind:         AppErrorKind::Cache
+        }
+    )
+];
+
+const DEFAULT_MAPPING: CodeMapping = CodeMapping {
+    http_status:  500,
+    grpc:         GrpcCode {
+        name:  "INTERNAL",
+        value: 13
+    },
+    problem_type: "https://errors.masterror.rs/internal",
+    kind:         AppErrorKind::Internal
+};
+
+/// Lookup helper returning canonical mapping for a given [`AppCode`].
+///
+/// # Examples
+///
+/// ```rust
+/// use masterror::{AppCode, mapping_for_code};
+///
+/// let mapping = mapping_for_code(AppCode::Timeout);
+/// assert_eq!(mapping.grpc().name, "DEADLINE_EXCEEDED");
+/// ```
+#[must_use]
+pub fn mapping_for_code(code: AppCode) -> CodeMapping {
+    CODE_MAPPINGS
+        .iter()
+        .find_map(|(candidate, mapping)| {
+            if *candidate == code {
+                Some(*mapping)
+            } else {
+                None
+            }
+        })
+        .unwrap_or(DEFAULT_MAPPING)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::AppError;
+
+    #[test]
+    fn metadata_is_skipped_when_redacted() {
+        let err = AppError::internal("secret")
+            .redactable()
+            .with_field(crate::field::str("token", "super-secret"));
+        let problem = ProblemJson::from_ref(&err);
+        assert!(problem.detail.is_none());
+        assert!(problem.metadata.is_none());
+    }
+
+    #[test]
+    fn metadata_is_serialized_when_allowed() {
+        let err = AppError::internal("oops").with_field(crate::field::u64("attempt", 2));
+        let problem = ProblemJson::from_ref(&err);
+        let metadata = problem.metadata.expect("metadata");
+        assert!(!metadata.is_empty());
+    }
+
+    #[test]
+    fn mapping_for_every_code_matches_http_status() {
+        for (code, mapping) in CODE_MAPPINGS {
+            let status = mapping.http_status();
+            let expected = mapping.kind().http_status();
+            assert_eq!(status, expected, "status mismatch for {:?}", code);
+        }
+    }
+}

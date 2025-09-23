@@ -6,17 +6,16 @@
 //! - Adds an inherent `http_status()` on [`AppError`] that returns
 //!   `axum::http::StatusCode` based on [`AppErrorKind`].
 //! - Implements `IntoResponse` for [`AppError`] so handlers can `return
-//!   Err(...)` or directly `return AppError::...(...)` and get a JSON error
-//!   body (when the `serde_json` feature is enabled) or an empty body
-//!   otherwise.
+//!   Err(...)` or directly `return AppError::...(...)` and get an RFC7807
+//!   problem+json body.
 //! - Flushes [`AppError`] telemetry at the HTTP boundary (tracing event,
 //!   metrics counter, lazy backtrace).
 //!
 //! ## Wire payload
 //!
-//! When the `serde_json` feature is enabled, the response body is
-//! [`ErrorResponse`] with fields `{ status, message }`. `message` prefers the
-//! explicit application message and falls back to the `AppErrorKind`’s display.
+//! The response body is [`ProblemJson`] with fields `{ type, title, status,
+//! detail, code, grpc, metadata }`. `detail` is redacted automatically when
+//! the error is marked private.
 //!
 //! ## Example
 //!
@@ -46,9 +45,7 @@ use axum::{
     response::{IntoResponse, Response}
 };
 
-use crate::AppError;
-#[cfg(feature = "serde_json")]
-use crate::response::ErrorResponse;
+use crate::{AppError, response::ProblemJson};
 
 impl AppError {
     /// Map this error to an HTTP status derived from its [`AppErrorKind`].
@@ -65,18 +62,8 @@ impl AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let err = self;
-        err.emit_telemetry();
-        let status = err.http_status();
-
-        #[cfg(feature = "serde_json")]
-        {
-            // Build the stable wire contract (includes `code`).
-            let body: ErrorResponse = err.into();
-            return body.into_response();
-        }
-
-        #[allow(unreachable_code)]
-        (status, ()).into_response()
+        let problem = ProblemJson::from_app_error(err);
+        problem.into_response()
     }
 }
 
@@ -101,51 +88,71 @@ mod tests {
 
     // --- IntoResponse with JSON body (serde_json enabled) --------------------
 
-    #[cfg(feature = "serde_json")]
     #[tokio::test]
-    async fn into_response_builds_json_error_with_code_and_message() {
-        use axum::{body::to_bytes, response::IntoResponse};
+    async fn into_response_builds_problem_json_with_headers() {
+        use axum::{
+            body::to_bytes,
+            http::header::{CONTENT_TYPE, RETRY_AFTER, WWW_AUTHENTICATE},
+            response::IntoResponse
+        };
 
-        let app_err = AppError::unauthorized("missing token");
-        let resp = app_err.into_response();
+        let app_err = AppError::unauthorized("missing token")
+            .with_retry_after_secs(7)
+            .with_www_authenticate("Bearer realm=\"api\"");
+        let mut resp = app_err.into_response();
 
         assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+
+        let content_type = resp
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .expect("content-type header");
+        assert_eq!(content_type, "application/problem+json");
+
+        let retry_after = resp
+            .headers()
+            .get(RETRY_AFTER)
+            .and_then(|value| value.to_str().ok())
+            .expect("retry-after header");
+        assert_eq!(retry_after, "7");
+
+        let www_authenticate = resp
+            .headers()
+            .get(WWW_AUTHENTICATE)
+            .and_then(|value| value.to_str().ok())
+            .expect("www-authenticate header");
+        assert_eq!(www_authenticate, "Bearer realm=\"api\"");
 
         let bytes = to_bytes(resp.into_body(), usize::MAX)
             .await
             .expect("read body");
-        // Deserialize via our own type to ensure wire contract matches
-        let body: crate::response::ErrorResponse =
+        let body: crate::response::ProblemJson =
             serde_json::from_slice(&bytes).expect("json body");
 
         assert_eq!(body.status, 401);
         assert!(matches!(body.code, AppCode::Unauthorized));
-        assert_eq!(body.message, "missing token");
-
-        // Optional fields are absent by default
-        #[cfg(feature = "serde_json")]
-        {
-            assert!(body.details.is_none());
-        }
-        assert!(body.retry.is_none());
-        assert!(body.www_authenticate.is_none());
+        assert_eq!(body.detail.as_deref(), Some("missing token"));
+        assert!(body.metadata.is_none());
+        assert!(body.grpc.is_some());
     }
 
-    // --- IntoResponse without JSON body (serde_json disabled) ----------------
-
-    #[cfg(not(feature = "serde_json"))]
     #[tokio::test]
-    async fn into_response_without_json_has_empty_body() {
+    async fn redacted_errors_hide_detail() {
         use axum::{body::to_bytes, response::IntoResponse};
 
-        let app_err = AppError::not_found("nope");
-        let resp = app_err.into_response();
+        let app_err = AppError::internal("secret").redactable();
+        let mut resp = app_err.into_response();
 
-        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+        assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
 
         let bytes = to_bytes(resp.into_body(), usize::MAX)
             .await
             .expect("read body");
-        assert_eq!(bytes.len(), 0, "body should be empty without serde_json");
+        let body: crate::response::ProblemJson =
+            serde_json::from_slice(&bytes).expect("json body");
+
+        assert!(body.detail.is_none());
+        assert!(body.metadata.is_none());
     }
 }

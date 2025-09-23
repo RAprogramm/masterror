@@ -122,6 +122,10 @@ mod teloxide;
 #[cfg_attr(docsrs, doc(cfg(feature = "telegram-webapp-sdk")))]
 mod telegram_webapp_sdk;
 
+#[cfg(feature = "tonic")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tonic")))]
+mod tonic;
+
 /// Map `std::io::Error` to an internal application error.
 ///
 /// Rationale: I/O failures are infrastructure-level and should not leak
