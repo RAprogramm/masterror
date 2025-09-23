@@ -3,6 +3,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.14.1] - 2025-09-24
+
+### Fixed
+- Removed the unused `BacktraceSlot::get` helper to restore builds with `-D warnings`.
+- Simplified the metrics recorder test harness with dedicated types to satisfy
+  `clippy::type_complexity` without sacrificing coverage.
+
 ## [0.14.0] - 2025-09-24
 
 ### Added
