@@ -54,6 +54,8 @@ impl ErrorResponse {
     /// assert!(resp.details.is_some());
     /// # }
     /// ```
+    // AppError carries telemetry metadata; keep the rich payload despite the lint.
+    #[allow(clippy::result_large_err)]
     pub fn with_details<T>(self, payload: T) -> AppResult<Self>
     where
         T: Serialize

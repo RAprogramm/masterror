@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.13.1] - 2025-09-23
+
+### Fixed
+- Documented allowances for `clippy::result_large_err` on APIs that intentionally
+  expose the rich `AppError` payload, restoring lint-clean builds.
+
 ## [0.13.0] - 2025-09-23
 
 ### Added
