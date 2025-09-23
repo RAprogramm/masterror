@@ -1,5 +1,5 @@
 error: placeholder spanning bytes 0..9 uses an unsupported formatter
- --> tests/ui/formatter/fail/uppercase_pointer.rs:4:10
+ --> tests/ui/formatter/fail/uppercase_pointer.rs:4:9
   |
 4 | #[error("{value:P}")]
-  |          ^^^^^^^^^
+  |         ^^^^^^^^^^^

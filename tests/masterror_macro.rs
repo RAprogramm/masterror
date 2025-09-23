@@ -1,5 +1,7 @@
 #![allow(non_shorthand_field_patterns)]
 
+use std::sync::Arc;
+
 use masterror::{
     AppCode, AppErrorKind, Error as MasterrorError, Masterror, MessageEditPolicy,
     mapping::{GrpcMapping, HttpMapping, ProblemMapping}
@@ -154,4 +156,43 @@ fn enum_masterror_conversion_handles_variants() {
             "https://errors.example.com/bad-request"
         )]
     );
+}
+
+#[test]
+fn masterror_preserves_arc_source_without_extra_clone() {
+    let source = Arc::new(ArcLeafError);
+    let converted: MasterrorError = ArcSourceError {
+        source: source.clone()
+    }
+    .into();
+
+    assert_eq!(Arc::strong_count(&source), 2);
+
+    let stored = converted
+        .source_ref()
+        .and_then(|src| src.downcast_ref::<ArcLeafError>())
+        .expect("arc source");
+    assert!(std::ptr::eq(stored, &*source));
+}
+#[derive(Debug)]
+struct ArcLeafError;
+
+impl std::fmt::Display for ArcLeafError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("arc leaf")
+    }
+}
+
+impl std::error::Error for ArcLeafError {}
+
+#[derive(Debug, Masterror)]
+#[error("arc leaf source")]
+#[masterror(
+    code = AppCode::Internal,
+    category = AppErrorKind::Internal,
+    message
+)]
+struct ArcSourceError {
+    #[source]
+    source: Arc<ArcLeafError>
 }

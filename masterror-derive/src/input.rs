@@ -1509,6 +1509,19 @@ pub(crate) fn option_inner_type(ty: &syn::Type) -> Option<&syn::Type> {
     })
 }
 
+pub(crate) fn is_arc_type(ty: &syn::Type) -> bool {
+    let syn::Type::Path(path) = ty else {
+        return false;
+    };
+    if path.qself.is_some() {
+        return false;
+    }
+    path.path
+        .segments
+        .last()
+        .is_some_and(|segment| segment.ident == "Arc")
+}
+
 pub(crate) fn is_backtrace_type(ty: &syn::Type) -> bool {
     let syn::Type::Path(path) = ty else {
         return false;

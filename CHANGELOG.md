@@ -3,6 +3,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.16.0] - 2025-09-26
+
+### Changed
+- Switched the internal `AppError` source storage to `Arc<dyn Error>` and added a
+  shared `with_source_arc` helper so conversions can reuse existing `Arc`
+  handles without extra allocations.
+- Replaced the backtrace slot with an `Option<Backtrace>` managed through an
+  environment-aware lazy capture that respects `RUST_BACKTRACE` and avoids
+  snapshot allocation when disabled.
+- Updated the `masterror::Error` derive and `ResultExt` conversions to forward
+  sources using the new shared storage while preserving error chains.
+
+### Tests
+- Added regression coverage for the `std::error::Error` chain, `Arc` source
+  preservation in the derives, and conditional backtrace capture driven by the
+  `RUST_BACKTRACE` environment variable.
+
 ## [0.15.0] - 2025-09-25
 
 ### Added
