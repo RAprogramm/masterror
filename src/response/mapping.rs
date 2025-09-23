@@ -26,7 +26,7 @@ impl From<AppError> for ErrorResponse {
         let code = AppCode::from(kind);
         let message = match message {
             Some(msg) => msg.into_owned(),
-            None => String::from("An error occurred")
+            None => kind.to_string()
         };
 
         Self {
@@ -48,7 +48,7 @@ impl From<&AppError> for ErrorResponse {
         let message = err
             .message
             .clone()
-            .unwrap_or(Cow::Borrowed("An error occurred"))
+            .unwrap_or_else(|| Cow::Owned(err.kind.to_string()))
             .into_owned();
 
         Self {
