@@ -11,6 +11,8 @@
 //!   [`AppErrorKind`].
 //! - **Optional message:** human-readable, safe-to-expose text. Do not put
 //!   secrets here.
+//! - **Structured metadata:** attach typed key/value pairs for diagnostics via
+//!   [`Metadata`].
 //! - **No panics:** all helpers avoid `unwrap/expect`.
 //! - **Transport-agnostic:** mapping to HTTP lives in `kind.rs` and
 //!   `convert/*`.
@@ -59,8 +61,11 @@
 
 mod constructors;
 mod core;
+mod metadata;
 
-pub use core::{AppError, AppResult};
+pub use core::{AppError, AppResult, Error, MessageEditPolicy};
+
+pub use metadata::{Field, FieldValue, Metadata, field};
 
 #[cfg(test)]
 mod tests;

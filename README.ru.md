@@ -19,12 +19,13 @@
 
 ## Основные возможности
 
-- Базовые типы: `AppError`, `AppErrorKind`, `AppResult`, `AppCode`, `ErrorResponse`.
+- Базовые типы: `AppError`, `AppErrorKind`, `AppResult`, `AppCode`, `ErrorResponse`, `Metadata`.
 - Деривы `#[derive(Error)]`, `#[app_error]`, `#[provide]` для типизированного
   телеметрического контекста и прямых конверсий доменных ошибок.
 - Адаптеры для Axum и Actix плюс логирование в браузер/`JsValue` для WASM (по
   фичам).
 - Генерация схем OpenAPI через `utoipa`.
+- Структурированные поля `Metadata` через билдеры `field::*`.
 - Конверсии из распространённых библиотек (`sqlx`, `reqwest`, `redis`,
   `validator`, `config`, `tokio` и др.).
 - Готовый прелюдия-модуль и расширение `turnkey` с собственной таксономией
@@ -37,9 +38,9 @@
 ~~~toml
 [dependencies]
 # минимальное ядро
-masterror = { version = "0.11.2", default-features = false }
+masterror = { version = "0.12.0", default-features = false }
 # или с нужными интеграциями
-# masterror = { version = "0.11.2", features = [
+# masterror = { version = "0.12.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -54,10 +55,13 @@ masterror = { version = "0.11.2", default-features = false }
 Создание ошибки вручную:
 
 ~~~rust
-use masterror::{AppError, AppErrorKind};
+use masterror::{AppError, AppErrorKind, field};
 
 let err = AppError::new(AppErrorKind::BadRequest, "Флаг должен быть установлен");
 assert!(matches!(err.kind, AppErrorKind::BadRequest));
+let err_with_meta = AppError::service("downstream")
+    .with_field(field::str("request_id", "abc123"));
+assert_eq!(err_with_meta.metadata().len(), 1);
 ~~~
 
 Использование прелюдии:
@@ -82,6 +86,7 @@ fn do_work(flag: bool) -> AppResult<()> {
 - `validator` — преобразование `ValidationErrors` в валидационные ошибки API.
 - `config` — типизированные ошибки конфигурации.
 - `tokio` — маппинг таймаутов (`tokio::time::error::Elapsed`).
+- `metadata` — типизированные поля `Metadata` без аллокаций строк.
 - `multipart` — обработка ошибок извлечения multipart в Axum.
 - `teloxide` — маппинг `teloxide_core::RequestError` в доменные категории.
 - `telegram-webapp-sdk` — обработка ошибок валидации данных Telegram WebApp.

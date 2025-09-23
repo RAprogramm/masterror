@@ -19,11 +19,12 @@ and typed telemetry.
 Core is framework-agnostic; integrations are opt-in via feature flags.
 Stable categories, conservative HTTP mapping, no `unsafe`.
 
-- Core types: `AppError`, `AppErrorKind`, `AppResult`, `AppCode`, `ErrorResponse`
+- Core types: `AppError`, `AppErrorKind`, `AppResult`, `AppCode`, `ErrorResponse`, `Metadata`
 - Derive macros: `#[derive(Error)]`, `#[app_error]`, `#[provide]` for domain
   mappings and structured telemetry
 - Optional Axum/Actix integration and browser/WASM console logging
 - Optional OpenAPI schema (via `utoipa`)
+- Structured metadata helpers via `field::*` builders
 - Conversions from `sqlx`, `reqwest`, `redis`, `validator`, `config`, `tokio`
 - Turnkey domain taxonomy and helpers (`turnkey` feature)
 
@@ -36,9 +37,9 @@ guides, comparisons with `thiserror`/`anyhow`, and troubleshooting recipes.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.11.2", default-features = false }
+masterror = { version = "0.12.0", default-features = false }
 # or with features:
-# masterror = { version = "0.11.2", features = [
+# masterror = { version = "0.12.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -59,6 +60,7 @@ masterror = { version = "0.11.2", default-features = false }
 - **Framework-agnostic.** No assumptions, no `unsafe`, MSRV pinned.
 - **Opt-in integrations.** Zero default features; you enable what you need.
 - **Clean wire contract.** `ErrorResponse { status, code, message, details?, retry?, www_authenticate? }`.
+- **Typed telemetry.** `Metadata` preserves structured key/value context without `String` maps.
 - **One log at boundary.** Log once with `tracing`.
 - **Less boilerplate.** Built-in conversions, compact prelude, and the
   native `masterror::Error` derive with `#[from]` / `#[error(transparent)]`
@@ -73,10 +75,10 @@ masterror = { version = "0.11.2", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.11.2", default-features = false }
+masterror = { version = "0.12.0", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.11.2", features = [
+# masterror = { version = "0.12.0", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
@@ -95,10 +97,13 @@ masterror = { version = "0.11.2", default-features = false }
 Create an error:
 
 ~~~rust
-use masterror::{AppError, AppErrorKind};
+use masterror::{AppError, AppErrorKind, field};
 
 let err = AppError::new(AppErrorKind::BadRequest, "Flag must be set");
 assert!(matches!(err.kind, AppErrorKind::BadRequest));
+let err_with_meta = AppError::service("downstream")
+    .with_field(field::str("request_id", "abc123"));
+assert_eq!(err_with_meta.metadata().len(), 1);
 ~~~
 
 With prelude:
@@ -632,13 +637,13 @@ assert_eq!(resp.status, 401);
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.11.2", default-features = false }
+masterror = { version = "0.12.0", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.11.2", features = [
+masterror = { version = "0.12.0", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -647,7 +652,7 @@ masterror = { version = "0.11.2", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.11.2", features = [
+masterror = { version = "0.12.0", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }

@@ -3,6 +3,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.12.0] - 2025-10-29
+
+### Added
+- Introduced typed `Metadata` storage with `Field`/`FieldValue` builders and helper functions in `field::*`.
+- Captured error sources and backtraces inside the new `app_error::Error` container, exposing `MessageEditPolicy` to control redaction.
+
+### Changed
+- Replaced the legacy `AppError` struct with the richer `Error` model carrying `AppCode`, metadata, retry/auth hints and transport policy.
+- Updated response mapping and constructors to preserve machine-readable codes without extra allocations.
+
+### Documentation
+- Refreshed crate docs, README (EN/RU) and examples to highlight metadata helpers and the new error contract.
+
+### Tests
+- Added regression coverage ensuring codes, metadata and sources survive conversions without unnecessary cloning.
+
 ## [0.11.2] - 2025-10-28
 
 ### Changed
