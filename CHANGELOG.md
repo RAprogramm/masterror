@@ -14,6 +14,11 @@ All notable changes to this project will be documented in this file.
 - Dropped `clippy::result_large_err` allowances in response helpers and tests
   now that `AppError` is pointer-sized and lint-clean without suppressions.
 
+### Fixed
+- Removed the unused `BacktraceSlot::get` helper to restore builds with `-D warnings`.
+- Simplified the metrics recorder test harness with dedicated types to satisfy
+  `clippy::type_complexity` without sacrificing coverage.
+
 ## [0.14.0] - 2025-09-24
 
 ### Added

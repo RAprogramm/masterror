@@ -49,10 +49,6 @@ impl BacktraceSlot {
         *self = Self::with(backtrace);
     }
 
-    fn get(&self) -> Option<&Backtrace> {
-        self.cell.get().and_then(|value| value.as_ref())
-    }
-
     fn capture_if_absent(&self) -> Option<&Backtrace> {
         self.cell
             .get_or_init(|| Some(Backtrace::capture()))
