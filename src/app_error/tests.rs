@@ -203,6 +203,8 @@ fn log_uses_kind_and_code() {
 
 #[test]
 fn result_alias_is_generic() {
+    // The alias intentionally preserves the full AppError payload size.
+    #[allow(clippy::result_large_err)]
     fn app() -> super::AppResult<u8> {
         Ok(1)
     }
