@@ -3,7 +3,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [0.14.1] - 2025-09-24
+## [0.14.1] - 2025-09-25
+
+### Changed
+- Boxed the internal `AppError` payload inside a new `ErrorInner` allocation,
+  keeping public field access via `Deref` while shrinking the error to a
+  pointer-sized handle that shares metadata, retry hints, and backtrace state.
+
+### Removed
+- Dropped `clippy::result_large_err` allowances in response helpers and tests
+  now that `AppError` is pointer-sized and lint-clean without suppressions.
 
 ### Fixed
 - Removed the unused `BacktraceSlot::get` helper to restore builds with `-D warnings`.

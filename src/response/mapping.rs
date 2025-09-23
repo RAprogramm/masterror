@@ -11,18 +11,14 @@ impl Display for ErrorResponse {
 }
 
 impl From<AppError> for ErrorResponse {
-    fn from(err: AppError) -> Self {
-        let AppError {
-            code,
-            kind,
-            message,
-            retry,
-            www_authenticate,
-            ..
-        } = err;
+    fn from(mut err: AppError) -> Self {
+        let kind = err.kind;
+        let code = err.code;
+        let retry = err.retry.take();
+        let www_authenticate = err.www_authenticate.take();
 
         let status = kind.http_status();
-        let message = match message {
+        let message = match err.message.take() {
             Some(msg) => msg.into_owned(),
             None => kind.to_string()
         };
