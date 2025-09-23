@@ -60,11 +60,13 @@
 //! transport boundary (e.g. in `IntoResponse`) to avoid duplicate logs.
 
 mod constructors;
+mod context;
 mod core;
 mod metadata;
 
 pub use core::{AppError, AppResult, Error, MessageEditPolicy};
 
+pub use context::Context;
 pub use metadata::{Field, FieldValue, Metadata, field};
 
 #[cfg(test)]

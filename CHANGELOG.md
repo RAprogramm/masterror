@@ -3,6 +3,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.12.1] - 2025-10-30
+
+### Added
+- Introduced the `Context` builder for enriching error conversions with
+  metadata, caller tracking, and redaction hints via `ResultExt::ctx`.
+- Implemented the `ResultExt` trait to wrap fallible operations into
+  `masterror::Error` without extra allocations while merging context fields.
+
+### Documentation
+- Added rustdoc examples showcasing `Context` chaining and the new
+  `ResultExt` helper.
+
+### Tests
+- Added unit coverage for `ResultExt::ctx`, ensuring happy-path results pass
+  through and error branches preserve metadata and sources.
+
 ## [0.12.0] - 2025-10-29
 
 ### Added

@@ -233,6 +233,7 @@ mod kind;
 #[doc(hidden)]
 pub mod provide;
 mod response;
+mod result_ext;
 
 #[cfg(feature = "frontend")]
 #[cfg_attr(docsrs, doc(cfg(feature = "frontend")))]
@@ -246,7 +247,7 @@ pub mod turnkey;
 pub mod prelude;
 
 pub use app_error::{
-    AppError, AppResult, Error, Field, FieldValue, MessageEditPolicy, Metadata, field
+    AppError, AppResult, Context, Error, Field, FieldValue, MessageEditPolicy, Metadata, field
 };
 pub use code::AppCode;
 pub use kind::AppErrorKind;
@@ -278,3 +279,4 @@ pub use kind::AppErrorKind;
 /// ```
 pub use masterror_derive::*;
 pub use response::{ErrorResponse, RetryAdvice};
+pub use result_ext::ResultExt;
