@@ -5,6 +5,7 @@ use std::{
     borrow::Cow,
     error::Error as StdError,
     fmt::{Display, Formatter, Result as FmtResult},
+    ops::{Deref, DerefMut},
     sync::atomic::{AtomicBool, Ordering}
 };
 
@@ -48,10 +49,6 @@ impl BacktraceSlot {
         *self = Self::with(backtrace);
     }
 
-    fn get(&self) -> Option<&Backtrace> {
-        self.cell.get().and_then(|value| value.as_ref())
-    }
-
     fn capture_if_absent(&self) -> Option<&Backtrace> {
         self.cell
             .get_or_init(|| Some(Backtrace::capture()))
@@ -69,9 +66,9 @@ impl Default for BacktraceSlot {
 #[cfg(not(feature = "backtrace"))]
 type BacktraceSlot = Option<Backtrace>;
 
-/// Rich application error preserving domain code, taxonomy and metadata.
 #[derive(Debug)]
-pub struct Error {
+#[doc(hidden)]
+pub struct ErrorInner {
     /// Stable machine-readable error code.
     pub code:             AppCode,
     /// Semantic error category.
@@ -89,6 +86,26 @@ pub struct Error {
     source:               Option<Box<dyn StdError + Send + Sync + 'static>>,
     backtrace:            BacktraceSlot,
     telemetry_dirty:      AtomicBool
+}
+
+/// Rich application error preserving domain code, taxonomy and metadata.
+#[derive(Debug)]
+pub struct Error {
+    inner: Box<ErrorInner>
+}
+
+impl Deref for Error {
+    type Target = ErrorInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl DerefMut for Error {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
 }
 
 impl Display for Error {
@@ -133,16 +150,18 @@ pub type AppResult<T, E = Error> = Result<T, E>;
 impl Error {
     pub(crate) fn new_raw(kind: AppErrorKind, message: Option<Cow<'static, str>>) -> Self {
         Self {
-            code: AppCode::from(kind),
-            kind,
-            message,
-            metadata: Metadata::new(),
-            edit_policy: MessageEditPolicy::Preserve,
-            retry: None,
-            www_authenticate: None,
-            source: None,
-            backtrace: BacktraceSlot::default(),
-            telemetry_dirty: AtomicBool::new(true)
+            inner: Box::new(ErrorInner {
+                code: AppCode::from(kind),
+                kind,
+                message,
+                metadata: Metadata::new(),
+                edit_policy: MessageEditPolicy::Preserve,
+                retry: None,
+                www_authenticate: None,
+                source: None,
+                backtrace: BacktraceSlot::default(),
+                telemetry_dirty: AtomicBool::new(true)
+            })
         }
     }
 

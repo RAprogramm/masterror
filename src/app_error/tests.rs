@@ -313,28 +313,44 @@ fn metrics_counter_is_incremented_once() {
         Counter, CounterFn, Gauge, Histogram, Key, KeyName, Metadata, Recorder, SharedString, Unit
     };
 
+    #[derive(Clone, Debug, Eq, PartialEq, Hash)]
+    struct CounterKey {
+        name:   String,
+        labels: Vec<(String, String)>
+    }
+
+    impl CounterKey {
+        fn new(name: String, labels: Vec<(String, String)>) -> Self {
+            Self {
+                name,
+                labels
+            }
+        }
+    }
+
+    type CounterMap = HashMap<CounterKey, u64>;
+    type SharedCounterMap = Arc<Mutex<CounterMap>>;
+
     #[derive(Clone)]
     struct MetricsCounterHandle {
-        name:   String,
-        labels: Vec<(String, String)>,
-        counts: Arc<Mutex<HashMap<(String, Vec<(String, String)>), u64>>>
+        key:    CounterKey,
+        counts: SharedCounterMap
     }
 
     impl CounterFn for MetricsCounterHandle {
         fn increment(&self, value: u64) {
             let mut map = self.counts.lock().expect("counter map");
-            *map.entry((self.name.clone(), self.labels.clone()))
-                .or_default() += value;
+            *map.entry(self.key.clone()).or_default() += value;
         }
 
         fn absolute(&self, value: u64) {
             let mut map = self.counts.lock().expect("counter map");
-            map.insert((self.name.clone(), self.labels.clone()), value);
+            map.insert(self.key.clone(), value);
         }
     }
 
     struct CountingRecorder {
-        counts: Arc<Mutex<HashMap<(String, Vec<(String, String)>), u64>>>
+        counts: SharedCounterMap
     }
 
     impl Recorder for CountingRecorder {
@@ -361,9 +377,9 @@ fn metrics_counter_is_incremented_once() {
                 .labels()
                 .map(|label| (label.key().to_owned(), label.value().to_owned()))
                 .collect::<Vec<_>>();
+            let counter_key = CounterKey::new(key.name().to_owned(), labels);
             Counter::from_arc(Arc::new(MetricsCounterHandle {
-                name: key.name().to_owned(),
-                labels,
+                key:    counter_key,
                 counts: self.counts.clone()
             }))
         }
@@ -379,8 +395,7 @@ fn metrics_counter_is_incremented_once() {
 
     use std::sync::OnceLock;
 
-    static RECORDER_COUNTS: OnceLock<Arc<Mutex<HashMap<(String, Vec<(String, String)>), u64>>>> =
-        OnceLock::new();
+    static RECORDER_COUNTS: OnceLock<SharedCounterMap> = OnceLock::new();
 
     let counts = RECORDER_COUNTS
         .get_or_init(|| {
@@ -398,7 +413,7 @@ fn metrics_counter_is_incremented_once() {
     let err = AppError::forbidden("denied");
     err.log();
 
-    let key = (
+    let key = CounterKey::new(
         "error_total".to_owned(),
         vec![
             ("code".to_owned(), AppCode::Forbidden.as_str().to_owned()),
@@ -412,8 +427,6 @@ fn metrics_counter_is_incremented_once() {
 
 #[test]
 fn result_alias_is_generic() {
-    // The alias intentionally preserves the full AppError payload size.
-    #[allow(clippy::result_large_err)]
     fn app() -> super::AppResult<u8> {
         Ok(1)
     }

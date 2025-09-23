@@ -41,6 +41,7 @@ guides, comparisons with `thiserror`/`anyhow`, and troubleshooting recipes.
 masterror = { version = "0.15.0", default-features = false }
 # or with features:
 # masterror = { version = "0.15.0", features = [
+
 #   "axum", "actix", "openapi", "serde_json",
 #   "tracing", "metrics", "backtrace", "sqlx",
 #   "sqlx-migrate", "reqwest", "redis", "validator",
