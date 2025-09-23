@@ -144,7 +144,7 @@ fn from_app_error_uses_default_message_when_none() {
     let e: ErrorResponse = (&app).into();
     assert_eq!(e.status, 500);
     assert!(matches!(e.code, AppCode::Internal));
-    assert_eq!(e.message, "An error occurred");
+    assert_eq!(e.message, AppErrorKind::Internal.to_string());
 }
 
 #[test]
@@ -168,7 +168,17 @@ fn from_owned_app_error_defaults_message_when_absent() {
 
     assert_eq!(resp.status, 500);
     assert!(matches!(resp.code, AppCode::Internal));
-    assert_eq!(resp.message, "An error occurred");
+    assert_eq!(resp.message, AppErrorKind::Internal.to_string());
+}
+
+#[test]
+fn from_app_error_bare_uses_kind_display_as_message() {
+    let app = AppError::bare(AppErrorKind::Timeout);
+    let resp: ErrorResponse = app.into();
+
+    assert_eq!(resp.status, 504);
+    assert!(matches!(resp.code, AppCode::Timeout));
+    assert_eq!(resp.message, AppErrorKind::Timeout.to_string());
 }
 
 // --- Display formatting --------------------------------------------------

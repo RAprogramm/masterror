@@ -3,6 +3,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.11.2] - 2025-10-28
+
+### Changed
+- Surfaced the [`AppErrorKind`] display text as the fallback `ErrorResponse`
+  message so clients receive semantic descriptions without providing a custom
+  message.
+
+### Tests
+- Added regression coverage ensuring bare `AppError` kinds map to their
+  corresponding default message.
+
 ## [0.11.1] - 2025-10-27
 
 ### Documentation
