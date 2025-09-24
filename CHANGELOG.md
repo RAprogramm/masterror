@@ -3,6 +3,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.19.0] - 2025-09-29
+
+### Changed
+- Reworked `AppError` storage to keep sources behind shared `Arc` handles and
+  lazily capture optional `Backtrace` snapshots without allocating when
+  `RUST_BACKTRACE` disables them.
+- Updated the `masterror::Error` derive and `ResultExt` conversions to forward
+  sources/backtraces automatically under the new storage layout.
+
+### Tests
+- Added regression coverage for chained error sources and conditional
+  backtrace capture driven by the `RUST_BACKTRACE` environment variable.
+
 ## [0.18.0] - 2025-09-28
 
 ### Added

@@ -34,57 +34,6 @@ pub enum MessageEditPolicy {
     Redact
 }
 
-#[cfg(feature = "backtrace")]
-#[derive(Debug)]
-struct BacktraceSlot {
-    cell: OnceLock<Option<Backtrace>>
-}
-
-#[cfg(feature = "backtrace")]
-impl BacktraceSlot {
-    const fn new() -> Self {
-        Self {
-            cell: OnceLock::new()
-        }
-    }
-
-    fn with(backtrace: Backtrace) -> Self {
-        let slot = Self::new();
-        let _ = slot.cell.set(Some(backtrace));
-        slot
-    }
-
-    fn set(&mut self, backtrace: Backtrace) {
-        *self = Self::with(backtrace);
-    }
-
-    fn capture_if_absent(&self) -> Option<&Backtrace> {
-        self.cell.get_or_init(capture_backtrace_snapshot).as_ref()
-    }
-}
-
-#[cfg(feature = "backtrace")]
-impl Default for BacktraceSlot {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[cfg(not(feature = "backtrace"))]
-#[derive(Debug, Default)]
-struct BacktraceSlot {
-    _marker: ()
-}
-
-#[cfg(not(feature = "backtrace"))]
-impl BacktraceSlot {
-    fn set(&mut self, _backtrace: std::backtrace::Backtrace) {}
-
-    fn capture_if_absent(&self) -> Option<&std::backtrace::Backtrace> {
-        None
-    }
-}
-
 #[derive(Debug)]
 #[doc(hidden)]
 pub struct ErrorInner {
@@ -102,8 +51,6 @@ pub struct ErrorInner {
     pub retry:            Option<RetryAdvice>,
     /// Optional authentication challenge for `WWW-Authenticate`.
     pub www_authenticate: Option<String>,
-    source:               Option<Arc<dyn StdError + Send + Sync + 'static>>,
-    backtrace:            BacktraceSlot,
     telemetry_dirty:      AtomicBool
 }
 
@@ -170,7 +117,12 @@ pub(crate) fn reset_backtrace_preference() {
 /// Rich application error preserving domain code, taxonomy and metadata.
 #[derive(Debug)]
 pub struct Error {
-    inner: Box<ErrorInner>
+    inner:              Box<ErrorInner>,
+    source:             Option<Arc<dyn StdError + Send + Sync + 'static>>,
+    #[cfg(feature = "backtrace")]
+    backtrace:          Option<Backtrace>,
+    #[cfg(feature = "backtrace")]
+    captured_backtrace: OnceLock<Option<Backtrace>>
 }
 
 impl Deref for Error {
@@ -242,10 +194,13 @@ impl Error {
                 edit_policy: MessageEditPolicy::Preserve,
                 retry: None,
                 www_authenticate: None,
-                source: None,
-                backtrace: BacktraceSlot::default(),
                 telemetry_dirty: AtomicBool::new(true)
-            })
+            }),
+            source: None,
+            #[cfg(feature = "backtrace")]
+            backtrace: None,
+            #[cfg(feature = "backtrace")]
+            captured_backtrace: OnceLock::new()
         }
     }
 
@@ -257,13 +212,30 @@ impl Error {
         self.telemetry_dirty.swap(false, Ordering::AcqRel)
     }
 
+    #[cfg(feature = "backtrace")]
     fn capture_backtrace(&self) -> Option<&std::backtrace::Backtrace> {
-        self.backtrace.capture_if_absent()
+        if let Some(backtrace) = self.backtrace.as_ref() {
+            return Some(backtrace);
+        }
+
+        self.captured_backtrace
+            .get_or_init(capture_backtrace_snapshot)
+            .as_ref()
     }
 
-    fn set_backtrace_slot(&mut self, backtrace: std::backtrace::Backtrace) {
-        self.backtrace.set(backtrace);
+    #[cfg(not(feature = "backtrace"))]
+    fn capture_backtrace(&self) -> Option<&std::backtrace::Backtrace> {
+        None
     }
+
+    #[cfg(feature = "backtrace")]
+    fn set_backtrace_slot(&mut self, backtrace: std::backtrace::Backtrace) {
+        self.backtrace = Some(backtrace);
+        self.captured_backtrace = OnceLock::new();
+    }
+
+    #[cfg(not(feature = "backtrace"))]
+    fn set_backtrace_slot(&mut self, _backtrace: std::backtrace::Backtrace) {}
 
     pub(crate) fn emit_telemetry(&self) {
         if self.take_dirty() {

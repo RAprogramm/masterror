@@ -1,6 +1,6 @@
 #![allow(non_shorthand_field_patterns)]
 
-use std::sync::Arc;
+use std::{error::Error as StdError, sync::Arc};
 
 use masterror::{
     AppCode, AppErrorKind, Error as MasterrorError, FieldRedaction, Masterror, MessageEditPolicy,
@@ -96,6 +96,8 @@ fn struct_masterror_conversion_populates_metadata_and_source() {
     assert_eq!(attempt, Some(3));
 
     assert!(converted.source_ref().is_some());
+    let converted_source = StdError::source(&converted).expect("masterror source");
+    assert!(converted_source.is::<std::io::Error>());
 
     assert_eq!(
         MissingFlag::HTTP_MAPPING,
