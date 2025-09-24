@@ -326,7 +326,7 @@ pub use app_error::{
     AppError, AppResult, Context, Error, Field, FieldRedaction, FieldValue, MessageEditPolicy,
     Metadata, field
 };
-pub use code::AppCode;
+pub use code::{AppCode, ParseAppCodeError};
 pub use kind::AppErrorKind;
 /// Re-export derive macros so users only depend on this crate.
 ///

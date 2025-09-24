@@ -37,7 +37,6 @@
 //! - This module does not expose internal error sources; only `kind`, `status`,
 //!   and optional public `message` are surfaced.
 
-#![cfg(feature = "axum")]
 #![cfg_attr(docsrs, doc(cfg(feature = "axum")))]
 
 use axum::{
@@ -74,7 +73,7 @@ mod tests {
     use axum::http::StatusCode;
 
     use super::*;
-    use crate::{AppCode, AppErrorKind};
+    use crate::AppCode;
 
     // --- http_status mapping -------------------------------------------------
 
@@ -101,7 +100,7 @@ mod tests {
         let app_err = AppError::unauthorized("missing token")
             .with_retry_after_secs(7)
             .with_www_authenticate("Bearer realm=\"api\"");
-        let mut resp = app_err.into_response();
+        let resp = app_err.into_response();
 
         assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
 
@@ -156,7 +155,7 @@ mod tests {
         use axum::{body::to_bytes, response::IntoResponse};
 
         let app_err = AppError::internal("secret").redactable();
-        let mut resp = app_err.into_response();
+        let resp = app_err.into_response();
 
         assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
 

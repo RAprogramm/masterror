@@ -69,4 +69,4 @@
 
 mod app_code;
 
-pub use app_code::AppCode;
+pub use app_code::{AppCode, ParseAppCodeError};

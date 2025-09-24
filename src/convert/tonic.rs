@@ -119,7 +119,7 @@ fn metadata_value_to_ascii(value: &FieldValue) -> Option<Cow<'_, str>> {
     match value {
         FieldValue::Str(value) => {
             let text = value.as_ref();
-            is_ascii_metadata_value(text).then(|| Cow::Borrowed(text))
+            is_ascii_metadata_value(text).then_some(Cow::Borrowed(text))
         }
         FieldValue::I64(value) => Some(Cow::Owned(value.to_string())),
         FieldValue::U64(value) => Some(Cow::Owned(value.to_string())),

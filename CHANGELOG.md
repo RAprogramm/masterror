@@ -3,6 +3,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.20.4] - 2025-10-04
+
+### Added
+- Implemented `FromStr` support for `AppCode` together with a lightweight
+  `ParseAppCodeError` so RFC7807 responses and documentation examples can parse
+  machine codes without bespoke helpers.
+
+### Fixed
+- Removed the redundant `#![cfg(feature = "axum")]` attribute and tightened
+  Axum, SQLx and Tonic integration tests to satisfy `-D warnings` builds.
+- Allowed attaching JSON details via `ErrorResponse::with_details` without
+  tripping Clippy's `result_large_err` lint by documenting the intentional
+  `AppError` return shape.
+
 ## [0.20.3] - 2025-10-03
 
 ### Fixed
