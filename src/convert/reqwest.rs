@@ -47,9 +47,7 @@
 #[cfg(feature = "reqwest")]
 use reqwest::{Error as ReqwestError, StatusCode};
 
-use crate::AppErrorKind;
-#[cfg(feature = "reqwest")]
-use crate::app_error::{Context, Error, FieldRedaction, field};
+use crate::{AppErrorKind, Context, Error, FieldRedaction, field};
 
 /// Map a [`reqwest::Error`] into an [`Error`] according to its category.
 ///
@@ -114,6 +112,10 @@ fn classify_reqwest_error(err: &ReqwestError) -> (Context, Option<u64>) {
 
         if let Some(host) = url.host_str() {
             context = context.with(field::str("http.host", host.to_owned()));
+        }
+
+        if let Some(port) = url.port() {
+            context = context.with(field::u64("http.port", u64::from(port)));
         }
 
         let path = url.path();
@@ -205,6 +207,10 @@ mod tests {
         assert_eq!(app_err.retry.map(|r| r.after_seconds), Some(1));
         let metadata = app_err.metadata();
         assert_eq!(metadata.get("http.status"), Some(&FieldValue::U64(429)));
+        assert_eq!(
+            metadata.get("http.port"),
+            Some(&FieldValue::U64(u64::from(addr.port())))
+        );
 
         server.abort();
     }

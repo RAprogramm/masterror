@@ -34,10 +34,7 @@
 use serde_json::{Error as SjError, error::Category};
 
 #[cfg(feature = "serde_json")]
-use crate::{
-    AppErrorKind,
-    app_error::{Context, Error, field}
-};
+use crate::{AppErrorKind, Context, Error, field};
 
 /// Map a [`serde_json::Error`] into an [`AppError`].
 ///
@@ -70,6 +67,12 @@ fn build_context(err: &SjError) -> Context {
     let column = err.column();
     if column != 0 {
         context = context.with(field::u64("serde_json.column", u64::from(column)));
+    }
+    if line != 0 && column != 0 {
+        context = context.with(field::str(
+            "serde_json.position",
+            format!("{line}:{column}")
+        ));
     }
 
     context
@@ -116,6 +119,10 @@ mod tests {
         assert_eq!(
             metadata.get("serde_json.category"),
             Some(&FieldValue::Str("Syntax".into()))
+        );
+        assert_eq!(
+            metadata.get("serde_json.position"),
+            Some(&FieldValue::Str("1:1".into()))
         );
     }
 }

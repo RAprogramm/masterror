@@ -17,10 +17,7 @@
 use config::ConfigError;
 
 #[cfg(feature = "config")]
-use crate::{
-    AppErrorKind,
-    app_error::{Context, Error, field}
-};
+use crate::{AppErrorKind, Context, Error, field};
 
 #[cfg(feature = "config")]
 #[cfg_attr(docsrs, doc(cfg(feature = "config")))]

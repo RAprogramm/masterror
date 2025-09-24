@@ -36,10 +36,7 @@
 use redis::{RedisError, RetryMethod};
 
 #[cfg(feature = "redis")]
-use crate::{
-    AppErrorKind,
-    app_error::{Context, Error, field}
-};
+use crate::{AppErrorKind, Context, Error, field};
 
 /// Map any [`redis::RedisError`] into an [`AppError`] with kind `Cache`.
 ///
@@ -104,6 +101,10 @@ fn build_context(err: &RedisError) -> (Context, Option<u64>) {
         format!("{:?}", retry_method)
     ));
 
+    if let Some(secs) = retry_after {
+        context = context.with(field::u64("redis.retry_after_hint_secs", secs));
+    }
+
     (context, retry_after)
 }
 
@@ -144,5 +145,9 @@ mod tests {
         let app_err: Error = err.into();
         assert_eq!(app_err.retry.map(|r| r.after_seconds), Some(2));
         assert!(matches!(app_err.kind, AppErrorKind::DependencyUnavailable));
+        assert_eq!(
+            app_err.metadata().get("redis.retry_after_hint_secs"),
+            Some(&FieldValue::U64(2))
+        );
     }
 }

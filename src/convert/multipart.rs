@@ -8,16 +8,25 @@
 
 use axum::extract::multipart::MultipartError;
 
-use crate::{
-    AppErrorKind,
-    app_error::{Context, Error, field}
-};
+use crate::{AppErrorKind, Context, Error, field};
 
 impl From<MultipartError> for Error {
     fn from(err: MultipartError) -> Self {
-        Context::new(AppErrorKind::BadRequest)
-            .with(field::str("multipart.reason", err.to_string()))
-            .into_error(err)
+        let status = err.status();
+        let body_text = err.body_text();
+        let mut context = Context::new(AppErrorKind::BadRequest)
+            .with(field::str("multipart.reason", body_text))
+            .with(field::u64("http.status", u64::from(status.as_u16())))
+            .with(field::bool(
+                "http.is_client_error",
+                status.is_client_error()
+            ));
+
+        if let Some(reason) = status.canonical_reason() {
+            context = context.with(field::str("http.status_reason", reason));
+        }
+
+        context.into_error(err)
     }
 }
 
@@ -47,12 +56,29 @@ mod tests {
             .expect("extractor");
 
         let err = multipart.next_field().await.expect_err("error");
+        let status = err.status();
+        let body_text = err.body_text();
         let app_err: Error = err.into();
 
         assert_eq!(app_err.kind, AppErrorKind::BadRequest);
         assert_eq!(
             app_err.metadata().get("multipart.reason"),
-            Some(&FieldValue::Str(err.to_string().into()))
+            Some(&FieldValue::Str(body_text.into()))
+        );
+        assert_eq!(
+            app_err.metadata().get("http.status"),
+            Some(&FieldValue::U64(u64::from(status.as_u16())))
+        );
+        assert_eq!(
+            app_err.metadata().get("http.status_reason"),
+            status
+                .canonical_reason()
+                .map(|reason| FieldValue::Str(reason.into()))
+                .as_ref()
+        );
+        assert_eq!(
+            app_err.metadata().get("http.is_client_error"),
+            Some(&FieldValue::Bool(status.is_client_error()))
         );
     }
 }

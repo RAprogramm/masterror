@@ -4,8 +4,9 @@
 //!
 //! ## Mapping
 //!
-//! - [`RequestError::Api`] or [`RequestError::MigrateToChatId`] →
-//!   `AppErrorKind::ExternalApi`
+//! - [`RequestError::Api`] → `AppErrorKind::ExternalApi` (invalid token →
+//!   `AppErrorKind::Unauthorized`)
+//! - [`RequestError::MigrateToChatId`] → `AppErrorKind::ExternalApi`
 //! - [`RequestError::RetryAfter`] → `AppErrorKind::RateLimited`
 //! - [`RequestError::Network`] → `AppErrorKind::Network`
 //! - [`RequestError::InvalidJson`] → `AppErrorKind::Deserialization`
@@ -27,13 +28,10 @@
 //! assert!(matches!(app_err.kind, AppErrorKind::RateLimited));
 //! ```
 #[cfg(feature = "teloxide")]
-use teloxide_core::RequestError;
+use teloxide_core::{RequestError, errors::ApiError};
 
 #[cfg(feature = "teloxide")]
-use crate::{
-    AppErrorKind,
-    app_error::{Context, Error, field}
-};
+use crate::{AppErrorKind, Context, Error, FieldRedaction, field};
 
 #[cfg(feature = "teloxide")]
 #[cfg_attr(docsrs, doc(cfg(feature = "teloxide")))]
@@ -51,12 +49,21 @@ impl From<RequestError> for Error {
 #[cfg(feature = "teloxide")]
 fn build_teloxide_context(err: &RequestError) -> (Context, Option<u64>) {
     match err {
-        RequestError::Api(api) => (
-            Context::new(AppErrorKind::ExternalApi)
+        RequestError::Api(api) => {
+            let mut context = Context::new(AppErrorKind::ExternalApi)
                 .with(field::str("telegram.reason", "api"))
-                .with(field::str("telegram.api_error", api.to_string())),
-            None
-        ),
+                .with(field::str("telegram.api_error", api.to_string()))
+                .with(field::str(
+                    "telegram.api_error_variant",
+                    format!("{:?}", api)
+                ));
+
+            if matches!(api, ApiError::InvalidToken) {
+                context = context.category(AppErrorKind::Unauthorized);
+            }
+
+            (context, None)
+        }
         RequestError::MigrateToChatId(id) => (
             Context::new(AppErrorKind::ExternalApi)
                 .with(field::str("telegram.reason", "migrate_to_chat"))
@@ -75,7 +82,8 @@ fn build_teloxide_context(err: &RequestError) -> (Context, Option<u64>) {
         RequestError::Network(e) => (
             Context::new(AppErrorKind::Network)
                 .with(field::str("telegram.reason", "network"))
-                .with(field::str("telegram.detail", e.to_string())),
+                .with(field::str("telegram.detail", e.to_string()))
+                .redact_field("telegram.detail", FieldRedaction::Hash),
             None
         ),
         RequestError::InvalidJson {
@@ -99,12 +107,18 @@ fn build_teloxide_context(err: &RequestError) -> (Context, Option<u64>) {
 
 #[cfg(all(test, feature = "teloxide"))]
 mod tests {
+    #[cfg(feature = "reqwest")]
+    use std::time::Duration;
     use std::{io, sync::Arc};
 
     use teloxide_core::{errors::ApiError, types::Seconds};
+    #[cfg(feature = "reqwest")]
+    use tokio::runtime::Builder;
 
     use super::*;
-    use crate::{AppErrorKind, FieldValue};
+    #[cfg(feature = "reqwest")]
+    use crate::FieldRedaction;
+    use crate::{AppCode, AppErrorKind, FieldValue};
 
     #[test]
     fn api_maps_to_external_api() {
@@ -134,6 +148,45 @@ mod tests {
         assert_eq!(
             app_err.metadata().get("telegram.reason"),
             Some(&FieldValue::Str("io".into()))
+        );
+    }
+
+    #[test]
+    fn invalid_token_maps_to_unauthorized() {
+        let err = RequestError::Api(ApiError::InvalidToken);
+        let app_err: Error = err.into();
+        assert_eq!(app_err.kind, AppErrorKind::Unauthorized);
+        assert_eq!(app_err.code, AppCode::Unauthorized);
+        let metadata = app_err.metadata();
+        assert_eq!(
+            metadata.get("telegram.api_error_variant"),
+            Some(&FieldValue::Str("InvalidToken".into()))
+        );
+    }
+
+    #[cfg(feature = "reqwest")]
+    #[test]
+    fn network_detail_is_hashed() {
+        let runtime = Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        let reqwest_err = runtime.block_on(async {
+            reqwest::Client::builder()
+                .timeout(Duration::from_millis(10))
+                .build()
+                .expect("client")
+                .get("http://127.0.0.1:65535")
+                .send()
+                .await
+                .expect_err("expected failure")
+        });
+        let err = RequestError::Network(Arc::new(reqwest_err));
+        let app_err: Error = err.into();
+        let metadata = app_err.metadata();
+        assert_eq!(
+            metadata.redaction("telegram.detail"),
+            Some(FieldRedaction::Hash)
         );
     }
 }

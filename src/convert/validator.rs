@@ -42,10 +42,7 @@
 use validator::{ValidationErrors, ValidationErrorsKind};
 
 #[cfg(feature = "validator")]
-use crate::{
-    AppErrorKind,
-    app_error::{Context, Error, field}
-};
+use crate::{AppErrorKind, Context, Error, field};
 
 /// Map [`validator::ValidationErrors`] into an [`AppError`] with kind
 /// `Validation`.
