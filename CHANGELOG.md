@@ -3,6 +3,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.21.2] - 2025-10-10
+
+### Added
+- Expanded `Metadata` field coverage with float, duration, IP address and optional JSON values, complete with typed builders, doctests
+  and unit tests covering the new cases.
+
+### Changed
+- Enriched RFC7807 and gRPC adapters to propagate the new metadata types, hashing/masking them consistently across redaction policies.
+- Documented the broader telemetry surface in the README so adopters discover the additional structured field builders.
+
 ## [0.21.1] - 2025-10-09
 
 ### Fixed
