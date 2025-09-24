@@ -3,6 +3,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.18.0] - 2025-09-28
+
+### Added
+- Added the `AppCode::UserAlreadyExists` classification and mapped it to RFC7807
+  responses with the appropriate retry hint.
+
+### Changed
+- Switched all integration converters in `src/convert/*` to build structured
+  `Context` metadata before producing `Error` values, including HTTP status,
+  operation, endpoint, duration and retry/edit flags.
+- Extended integration tests to validate the enriched metadata, retry behavior
+  and error code/category mappings across the updated converters.
+
 ## [0.17.0] - 2025-09-27
 
 ### Added

@@ -1,4 +1,4 @@
-//! Maps [`MultipartError`] into [`AppError`] with
+//! Maps [`MultipartError`] into [`Error`] with
 //! [`AppErrorKind::BadRequest`], preserving the original message.
 //!
 //! Intended for Axum multipart form parsing so that client mistakes are
@@ -8,11 +8,16 @@
 
 use axum::extract::multipart::MultipartError;
 
-use crate::{AppError, AppErrorKind};
+use crate::{
+    AppErrorKind,
+    app_error::{Context, Error, field}
+};
 
-impl From<MultipartError> for AppError {
+impl From<MultipartError> for Error {
     fn from(err: MultipartError) -> Self {
-        AppError::with(AppErrorKind::BadRequest, format!("Multipart error: {err}"))
+        Context::new(AppErrorKind::BadRequest)
+            .with(field::str("multipart.reason", err.to_string()))
+            .into_error(err)
     }
 }
 
@@ -24,7 +29,7 @@ mod tests {
         http::Request
     };
 
-    use crate::{AppError, AppErrorKind};
+    use crate::{AppErrorKind, FieldValue};
 
     #[tokio::test]
     async fn multipart_error_maps_to_bad_request() {
@@ -42,10 +47,12 @@ mod tests {
             .expect("extractor");
 
         let err = multipart.next_field().await.expect_err("error");
-        let expected = format!("Multipart error: {err}");
-        let app_err: AppError = err.into();
+        let app_err: Error = err.into();
 
         assert_eq!(app_err.kind, AppErrorKind::BadRequest);
-        assert_eq!(app_err.message.as_deref(), Some(expected.as_str()));
+        assert_eq!(
+            app_err.metadata().get("multipart.reason"),
+            Some(&FieldValue::Str(err.to_string().into()))
+        );
     }
 }

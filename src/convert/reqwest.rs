@@ -1,4 +1,4 @@
-//! Conversion from [`reqwest::Error`] into [`AppError`].
+//! Conversion from [`reqwest::Error`] into [`Error`].
 //!
 //! Enabled with the `reqwest` feature flag.
 //!
@@ -7,11 +7,16 @@
 //! - [`reqwest::Error::is_timeout`] → `AppErrorKind::Timeout`
 //! - [`reqwest::Error::is_connect`] or [`reqwest::Error::is_request`] →
 //!   `AppErrorKind::Network`
-//! - [`reqwest::Error::is_status`] → `AppErrorKind::ExternalApi` (with upstream
-//!   status info)
+//! - HTTP status errors are classified by status family:
+//!   - `429` → `AppErrorKind::RateLimited`
+//!   - `5xx` → `AppErrorKind::DependencyUnavailable`
+//!   - `408` → `AppErrorKind::Timeout`
+//!   - others → `AppErrorKind::ExternalApi`
 //! - All other cases → `AppErrorKind::ExternalApi`
 //!
-//! The original error string is preserved in the `message` for observability.
+//! Structured metadata captures the upstream endpoint, status code and
+//! low-level flags (timeout/connect/request). Potentially sensitive data (URL)
+//! is marked for hashing/redaction in public payloads.
 //!
 //! ## Rationale
 //!
@@ -22,10 +27,10 @@
 //! ## Example
 //!
 //! ```rust,ignore
-//! use masterror::{AppError, AppErrorKind};
+//! use masterror::{AppErrorKind, Error};
 //! use reqwest::Error as ReqwestError;
 //!
-//! fn handle_http_error(e: ReqwestError) -> AppError {
+//! fn handle_http_error(e: ReqwestError) -> Error {
 //!     e.into()
 //! }
 //!
@@ -40,12 +45,13 @@
 //! ```
 
 #[cfg(feature = "reqwest")]
-use reqwest::Error as ReqwestError;
+use reqwest::{Error as ReqwestError, StatusCode};
 
+use crate::AppErrorKind;
 #[cfg(feature = "reqwest")]
-use crate::AppError;
+use crate::app_error::{Context, Error, FieldRedaction, field};
 
-/// Map a [`reqwest::Error`] into an [`AppError`] according to its category.
+/// Map a [`reqwest::Error`] into an [`Error`] according to its category.
 ///
 /// - Timeout → `Timeout`
 /// - Connect or request build error → `Network`
@@ -53,18 +59,75 @@ use crate::AppError;
 /// - Fallback for other cases → `ExternalApi`
 #[cfg(feature = "reqwest")]
 #[cfg_attr(docsrs, doc(cfg(feature = "reqwest")))]
-impl From<ReqwestError> for AppError {
+impl From<ReqwestError> for Error {
     fn from(err: ReqwestError) -> Self {
-        if err.is_timeout() {
-            AppError::timeout(format!("Request timeout: {err}"))
-        } else if err.is_connect() || err.is_request() {
-            AppError::network(format!("Network error: {err}"))
-        } else if err.is_status() {
-            AppError::external_api(format!("Upstream status error: {err}"))
-        } else {
-            AppError::external_api(format!("Upstream error: {err}"))
+        let (context, retry_after) = classify_reqwest_error(&err);
+        let mut error = context.into_error(err);
+        if let Some(secs) = retry_after {
+            error = error.with_retry_after_secs(secs);
+        }
+        error
+    }
+}
+
+#[cfg(feature = "reqwest")]
+fn classify_reqwest_error(err: &ReqwestError) -> (Context, Option<u64>) {
+    let mut context = Context::new(AppErrorKind::ExternalApi)
+        .with(field::bool("reqwest.is_timeout", err.is_timeout()))
+        .with(field::bool("reqwest.is_connect", err.is_connect()))
+        .with(field::bool("reqwest.is_request", err.is_request()))
+        .with(field::bool("reqwest.is_status", err.is_status()))
+        .with(field::bool("reqwest.is_body", err.is_body()))
+        .with(field::bool("reqwest.is_decode", err.is_decode()))
+        .with(field::bool("reqwest.is_redirect", err.is_redirect()));
+
+    let mut retry_after = None;
+
+    if err.is_timeout() {
+        context = context.category(AppErrorKind::Timeout);
+    } else if err.is_connect() || err.is_request() {
+        context = context.category(AppErrorKind::Network);
+    }
+
+    if let Some(status) = err.status() {
+        let status_code = u16::from(status);
+        context = context.with(field::u64("http.status", u64::from(status_code)));
+        if let Some(reason) = status.canonical_reason() {
+            context = context.with(field::str("http.status_reason", reason));
+        }
+
+        context = match status {
+            StatusCode::TOO_MANY_REQUESTS => {
+                retry_after = Some(1);
+                context.category(AppErrorKind::RateLimited)
+            }
+            StatusCode::REQUEST_TIMEOUT => context.category(AppErrorKind::Timeout),
+            s if s.is_server_error() => context.category(AppErrorKind::DependencyUnavailable),
+            _ => context
+        };
+    }
+
+    if let Some(url) = err.url() {
+        context = context
+            .with(field::str("http.url", url.as_str()))
+            .redact_field("http.url", FieldRedaction::Hash);
+
+        if let Some(host) = url.host_str() {
+            context = context.with(field::str("http.host", host.to_owned()));
+        }
+
+        let path = url.path();
+        if !path.is_empty() {
+            context = context.with(field::str("http.path", path.to_owned()));
+        }
+
+        let scheme = url.scheme();
+        if !scheme.is_empty() {
+            context = context.with(field::str("http.scheme", scheme.to_owned()));
         }
     }
+
+    (context, retry_after)
 }
 
 #[cfg(all(test, feature = "reqwest", feature = "tokio"))]
@@ -75,9 +138,10 @@ mod tests {
     use tokio::{net::TcpListener, time::sleep};
 
     use super::*;
+    use crate::{AppCode, AppErrorKind, FieldRedaction, FieldValue};
 
     #[tokio::test]
-    async fn timeout_message_includes_original_error() {
+    async fn timeout_sets_category_and_metadata() {
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
             .expect("bind listener");
@@ -99,15 +163,48 @@ mod tests {
             .await
             .expect_err("expected timeout");
 
-        assert!(err.is_timeout());
+        let app_err: Error = err.into();
+        assert_eq!(app_err.kind, AppErrorKind::Timeout);
 
-        let err_str = err.to_string();
-        let app_err: AppError = err.into();
-        let msg = app_err.message.expect("app error message");
-        assert!(
-            msg.contains(err_str.as_str()),
-            "{msg} does not contain {err_str}"
+        let metadata = app_err.metadata();
+        assert_eq!(
+            metadata.get("reqwest.is_timeout"),
+            Some(&FieldValue::Bool(true))
         );
+        assert_eq!(metadata.redaction("http.url"), Some(FieldRedaction::Hash));
+
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn status_error_maps_retry_and_rate_limit() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.expect("accept");
+            let mut buf = [0_u8; 1024];
+            let _ = socket.read(&mut buf).await;
+            let response = b"HTTP/1.1 429 Too Many Requests\r\ncontent-length: 0\r\n\r\n";
+            let _ = socket.write_all(response).await;
+        });
+
+        let client = Client::new();
+        let response = client
+            .get(format!("http://{addr}"))
+            .send()
+            .await
+            .expect("send");
+        let err = response.error_for_status().expect_err("status error");
+
+        let app_err: Error = err.into();
+        assert_eq!(app_err.kind, AppErrorKind::RateLimited);
+        assert_eq!(app_err.code, AppCode::RateLimited);
+        assert_eq!(app_err.retry.map(|r| r.after_seconds), Some(1));
+        let metadata = app_err.metadata();
+        assert_eq!(metadata.get("http.status"), Some(&FieldValue::U64(429)));
 
         server.abort();
     }
