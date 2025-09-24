@@ -548,3 +548,12 @@ fn result_alias_is_generic() {
     assert!(matches!(default_result, Ok(value) if value == 1));
     assert!(matches!(custom_result, Ok(value) if value == 2));
 }
+
+#[test]
+fn app_error_fits_result_budget() {
+    let size = std::mem::size_of::<AppError>();
+    assert!(
+        size <= 128,
+        "AppError grew to {size} bytes; keep the Err variant lean"
+    );
+}

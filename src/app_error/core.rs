@@ -38,20 +38,25 @@ pub enum MessageEditPolicy {
 #[doc(hidden)]
 pub struct ErrorInner {
     /// Stable machine-readable error code.
-    pub code:             AppCode,
+    pub code:               AppCode,
     /// Semantic error category.
-    pub kind:             AppErrorKind,
+    pub kind:               AppErrorKind,
     /// Optional, public-friendly message.
-    pub message:          Option<Cow<'static, str>>,
+    pub message:            Option<Cow<'static, str>>,
     /// Structured metadata for telemetry.
-    pub metadata:         Metadata,
+    pub metadata:           Metadata,
     /// Policy describing whether the message can be redacted.
-    pub edit_policy:      MessageEditPolicy,
+    pub edit_policy:        MessageEditPolicy,
     /// Optional retry advice rendered as `Retry-After`.
-    pub retry:            Option<RetryAdvice>,
+    pub retry:              Option<RetryAdvice>,
     /// Optional authentication challenge for `WWW-Authenticate`.
-    pub www_authenticate: Option<String>,
-    telemetry_dirty:      AtomicBool
+    pub www_authenticate:   Option<String>,
+    pub source:             Option<Arc<dyn StdError + Send + Sync + 'static>>,
+    #[cfg(feature = "backtrace")]
+    pub backtrace:          Option<Backtrace>,
+    #[cfg(feature = "backtrace")]
+    pub captured_backtrace: OnceLock<Option<Backtrace>>,
+    telemetry_dirty:        AtomicBool
 }
 
 #[cfg(feature = "backtrace")]
@@ -156,12 +161,7 @@ mod test_backtrace_override {
 /// Rich application error preserving domain code, taxonomy and metadata.
 #[derive(Debug)]
 pub struct Error {
-    inner:              Box<ErrorInner>,
-    source:             Option<Arc<dyn StdError + Send + Sync + 'static>>,
-    #[cfg(feature = "backtrace")]
-    backtrace:          Option<Backtrace>,
-    #[cfg(feature = "backtrace")]
-    captured_backtrace: OnceLock<Option<Backtrace>>
+    inner: Box<ErrorInner>
 }
 
 impl Deref for Error {
@@ -228,13 +228,13 @@ impl Error {
                 edit_policy: MessageEditPolicy::Preserve,
                 retry: None,
                 www_authenticate: None,
+                source: None,
+                #[cfg(feature = "backtrace")]
+                backtrace: None,
+                #[cfg(feature = "backtrace")]
+                captured_backtrace: OnceLock::new(),
                 telemetry_dirty: AtomicBool::new(true)
-            }),
-            source: None,
-            #[cfg(feature = "backtrace")]
-            backtrace: None,
-            #[cfg(feature = "backtrace")]
-            captured_backtrace: OnceLock::new()
+            })
         }
     }
 
