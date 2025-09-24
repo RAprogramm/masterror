@@ -45,18 +45,18 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "backtrace")]
+    use std::sync::Mutex;
     use std::{
         borrow::Cow,
         error::Error as StdError,
         fmt::{Display, Formatter, Result as FmtResult},
         sync::Arc
     };
-    #[cfg(feature = "backtrace")]
-    use std::{env, sync::Mutex};
 
     use super::ResultExt;
     #[cfg(feature = "backtrace")]
-    use crate::app_error::reset_backtrace_preference;
+    use crate::app_error::{reset_backtrace_preference, set_backtrace_preference_override};
     use crate::{
         AppCode, AppErrorKind,
         app_error::{Context, FieldValue, MessageEditPolicy},
@@ -189,29 +189,26 @@ mod tests {
     }
 
     #[cfg(feature = "backtrace")]
-    fn with_backtrace_env(value: Option<&str>, test: impl FnOnce()) {
+    fn with_backtrace_preference(value: Option<bool>, test: impl FnOnce()) {
         let _guard = BACKTRACE_ENV_GUARD.lock().expect("env guard");
         reset_backtrace_preference();
-        match value {
-            Some(value) => env::set_var("RUST_BACKTRACE", value),
-            None => env::remove_var("RUST_BACKTRACE")
-        }
+        set_backtrace_preference_override(value);
         test();
-        env::remove_var("RUST_BACKTRACE");
+        set_backtrace_preference_override(None);
         reset_backtrace_preference();
     }
 
     #[cfg(feature = "backtrace")]
     #[test]
     fn ctx_respects_backtrace_environment() {
-        with_backtrace_env(Some("0"), || {
+        with_backtrace_preference(Some(false), || {
             let err = Result::<(), DummyError>::Err(DummyError)
                 .ctx(|| Context::new(AppErrorKind::Internal))
                 .expect_err("err");
             assert!(err.backtrace().is_none());
         });
 
-        with_backtrace_env(Some("1"), || {
+        with_backtrace_preference(Some(true), || {
             let err = Result::<(), DummyError>::Err(DummyError)
                 .ctx(|| Context::new(AppErrorKind::Internal))
                 .expect_err("err");

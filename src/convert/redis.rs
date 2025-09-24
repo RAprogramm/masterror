@@ -94,12 +94,8 @@ fn build_context(err: &RedisError) -> (Context, Option<u64>) {
             .with(field::u64("redis.redirect_slot", u64::from(slot)));
     }
 
-    let retry_method = err.retry_method();
-    let retry_after = retry_after_hint(retry_method);
-    context = context.with(field::str(
-        "redis.retry_method",
-        format!("{:?}", retry_method)
-    ));
+    let (retry_method_label, retry_after) = retry_method_details(err.retry_method());
+    context = context.with(field::str("redis.retry_method", retry_method_label));
 
     if let Some(secs) = retry_after {
         context = context.with(field::u64("redis.retry_after_hint_secs", secs));
@@ -109,14 +105,17 @@ fn build_context(err: &RedisError) -> (Context, Option<u64>) {
 }
 
 #[cfg(feature = "redis")]
-const fn retry_after_hint(method: RetryMethod) -> Option<u64> {
+const fn retry_method_details(method: RetryMethod) -> (&'static str, Option<u64>) {
     match method {
-        RetryMethod::NoRetry => None,
-        RetryMethod::RetryImmediately | RetryMethod::AskRedirect | RetryMethod::MovedRedirect => {
-            Some(0)
+        RetryMethod::NoRetry => ("NoRetry", None),
+        RetryMethod::RetryImmediately => ("RetryImmediately", Some(0)),
+        RetryMethod::AskRedirect => ("AskRedirect", Some(0)),
+        RetryMethod::MovedRedirect => ("MovedRedirect", Some(0)),
+        RetryMethod::Reconnect => ("Reconnect", Some(1)),
+        RetryMethod::ReconnectFromInitialConnections => {
+            ("ReconnectFromInitialConnections", Some(1))
         }
-        RetryMethod::Reconnect | RetryMethod::ReconnectFromInitialConnections => Some(1),
-        RetryMethod::WaitAndRetry => Some(2)
+        RetryMethod::WaitAndRetry => ("WaitAndRetry", Some(2))
     }
 }
 

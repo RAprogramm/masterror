@@ -1,9 +1,9 @@
-use std::{borrow::Cow, error::Error as StdError, fmt::Display, sync::Arc};
 #[cfg(feature = "backtrace")]
-use std::{env, sync::Mutex};
+use std::sync::Mutex;
+use std::{borrow::Cow, error::Error as StdError, fmt::Display, sync::Arc};
 
 #[cfg(feature = "backtrace")]
-use super::core::reset_backtrace_preference;
+use super::core::{reset_backtrace_preference, set_backtrace_preference_override};
 
 #[cfg(feature = "backtrace")]
 static BACKTRACE_ENV_GUARD: Mutex<()> = Mutex::new(());
@@ -270,22 +270,19 @@ fn error_chain_is_preserved() {
 }
 
 #[cfg(feature = "backtrace")]
-fn with_backtrace_env<F: FnOnce()>(value: Option<&str>, test: F) {
+fn with_backtrace_preference<F: FnOnce()>(value: Option<bool>, test: F) {
     let _guard = BACKTRACE_ENV_GUARD.lock().expect("env guard");
     reset_backtrace_preference();
-    match value {
-        Some(val) => env::set_var("RUST_BACKTRACE", val),
-        None => env::remove_var("RUST_BACKTRACE")
-    }
+    set_backtrace_preference_override(value);
     test();
-    env::remove_var("RUST_BACKTRACE");
+    set_backtrace_preference_override(None);
     reset_backtrace_preference();
 }
 
 #[cfg(feature = "backtrace")]
 #[test]
 fn backtrace_respects_disabled_env() {
-    with_backtrace_env(Some("0"), || {
+    with_backtrace_preference(Some(false), || {
         let err = AppError::internal("boom");
         assert!(err.backtrace().is_none());
     });
@@ -294,7 +291,7 @@ fn backtrace_respects_disabled_env() {
 #[cfg(feature = "backtrace")]
 #[test]
 fn backtrace_enabled_when_env_requests() {
-    with_backtrace_env(Some("1"), || {
+    with_backtrace_preference(Some(true), || {
         let err = AppError::internal("boom");
         assert!(err.backtrace().is_some());
     });
