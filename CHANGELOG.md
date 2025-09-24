@@ -3,6 +3,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.20.0] - 2025-09-30
+
+### Added
+- Added a `Context::redact_field_mut` builder method to tweak metadata
+  redaction policies in place before attaching additional fields.
+- Extended response tests to cover JSON serialization of redacted payloads and
+  hashed metadata along with checks for the opt-in internal formatters.
+
+### Changed
+- Verified `ErrorResponse` and `ProblemJson` serialization respects message and
+  metadata redaction policies, ensuring secrets stay out of wire payloads while
+  keeping diagnostic logging intact.
+
 ## [0.19.0] - 2025-09-29
 
 ### Changed

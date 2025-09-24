@@ -843,6 +843,11 @@ pub fn mapping_for_code(code: AppCode) -> CodeMapping {
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Write;
+
+    use serde_json::Value;
+    use sha2::{Digest, Sha256};
+
     use super::*;
     use crate::AppError;
 
@@ -907,6 +912,56 @@ mod tests {
             }
             other => panic!("unexpected metadata value: {other:?}")
         }
+    }
+
+    #[test]
+    fn problem_json_serialization_masks_sensitive_metadata() {
+        let secret = "super-secret";
+        let err = AppError::internal("oops").with_field(crate::field::str("token", secret));
+        let problem = ProblemJson::from_ref(&err);
+        let json = serde_json::to_value(&problem).expect("serialize problem");
+
+        let metadata = json
+            .get("metadata")
+            .and_then(Value::as_object)
+            .expect("metadata present");
+        let hashed = metadata
+            .get("token")
+            .and_then(Value::as_str)
+            .expect("hashed token");
+
+        let mut hasher = Sha256::new();
+        hasher.update(secret.as_bytes());
+        let digest = hasher.finalize();
+        let expected = digest
+            .iter()
+            .fold(String::with_capacity(64), |mut acc, byte| {
+                let _ = write!(&mut acc, "{:02x}", byte);
+                acc
+            });
+
+        assert_eq!(hashed, expected);
+        assert!(!json.to_string().contains(secret));
+
+        let debug_repr = format!("{:?}", problem.internal());
+        assert!(debug_repr.contains("metadata"));
+        assert!(!debug_repr.contains(secret));
+    }
+
+    #[test]
+    fn problem_json_serialization_omits_metadata_when_redacted() {
+        let secret_value = "sensitive-value";
+        let err = AppError::internal("secret")
+            .redactable()
+            .with_field(crate::field::str("token", secret_value));
+        let problem = ProblemJson::from_ref(&err);
+        let json = serde_json::to_value(&problem).expect("serialize problem");
+
+        assert!(json.get("metadata").is_none());
+        assert!(!json.to_string().contains(secret_value));
+
+        let debug_repr = format!("{:?}", problem.internal());
+        assert!(debug_repr.contains("ProblemJson"));
     }
 
     #[test]

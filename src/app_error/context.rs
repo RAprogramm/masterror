@@ -97,14 +97,18 @@ impl Context {
     /// Override the redaction policy for a metadata field.
     #[must_use]
     pub fn redact_field(mut self, name: &'static str, redaction: FieldRedaction) -> Self {
-        self.field_policies
-            .retain(|(existing, _)| *existing != name);
-        self.field_policies.push((name, redaction));
-        for field in &mut self.fields {
-            if field.name() == name {
-                field.set_redaction(redaction);
-            }
-        }
+        self.set_field_policy(name, redaction);
+        self
+    }
+
+    /// Override the redaction policy for a metadata field in place.
+    #[must_use]
+    pub fn redact_field_mut(
+        &mut self,
+        name: &'static str,
+        redaction: FieldRedaction
+    ) -> &mut Self {
+        self.set_field_policy(name, redaction);
         self
     }
 
@@ -177,6 +181,17 @@ impl Context {
                 .find(|(name, _)| *name == field.name())
             {
                 field.set_redaction(*policy);
+            }
+        }
+    }
+
+    fn set_field_policy(&mut self, name: &'static str, redaction: FieldRedaction) {
+        self.field_policies
+            .retain(|(existing, _)| *existing != name);
+        self.field_policies.push((name, redaction));
+        for field in &mut self.fields {
+            if field.name() == name {
+                field.set_redaction(redaction);
             }
         }
     }
