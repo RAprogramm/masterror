@@ -193,6 +193,20 @@ fn from_app_error_redacts_message_when_policy_allows() {
     assert_eq!(resp_ref.message, AppErrorKind::Internal.to_string());
 }
 
+#[test]
+fn error_response_serialization_hides_redacted_message() {
+    let secret = "super-secret";
+    let resp: ErrorResponse = AppError::internal(secret).redactable().into();
+    let json = serde_json::to_value(&resp).expect("serialize response");
+
+    let fallback = AppErrorKind::Internal.to_string();
+    assert_eq!(
+        json.get("message").and_then(|value| value.as_str()),
+        Some(fallback.as_str())
+    );
+    assert!(!json.to_string().contains(secret));
+}
+
 // --- Display formatting --------------------------------------------------
 
 #[test]
