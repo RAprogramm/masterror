@@ -36,10 +36,7 @@
 use tokio::time::error::Elapsed;
 
 #[cfg(feature = "tokio")]
-use crate::{
-    AppErrorKind,
-    app_error::{Context, Error, field}
-};
+use crate::{AppErrorKind, Context, Error, field};
 
 /// Map a [`tokio::time::error::Elapsed`] into an [`AppError`] with kind
 /// `Timeout`.

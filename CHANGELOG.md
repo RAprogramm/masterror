@@ -3,6 +3,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.20.1] - 2025-10-01
+
+### Changed
+- Enriched converter metadata across `multipart`, `redis`, `reqwest`,
+  `serde_json` and `sqlx` integrations to surface HTTP status details,
+  retry-after hints and structured failure positions while keeping existing
+  error categories intact.
+- Updated the Teloxide mapping to classify `ApiError::InvalidToken` as
+  `Unauthorized` and hash potentially sensitive network error details before
+  emitting telemetry.
+
+### Tests
+- Extended integration tests to assert the new metadata fields, retry hints,
+  and redaction policies covering the updated converters.
+
 ## [0.20.0] - 2025-09-30
 
 ### Added

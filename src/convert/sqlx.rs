@@ -40,10 +40,7 @@ use sqlx::migrate::MigrateError;
 use sqlx_core::error::{DatabaseError, Error as SqlxError, ErrorKind as SqlxErrorKind};
 
 #[cfg(any(feature = "sqlx", feature = "sqlx-migrate"))]
-use crate::{
-    AppCode, AppErrorKind,
-    app_error::{Context, Error, field}
-};
+use crate::{AppCode, AppErrorKind, Context, Error, field};
 
 #[cfg(feature = "sqlx")]
 const SQLSTATE_CODE_OVERRIDES: &[(&str, AppCode)] = &[
@@ -88,7 +85,7 @@ impl From<MigrateError> for Error {
 
 #[cfg(feature = "sqlx")]
 fn build_sqlx_context(err: &SqlxError) -> (Context, Option<u64>) {
-    match err {
+    let (mut context, retry_after) = match err {
         SqlxError::RowNotFound => (
             Context::new(AppErrorKind::NotFound).with(field::str("db.reason", "row_not_found")),
             None
@@ -196,7 +193,13 @@ fn build_sqlx_context(err: &SqlxError) -> (Context, Option<u64>) {
                 .with(field::str("db.detail", format!("{:?}", other))),
             None
         )
+    };
+
+    if let Some(secs) = retry_after {
+        context = context.with(field::u64("db.retry_after_hint_secs", secs));
     }
+
+    (context, retry_after)
 }
 
 #[cfg(feature = "sqlx")]
@@ -346,6 +349,10 @@ mod tests_sqlx {
         };
         let err: Error = SqlxError::Database(Box::new(db_err)).into();
         assert_eq!(err.retry.map(|r| r.after_seconds), Some(1));
+        assert_eq!(
+            err.metadata().get("db.retry_after_hint_secs"),
+            Some(&FieldValue::U64(1))
+        );
     }
 
     #[derive(Debug)]
