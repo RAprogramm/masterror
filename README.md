@@ -29,9 +29,10 @@ of redaction and metadata.
 - **Native derives.** `#[derive(Error)]`, `#[derive(Masterror)]`, `#[app_error]`,
   `#[masterror(...)]` and `#[provide]` wire custom types into `AppError` while
   forwarding sources, backtraces, telemetry providers and redaction policy.
-- **Typed telemetry.** `Metadata` stores structured key/value context with
-  per-field redaction controls and builders in `field::*`, so logs stay
-  structured without manual `String` maps.
+- **Typed telemetry.** `Metadata` stores structured key/value context (strings,
+  integers, floats, durations, IP addresses and optional JSON) with per-field
+  redaction controls and builders in `field::*`, so logs stay structured without
+  manual `String` maps.
 - **Transport adapters.** Optional features expose Actix/Axum responders,
   `tonic::Status` conversions, WASM/browser logging and OpenAPI schema
   generation without contaminating the lean default build.
@@ -73,9 +74,9 @@ The build script keeps the full feature snippet below in sync with
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.21.1", default-features = false }
+masterror = { version = "0.21.2", default-features = false }
 # or with features:
-# masterror = { version = "0.21.1", features = [
+# masterror = { version = "0.21.2", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "tracing", "metrics", "backtrace", "sqlx",
 #   "sqlx-migrate", "reqwest", "redis", "validator",

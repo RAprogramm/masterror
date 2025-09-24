@@ -1,7 +1,9 @@
 use std::{
     borrow::Cow,
     collections::BTreeMap,
-    fmt::{Display, Formatter, Result as FmtResult}
+    fmt::{Display, Formatter, Result as FmtResult, Write},
+    net::IpAddr,
+    time::Duration
 };
 
 /// Redaction policy associated with a metadata [`Field`].
@@ -18,6 +20,8 @@ pub enum FieldRedaction {
     Last4
 }
 
+#[cfg(feature = "serde_json")]
+use serde_json::Value as JsonValue;
 use uuid::Uuid;
 
 /// Value stored inside [`Metadata`].
@@ -34,10 +38,19 @@ pub enum FieldValue {
     I64(i64),
     /// Unsigned 64-bit integer.
     U64(u64),
+    /// Floating-point value.
+    F64(f64),
     /// Boolean flag.
     Bool(bool),
     /// UUID represented with the canonical binary type.
-    Uuid(Uuid)
+    Uuid(Uuid),
+    /// Elapsed duration captured with nanosecond precision.
+    Duration(Duration),
+    /// IP address (v4 or v6).
+    Ip(IpAddr),
+    /// Structured JSON payload (requires the `serde_json` feature).
+    #[cfg(feature = "serde_json")]
+    Json(JsonValue)
 }
 
 impl Display for FieldValue {
@@ -46,10 +59,80 @@ impl Display for FieldValue {
             Self::Str(value) => Display::fmt(value, f),
             Self::I64(value) => Display::fmt(value, f),
             Self::U64(value) => Display::fmt(value, f),
+            Self::F64(value) => Display::fmt(value, f),
             Self::Bool(value) => Display::fmt(value, f),
-            Self::Uuid(value) => Display::fmt(value, f)
+            Self::Uuid(value) => Display::fmt(value, f),
+            Self::Duration(value) => format_duration(*value, f),
+            Self::Ip(value) => Display::fmt(value, f),
+            #[cfg(feature = "serde_json")]
+            Self::Json(value) => Display::fmt(value, f)
         }
     }
+}
+
+#[derive(Clone, Copy)]
+struct TrimmedFraction {
+    value: u32,
+    width: u8
+}
+
+fn duration_parts(duration: Duration) -> (u64, Option<TrimmedFraction>) {
+    let secs = duration.as_secs();
+    let nanos = duration.subsec_nanos();
+    if nanos == 0 {
+        return (secs, None);
+    }
+
+    let mut fraction = nanos;
+    let mut width = 9u8;
+    loop {
+        let divided = fraction / 10;
+        if divided * 10 != fraction {
+            break;
+        }
+        fraction = divided;
+        width -= 1;
+    }
+
+    (
+        secs,
+        Some(TrimmedFraction {
+            value: fraction,
+            width
+        })
+    )
+}
+
+fn format_duration(duration: Duration, f: &mut Formatter<'_>) -> FmtResult {
+    let (secs, fraction) = duration_parts(duration);
+    if let Some(fraction) = fraction {
+        write!(
+            f,
+            "{}.{:0width$}s",
+            secs,
+            fraction.value,
+            width = fraction.width as usize
+        )
+    } else {
+        write!(f, "{}s", secs)
+    }
+}
+
+pub(crate) fn duration_to_string(duration: Duration) -> String {
+    let (secs, fraction) = duration_parts(duration);
+    let mut output = String::new();
+    if let Some(fraction) = fraction {
+        let _ = write!(
+            &mut output,
+            "{}.{:0width$}s",
+            secs,
+            fraction.value,
+            width = fraction.width as usize
+        );
+    } else {
+        let _ = write!(&mut output, "{}s", secs);
+    }
+    output
 }
 
 /// Single metadata field – name plus value.
@@ -288,8 +371,10 @@ impl IntoIterator for Metadata {
 
 /// Factories for [`Field`] values.
 pub mod field {
-    use std::borrow::Cow;
+    use std::{borrow::Cow, net::IpAddr, time::Duration};
 
+    #[cfg(feature = "serde_json")]
+    use serde_json::Value as JsonValue;
     use uuid::Uuid;
 
     use super::{Field, FieldValue};
@@ -312,6 +397,19 @@ pub mod field {
         Field::new(name, FieldValue::U64(value))
     }
 
+    /// Build an `f64` metadata field.
+    ///
+    /// ```
+    /// use masterror::{field, FieldValue};
+    ///
+    /// let (_, value, _) = field::f64("ratio", 0.5).into_parts();
+    /// assert!(matches!(value, FieldValue::F64(ratio) if ratio.to_bits() == 0.5f64.to_bits()));
+    /// ```
+    #[must_use]
+    pub fn f64(name: &'static str, value: f64) -> Field {
+        Field::new(name, FieldValue::F64(value))
+    }
+
     /// Build a boolean metadata field.
     #[must_use]
     pub fn bool(name: &'static str, value: bool) -> Field {
@@ -323,15 +421,66 @@ pub mod field {
     pub fn uuid(name: &'static str, value: Uuid) -> Field {
         Field::new(name, FieldValue::Uuid(value))
     }
+
+    /// Build a duration metadata field.
+    ///
+    /// ```
+    /// use std::time::Duration;
+    /// use masterror::{field, FieldValue};
+    ///
+    /// let (_, value, _) = field::duration("elapsed", Duration::from_millis(1500)).into_parts();
+    /// assert!(matches!(value, FieldValue::Duration(duration) if duration == Duration::from_millis(1500)));
+    /// ```
+    #[must_use]
+    pub fn duration(name: &'static str, value: Duration) -> Field {
+        Field::new(name, FieldValue::Duration(value))
+    }
+
+    /// Build an IP address metadata field.
+    ///
+    /// ```
+    /// use std::net::{IpAddr, Ipv4Addr};
+    /// use masterror::{field, FieldValue};
+    ///
+    /// let (_, value, _) = field::ip("peer", IpAddr::from(Ipv4Addr::LOCALHOST)).into_parts();
+    /// assert!(matches!(value, FieldValue::Ip(addr) if addr.is_ipv4()));
+    /// ```
+    #[must_use]
+    pub fn ip(name: &'static str, value: IpAddr) -> Field {
+        Field::new(name, FieldValue::Ip(value))
+    }
+
+    /// Build a JSON metadata field (requires the `serde_json` feature).
+    ///
+    /// ```
+    /// # #[cfg(feature = "serde_json")]
+    /// # {
+    /// use masterror::{field, FieldValue};
+    ///
+    /// let (_, value, _) = field::json("payload", serde_json::json!({"ok": true})).into_parts();
+    /// assert!(matches!(value, FieldValue::Json(payload) if payload["ok"].as_bool() == Some(true)));
+    /// # }
+    /// ```
+    #[cfg(feature = "serde_json")]
+    #[must_use]
+    pub fn json(name: &'static str, value: JsonValue) -> Field {
+        Field::new(name, FieldValue::Json(value))
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
+    use std::{
+        borrow::Cow,
+        net::{IpAddr, Ipv4Addr},
+        time::Duration
+    };
 
+    #[cfg(feature = "serde_json")]
+    use serde_json::json;
     use uuid::Uuid;
 
-    use super::{FieldRedaction, FieldValue, Metadata, field};
+    use super::{FieldRedaction, FieldValue, Metadata, duration_to_string, field};
 
     #[test]
     fn metadata_roundtrip() {
@@ -356,6 +505,37 @@ mod tests {
         assert_eq!(collected.len(), 2);
         assert_eq!(collected[0].0, "cached");
         assert_eq!(collected[1].0, "trace_id");
+    }
+
+    #[test]
+    fn metadata_supports_extended_field_types() {
+        let meta = Metadata::from_fields([
+            field::f64("ratio", 0.25),
+            field::duration("elapsed", Duration::from_millis(1500)),
+            field::ip("peer", IpAddr::from(Ipv4Addr::new(192, 168, 0, 1)))
+        ]);
+
+        assert!(meta.get("ratio").is_some_and(
+            |value| matches!(value, FieldValue::F64(ratio) if ratio.to_bits() == 0.25f64.to_bits())
+        ));
+        assert_eq!(
+            meta.get("elapsed"),
+            Some(&FieldValue::Duration(Duration::from_millis(1500)))
+        );
+        assert_eq!(
+            meta.get("peer"),
+            Some(&FieldValue::Ip(IpAddr::from(Ipv4Addr::new(192, 168, 0, 1))))
+        );
+    }
+
+    #[cfg(feature = "serde_json")]
+    #[test]
+    fn metadata_supports_json_fields() {
+        let meta = Metadata::from_fields([field::json("payload", json!({ "status": "ok" }))]);
+        assert!(meta.get("payload").is_some_and(|value| matches!(
+            value,
+            FieldValue::Json(payload) if payload["status"] == "ok"
+        )));
     }
 
     #[test]
@@ -388,5 +568,11 @@ mod tests {
         assert_eq!(owned_name, field.name());
         assert_eq!(owned_value, field.value().clone());
         assert_eq!(redaction, field.redaction());
+    }
+
+    #[test]
+    fn duration_to_string_trims_trailing_zeroes() {
+        let text = duration_to_string(Duration::from_micros(1500));
+        assert_eq!(text, "0.0015s");
     }
 }

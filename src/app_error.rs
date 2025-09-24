@@ -72,6 +72,7 @@ pub use core::{AppError, AppResult, Error, MessageEditPolicy};
 pub(crate) use core::{reset_backtrace_preference, set_backtrace_preference_override};
 
 pub use context::Context;
+pub(crate) use metadata::duration_to_string;
 pub use metadata::{Field, FieldRedaction, FieldValue, Metadata, field};
 
 #[cfg(test)]

@@ -30,7 +30,7 @@ use tonic::{
 use crate::CODE_MAPPINGS;
 use crate::{
     AppErrorKind, Error, FieldRedaction, FieldValue, MessageEditPolicy, Metadata, RetryAdvice,
-    mapping_for_code
+    app_error::duration_to_string, mapping_for_code
 };
 
 /// Error alias retained for backwards compatibility with 0.20 conversions.
@@ -142,8 +142,13 @@ fn metadata_value_to_ascii(value: &FieldValue) -> Option<Cow<'_, str>> {
         }
         FieldValue::I64(value) => Some(Cow::Owned(value.to_string())),
         FieldValue::U64(value) => Some(Cow::Owned(value.to_string())),
+        FieldValue::F64(value) => Some(Cow::Owned(value.to_string())),
         FieldValue::Bool(value) => Some(Cow::Borrowed(if *value { "true" } else { "false" })),
-        FieldValue::Uuid(value) => Some(Cow::Owned(value.to_string()))
+        FieldValue::Uuid(value) => Some(Cow::Owned(value.to_string())),
+        FieldValue::Duration(value) => Some(Cow::Owned(duration_to_string(*value))),
+        FieldValue::Ip(value) => Some(Cow::Owned(value.to_string())),
+        #[cfg(feature = "serde_json")]
+        FieldValue::Json(_) => None
     }
 }
 

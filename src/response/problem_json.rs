@@ -1,12 +1,15 @@
-use std::{borrow::Cow, collections::BTreeMap, fmt::Write};
+use std::{borrow::Cow, collections::BTreeMap, fmt::Write, net::IpAddr};
 
 use http::StatusCode;
 use serde::Serialize;
+#[cfg(feature = "serde_json")]
+use serde_json::Value as JsonValue;
 use sha2::{Digest, Sha256};
 
 use super::core::ErrorResponse;
 use crate::{
-    AppCode, AppError, AppErrorKind, FieldRedaction, FieldValue, MessageEditPolicy, Metadata
+    AppCode, AppError, AppErrorKind, FieldRedaction, FieldValue, MessageEditPolicy, Metadata,
+    app_error::duration_to_string
 };
 
 /// Canonical mapping for a public [`AppCode`].
@@ -313,8 +316,22 @@ pub enum ProblemMetadataValue {
     I64(i64),
     /// Unsigned 64-bit integer.
     U64(u64),
+    /// Floating-point number.
+    F64(f64),
     /// Boolean flag serialized as `true`/`false`.
-    Bool(bool)
+    Bool(bool),
+    /// Duration represented as seconds plus nanoseconds remainder.
+    Duration {
+        /// Whole seconds component of the duration.
+        secs:  u64,
+        /// Additional nanoseconds (always less than one second).
+        nanos: u32
+    },
+    /// IP address (v4 or v6).
+    Ip(IpAddr),
+    /// Structured JSON payload (requires the `serde_json` feature).
+    #[cfg(feature = "serde_json")]
+    Json(JsonValue)
 }
 
 impl From<FieldValue> for ProblemMetadataValue {
@@ -323,8 +340,16 @@ impl From<FieldValue> for ProblemMetadataValue {
             FieldValue::Str(value) => Self::String(value),
             FieldValue::I64(value) => Self::I64(value),
             FieldValue::U64(value) => Self::U64(value),
+            FieldValue::F64(value) => Self::F64(value),
             FieldValue::Bool(value) => Self::Bool(value),
-            FieldValue::Uuid(value) => Self::String(Cow::Owned(value.to_string()))
+            FieldValue::Uuid(value) => Self::String(Cow::Owned(value.to_string())),
+            FieldValue::Duration(value) => Self::Duration {
+                secs:  value.as_secs(),
+                nanos: value.subsec_nanos()
+            },
+            FieldValue::Ip(value) => Self::Ip(value),
+            #[cfg(feature = "serde_json")]
+            FieldValue::Json(value) => Self::Json(value)
         }
     }
 }
@@ -335,8 +360,16 @@ impl From<&FieldValue> for ProblemMetadataValue {
             FieldValue::Str(value) => Self::String(value.clone()),
             FieldValue::I64(value) => Self::I64(*value),
             FieldValue::U64(value) => Self::U64(*value),
+            FieldValue::F64(value) => Self::F64(*value),
             FieldValue::Bool(value) => Self::Bool(*value),
-            FieldValue::Uuid(value) => Self::String(Cow::Owned(value.to_string()))
+            FieldValue::Uuid(value) => Self::String(Cow::Owned(value.to_string())),
+            FieldValue::Duration(value) => Self::Duration {
+                secs:  value.as_secs(),
+                nanos: value.subsec_nanos()
+            },
+            FieldValue::Ip(value) => Self::Ip(*value),
+            #[cfg(feature = "serde_json")]
+            FieldValue::Json(value) => Self::Json(value.clone())
         }
     }
 }
@@ -454,6 +487,7 @@ fn hash_field_value(value: &FieldValue) -> String {
             let string = value.to_string();
             hasher.update(string.as_bytes());
         }
+        FieldValue::F64(value) => hasher.update(value.to_le_bytes()),
         FieldValue::Bool(value) => {
             if *value {
                 hasher.update(b"true");
@@ -464,6 +498,20 @@ fn hash_field_value(value: &FieldValue) -> String {
         FieldValue::Uuid(value) => {
             let string = value.to_string();
             hasher.update(string.as_bytes());
+        }
+        FieldValue::Duration(value) => {
+            hasher.update(value.as_secs().to_le_bytes());
+            hasher.update(value.subsec_nanos().to_le_bytes());
+        }
+        FieldValue::Ip(value) => match value {
+            IpAddr::V4(addr) => hasher.update(addr.octets()),
+            IpAddr::V6(addr) => hasher.update(addr.octets())
+        },
+        #[cfg(feature = "serde_json")]
+        FieldValue::Json(value) => {
+            if let Ok(serialized) = serde_json::to_vec(value) {
+                hasher.update(&serialized);
+            }
         }
     }
     let digest = hasher.finalize();
@@ -479,7 +527,14 @@ fn mask_last4_field_value(value: &FieldValue) -> Option<String> {
         FieldValue::Str(value) => Some(mask_last4(value.as_ref())),
         FieldValue::I64(value) => Some(mask_last4(&value.to_string())),
         FieldValue::U64(value) => Some(mask_last4(&value.to_string())),
+        FieldValue::F64(value) => Some(mask_last4(&value.to_string())),
         FieldValue::Uuid(value) => Some(mask_last4(&value.to_string())),
+        FieldValue::Duration(value) => Some(mask_last4(&duration_to_string(*value))),
+        FieldValue::Ip(value) => Some(mask_last4(&value.to_string())),
+        #[cfg(feature = "serde_json")]
+        FieldValue::Json(value) => serde_json::to_string(value)
+            .ok()
+            .map(|text| mask_last4(&text)),
         FieldValue::Bool(_) => None
     }
 }
@@ -843,7 +898,11 @@ pub fn mapping_for_code(code: AppCode) -> CodeMapping {
 
 #[cfg(test)]
 mod tests {
-    use std::fmt::Write;
+    use std::{
+        fmt::Write,
+        net::{IpAddr, Ipv4Addr},
+        time::Duration
+    };
 
     use serde_json::Value;
     use sha2::{Digest, Sha256};
@@ -867,6 +926,55 @@ mod tests {
         let problem = ProblemJson::from_ref(&err);
         let metadata = problem.metadata.expect("metadata");
         assert!(!metadata.is_empty());
+    }
+
+    #[test]
+    fn metadata_preserves_extended_field_types() {
+        let mut err = AppError::internal("oops");
+        err = err.with_field(crate::field::f64("ratio", 0.25));
+        err = err.with_field(crate::field::duration(
+            "elapsed",
+            Duration::from_millis(1500)
+        ));
+        err = err.with_field(crate::field::ip(
+            "peer",
+            IpAddr::from(Ipv4Addr::new(10, 0, 0, 42))
+        ));
+        #[cfg(feature = "serde_json")]
+        {
+            err = err.with_field(crate::field::json(
+                "payload",
+                serde_json::json!({ "status": "ok" })
+            ));
+        }
+
+        let problem = ProblemJson::from_ref(&err);
+        let metadata = problem.metadata.expect("metadata");
+
+        let ratio = metadata.0.get("ratio").expect("ratio metadata");
+        assert!(matches!(
+            ratio,
+            ProblemMetadataValue::F64(value) if (*value - 0.25).abs() < f64::EPSILON
+        ));
+
+        let duration = metadata.0.get("elapsed").expect("elapsed metadata");
+        assert!(matches!(
+            duration,
+            ProblemMetadataValue::Duration { secs, nanos }
+            if *secs == 1 && *nanos == 500_000_000
+        ));
+
+        let ip = metadata.0.get("peer").expect("peer metadata");
+        assert!(matches!(ip, ProblemMetadataValue::Ip(addr) if addr.is_ipv4()));
+
+        #[cfg(feature = "serde_json")]
+        {
+            let payload = metadata.0.get("payload").expect("payload metadata");
+            assert!(matches!(
+                payload,
+                ProblemMetadataValue::Json(value) if value["status"] == "ok"
+            ));
+        }
     }
 
     #[test]
