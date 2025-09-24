@@ -12,13 +12,14 @@
 //! ## Example
 //!
 //! ```rust,ignore
-//! use masterror::{AppError, AppErrorKind};
+//! use masterror::AppError;
 //!
 //! let status = tonic::Status::from(AppError::not_found("missing"));
 //! assert_eq!(status.code(), tonic::Code::NotFound);
 //! ```
 
-use std::{borrow::Cow, fmt};
+use core::convert::Infallible;
+use std::borrow::Cow;
 
 use tonic::{
     Code, Status,
@@ -32,49 +33,29 @@ use crate::{
     mapping_for_code
 };
 
-/// Error returned when converting [`Error`] into [`Status`] fails.
+/// Error alias retained for backwards compatibility with 0.20 conversions.
 ///
-/// This type is never constructed in practice because the conversion is
-/// guaranteed to succeed. It exists solely to preserve the `TryFrom` API in
-/// addition to the infallible [`From`] conversion.
+/// Since Rust 1.90 the standard library implements [`TryFrom`] for every
+/// [`Into`] conversion with [`core::convert::Infallible`] as the error type.
+/// Tonic conversions are therefore guaranteed to succeed, and this alias keeps
+/// the historic [`StatusConversionError`] name available for downstream APIs.
 ///
 /// # Examples
 /// ```rust,ignore
 /// use masterror::{AppError, StatusConversionError};
 /// use tonic::{Code, Status};
 ///
-/// fn convert() -> Result<Status, StatusConversionError> {
-///     Status::try_from(AppError::not_found("missing"))
-/// }
-///
-/// # fn main() -> Result<(), StatusConversionError> {
-/// let status = convert()?;
+/// let status: Result<Status, StatusConversionError> = Status::try_from(
+///     AppError::not_found("missing")
+/// );
+/// let status = status.expect("conversion cannot fail");
 /// assert_eq!(status.code(), Code::NotFound);
-/// # Ok(())
-/// # }
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct StatusConversionError;
-
-impl fmt::Display for StatusConversionError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("conversion to tonic::Status cannot fail")
-    }
-}
-
-impl std::error::Error for StatusConversionError {}
+pub type StatusConversionError = Infallible;
 
 impl From<Error> for Status {
     fn from(error: Error) -> Self {
         status_from_error(&error)
-    }
-}
-
-impl TryFrom<Error> for Status {
-    type Error = StatusConversionError;
-
-    fn try_from(error: Error) -> Result<Self, Self::Error> {
-        Ok(Status::from(error))
     }
 }
 

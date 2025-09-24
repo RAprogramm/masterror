@@ -71,9 +71,9 @@ The build script keeps the full feature snippet below in sync with
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.20.5", default-features = false }
+masterror = { version = "0.20.6", default-features = false }
 # or with features:
-# masterror = { version = "0.20.5", features = [
+# masterror = { version = "0.20.6", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "tracing", "metrics", "backtrace", "sqlx",
 #   "sqlx-migrate", "reqwest", "redis", "validator",
@@ -85,7 +85,6 @@ masterror = { version = "0.20.5", default-features = false }
 ---
 
 <details>
-
   <summary><b>Quick start</b></summary>
 
 Create an error:
@@ -378,143 +377,8 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 ~~~
 
 </details>
-<details>
-  <summary><b>Web framework integrations</b></summary>
 
-<details>
-  <summary>Axum</summary>
-
-~~~rust
-// features = ["axum", "serde_json"]
-...
-    assert!(payload.is_object());
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        if let Err(console_err) = err.log_to_browser_console() {
-            eprintln!(
-                "failed to log to browser console: {:?}",
-                console_err.context()
-            );
-        }
-    }
-
-    Ok(())
-}
-~~~
-
-- On non-WASM targets `log_to_browser_console` returns
-  `BrowserConsoleError::UnsupportedTarget`.
-- `BrowserConsoleError::context()` exposes optional browser diagnostics for
-  logging/telemetry when console logging fails.
-
-</details>
-
-</details>
-
-<details>
-  <summary><b>Feature flags</b></summary>
-
-- `axum` — IntoResponse integration with structured JSON bodies
-- `actix` — Actix Web ResponseError and Responder implementations
-- `openapi` — Generate utoipa OpenAPI schema for ErrorResponse
-- `serde_json` — Attach structured JSON details to AppError
-- `tracing` — Emit structured tracing events when errors are constructed
-- `metrics` — Increment `error_total{code,category}` counter for each AppError
-- `backtrace` — Capture lazy `Backtrace` snapshots when telemetry is flushed
-- `sqlx` — Classify sqlx_core::Error variants into AppError kinds
-- `sqlx-migrate` — Map sqlx::migrate::MigrateError into AppError (Database)
-- `reqwest` — Classify reqwest::Error as timeout/network/external API
-- `redis` — Map redis::RedisError into cache-aware AppError
-- `validator` — Convert validator::ValidationErrors into validation failures
-- `config` — Propagate config::ConfigError as configuration issues
-- `tokio` — Classify tokio::time::error::Elapsed as timeout
-- `multipart` — Handle axum multipart extraction errors
-- `teloxide` — Convert teloxide_core::RequestError into domain errors
-- `telegram-webapp-sdk` — Surface Telegram WebApp validation failures
-- `tonic` — Convert AppError into tonic::Status with redaction
-- `frontend` — Log to the browser console and convert to JsValue on WASM
-- `turnkey` — Ship Turnkey-specific error taxonomy and conversions
-
-</details>
-
-<details>
-  <summary><b>Conversions</b></summary>
-
-- `std::io::Error` → Internal
-- `String` → BadRequest
-- `sqlx::Error` → NotFound/Database
-- `redis::RedisError` → Cache
-- `reqwest::Error` → Timeout/Network/ExternalApi
-- `axum::extract::multipart::MultipartError` → BadRequest
-- `validator::ValidationErrors` → Validation
-- `config::ConfigError` → Config
-- `tokio::time::error::Elapsed` → Timeout
-- `teloxide_core::RequestError` → RateLimited/Network/ExternalApi/Deserialization/Internal
-- `telegram_webapp_sdk::utils::validate_init_data::ValidationError` → TelegramAuth
-
-</details>
-
-<details>
-  <summary><b>Typical setups</b></summary>
-
-Minimal core:
-
-~~~toml
-masterror = { version = "0.20.5", default-features = false }
-~~~
-
-API (Axum + JSON + deps):
-
-~~~toml
-masterror = { version = "0.20.5", features = [
-  "axum", "serde_json", "openapi",
-  "sqlx", "reqwest", "redis", "validator", "config", "tokio"
-] }
-~~~
-
-API (Actix + JSON + deps):
-
-~~~toml
-masterror = { version = "0.20.5", features = [
-  "actix", "serde_json", "openapi",
-  "sqlx", "reqwest", "redis", "validator", "config", "tokio"
-] }
-~~~
-
-</details>
-
-<details>
-  <summary><b>Turnkey</b></summary>
-
-~~~rust
-// features = ["turnkey"]
-use masterror::turnkey::{classify_turnkey_error, TurnkeyError, TurnkeyErrorKind};
-use masterror::{AppError, AppErrorKind};
-
-// Classify a raw SDK/provider error
-let kind = classify_turnkey_error("429 Too Many Requests");
-assert!(matches!(kind, TurnkeyErrorKind::RateLimited));
-
-// Wrap into AppError
-let e = TurnkeyError::new(TurnkeyErrorKind::RateLimited, "throttled upstream");
-let app: AppError = e.into();
-assert_eq!(app.kind, AppErrorKind::RateLimited);
-~~~
-
-</details>
-
-<details>
-  <summary><b>Migration 0.2 → 0.3</b></summary>
-
-- Use `ErrorResponse::new(status, AppCode::..., "msg")` instead of legacy
-- New helpers: `.with_retry_after_secs`, `.with_retry_after_duration`, `.with_www_authenticate`
-- `ErrorResponse::new_legacy` is temporary shim
-
-</details>
-
-<details>
-  <summary><b>Versioning & MSRV</b></summary>
+### Further resources
 
 - Explore the [error-handling wiki](docs/wiki/index.md) for step-by-step guides,
   comparisons with `thiserror`/`anyhow`, and troubleshooting recipes.
