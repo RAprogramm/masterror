@@ -1,6 +1,6 @@
 # masterror · Каркас-независимые типы ошибок приложений
 
-> Этот документ — русская версия основной документации. Английскую версию см. в [README.md](README.md).
+> Эта страница — русская версия основной документации. Английский оригинал см. в [README.md](README.md).
 
 [![Crates.io](https://img.shields.io/crates/v/masterror)](https://crates.io/crates/masterror)
 [![docs.rs](https://img.shields.io/docsrs/masterror)](https://docs.rs/masterror)
@@ -11,47 +11,74 @@
 [![Security audit](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main&label=Security%20audit)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
 [![Cargo Deny](https://img.shields.io/github/actions/workflow/status/RAprogramm/masterror/ci.yml?branch=main&label=Cargo%20Deny)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
 
-Небольшая прагматичная модель ошибок для Rust-сервисов с выраженным API и
-встроенными деривами.
-Основной крейт не зависит от веб-фреймворков, а расширения включаются через
-фичи. Таксономия ошибок стабильна, соответствие HTTP-кодам консервативно,
-`unsafe` запрещён.
+`masterror` вырос из набора вспомогательных функций в полноценный workspace с
+модульными крейтами для построения наблюдаемых и последовательных ошибок в
+Rust-сервисах. Базовый крейт остаётся независимым от веб-фреймворков, а фичи
+включают только нужные адаптеры, интеграции и телеметрию. `unsafe` запрещён,
+MSRV зафиксирован, а родные деривы позволяют доменным типам управлять
+редактированием сообщений и метаданными.
 
-## Основные возможности
+## Ключевые возможности
 
-- Базовые типы: `AppError`, `AppErrorKind`, `AppResult`, `AppCode`, `ProblemJson`, `ErrorResponse`, `Metadata`.
-- Деривы `#[derive(Error)]`, `#[derive(Masterror)]`, `#[app_error]`,
-  `#[masterror(...)]`, `#[provide]` для типизированного телеметрического
-  контекста и прямых конверсий доменных ошибок.
-- Адаптеры для Axum и Actix плюс логирование в браузер/`JsValue` для WASM (по
-  фичам).
-- Генерация схем OpenAPI через `utoipa`.
-- Структурированные поля `Metadata` через билдеры `field::*`.
-- Конверсии из распространённых библиотек (`sqlx`, `reqwest`, `redis`,
-  `validator`, `config`, `tokio` и др.).
-- Готовый прелюдия-модуль и расширение `turnkey` с собственной таксономией
-  ошибок.
+- **Единая таксономия.** `AppError`, `AppErrorKind` и `AppCode` описывают
+  доменные и транспортные аспекты, имеют консервативное соответствие HTTP/gRPC,
+  готовые подсказки retry/auth и RFC7807-ответы через `ProblemJson`.
+- **Родные деривы.** `#[derive(Error)]`, `#[derive(Masterror)]`, `#[app_error]`,
+  `#[masterror(...)]` и `#[provide]` соединяют ваши типы с `AppError`, пробрасывая
+  источники, бэктрейсы, телеметрию и политику редактирования.
+- **Типизированная телеметрия.** `Metadata` хранит структурированные ключи и
+  значения с индивидуальными правилами маскирования, а билдеры `field::*`
+  избавляют от ручных `String`-карт.
+- **Транспортные адаптеры.** Опциональные фичи включают респондеры для Actix/Axum,
+  конвертацию в `tonic::Status`, логирование в браузер/WASM и генерацию схем
+  OpenAPI без утяжеления дефолтной сборки.
+- **Интеграции, проверенные в бою.** Активируйте маппинги для `sqlx`, `reqwest`,
+  `redis`, `validator`, `config`, `tokio`, `teloxide`, `multipart`, Telegram
+  WebApp SDK и других библиотек — каждая переводит ошибки в таксономию с
+  прикреплённой телеметрией.
+- **Готовые настройки.** Модуль `turnkey` поставляет готовый каталог ошибок,
+  билдеры и интеграцию с `tracing` для команд, которым нужна стартовая
+  конфигурация «из коробки».
 
-## Установка
+## Состав workspace
 
-Добавьте зависимость в `Cargo.toml`:
+| Крейт | Что содержит | Когда подключать |
+| --- | --- | --- |
+| [`masterror`](https://crates.io/crates/masterror) | Основные типы ошибок, билдеры метаданных, транспорты, интеграции и прелюдия. | Боевые сервисы и библиотеки, которым нужна стабильная поверхность ошибок. |
+| [`masterror-derive`](masterror-derive/README.md) | Процедурные макросы `#[derive(Error)]`, `#[derive(Masterror)]`, `#[app_error]`, `#[provide]`. | Уже идёт транзитивно; подключайте напрямую только для экспериментов с макросами. |
+| [`masterror-template`](masterror-template/README.md) | Общий парсер шаблонов для анализа форматтеров в деривах. | Внутренний компонент; используйте, если нужен этот парсер в другом коде. |
+
+## Флаги фич
+
+Все фичи отключены по умолчанию — выбирайте только нужное.
+
+- **Веб и API:** `axum`, `actix`, `multipart`, `openapi`, `serde_json`.
+- **Наблюдаемость:** `tracing`, `metrics`, `backtrace`.
+- **Async и IO:** `tokio`, `reqwest`, `sqlx`, `sqlx-migrate`, `redis`, `validator`,
+  `config`.
+- **Боты и мессенджеры:** `teloxide`, `telegram-webapp-sdk`.
+- **Фронтенд:** `frontend` для логирования в браузере/WASM.
+- **gRPC:** `tonic` для генерации `tonic::Status`.
+- **Готовая таксономия:** `turnkey`.
+
+## TL;DR
 
 ~~~toml
 [dependencies]
-# минимальное ядро
-masterror = { version = "0.15.0", default-features = false }
-# или с нужными интеграциями
-# masterror = { version = "0.15.0", features = [
+masterror = { version = "0.20.5", default-features = false }
+# или с нужными фичами:
+# masterror = { version = "0.20.5", features = [
 #   "axum", "actix", "openapi", "serde_json",
-#   "sqlx", "sqlx-migrate", "reqwest", "redis",
-#   "validator", "config", "tokio", "multipart",
-#   "teloxide", "telegram-webapp-sdk", "frontend", "turnkey"
+#   "tracing", "metrics", "backtrace", "sqlx",
+#   "sqlx-migrate", "reqwest", "redis", "validator",
+#   "config", "tokio", "multipart", "teloxide",
+#   "telegram-webapp-sdk", "tonic", "frontend", "turnkey"
 # ] }
 ~~~
 
-**MSRV:** 1.90
+---
 
-## Быстрый старт
+### Быстрый старт
 
 Создание ошибки вручную:
 
@@ -78,29 +105,121 @@ fn do_work(flag: bool) -> AppResult<()> {
 }
 ~~~
 
-## Дополнительные интеграции
+### Деривы для доменных ошибок и транспорта
 
-- `sqlx` — классификация `sqlx::Error` по видам ошибок.
-- `sqlx-migrate` — обработка `sqlx::migrate::MigrateError` как базы данных.
-- `reqwest` — перевод сетевых/HTTP-сбоев в доменные категории.
-- `redis` — корректная обработка ошибок кеша.
-- `validator` — преобразование `ValidationErrors` в валидационные ошибки API.
-- `config` — типизированные ошибки конфигурации.
-- `tokio` — маппинг таймаутов (`tokio::time::error::Elapsed`).
-- `metadata` — типизированные поля `Metadata` без аллокаций строк.
-- `multipart` — обработка ошибок извлечения multipart в Axum.
-- `teloxide` — маппинг `teloxide_core::RequestError` в доменные категории.
-- `telegram-webapp-sdk` — обработка ошибок валидации данных Telegram WebApp.
-- `tonic` — преобразование `AppError` в `tonic::Status` с учётом редактирования.
-- `frontend` — логирование в браузере и преобразование в `JsValue` для WASM.
-- `turnkey` — расширение таксономии для Turnkey SDK.
+`masterror` предоставляет родные деривы, чтобы типы оставались выразительными, а
+crate отвечал за конверсии, телеметрию и редактирование сообщений.
 
-## Атрибуты `#[provide]` и `#[app_error]`
+~~~rust
+use std::io;
 
-Атрибут `#[provide(...)]` позволяет передавать структурированную телеметрию через
-`std::error::Request`, а `#[app_error(...)]` описывает прямой маппинг доменной
-ошибки в `AppError` и `AppCode`. Дерив сохраняет синтаксис `thiserror`, но
-дополняет его провайдерами телеметрии и готовыми конверсиями в типы `masterror`.
+use masterror::Error;
+
+#[derive(Debug, Error)]
+#[error("I/O failed: {source}")]
+pub struct DomainError {
+    #[from]
+    #[source]
+    source: io::Error,
+}
+
+#[derive(Debug, Error)]
+#[error(transparent)]
+pub struct WrappedDomainError(
+    #[from]
+    #[source]
+    DomainError
+);
+
+fn load() -> Result<(), DomainError> {
+    Err(io::Error::other("disk offline").into())
+}
+
+let err = load().unwrap_err();
+assert_eq!(err.to_string(), "I/O failed: disk offline");
+
+let wrapped = WrappedDomainError::from(err);
+assert_eq!(wrapped.to_string(), "I/O failed: disk offline");
+~~~
+
+- `use masterror::Error;` подключает макрос дерива.
+- `#[from]` автоматически реализует `From<...>` и проверяет форму враппера.
+- `#[error(transparent)]` гарантирует корректную прокладку `Display`/`source`.
+- `#[app_error(kind = ..., code = ..., message)]` сопоставляет ошибку с
+  `AppError`/`AppCode`; `code = ...` добавляет `From<Error> for AppCode`, а
+  `message` публикует форматированную строку вместо обезличенного текста.
+- `masterror::error::template::ErrorTemplate` разбирает строки формата, позволяя
+  строить собственные деривы без зависимости от `thiserror`.
+
+### Телеметрия, редактирование и маппинги транспортов
+
+`#[derive(Masterror)]` преобразует доменную ошибку в [`masterror::Error`],
+прикрепляя метаданные, политику редактирования и маппинги для HTTP/gRPC/RFC7807.
+
+~~~rust
+use masterror::{
+    mapping::HttpMapping, AppCode, AppErrorKind, Error, Masterror, MessageEditPolicy
+};
+
+#[derive(Debug, Masterror)]
+#[error("user {user_id} missing flag {flag}")]
+#[masterror(
+    code = AppCode::NotFound,
+    category = AppErrorKind::NotFound,
+    message,
+    redact(message, fields("user_id" = hash)),
+    telemetry(
+        Some(masterror::field::str("user_id", user_id.clone())),
+        attempt.map(|value| masterror::field::u64("attempt", value))
+    ),
+    map.grpc = 5,
+    map.problem = "https://errors.example.com/not-found"
+)]
+struct MissingFlag {
+    user_id: String,
+    flag: &'static str,
+    attempt: Option<u64>,
+    #[source]
+    source: Option<std::io::Error>
+}
+
+let err = MissingFlag {
+    user_id: "alice".into(),
+    flag: "beta",
+    attempt: Some(2),
+    source: None
+};
+let converted: Error = err.into();
+assert_eq!(converted.code, AppCode::NotFound);
+assert_eq!(converted.kind, AppErrorKind::NotFound);
+assert_eq!(converted.edit_policy, MessageEditPolicy::Redact);
+assert!(converted.metadata().get("user_id").is_some());
+
+assert_eq!(
+    MissingFlag::HTTP_MAPPING,
+    HttpMapping::new(AppCode::NotFound, AppErrorKind::NotFound)
+);
+~~~
+
+- `code` / `category` задают публичный [`AppCode`] и внутренний
+  [`AppErrorKind`].
+- `message` публикует форматированную строку как безопасное сообщение.
+- `redact(message)` включает редактирование, а `fields("name" = hash)` задаёт
+  правила маскирования для метаданных.
+- `telemetry(...)` принимает выражения, дающие `Option<Field>`; заполненные поля
+  попадают в [`Metadata`].
+- `map.grpc` / `map.problem` добавляют gRPC-код и RFC7807 `type` URI. Дерив
+  генерирует таблицы `HTTP_MAPPING`, `GRPC_MAPPING`, `PROBLEM_MAPPING`.
+
+Все атрибуты уровня полей (`#[from]`, `#[source]`, `#[backtrace]`) продолжают
+работать. Источники и бэктрейсы автоматически прикрепляются к
+[`masterror::Error`].
+
+### Провайдеры телеметрии и `AppError`
+
+`#[provide(...)]` раскрывает структурированную телеметрию через
+`std::error::Request`, а `#[app_error(...)]` описывает конверсию в `AppError` и
+`AppCode`.
 
 ~~~rust
 use std::error::request_ref;
@@ -136,8 +255,8 @@ let via_app = request_ref::<TelemetrySnapshot>(&app).expect("telemetry");
 assert_eq!(via_app.name, "db.query");
 ~~~
 
-Опциональные поля автоматически пропускаются, если значения нет. При запросе
-значения `Option<T>` можно вернуть как по ссылке, так и передать владение:
+Опциональная телеметрия не регистрирует провайдер, если значение `None`, а
+владение можно передать через `value = ...`.
 
 ~~~rust
 use masterror::{AppCode, AppErrorKind, Error};
@@ -162,8 +281,7 @@ assert!(request_ref::<TelemetrySnapshot>(&noisy).is_some());
 assert!(request_ref::<TelemetrySnapshot>(&silent).is_none());
 ~~~
 
-Для перечислений каждая ветка может задавать собственную телеметрию и
-конверсию. Дерив сгенерирует единый `From<Enum>` для `AppError`/`AppCode`:
+Перечисления поддерживают собственные маппинги и провайдеры на вариант:
 
 ~~~rust
 #[derive(Debug, Error)]
@@ -191,252 +309,34 @@ let app: AppError = owned.into();
 assert!(matches!(app.kind, AppErrorKind::Service));
 ~~~
 
-В отличие от `thiserror`, вы получаете дополнительную структурированную
-информацию и прямой маппинг в `AppError`/`AppCode` без ручных реализаций
-`From`.
+Так вы сохраняете знакомый интерфейс `thiserror`, но получаете телеметрию и
+готовые конверсии в `AppError`/`AppCode` без ручного кода.
 
-## `#[derive(Masterror)]` и атрибут `#[masterror(...)]`
-
-Когда нужно сразу получить [`masterror::Error`], используйте `#[derive(Masterror)]`.
-Атрибут `#[masterror(...)]` описывает код, категорию, телеметрию, политику
-редактирования и транспортные подсказки:
+### Problem JSON и подсказки retry/auth
 
 ~~~rust
-use masterror::{
-    mapping::HttpMapping, AppCode, AppErrorKind, Error, Masterror, MessageEditPolicy
-};
+use masterror::{AppError, AppErrorKind, ProblemJson};
+use std::time::Duration;
 
-#[derive(Debug, Masterror)]
-#[error("пользователь {user_id} без флага {flag}")]
-#[masterror(
-    code = AppCode::NotFound,
-    category = AppErrorKind::NotFound,
-    message,
-    redact(message, fields("user_id" = hash)),
-    telemetry(
-        Some(masterror::field::str("user_id", user_id.clone())),
-        attempt.map(|value| masterror::field::u64("attempt", value))
-    ),
-    map.grpc = 5,
-    map.problem = "https://errors.example.com/not-found"
-)]
-struct MissingFlag {
-    user_id: String,
-    flag: &'static str,
-    attempt: Option<u64>,
-    #[source]
-    source: Option<std::io::Error>,
-}
-
-let err = MissingFlag {
-    user_id: "alice".into(),
-    flag: "beta",
-    attempt: Some(2),
-    source: None,
-};
-let converted: Error = err.into();
-assert_eq!(converted.code, AppCode::NotFound);
-assert_eq!(converted.kind, AppErrorKind::NotFound);
-assert_eq!(converted.edit_policy, MessageEditPolicy::Redact);
-assert!(converted.metadata().get("user_id").is_some());
-
-assert_eq!(
-    MissingFlag::HTTP_MAPPING,
-    HttpMapping::new(AppCode::NotFound, AppErrorKind::NotFound)
+let problem = ProblemJson::from_app_error(
+    AppError::new(AppErrorKind::Unauthorized, "Token expired")
+        .with_retry_after_duration(Duration::from_secs(30))
+        .with_www_authenticate(r#"Bearer realm="api", error="invalid_token""#)
 );
+
+assert_eq!(problem.status, 401);
+assert_eq!(problem.retry_after, Some(30));
+assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 ~~~
 
-- `code` / `category` задают публичный [`AppCode`] и внутренний
-  [`AppErrorKind`].
-- `message` включает текст, возвращаемый [`Display`], в публичное сообщение.
-- `redact(message)` выставляет [`MessageEditPolicy`] в режим редактирования на
-  транспортной границе, `fields("name" = hash, "card" = last4)` переопределяет
-  обработку метаданных (`hash`, `last4`, `redact`, `none`).
-- `telemetry(...)` принимает выражения, возвращающие
-  `Option<masterror::Field>`. Каждое присутствующее поле добавляется в
-  [`Metadata`]; пустые выражения пропускаются.
-- `map.grpc` / `map.problem` позволяют зафиксировать код gRPC (целое `i32`) и
-  URI для problem+json. Дерив генерирует таблицы `TYPE::HTTP_MAPPING`,
-  `TYPE::GRPC_MAPPING` и `TYPE::PROBLEM_MAPPING` (или срезы для перечислений)
-  для дальнейшей интеграции.
+### Дополнительные материалы
 
-Атрибуты `#[from]`, `#[source]`, `#[backtrace]` продолжают работать: источники и
-бектрейсы автоматически прикрепляются к результирующему [`masterror::Error`].
+- [Вики по обработке ошибок](docs/wiki/index.md) с пошаговыми руководствами,
+  сравнением `thiserror`/`anyhow` и рецептами устранения проблем.
+- [Документация на docs.rs](https://docs.rs/masterror) с подробными таблицами по
+  фичам и транспортам.
+- [`CHANGELOG.md`](CHANGELOG.md) для истории релизов и миграций.
 
-## Форматирование шаблонов `#[error]`
+---
 
-Шаблон `#[error("...")]` по умолчанию использует `Display`, но любая
-подстановка может запросить другой форматтер.
-`TemplateFormatter::is_alternate()` фиксирует флаг `#`, а `TemplateFormatterKind`
-сообщает, какой трейт `core::fmt` нужен, поэтому порождённый код может
-переключаться между вариантами без ручного `match`. Неподдержанные спецификаторы
-приводят к диагностике на этапе компиляции, совпадающей с `thiserror`.
-
-| Спецификатор     | Трейт                   | Пример результата        | Примечания |
-|------------------|-------------------------|--------------------------|------------|
-| _по умолчанию_   | `core::fmt::Display`    | `value`                  | Пользовательские сообщения; `#` игнорируется. |
-| `:?` / `:#?`     | `core::fmt::Debug`      | `Struct { .. }` / многострочный | Поведение `Debug`; `#` включает pretty-print. |
-| `:x` / `:#x`     | `core::fmt::LowerHex`   | `0x2a`                   | Шестнадцатеричный вывод; `#` добавляет `0x`. |
-| `:X` / `:#X`     | `core::fmt::UpperHex`   | `0x2A`                   | Верхний регистр; `#` добавляет `0x`. |
-| `:p` / `:#p`     | `core::fmt::Pointer`    | `0x1f00` / `0x1f00`      | Сырые указатели; `#` поддерживается для совместимости. |
-| `:b` / `:#b`     | `core::fmt::Binary`     | `101010` / `0b101010`   | Двоичный вывод; `#` добавляет `0b`. |
-| `:o` / `:#o`     | `core::fmt::Octal`      | `52` / `0o52`           | Восьмеричный вывод; `#` добавляет `0o`. |
-| `:e` / `:#e`     | `core::fmt::LowerExp`   | `1.5e-2`                | Научная запись; `#` заставляет выводить десятичную точку. |
-| `:E` / `:#E`     | `core::fmt::UpperExp`   | `1.5E-2`                | Верхний регистр научной записи; `#` заставляет выводить точку. |
-
-- `TemplateFormatterKind::supports_alternate()` сообщает, имеет ли смысл `#` для
-  выбранного трейта (для указателей вывод совпадает с обычным).
-- `TemplateFormatterKind::specifier()` возвращает канонический символ
-  спецификатора, что упрощает повторный рендеринг плейсхолдеров.
-- `TemplateFormatter::from_kind(kind, alternate)` собирает форматтер из
-  `TemplateFormatterKind`, позволяя программно переключать флаг `#`.
-- Display-плейсхолдеры сохраняют исходные параметры форматирования:
-  методы `TemplateFormatter::display_spec()` и
-  `TemplateFormatter::format_fragment()` возвращают `:>8`, `:.3` и другие
-  варианты без необходимости собирать строку вручную.
-
-~~~rust
-use core::ptr;
-
-use masterror::Error;
-
-#[derive(Debug, Error)]
-#[error(
-    "debug={payload:?}, hex={id:#x}, ptr={ptr:p}, bin={mask:#b}, \
-     oct={mask:o}, lower={ratio:e}, upper={ratio:E}"
-)]
-struct FormatterDemo {
-    id: u32,
-    payload: String,
-    ptr: *const u8,
-    mask: u8,
-    ratio: f32,
-}
-
-let err = FormatterDemo {
-    id: 0x2a,
-    payload: "hello".into(),
-    ptr: ptr::null(),
-    mask: 0b1010_0001,
-    ratio: 0.15625,
-};
-
-let rendered = err.to_string();
-assert!(rendered.contains("debug=\"hello\""));
-assert!(rendered.contains("hex=0x2a"));
-assert!(rendered.contains("ptr=0x0"));
-assert!(rendered.contains("bin=0b10100001"));
-assert!(rendered.contains("oct=241"));
-assert!(rendered.contains("lower=1.5625e-1"));
-assert!(rendered.contains("upper=1.5625E-1"));
-~~~
-
-`masterror::error::template::ErrorTemplate` позволяет разобрать шаблон и
-программно проверить запрошенные форматтеры; перечисление
-`TemplateFormatterKind` возвращает название трейта для каждого плейсхолдера:
-
-~~~rust
-use masterror::error::template::{
-    ErrorTemplate, TemplateFormatter, TemplateFormatterKind
-};
-
-let template = ErrorTemplate::parse("{code:#x} → {payload:?}").expect("parse");
-let mut placeholders = template.placeholders();
-
-let code = placeholders.next().expect("code placeholder");
-let code_formatter = code.formatter();
-assert!(matches!(
-    code_formatter,
-    TemplateFormatter::LowerHex { alternate: true }
-));
-let code_kind = code_formatter.kind();
-assert_eq!(code_kind, TemplateFormatterKind::LowerHex);
-assert!(code_formatter.is_alternate());
-assert_eq!(code_kind.specifier(), Some('x'));
-assert!(code_kind.supports_alternate());
-let lowered = TemplateFormatter::from_kind(code_kind, false);
-assert!(matches!(
-    lowered,
-    TemplateFormatter::LowerHex { alternate: false }
-));
-
-let payload = placeholders.next().expect("payload placeholder");
-let payload_formatter = payload.formatter();
-assert_eq!(
-    payload_formatter,
-    &TemplateFormatter::Debug { alternate: false }
-);
-let payload_kind = payload_formatter.kind();
-assert_eq!(payload_kind, TemplateFormatterKind::Debug);
-assert_eq!(payload_kind.specifier(), Some('?'));
-assert!(payload_kind.supports_alternate());
-let pretty_debug = TemplateFormatter::from_kind(payload_kind, true);
-assert!(matches!(
-    pretty_debug,
-    TemplateFormatter::Debug { alternate: true }
-));
-assert!(pretty_debug.is_alternate());
-~~~
-
-Опции выравнивания, точности и заполнения для `Display` сохраняются и доступны
-для прямой передачи в `write!`:
-
-~~~rust
-use masterror::error::template::ErrorTemplate;
-
-let aligned = ErrorTemplate::parse("{value:>8}").expect("parse");
-let display = aligned.placeholders().next().expect("display placeholder");
-assert_eq!(display.formatter().display_spec(), Some(">8"));
-assert_eq!(
-    display
-        .formatter()
-        .format_fragment()
-        .as_deref(),
-    Some(">8")
-);
-~~~
-
-Динамические ширина и точность (`{value:>width$}`, `{value:.precision$}`)
-тоже доходят до вызова `write!`, если объявить соответствующие аргументы в
-атрибуте `#[error(...)]`:
-
-~~~rust
-use masterror::Error;
-
-#[derive(Debug, Error)]
-#[error("{value:>width$}", value = .value, width = .width)]
-struct DynamicWidth {
-    value: &'static str,
-    width: usize,
-}
-
-#[derive(Debug, Error)]
-#[error("{value:.precision$}", value = .value, precision = .precision)]
-struct DynamicPrecision {
-    value: f64,
-    precision: usize,
-}
-
-let width = DynamicWidth {
-    value: "x",
-    width: 5,
-};
-let precision = DynamicPrecision {
-    value: 123.456_f64,
-    precision: 4,
-};
-
-assert_eq!(width.to_string(), format!("{value:>width$}", value = "x", width = 5));
-assert_eq!(
-    precision.to_string(),
-    format!("{value:.precision$}", value = 123.456_f64, precision = 4)
-);
-~~~
-
-> **Совместимость с `thiserror` v2.** Доступные спецификаторы, сообщения об
-> ошибках и поведение совпадают с `thiserror` 2.x, поэтому миграция с
-> `thiserror::Error` на `masterror::Error` не требует переписывать шаблоны.
-
-## Лицензия
-
-Проект распространяется по лицензии Apache-2.0 или MIT на ваш выбор.
+MSRV: **1.90** · Лицензия: **MIT OR Apache-2.0** · Без `unsafe`
