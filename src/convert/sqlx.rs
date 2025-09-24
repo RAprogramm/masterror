@@ -216,7 +216,6 @@ fn classify_database_error(error: &(dyn DatabaseError + 'static)) -> (Context, O
     }
 
     let mut retry_after = None;
-    let mut category = AppErrorKind::Database;
     let mut code_override = None;
 
     let code = error.code().map(|code| code.into_owned());
@@ -236,7 +235,7 @@ fn classify_database_error(error: &(dyn DatabaseError + 'static)) -> (Context, O
         }
     }
 
-    category = match error.kind() {
+    let category = match error.kind() {
         SqlxErrorKind::UniqueViolation => AppErrorKind::Conflict,
         SqlxErrorKind::ForeignKeyViolation => AppErrorKind::Conflict,
         SqlxErrorKind::NotNullViolation | SqlxErrorKind::CheckViolation => {

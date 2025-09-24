@@ -38,9 +38,9 @@ guides, comparisons with `thiserror`/`anyhow`, and troubleshooting recipes.
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.20.3", default-features = false }
+masterror = { version = "0.20.4", default-features = false }
 # or with features:
-# masterror = { version = "0.20.3", features = [
+# masterror = { version = "0.20.4", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "tracing", "metrics", "backtrace", "sqlx",
 #   "sqlx-migrate", "reqwest", "redis", "validator",
@@ -78,10 +78,10 @@ masterror = { version = "0.20.3", default-features = false }
 ~~~toml
 [dependencies]
 # lean core
-masterror = { version = "0.20.3", default-features = false }
+masterror = { version = "0.20.4", default-features = false }
 
 # with Axum/Actix + JSON + integrations
-# masterror = { version = "0.20.3", features = [
+# masterror = { version = "0.20.4", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "tracing", "metrics", "backtrace", "sqlx",
 #   "sqlx-migrate", "reqwest", "redis", "validator",
@@ -720,13 +720,13 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 Minimal core:
 
 ~~~toml
-masterror = { version = "0.20.3", default-features = false }
+masterror = { version = "0.20.4", default-features = false }
 ~~~
 
 API (Axum + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.20.3", features = [
+masterror = { version = "0.20.4", features = [
   "axum", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
@@ -735,7 +735,7 @@ masterror = { version = "0.20.3", features = [
 API (Actix + JSON + deps):
 
 ~~~toml
-masterror = { version = "0.20.3", features = [
+masterror = { version = "0.20.4", features = [
   "actix", "serde_json", "openapi",
   "sqlx", "reqwest", "redis", "validator", "config", "tokio"
 ] }
