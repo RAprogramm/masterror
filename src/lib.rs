@@ -363,3 +363,7 @@ pub use response::{
     }
 };
 pub use result_ext::ResultExt;
+
+#[cfg(feature = "tonic")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tonic")))]
+pub use crate::convert::tonic::StatusConversionError;

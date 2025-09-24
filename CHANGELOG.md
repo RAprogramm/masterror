@@ -7,6 +7,14 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Rewrote the English and Russian READMEs to reflect the matured workspace, feature flags, telemetry flows and transport integrations introduced across the 0.20 releases.
+### Fixed
+- Promoted the gRPC converter to an infallible `From<Error>` implementation
+  while retaining the `TryFrom` API via the new documented
+  `StatusConversionError`, satisfying Clippy's infallible conversion lint.
+- Collapsed nested metadata guards in the Tonic adapter and reused borrowed
+  booleans to silence Clippy without regressing runtime behaviour.
+- Simplified the `AppResult` alias test to avoid large `Err` variant warnings
+  from Clippy's `result_large_err` lint.
 
 ## [0.20.4] - 2025-10-04
 
