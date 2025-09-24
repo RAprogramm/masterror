@@ -100,7 +100,7 @@ pub struct GrpcCode {
 pub struct ProblemJson {
     /// Canonical type URI describing the problem class.
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
-    pub type_uri:         Option<&'static str>,
+    pub type_uri:         Option<Cow<'static, str>>,
     /// Short, human-friendly title describing the error category.
     pub title:            Cow<'static, str>,
     /// HTTP status code returned to the client.
@@ -159,7 +159,7 @@ impl ProblemJson {
         let metadata = sanitize_metadata_owned(metadata, edit_policy);
 
         Self {
-            type_uri: Some(mapping.problem_type()),
+            type_uri: Some(Cow::Borrowed(mapping.problem_type())),
             title,
             status,
             detail,
@@ -195,7 +195,7 @@ impl ProblemJson {
         let metadata = sanitize_metadata_ref(error.metadata(), error.edit_policy);
 
         Self {
-            type_uri: Some(mapping.problem_type()),
+            type_uri: Some(Cow::Borrowed(mapping.problem_type())),
             title,
             status,
             detail,
@@ -231,7 +231,7 @@ impl ProblemJson {
         };
 
         Self {
-            type_uri: Some(mapping.problem_type()),
+            type_uri: Some(Cow::Borrowed(mapping.problem_type())),
             title: Cow::Owned(mapping.kind().to_string()),
             status: response.status,
             detail,
@@ -284,7 +284,7 @@ impl ProblemJson {
 /// ```
 #[derive(Clone, Debug, Serialize)]
 #[serde(transparent)]
-pub struct ProblemMetadata(BTreeMap<&'static str, ProblemMetadataValue>);
+pub struct ProblemMetadata(BTreeMap<Cow<'static, str>, ProblemMetadataValue>);
 
 impl ProblemMetadata {
     #[cfg(test)]
@@ -373,7 +373,7 @@ fn sanitize_metadata_owned(
     for field in metadata {
         let (name, value, redaction) = field.into_parts();
         if let Some(sanitized) = sanitize_problem_metadata_value_owned(value, redaction) {
-            public.insert(name, sanitized);
+            public.insert(Cow::Borrowed(name), sanitized);
         }
     }
 
@@ -395,7 +395,7 @@ fn sanitize_metadata_ref(
     let mut public = BTreeMap::new();
     for (name, value, redaction) in metadata.iter_with_redaction() {
         if let Some(sanitized) = sanitize_problem_metadata_value_ref(value, redaction) {
-            public.insert(name, sanitized);
+            public.insert(Cow::Borrowed(name), sanitized);
         }
     }
 

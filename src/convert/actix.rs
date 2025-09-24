@@ -98,13 +98,15 @@ impl ResponseError for AppError {
 
 #[cfg(all(test, feature = "actix"))]
 mod actix_tests {
+    use std::str::FromStr;
+
     use actix_web::{
         ResponseError,
         body::to_bytes,
         http::header::{RETRY_AFTER, WWW_AUTHENTICATE}
     };
 
-    use crate::{AppCode, AppError, AppErrorKind, AppResult, ProblemJson};
+    use crate::{AppCode, AppError, AppErrorKind, AppResult};
 
     #[test]
     fn maps_status_consistently() {
@@ -132,10 +134,23 @@ mod actix_tests {
         );
 
         let bytes = to_bytes(resp.into_body()).await?;
-        let body: ProblemJson = serde_json::from_slice(&bytes)?;
-        assert_eq!(body.status, 401);
-        assert!(matches!(body.code, AppCode::Unauthorized));
-        assert_eq!(body.detail.as_deref(), Some("no token"));
+        let body: serde_json::Value = serde_json::from_slice(&bytes)?;
+        assert_eq!(
+            body.get("status").and_then(|value| value.as_u64()),
+            Some(401)
+        );
+        assert_eq!(
+            body.get("code")
+                .and_then(|value| value.as_str())
+                .map(AppCode::from_str)
+                .transpose()
+                .expect("parse app code"),
+            Some(AppCode::Unauthorized)
+        );
+        assert_eq!(
+            body.get("detail").and_then(|value| value.as_str()),
+            Some("no token")
+        );
         Ok(())
     }
 }

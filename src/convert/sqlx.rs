@@ -242,7 +242,7 @@ fn classify_database_error(error: &(dyn DatabaseError + 'static)) -> (Context, O
         SqlxErrorKind::NotNullViolation | SqlxErrorKind::CheckViolation => {
             AppErrorKind::Validation
         }
-        SqlxErrorKind::Other => AppErrorKind::Database
+        _ => AppErrorKind::Database
     };
 
     context = context.category(category);
@@ -420,7 +420,8 @@ mod tests_sqlx {
                 SqlxErrorKind::ForeignKeyViolation => SqlxErrorKind::ForeignKeyViolation,
                 SqlxErrorKind::NotNullViolation => SqlxErrorKind::NotNullViolation,
                 SqlxErrorKind::CheckViolation => SqlxErrorKind::CheckViolation,
-                SqlxErrorKind::Other => SqlxErrorKind::Other
+                SqlxErrorKind::Other => SqlxErrorKind::Other,
+                _ => SqlxErrorKind::Other
             }
         }
     }

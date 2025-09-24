@@ -69,6 +69,8 @@ impl IntoResponse for AppError {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use axum::http::StatusCode;
 
     use super::*;
@@ -127,14 +129,26 @@ mod tests {
         let bytes = to_bytes(resp.into_body(), usize::MAX)
             .await
             .expect("read body");
-        let body: crate::response::ProblemJson =
-            serde_json::from_slice(&bytes).expect("json body");
+        let body: serde_json::Value = serde_json::from_slice(&bytes).expect("json body");
 
-        assert_eq!(body.status, 401);
-        assert!(matches!(body.code, AppCode::Unauthorized));
-        assert_eq!(body.detail.as_deref(), Some("missing token"));
-        assert!(body.metadata.is_none());
-        assert!(body.grpc.is_some());
+        assert_eq!(
+            body.get("status").and_then(|value| value.as_u64()),
+            Some(401)
+        );
+        assert_eq!(
+            body.get("code")
+                .and_then(|value| value.as_str())
+                .map(AppCode::from_str)
+                .transpose()
+                .expect("parse app code"),
+            Some(AppCode::Unauthorized)
+        );
+        assert_eq!(
+            body.get("detail").and_then(|value| value.as_str()),
+            Some("missing token")
+        );
+        assert!(body.get("metadata").is_none());
+        assert!(body.get("grpc").is_some());
     }
 
     #[tokio::test]
@@ -149,10 +163,9 @@ mod tests {
         let bytes = to_bytes(resp.into_body(), usize::MAX)
             .await
             .expect("read body");
-        let body: crate::response::ProblemJson =
-            serde_json::from_slice(&bytes).expect("json body");
+        let body: serde_json::Value = serde_json::from_slice(&bytes).expect("json body");
 
-        assert!(body.detail.is_none());
-        assert!(body.metadata.is_none());
+        assert!(body.get("detail").is_none());
+        assert!(body.get("metadata").is_none());
     }
 }

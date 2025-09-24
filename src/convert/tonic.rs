@@ -110,7 +110,7 @@ fn insert_ascii(meta: &mut MetadataMap, key: &'static str, value: impl AsRef<str
     if !is_ascii_metadata_value(value) {
         return;
     }
-    if let Ok(metadata_value) = MetadataValue::try_from(value.as_ref()) {
+    if let Ok(metadata_value) = MetadataValue::try_from(value) {
         let _ = meta.insert(key, metadata_value);
     }
 }
