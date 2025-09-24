@@ -3,6 +3,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.20.6] - 2025-10-06
+
+### Fixed
+- Restored compilation on Rust 1.90+ by aliasing the infallible gRPC
+  conversion error to `core::convert::Infallible` and re-exporting it without
+  exposing the private `convert::tonic` module.
+
 ## [0.20.5] - 2025-10-05
 
 ### Changed

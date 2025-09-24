@@ -130,6 +130,9 @@ mod telegram_webapp_sdk;
 #[cfg_attr(docsrs, doc(cfg(feature = "tonic")))]
 mod tonic;
 
+#[cfg(feature = "tonic")]
+pub use self::tonic::StatusConversionError;
+
 /// Map `std::io::Error` to an internal application error.
 ///
 /// Rationale: I/O failures are infrastructure-level and should not leak
