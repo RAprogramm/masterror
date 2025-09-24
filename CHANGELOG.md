@@ -3,6 +3,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.20.8] - 2025-10-08
+
+### Fixed
+- Classified Redis `BusyLoadingError` responses as `DependencyUnavailable` and
+  preserved their retry advice in metadata so downstreams can distinguish cache
+  warmup from client mistakes when the `redis` feature is enabled.
+- Serialized the serde_json syntax error position using the location reported
+  by `serde_json::Error` to stay aligned with the upstream parser changes.
+- Guarded the tracing telemetry test with a process-wide mutex to prevent
+  spurious race failures when the full feature suite runs the test harness in
+  parallel.
+
 ## [0.20.7] - 2025-10-07
 
 ### Fixed
