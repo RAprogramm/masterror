@@ -3,6 +3,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.21.1] - 2025-10-09
+
+### Fixed
+- Packed rarely used `AppError` context (source and backtrace slots) inside the
+  boxed inner payload so the `AppResult` alias no longer triggers Clippy's
+  `result_large_err` lint under `-D warnings`.
+
 ## [0.21.0] - 2025-10-08
 
 ### Added

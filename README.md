@@ -73,9 +73,9 @@ The build script keeps the full feature snippet below in sync with
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.21.0", default-features = false }
+masterror = { version = "0.21.1", default-features = false }
 # or with features:
-# masterror = { version = "0.21.0", features = [
+# masterror = { version = "0.21.1", features = [
 #   "axum", "actix", "openapi", "serde_json",
 #   "tracing", "metrics", "backtrace", "sqlx",
 #   "sqlx-migrate", "reqwest", "redis", "validator",
