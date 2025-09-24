@@ -246,6 +246,35 @@
 //! assert!(matches!(resp.code, AppCode::NotFound));
 //! ```
 //!
+//! # Typed control-flow macros
+//!
+//! Reach for [`ensure!`] and [`fail!`] when you need to exit early with a typed
+//! error without paying for string formatting or heap allocations on the
+//! success path.
+//!
+//! ```rust
+//! use masterror::{AppError, AppErrorKind, AppResult};
+//!
+//! fn guard(flag: bool) -> AppResult<()> {
+//!     masterror::ensure!(flag, AppError::bad_request("flag must be set"));
+//!     Ok(())
+//! }
+//!
+//! fn bail() -> AppResult<()> {
+//!     masterror::fail!(AppError::unauthorized("token expired"));
+//! }
+//!
+//! assert!(guard(true).is_ok());
+//! assert!(matches!(
+//!     guard(false).unwrap_err().kind,
+//!     AppErrorKind::BadRequest
+//! ));
+//! assert!(matches!(
+//!     bail().unwrap_err().kind,
+//!     AppErrorKind::Unauthorized
+//! ));
+//! ```
+//!
 //! # Axum integration
 //!
 //! With the `axum` feature enabled, you can return [`AppError`] directly from
@@ -302,6 +331,7 @@ mod code;
 mod convert;
 pub mod error;
 mod kind;
+mod macros;
 #[cfg(error_generic_member_access)]
 #[doc(hidden)]
 pub mod provide;

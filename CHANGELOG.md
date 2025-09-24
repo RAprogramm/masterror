@@ -3,6 +3,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.21.0] - 2025-10-08
+
+### Added
+- Introduced typed `ensure!` and `fail!` macros as allocation-free alternatives
+  to `anyhow::ensure!`/`anyhow::bail!`, complete with documentation and tests.
+
+### Changed
+- Highlighted the new control-flow macros across the English and Russian
+  READMEs and module documentation so adopters discover them alongside the
+  derive tooling.
+
 ## [0.20.7] - 2025-10-07
 
 ### Fixed

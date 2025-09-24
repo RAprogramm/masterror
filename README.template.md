@@ -42,6 +42,8 @@ of redaction and metadata.
 - **Turnkey defaults.** The `turnkey` module ships a ready-to-use error catalog,
   helper builders and tracing instrumentation for teams that want a consistent
   baseline out of the box.
+- **Typed control-flow macros.** `ensure!` and `fail!` short-circuit functions
+  with your domain errors without allocating or formatting on the happy path.
 
 ### Workspace crates
 
@@ -106,6 +108,32 @@ fn do_work(flag: bool) -> AppResult<()> {
     }
     Ok(())
 }
+~~~
+
+</details>
+
+<details>
+  <summary><b>Fail fast without sacrificing typing</b></summary>
+
+`ensure!` and `fail!` provide typed alternatives to the formatting-heavy
+`anyhow::ensure!`/`anyhow::bail!` helpers. They evaluate the error expression
+only when the guard trips, so success paths stay allocation-free.
+
+~~~rust
+use masterror::{AppError, AppErrorKind, AppResult};
+
+fn guard(flag: bool) -> AppResult<()> {
+    masterror::ensure!(flag, AppError::bad_request("flag must be set"));
+    Ok(())
+}
+
+fn bail() -> AppResult<()> {
+    masterror::fail!(AppError::unauthorized("token expired"));
+}
+
+assert!(guard(true).is_ok());
+assert!(matches!(guard(false).unwrap_err().kind, AppErrorKind::BadRequest));
+assert!(matches!(bail().unwrap_err().kind, AppErrorKind::Unauthorized));
 ~~~
 
 </details>
