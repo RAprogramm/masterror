@@ -1,5 +1,5 @@
 use super::ErrorResponse;
-use crate::{AppCode, AppError, AppErrorKind};
+use crate::{AppCode, AppError, AppErrorKind, ProblemJson};
 
 // --- Basic constructors and fields --------------------------------------
 
@@ -144,7 +144,7 @@ fn from_app_error_uses_default_message_when_none() {
     let e: ErrorResponse = (&app).into();
     assert_eq!(e.status, 500);
     assert!(matches!(e.code, AppCode::Internal));
-    assert_eq!(e.message, "An error occurred");
+    assert_eq!(e.message, AppErrorKind::Internal.to_string());
 }
 
 #[test]
@@ -168,7 +168,43 @@ fn from_owned_app_error_defaults_message_when_absent() {
 
     assert_eq!(resp.status, 500);
     assert!(matches!(resp.code, AppCode::Internal));
-    assert_eq!(resp.message, "An error occurred");
+    assert_eq!(resp.message, AppErrorKind::Internal.to_string());
+}
+
+#[test]
+fn from_app_error_bare_uses_kind_display_as_message() {
+    let app = AppError::bare(AppErrorKind::Timeout);
+    let resp: ErrorResponse = app.into();
+
+    assert_eq!(resp.status, 504);
+    assert!(matches!(resp.code, AppCode::Timeout));
+    assert_eq!(resp.message, AppErrorKind::Timeout.to_string());
+}
+
+#[test]
+fn from_app_error_redacts_message_when_policy_allows() {
+    let app = AppError::internal("sensitive").redactable();
+    let resp: ErrorResponse = app.into();
+
+    assert_eq!(resp.message, AppErrorKind::Internal.to_string());
+
+    let borrowed = AppError::internal("private").redactable();
+    let resp_ref: ErrorResponse = (&borrowed).into();
+    assert_eq!(resp_ref.message, AppErrorKind::Internal.to_string());
+}
+
+#[test]
+fn error_response_serialization_hides_redacted_message() {
+    let secret = "super-secret";
+    let resp: ErrorResponse = AppError::internal(secret).redactable().into();
+    let json = serde_json::to_value(&resp).expect("serialize response");
+
+    let fallback = AppErrorKind::Internal.to_string();
+    assert_eq!(
+        json.get("message").and_then(|value| value.as_str()),
+        Some(fallback.as_str())
+    );
+    assert!(!json.to_string().contains(secret));
 }
 
 // --- Display formatting --------------------------------------------------
@@ -289,6 +325,17 @@ fn serialized_json_contains_core_fields() {
     // Retry advice is serialized as nested object
     assert!(s.contains("\"retry\""));
     assert!(s.contains("\"after_seconds\":1"));
+}
+
+#[test]
+fn internal_formatters_are_opt_in() {
+    let resp = ErrorResponse::new(404, AppCode::NotFound, "missing").expect("status");
+    let formatted = format!("{:?}", resp.internal());
+    assert!(formatted.contains("ErrorResponse"));
+
+    let problem = ProblemJson::from_ref(&AppError::not_found("missing"));
+    let formatted_problem = format!("{:?}", problem.internal());
+    assert!(formatted_problem.contains("ProblemJson"));
 }
 
 #[cfg(feature = "axum")]

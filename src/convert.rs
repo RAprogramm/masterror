@@ -78,6 +78,10 @@ use std::io::Error as IoError;
 
 use crate::AppError;
 
+#[cfg(feature = "axum")]
+#[cfg_attr(docsrs, doc(cfg(feature = "axum")))]
+mod axum;
+
 #[cfg(all(feature = "axum", feature = "multipart"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "axum", feature = "multipart"))))]
 mod multipart;
@@ -121,6 +125,13 @@ mod teloxide;
 #[cfg(feature = "telegram-webapp-sdk")]
 #[cfg_attr(docsrs, doc(cfg(feature = "telegram-webapp-sdk")))]
 mod telegram_webapp_sdk;
+
+#[cfg(feature = "tonic")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tonic")))]
+mod tonic;
+
+#[cfg(feature = "tonic")]
+pub use self::tonic::StatusConversionError;
 
 /// Map `std::io::Error` to an internal application error.
 ///

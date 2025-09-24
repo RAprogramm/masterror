@@ -62,12 +62,9 @@ impl AppError {
     /// assert!(err.message.is_none());
     /// ```
     pub fn database(msg: Option<Cow<'static, str>>) -> Self {
-        Self {
-            kind:             AppErrorKind::Database,
-            message:          msg,
-            retry:            None,
-            www_authenticate: None
-        }
+        let err = Self::new_raw(AppErrorKind::Database, msg);
+        err.emit_telemetry();
+        err
     }
 
     /// Build a `Database` error with a message.

@@ -8,6 +8,7 @@ mod display;
 mod error_trait;
 mod from_impl;
 mod input;
+mod masterror_impl;
 mod span;
 mod template_support;
 
@@ -19,6 +20,18 @@ use syn::{DeriveInput, Error, parse_macro_input};
 pub fn derive_error(tokens: TokenStream) -> TokenStream {
     let input = parse_macro_input!(tokens as DeriveInput);
     match expand(input) {
+        Ok(stream) => stream.into(),
+        Err(err) => err.to_compile_error().into()
+    }
+}
+
+#[proc_macro_derive(
+    Masterror,
+    attributes(error, source, from, backtrace, masterror, provide)
+)]
+pub fn derive_masterror(tokens: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(tokens as DeriveInput);
+    match expand_masterror(input) {
         Ok(stream) => stream.into(),
         Err(err) => err.to_compile_error().into()
     }
@@ -36,5 +49,20 @@ fn expand(input: DeriveInput) -> Result<proc_macro2::TokenStream, Error> {
         #error_impl
         #(#from_impls)*
         #(#app_error_impls)*
+    })
+}
+
+fn expand_masterror(input: DeriveInput) -> Result<proc_macro2::TokenStream, Error> {
+    let parsed = input::parse_input(input)?;
+    let display_impl = display::expand(&parsed)?;
+    let error_impl = error_trait::expand(&parsed)?;
+    let from_impls = from_impl::expand(&parsed)?;
+    let masterror_impl = masterror_impl::expand(&parsed)?;
+
+    Ok(quote! {
+        #display_impl
+        #error_impl
+        #(#from_impls)*
+        #masterror_impl
     })
 }

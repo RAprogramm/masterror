@@ -1,4 +1,4 @@
-//! Maps [`MultipartError`] into [`AppError`] with
+//! Maps [`MultipartError`] into [`Error`] with
 //! [`AppErrorKind::BadRequest`], preserving the original message.
 //!
 //! Intended for Axum multipart form parsing so that client mistakes are
@@ -8,11 +8,25 @@
 
 use axum::extract::multipart::MultipartError;
 
-use crate::{AppError, AppErrorKind};
+use crate::{AppErrorKind, Context, Error, field};
 
-impl From<MultipartError> for AppError {
+impl From<MultipartError> for Error {
     fn from(err: MultipartError) -> Self {
-        AppError::with(AppErrorKind::BadRequest, format!("Multipart error: {err}"))
+        let status = err.status();
+        let body_text = err.body_text();
+        let mut context = Context::new(AppErrorKind::BadRequest)
+            .with(field::str("multipart.reason", body_text))
+            .with(field::u64("http.status", u64::from(status.as_u16())))
+            .with(field::bool(
+                "http.is_client_error",
+                status.is_client_error()
+            ));
+
+        if let Some(reason) = status.canonical_reason() {
+            context = context.with(field::str("http.status_reason", reason));
+        }
+
+        context.into_error(err)
     }
 }
 
@@ -24,7 +38,7 @@ mod tests {
         http::Request
     };
 
-    use crate::{AppError, AppErrorKind};
+    use crate::{AppErrorKind, Error, FieldValue};
 
     #[tokio::test]
     async fn multipart_error_maps_to_bad_request() {
@@ -42,10 +56,29 @@ mod tests {
             .expect("extractor");
 
         let err = multipart.next_field().await.expect_err("error");
-        let expected = format!("Multipart error: {err}");
-        let app_err: AppError = err.into();
+        let status = err.status();
+        let body_text = err.body_text();
+        let app_err: Error = err.into();
 
         assert_eq!(app_err.kind, AppErrorKind::BadRequest);
-        assert_eq!(app_err.message.as_deref(), Some(expected.as_str()));
+        assert_eq!(
+            app_err.metadata().get("multipart.reason"),
+            Some(&FieldValue::Str(body_text.into()))
+        );
+        assert_eq!(
+            app_err.metadata().get("http.status"),
+            Some(&FieldValue::U64(u64::from(status.as_u16())))
+        );
+        assert_eq!(
+            app_err.metadata().get("http.status_reason"),
+            status
+                .canonical_reason()
+                .map(|reason| FieldValue::Str(reason.into()))
+                .as_ref()
+        );
+        assert_eq!(
+            app_err.metadata().get("http.is_client_error"),
+            Some(&FieldValue::Bool(status.is_client_error()))
+        );
     }
 }

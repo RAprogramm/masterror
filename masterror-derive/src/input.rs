@@ -6,7 +6,7 @@ use syn::{
     Expr, ExprPath, Field as SynField, Fields as SynFields, GenericArgument, Ident, LitBool,
     LitInt, LitStr, Token, TypePath,
     ext::IdentExt,
-    parse::{Parse, ParseStream},
+    parse::{Parse, ParseBuffer, ParseStream},
     punctuated::Punctuated,
     spanned::Spanned,
     token::Paren
@@ -33,7 +33,8 @@ pub struct StructData {
     pub display:     DisplaySpec,
     #[allow(dead_code)]
     pub format_args: FormatArgsSpec,
-    pub app_error:   Option<AppErrorSpec>
+    pub app_error:   Option<AppErrorSpec>,
+    pub masterror:   Option<MasterrorSpec>
 }
 
 #[derive(Debug)]
@@ -44,6 +45,7 @@ pub struct VariantData {
     #[allow(dead_code)]
     pub format_args: FormatArgsSpec,
     pub app_error:   Option<AppErrorSpec>,
+    pub masterror:   Option<MasterrorSpec>,
     pub span:        Span
 }
 
@@ -53,6 +55,39 @@ pub struct AppErrorSpec {
     pub code:           Option<ExprPath>,
     pub expose_message: bool,
     pub attribute_span: Span
+}
+
+#[derive(Clone, Debug)]
+pub struct MasterrorSpec {
+    pub code:           Expr,
+    pub category:       ExprPath,
+    pub expose_message: bool,
+    pub redact:         RedactSpec,
+    pub telemetry:      Vec<Expr>,
+    pub map_grpc:       Option<Expr>,
+    pub map_problem:    Option<Expr>,
+    #[allow(dead_code)]
+    pub attribute_span: Span
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct RedactSpec {
+    pub message: bool,
+    pub fields:  Vec<FieldRedactionSpec>
+}
+
+#[derive(Clone, Debug)]
+pub struct FieldRedactionSpec {
+    pub name:   LitStr,
+    pub policy: FieldRedactionKind
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FieldRedactionKind {
+    None,
+    Redact,
+    Hash,
+    Last4
 }
 
 #[derive(Debug)]
@@ -524,6 +559,7 @@ fn parse_struct(
 ) -> Result<ErrorData, ()> {
     let display = extract_display_spec(attrs, ident.span(), errors)?;
     let app_error = extract_app_error_spec(attrs, errors)?;
+    let masterror = extract_masterror_spec(attrs, errors)?;
     let fields = Fields::from_syn(&data.fields, errors);
 
     validate_from_usage(&fields, &display, errors);
@@ -534,7 +570,8 @@ fn parse_struct(
         fields,
         display,
         format_args: FormatArgsSpec::default(),
-        app_error
+        app_error,
+        masterror
     })))
 }
 
@@ -573,6 +610,7 @@ fn parse_variant(variant: syn::Variant, errors: &mut Vec<Error>) -> Result<Varia
 
     let display = extract_display_spec(&variant.attrs, span, errors)?;
     let app_error = extract_app_error_spec(&variant.attrs, errors)?;
+    let masterror = extract_masterror_spec(&variant.attrs, errors)?;
     let fields = Fields::from_syn(&variant.fields, errors);
 
     validate_from_usage(&fields, &display, errors);
@@ -585,8 +623,42 @@ fn parse_variant(variant: syn::Variant, errors: &mut Vec<Error>) -> Result<Varia
         display,
         format_args: FormatArgsSpec::default(),
         app_error,
+        masterror,
         span
     })
+}
+
+fn extract_masterror_spec(
+    attrs: &[Attribute],
+    errors: &mut Vec<Error>
+) -> Result<Option<MasterrorSpec>, ()> {
+    let mut spec = None;
+    let mut had_error = false;
+
+    for attr in attrs {
+        if !path_is(attr, "masterror") {
+            continue;
+        }
+
+        if spec.is_some() {
+            errors.push(Error::new_spanned(
+                attr,
+                "duplicate #[masterror(...)] attribute"
+            ));
+            had_error = true;
+            continue;
+        }
+
+        match parse_masterror_attribute(attr) {
+            Ok(parsed) => spec = Some(parsed),
+            Err(err) => {
+                errors.push(err);
+                had_error = true;
+            }
+        }
+    }
+
+    if had_error { Err(()) } else { Ok(spec) }
 }
 
 fn extract_app_error_spec(
@@ -732,6 +804,287 @@ fn parse_app_error_attribute(attr: &Attribute) -> Result<AppErrorSpec, Error> {
             attribute_span: attr.span()
         })
     })
+}
+
+fn parse_masterror_attribute(attr: &Attribute) -> Result<MasterrorSpec, Error> {
+    attr.parse_args_with(|input: ParseStream| {
+        let mut code = None;
+        let mut category = None;
+        let mut expose_message = false;
+        let mut redact = RedactSpec::default();
+        let mut seen_redact = false;
+        let mut telemetry = None;
+        let mut map_grpc = None;
+        let mut map_problem = None;
+
+        while !input.is_empty() {
+            let ident: Ident = input.call(Ident::parse_any)?;
+            match ident.to_string().as_str() {
+                "code" => {
+                    if code.is_some() {
+                        return Err(Error::new(ident.span(), "duplicate code specification"));
+                    }
+                    input.parse::<Token![=]>()?;
+                    let value: Expr = input.parse()?;
+                    code = Some(value);
+                }
+                "category" => {
+                    if category.is_some() {
+                        return Err(Error::new(ident.span(), "duplicate category specification"));
+                    }
+                    input.parse::<Token![=]>()?;
+                    let value: ExprPath = input.parse()?;
+                    category = Some(value);
+                }
+                "message" => {
+                    if expose_message {
+                        return Err(Error::new(ident.span(), "duplicate message flag"));
+                    }
+                    expose_message = parse_flag_value(input)?;
+                }
+                "redact" => {
+                    if seen_redact {
+                        return Err(Error::new(ident.span(), "duplicate redact(...) block"));
+                    }
+                    redact = parse_redact_block(input, ident.span())?;
+                    seen_redact = true;
+                }
+                "telemetry" => {
+                    if telemetry.is_some() {
+                        return Err(Error::new(ident.span(), "duplicate telemetry(...) block"));
+                    }
+                    telemetry = Some(parse_telemetry_block(input, ident.span())?);
+                }
+                "map" => {
+                    input.parse::<Token![.]>()?;
+                    let sub: Ident = input.call(Ident::parse_any)?;
+                    match sub.to_string().as_str() {
+                        "grpc" => {
+                            if map_grpc.is_some() {
+                                return Err(Error::new(
+                                    sub.span(),
+                                    "duplicate map.grpc specification"
+                                ));
+                            }
+                            input.parse::<Token![=]>()?;
+                            let value: Expr = input.parse()?;
+                            map_grpc = Some(value);
+                        }
+                        "problem" => {
+                            if map_problem.is_some() {
+                                return Err(Error::new(
+                                    sub.span(),
+                                    "duplicate map.problem specification"
+                                ));
+                            }
+                            input.parse::<Token![=]>()?;
+                            let value: Expr = input.parse()?;
+                            map_problem = Some(value);
+                        }
+                        other => {
+                            return Err(Error::new(
+                                sub.span(),
+                                format!("unknown #[masterror] mapping `map.{other}`")
+                            ));
+                        }
+                    }
+                }
+                other => {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!("unknown #[masterror] option `{other}`")
+                    ));
+                }
+            }
+
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            } else if !input.is_empty() {
+                return Err(Error::new(
+                    input.span(),
+                    "expected `,` or end of input in #[masterror(...)]"
+                ));
+            }
+        }
+
+        let code = match code {
+            Some(value) => value,
+            None => {
+                return Err(Error::new(
+                    attr.span(),
+                    "missing `code = ...` in #[masterror(...)]"
+                ));
+            }
+        };
+
+        let category = match category {
+            Some(value) => value,
+            None => {
+                return Err(Error::new(
+                    attr.span(),
+                    "missing `category = ...` in #[masterror(...)]"
+                ));
+            }
+        };
+
+        Ok(MasterrorSpec {
+            code,
+            category,
+            expose_message,
+            redact,
+            telemetry: telemetry.unwrap_or_default(),
+            map_grpc,
+            map_problem,
+            attribute_span: attr.span()
+        })
+    })
+}
+
+fn parse_flag_value(input: ParseStream) -> Result<bool, Error> {
+    if input.peek(Token![=]) {
+        input.parse::<Token![=]>()?;
+        let value: LitBool = input.parse()?;
+        Ok(value.value)
+    } else {
+        Ok(true)
+    }
+}
+
+fn parse_redact_block(input: ParseStream, span: Span) -> Result<RedactSpec, Error> {
+    let content;
+    syn::parenthesized!(content in input);
+
+    if content.is_empty() {
+        return Err(Error::new(span, "redact(...) requires at least one option"));
+    }
+
+    let mut spec = RedactSpec::default();
+
+    while !content.is_empty() {
+        let ident: Ident = content.call(Ident::parse_any)?;
+        match ident.to_string().as_str() {
+            "message" => {
+                if spec.message {
+                    return Err(Error::new(ident.span(), "duplicate redact(message) option"));
+                }
+                if content.peek(Token![=]) {
+                    content.parse::<Token![=]>()?;
+                    let value: LitBool = content.parse()?;
+                    spec.message = value.value;
+                } else {
+                    spec.message = true;
+                }
+            }
+            "fields" => {
+                if !spec.fields.is_empty() {
+                    return Err(Error::new(
+                        ident.span(),
+                        "duplicate redact(fields(...)) option"
+                    ));
+                }
+                spec.fields = parse_redact_fields(&content, ident.span())?;
+            }
+            other => {
+                return Err(Error::new(
+                    ident.span(),
+                    format!("unknown redact option `{other}`")
+                ));
+            }
+        }
+
+        if content.peek(Token![,]) {
+            content.parse::<Token![,]>()?;
+        } else if !content.is_empty() {
+            return Err(Error::new(
+                content.span(),
+                "expected `,` or end of input in redact(...)"
+            ));
+        }
+    }
+
+    Ok(spec)
+}
+
+fn parse_redact_fields(
+    content: &ParseBuffer<'_>,
+    span: Span
+) -> Result<Vec<FieldRedactionSpec>, Error> {
+    let inner;
+    syn::parenthesized!(inner in *content);
+
+    if inner.is_empty() {
+        return Err(Error::new(
+            span,
+            "redact(fields(...)) requires at least one field"
+        ));
+    }
+
+    let mut fields = Vec::new();
+    while !inner.is_empty() {
+        let name: LitStr = inner.parse()?;
+        let policy = if inner.peek(Token![=]) {
+            inner.parse::<Token![=]>()?;
+            let ident: Ident = inner.call(Ident::parse_any)?;
+            match ident.to_string().to_ascii_lowercase().as_str() {
+                "none" => FieldRedactionKind::None,
+                "redact" => FieldRedactionKind::Redact,
+                "hash" => FieldRedactionKind::Hash,
+                "last4" | "last_four" => FieldRedactionKind::Last4,
+                other => {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!("unknown redact policy `{other}` in fields(...)")
+                    ));
+                }
+            }
+        } else {
+            FieldRedactionKind::Redact
+        };
+        fields.push(FieldRedactionSpec {
+            name,
+            policy
+        });
+
+        if inner.peek(Token![,]) {
+            inner.parse::<Token![,]>()?;
+        } else if !inner.is_empty() {
+            return Err(Error::new(
+                inner.span(),
+                "expected `,` or end of input in redact(fields(...))"
+            ));
+        }
+    }
+
+    Ok(fields)
+}
+
+fn parse_telemetry_block(input: ParseStream, span: Span) -> Result<Vec<Expr>, Error> {
+    let content;
+    syn::parenthesized!(content in input);
+
+    let mut entries = Vec::new();
+
+    while !content.is_empty() {
+        let expr: Expr = content.parse()?;
+        entries.push(expr);
+
+        if content.peek(Token![,]) {
+            content.parse::<Token![,]>()?;
+            if content.is_empty() {
+                return Err(Error::new(
+                    span,
+                    "expected expression after comma in telemetry(...)"
+                ));
+            }
+        } else if !content.is_empty() {
+            return Err(Error::new(
+                content.span(),
+                "expected `,` or end of input in telemetry(...)"
+            ));
+        }
+    }
+
+    Ok(entries)
 }
 
 fn parse_error_attribute(attr: &Attribute) -> Result<DisplaySpec, Error> {
@@ -1238,6 +1591,19 @@ pub(crate) fn option_inner_type(ty: &syn::Type) -> Option<&syn::Type> {
         GenericArgument::Type(inner) => Some(inner),
         _ => None
     })
+}
+
+pub(crate) fn is_arc_type(ty: &syn::Type) -> bool {
+    let syn::Type::Path(path) = ty else {
+        return false;
+    };
+    if path.qself.is_some() {
+        return false;
+    }
+    path.path
+        .segments
+        .last()
+        .is_some_and(|segment| segment.ident == "Arc")
 }
 
 pub(crate) fn is_backtrace_type(ty: &syn::Type) -> bool {

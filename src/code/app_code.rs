@@ -1,10 +1,29 @@
-use std::fmt::{self, Display};
+use std::{
+    error::Error as StdError,
+    fmt::{self, Display},
+    str::FromStr
+};
 
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 
 use crate::kind::AppErrorKind;
+
+/// Error returned when parsing [`AppCode`] from a string fails.
+///
+/// The parser only accepts the canonical SCREAMING_SNAKE_CASE representations
+/// emitted by [`AppCode::as_str`]. Any other value results in this error.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ParseAppCodeError;
+
+impl Display for ParseAppCodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("invalid app code")
+    }
+}
+
+impl StdError for ParseAppCodeError {}
 
 /// Stable machine-readable error code exposed to clients.
 ///
@@ -35,6 +54,11 @@ pub enum AppCode {
     ///
     /// Typically mapped to HTTP **409 Conflict**.
     Conflict,
+
+    /// Attempted to create a user that already exists (unique constraint).
+    ///
+    /// Typically mapped to HTTP **409 Conflict**.
+    UserAlreadyExists,
 
     /// Authentication required or failed (missing/invalid credentials).
     ///
@@ -149,6 +173,7 @@ impl AppCode {
             AppCode::NotFound => "NOT_FOUND",
             AppCode::Validation => "VALIDATION",
             AppCode::Conflict => "CONFLICT",
+            AppCode::UserAlreadyExists => "USER_ALREADY_EXISTS",
             AppCode::Unauthorized => "UNAUTHORIZED",
             AppCode::Forbidden => "FORBIDDEN",
             AppCode::NotImplemented => "NOT_IMPLEMENTED",
@@ -179,6 +204,59 @@ impl Display for AppCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Stable human/machine readable form matching JSON representation.
         f.write_str(self.as_str())
+    }
+}
+
+/// Parse an [`AppCode`] from its canonical string representation.
+///
+/// # Errors
+///
+/// Returns [`ParseAppCodeError`] when the input does not match any known code.
+///
+/// # Examples
+/// ```
+/// use std::str::FromStr;
+///
+/// use masterror::{AppCode, ParseAppCodeError};
+///
+/// let code = AppCode::from_str("NOT_FOUND")?;
+/// assert_eq!(code, AppCode::NotFound);
+/// # Ok::<(), ParseAppCodeError>(())
+/// ```
+impl FromStr for AppCode {
+    type Err = ParseAppCodeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            // 4xx
+            "NOT_FOUND" => Ok(Self::NotFound),
+            "VALIDATION" => Ok(Self::Validation),
+            "CONFLICT" => Ok(Self::Conflict),
+            "USER_ALREADY_EXISTS" => Ok(Self::UserAlreadyExists),
+            "UNAUTHORIZED" => Ok(Self::Unauthorized),
+            "FORBIDDEN" => Ok(Self::Forbidden),
+            "NOT_IMPLEMENTED" => Ok(Self::NotImplemented),
+            "BAD_REQUEST" => Ok(Self::BadRequest),
+            "RATE_LIMITED" => Ok(Self::RateLimited),
+            "TELEGRAM_AUTH" => Ok(Self::TelegramAuth),
+            "INVALID_JWT" => Ok(Self::InvalidJwt),
+
+            // 5xx
+            "INTERNAL" => Ok(Self::Internal),
+            "DATABASE" => Ok(Self::Database),
+            "SERVICE" => Ok(Self::Service),
+            "CONFIG" => Ok(Self::Config),
+            "TURNKEY" => Ok(Self::Turnkey),
+            "TIMEOUT" => Ok(Self::Timeout),
+            "NETWORK" => Ok(Self::Network),
+            "DEPENDENCY_UNAVAILABLE" => Ok(Self::DependencyUnavailable),
+            "SERIALIZATION" => Ok(Self::Serialization),
+            "DESERIALIZATION" => Ok(Self::Deserialization),
+            "EXTERNAL_API" => Ok(Self::ExternalApi),
+            "QUEUE" => Ok(Self::Queue),
+            "CACHE" => Ok(Self::Cache),
+            _ => Err(ParseAppCodeError)
+        }
     }
 }
 
@@ -221,7 +299,9 @@ impl From<AppErrorKind> for AppCode {
 
 #[cfg(test)]
 mod tests {
-    use super::{AppCode, AppErrorKind};
+    use std::str::FromStr;
+
+    use super::{AppCode, AppErrorKind, ParseAppCodeError};
 
     #[test]
     fn as_str_matches_json_serde_names() {
@@ -257,5 +337,25 @@ mod tests {
     #[test]
     fn display_uses_screaming_snake_case() {
         assert_eq!(AppCode::BadRequest.to_string(), "BAD_REQUEST");
+    }
+
+    #[test]
+    fn from_str_parses_known_codes() {
+        for code in [
+            AppCode::NotFound,
+            AppCode::Validation,
+            AppCode::Unauthorized,
+            AppCode::Internal,
+            AppCode::Timeout
+        ] {
+            let parsed = AppCode::from_str(code.as_str()).expect("parse");
+            assert_eq!(parsed, code);
+        }
+    }
+
+    #[test]
+    fn from_str_rejects_unknown_code() {
+        let err = AppCode::from_str("NOT_A_REAL_CODE").unwrap_err();
+        assert_eq!(err, ParseAppCodeError);
     }
 }

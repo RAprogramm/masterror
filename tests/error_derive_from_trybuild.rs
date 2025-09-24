@@ -41,3 +41,15 @@ fn app_error_attribute_compile_failures() {
     let t = TestCases::new();
     t.compile_fail("tests/ui/app_error/fail/*.rs");
 }
+
+#[test]
+fn masterror_attribute_passes() {
+    let t = TestCases::new();
+    t.pass("tests/ui/masterror/pass/*.rs");
+}
+
+#[test]
+fn masterror_attribute_compile_failures() {
+    let t = TestCases::new();
+    t.compile_fail("tests/ui/masterror/fail/*.rs");
+}

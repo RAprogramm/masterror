@@ -1,0 +1,13 @@
+error: missing `code = ...` in #[masterror(...)]
+ --> tests/ui/masterror/fail/missing_code.rs:5:1
+  |
+5 | #[masterror(category = AppErrorKind::Internal)]
+  | ^
+
+warning: unused import: `AppErrorKind`
+ --> tests/ui/masterror/fail/missing_code.rs:1:17
+  |
+1 | use masterror::{AppErrorKind, Masterror};
+  |                 ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

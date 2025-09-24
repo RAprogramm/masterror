@@ -54,6 +54,7 @@ impl ErrorResponse {
     /// assert!(resp.details.is_some());
     /// # }
     /// ```
+    #[allow(clippy::result_large_err)]
     pub fn with_details<T>(self, payload: T) -> AppResult<Self>
     where
         T: Serialize

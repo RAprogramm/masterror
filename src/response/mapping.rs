@@ -1,10 +1,7 @@
-use std::{
-    borrow::Cow,
-    fmt::{Display, Formatter, Result as FmtResult}
-};
+use std::fmt::{Display, Formatter, Result as FmtResult};
 
 use super::core::ErrorResponse;
-use crate::{AppCode, AppError};
+use crate::AppError;
 
 impl Display for ErrorResponse {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
@@ -14,19 +11,17 @@ impl Display for ErrorResponse {
 }
 
 impl From<AppError> for ErrorResponse {
-    fn from(err: AppError) -> Self {
-        let AppError {
-            kind,
-            message,
-            retry,
-            www_authenticate
-        } = err;
+    fn from(mut err: AppError) -> Self {
+        let kind = err.kind;
+        let code = err.code;
+        let retry = err.retry.take();
+        let www_authenticate = err.www_authenticate.take();
+        let policy = err.edit_policy;
 
         let status = kind.http_status();
-        let code = AppCode::from(kind);
-        let message = match message {
-            Some(msg) => msg.into_owned(),
-            None => String::from("An error occurred")
+        let message = match err.message.take() {
+            Some(msg) if !matches!(policy, crate::MessageEditPolicy::Redact) => msg.into_owned(),
+            _ => kind.to_string()
         };
 
         Self {
@@ -43,17 +38,15 @@ impl From<AppError> for ErrorResponse {
 impl From<&AppError> for ErrorResponse {
     fn from(err: &AppError) -> Self {
         let status = err.kind.http_status();
-        let code = AppCode::from(err.kind);
-
-        let message = err
-            .message
-            .clone()
-            .unwrap_or(Cow::Borrowed("An error occurred"))
-            .into_owned();
+        let message = if matches!(err.edit_policy, crate::MessageEditPolicy::Redact) {
+            err.kind.to_string()
+        } else {
+            err.render_message().into_owned()
+        };
 
         Self {
             status,
-            code,
+            code: err.code,
             message,
             details: None,
             retry: err.retry,

@@ -1,5 +1,4 @@
-//! Actix Web integration: `ResponseError` for [`AppError`] and helper JSON
-//! payload.
+//! Actix Web integration: `ResponseError` for [`AppError`] and RFC7807 payload.
 //!
 //! Enabled with the `actix` feature flag.
 //!
@@ -7,19 +6,23 @@
 //! - Implements `actix_web::ResponseError` for [`AppError`].
 //!   - This lets you `return AppResult<_>` from Actix handlers.
 //!   - On error, Actix automatically builds an `HttpResponse` with the right
-//!     status code and JSON body (when the `serde_json` feature is enabled).
+//!     status code and RFC7807 JSON body (when the `serde_json` feature is
+//!     enabled).
 //! - Provides stable mapping from [`AppErrorKind`] to
 //!   `actix_web::http::StatusCode`.
 //! - Ensures that only safe, public-facing fields are returned to the client
-//!   (`status`, `message`, `details?`).
+//!   (`type`, `title`, `status`, `detail?`, `metadata?`).
 //!
 //! ## Wire payload
 //!
-//! When the `serde_json` feature is enabled, the body is [`ErrorResponse`]
-//! with:
+//! When the `serde_json` feature is enabled, the body is [`ProblemJson`] with:
+//! - `type`: canonical URI describing the problem class
+//! - `title`: short summary derived from [`AppErrorKind`]
 //! - `status`: numeric HTTP status (e.g. 404, 422, 500)
-//! - `message`: explicit application message or a fallback from `AppErrorKind`
-//! - `details`: currently `None`, but reserved for optional JSON/text payloads
+//! - `detail?`: public message (redacted when the error is private)
+//! - `metadata?`: sanitized structured fields carried from
+//!   [`Metadata`](crate::Metadata)
+//! - `grpc?`: optional gRPC mapping for multi-protocol clients
 //!
 //! Without `serde_json`, Actix still returns a response with the correct status
 //! but with an empty body.
@@ -49,7 +52,13 @@
 //! The client will get a `403 Forbidden` response with a JSON body like:
 //!
 //! ```json
-//! {"status":403,"message":"no access"}
+//! {
+//!   "type":"https://errors.masterror.rs/forbidden",
+//!   "title":"Forbidden",
+//!   "status":403,
+//!   "detail":"no access",
+//!   "code":"FORBIDDEN"
+//! }
 //! ```
 //!
 //! ## Notes
@@ -63,16 +72,12 @@
 //! See also: Axum integration in [`convert::axum`].
 
 #[cfg(feature = "actix")]
-use actix_web::{
-    HttpResponse, ResponseError,
-    http::{
-        StatusCode as ActixStatus,
-        header::{RETRY_AFTER, WWW_AUTHENTICATE}
-    }
-};
+use actix_web::{HttpResponse, ResponseError, http::StatusCode as ActixStatus};
 
 #[cfg(feature = "actix")]
-use crate::{AppError, ErrorResponse};
+use crate::response::actix_impl::respond_with_problem_json;
+#[cfg(feature = "actix")]
+use crate::{AppError, ProblemJson};
 
 #[cfg(feature = "actix")]
 impl ResponseError for AppError {
@@ -83,29 +88,25 @@ impl ResponseError for AppError {
             .unwrap_or(ActixStatus::INTERNAL_SERVER_ERROR)
     }
 
-    /// Produce JSON body with `ErrorResponse`. Does not leak sources.
+    /// Produce JSON body with [`ProblemJson`]. Does not leak sources.
     fn error_response(&self) -> HttpResponse {
-        let body = ErrorResponse::from(self);
-        let mut builder = HttpResponse::build(self.status_code());
-        if let Some(retry) = body.retry {
-            builder.insert_header((RETRY_AFTER, retry.after_seconds.to_string()));
-        }
-        if let Some(ref ch) = body.www_authenticate {
-            builder.insert_header((WWW_AUTHENTICATE, ch.as_str()));
-        }
-        builder.json(body)
+        self.emit_telemetry();
+        let problem = ProblemJson::from_ref(self);
+        respond_with_problem_json(problem)
     }
 }
 
 #[cfg(all(test, feature = "actix"))]
 mod actix_tests {
+    use std::str::FromStr;
+
     use actix_web::{
         ResponseError,
         body::to_bytes,
         http::header::{RETRY_AFTER, WWW_AUTHENTICATE}
     };
 
-    use crate::{AppCode, AppError, AppErrorKind, AppResult, ErrorResponse};
+    use crate::{AppCode, AppError, AppErrorKind, AppResult};
 
     #[test]
     fn maps_status_consistently() {
@@ -133,10 +134,23 @@ mod actix_tests {
         );
 
         let bytes = to_bytes(resp.into_body()).await?;
-        let body: ErrorResponse = serde_json::from_slice(&bytes)?;
-        assert_eq!(body.status, 401);
-        assert!(matches!(body.code, AppCode::Unauthorized));
-        assert_eq!(body.message, "no token");
+        let body: serde_json::Value = serde_json::from_slice(&bytes)?;
+        assert_eq!(
+            body.get("status").and_then(|value| value.as_u64()),
+            Some(401)
+        );
+        assert_eq!(
+            body.get("code")
+                .and_then(|value| value.as_str())
+                .map(AppCode::from_str)
+                .transpose()
+                .expect("parse app code"),
+            Some(AppCode::Unauthorized)
+        );
+        assert_eq!(
+            body.get("detail").and_then(|value| value.as_str()),
+            Some("no token")
+        );
         Ok(())
     }
 }

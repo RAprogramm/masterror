@@ -3,6 +3,321 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.21.1] - 2025-10-09
+
+### Fixed
+- Packed rarely used `AppError` context (source and backtrace slots) inside the
+  boxed inner payload so the `AppResult` alias no longer triggers Clippy's
+  `result_large_err` lint under `-D warnings`.
+
+## [0.21.0] - 2025-10-08
+
+### Added
+- Introduced typed `ensure!` and `fail!` macros as allocation-free alternatives
+  to `anyhow::ensure!`/`anyhow::bail!`, complete with documentation and tests.
+
+### Changed
+- Highlighted the new control-flow macros across the English and Russian
+  READMEs and module documentation so adopters discover them alongside the
+  derive tooling.
+## [0.20.8] - 2025-10-08
+
+### Fixed
+- Classified Redis `BusyLoadingError` responses as `DependencyUnavailable` and
+  preserved their retry advice in metadata so downstreams can distinguish cache
+  warmup from client mistakes when the `redis` feature is enabled.
+- Serialized the serde_json syntax error position using the location reported
+  by `serde_json::Error` to stay aligned with the upstream parser changes.
+- Guarded the tracing telemetry test with a process-wide mutex to prevent
+  spurious race failures when the full feature suite runs the test harness in
+  parallel.
+
+## [0.20.7] - 2025-10-07
+
+### Fixed
+- Replaced the remaining fallible `Status::try_from` conversions in the Tonic
+  adapter tests with the infallible `Status::from` API so Clippy's
+  `unnecessary_fallible_conversions` lint passes under `-D warnings`.
+
+## [0.20.6] - 2025-10-06
+
+### Fixed
+- Restored compilation on Rust 1.90+ by aliasing the infallible gRPC
+  conversion error to `core::convert::Infallible` and re-exporting it without
+  exposing the private `convert::tonic` module.
+
+## [0.20.5] - 2025-10-05
+
+### Changed
+- Rewrote the English and Russian READMEs to reflect the matured workspace, feature flags, telemetry flows and transport integrations introduced across the 0.20 releases.
+### Fixed
+- Promoted the gRPC converter to an infallible `From<Error>` implementation
+  while retaining the `TryFrom` API via the new documented
+  `StatusConversionError`, satisfying Clippy's infallible conversion lint.
+- Collapsed nested metadata guards in the Tonic adapter and reused borrowed
+  booleans to silence Clippy without regressing runtime behaviour.
+- Simplified the `AppResult` alias test to avoid large `Err` variant warnings
+  from Clippy's `result_large_err` lint.
+
+## [0.20.4] - 2025-10-04
+
+### Added
+- Implemented `FromStr` support for `AppCode` together with a lightweight
+  `ParseAppCodeError` so RFC7807 responses and documentation examples can parse
+  machine codes without bespoke helpers.
+
+### Fixed
+- Removed the redundant `#![cfg(feature = "axum")]` attribute and tightened
+  Axum, SQLx and Tonic integration tests to satisfy `-D warnings` builds.
+- Allowed attaching JSON details via `ErrorResponse::with_details` without
+  tripping Clippy's `result_large_err` lint by documenting the intentional
+  `AppError` return shape.
+
+## [0.20.3] - 2025-10-03
+
+### Fixed
+- Restored the Axum transport adapter in builds by wiring the `convert::axum`
+  module into the crate graph and relaxing the tests to validate responses via
+  `serde_json::Value` instead of requiring `ProblemJson` deserialization.
+- Hardened converter telemetry for Redis, Reqwest, SQLx, Tonic and multipart
+  integrations by owning metadata strings where necessary and covering
+  non-exhaustive enums so the crate compiles cleanly on Rust 1.90.
+- Reworked `ProblemJson` metadata internals to use `Cow<'static, str>` keys and
+  values, preserving zero-copy behaviour for borrowed data while allowing owned
+  fallbacks required by the updated converters.
+
+## [0.20.2] - 2025-10-02
+
+### Fixed
+- Restored compatibility with Rust 1.89 by updating gRPC, Redis, SQLx and
+  serde_json integrations to avoid deprecated APIs, unsafe environment
+  mutations and Debug requirements that no longer hold.
+- Added deterministic backtrace preference overrides for unit tests so
+  telemetry behavior remains covered without mutating global environment
+  variables.
+- Ensured config error mapping gracefully handles new non-exhaustive variants
+  by falling back to a generic context that captures the formatted error.
+
+## [0.20.1] - 2025-10-01
+
+### Changed
+- Enriched converter metadata across `multipart`, `redis`, `reqwest`,
+  `serde_json` and `sqlx` integrations to surface HTTP status details,
+  retry-after hints and structured failure positions while keeping existing
+  error categories intact.
+- Updated the Teloxide mapping to classify `ApiError::InvalidToken` as
+  `Unauthorized` and hash potentially sensitive network error details before
+  emitting telemetry.
+
+### Tests
+- Extended integration tests to assert the new metadata fields, retry hints,
+  and redaction policies covering the updated converters.
+
+## [0.20.0] - 2025-09-30
+
+### Added
+- Added a `Context::redact_field_mut` builder method to tweak metadata
+  redaction policies in place before attaching additional fields.
+- Extended response tests to cover JSON serialization of redacted payloads and
+  hashed metadata along with checks for the opt-in internal formatters.
+
+### Changed
+- Verified `ErrorResponse` and `ProblemJson` serialization respects message and
+  metadata redaction policies, ensuring secrets stay out of wire payloads while
+  keeping diagnostic logging intact.
+
+## [0.19.0] - 2025-09-29
+
+### Changed
+- Reworked `AppError` storage to keep sources behind shared `Arc` handles and
+  lazily capture optional `Backtrace` snapshots without allocating when
+  `RUST_BACKTRACE` disables them.
+- Updated the `masterror::Error` derive and `ResultExt` conversions to forward
+  sources/backtraces automatically under the new storage layout.
+
+### Tests
+- Added regression coverage for chained error sources and conditional
+  backtrace capture driven by the `RUST_BACKTRACE` environment variable.
+
+## [0.18.0] - 2025-09-28
+
+### Added
+- Added the `AppCode::UserAlreadyExists` classification and mapped it to RFC7807
+  responses with the appropriate retry hint.
+
+### Changed
+- Switched all integration converters in `src/convert/*` to build structured
+  `Context` metadata before producing `Error` values, including HTTP status,
+  operation, endpoint, duration and retry/edit flags.
+- Extended integration tests to validate the enriched metadata, retry behavior
+  and error code/category mappings across the updated converters.
+
+## [0.17.0] - 2025-09-27
+
+### Added
+- Per-field redaction metadata via a new [`FieldRedaction`] enum, default
+  heuristics for common secret keys (passwords, tokens, card numbers) and the
+  `Context::redact_field` / `AppError::redact_field` helpers.
+- `#[masterror(redact(fields(...)))]` support in the derive macro to configure
+  metadata policies alongside message redaction.
+- Opt-in internal formatters for [`ErrorResponse`] and [`ProblemJson`] that are
+  safe to use in diagnostic logs without additional serialization boilerplate.
+
+### Changed
+- Problem JSON and legacy `ErrorResponse` serialization now hash, mask or drop
+  metadata according to per-field policies while honoring the global redaction
+  flag.
+- Redaction-aware conversions ensure redactable messages fall back to the error
+  kind across HTTP and gRPC mappings.
+
+## [0.16.0] - 2025-09-26
+
+### Changed
+- Switched the internal `AppError` source storage to `Arc<dyn Error>` and added a
+  shared `with_source_arc` helper so conversions can reuse existing `Arc`
+  handles without extra allocations.
+- Replaced the backtrace slot with an `Option<Backtrace>` managed through an
+  environment-aware lazy capture that respects `RUST_BACKTRACE` and avoids
+  snapshot allocation when disabled.
+- Updated the `masterror::Error` derive and `ResultExt` conversions to forward
+  sources using the new shared storage while preserving error chains.
+
+### Tests
+- Added regression coverage for the `std::error::Error` chain, `Arc` source
+  preservation in the derives, and conditional backtrace capture driven by the
+  `RUST_BACKTRACE` environment variable.
+
+## [0.15.0] - 2025-09-25
+
+### Added
+- Introduced a `response::problem_json` module with an RFC7807 `ProblemJson`
+  payload that serializes metadata, gRPC mappings and retry/authentication
+  hints while respecting the message redaction policy.
+- Added an optional `tonic` feature exposing `TryFrom<Error> for tonic::Status`
+  with sanitized metadata and canonical gRPC code mapping.
+- Published a compile-time `CODE_MAPPINGS` table mapping each `AppCode` to
+  HTTP, gRPC and problem type information for reuse across transports.
+
+### Changed
+- Updated Axum and Actix integrations to emit `application/problem+json`
+  bodies, attach `Retry-After`/`WWW-Authenticate` headers automatically and
+  avoid leaking redactable messages or metadata.
+- Re-exported `ProblemJson` from the crate root alongside `ErrorResponse` for
+  direct construction in custom handlers.
+
+### Tests
+- Added unit coverage for the problem+json metadata sanitizer, header
+  propagation in Axum, and gRPC code mapping under the new `tonic` feature.
+
+
+## [0.14.1] - 2025-09-25
+
+### Changed
+- Boxed the internal `AppError` payload inside a new `ErrorInner` allocation,
+  keeping public field access via `Deref` while shrinking the error to a
+  pointer-sized handle that shares metadata, retry hints, and backtrace state.
+
+### Removed
+- Dropped `clippy::result_large_err` allowances in response helpers and tests
+  now that `AppError` is pointer-sized and lint-clean without suppressions.
+
+### Fixed
+- Removed the unused `BacktraceSlot::get` helper to restore builds with `-D warnings`.
+- Simplified the metrics recorder test harness with dedicated types to satisfy
+  `clippy::type_complexity` without sacrificing coverage.
+
+## [0.14.0] - 2025-09-24
+
+### Added
+- Introduced optional `tracing`, `metrics` and `backtrace` features. When
+  enabled they emit structured `tracing` events, increment the
+  `error_total{code,category}` counter and capture lazy [`Backtrace`] snapshots
+  from a new `AppError::emit_telemetry` hook.
+
+### Changed
+- Reworked the `AppError` core to emit telemetry exactly once, track dirty
+  mutations and expose a crate-private `new_raw` constructor for contexts that
+  enrich errors before flushing instrumentation.
+- Updated Axum and Actix integrations to rely on the telemetry hook instead of
+  manually logging errors while preserving backward-compatible APIs.
+
+### Tests
+- Added tracing dispatcher coverage to assert a single telemetry event with MDC
+  propagated `trace_id` values.
+- Installed a deterministic metrics recorder in unit tests to confirm
+  `error_total` increments once per error.
+
+## [0.13.1] - 2025-09-23
+
+### Fixed
+- Documented allowances for `clippy::result_large_err` on APIs that intentionally
+  expose the rich `AppError` payload, restoring lint-clean builds.
+
+## [0.13.0] - 2025-09-23
+
+### Added
+- Introduced `#[derive(Masterror)]` and the `#[masterror(...)]` attribute to
+  convert domain errors directly into [`masterror::Error`] while capturing
+  metadata, message redaction policy and optional transport mappings.
+- Added transport mapping descriptors in `mapping::{HttpMapping, GrpcMapping,
+  ProblemMapping}` generated by the new derive for HTTP/gRPC/problem-json
+  integrations.
+
+### Changed
+- Re-exported the `Masterror` derive from the crate root alongside the existing
+  `Error` derive.
+
+### Documentation
+- Expanded crate docs and both READMEs with `Masterror` examples, telemetry
+  guidance and redaction policy notes.
+
+### Tests
+- Added integration tests and trybuild coverage exercising the
+  `#[masterror(...)]` attribute and generated mapping tables.
+
+## [0.12.1] - 2025-10-30
+
+### Added
+- Introduced the `Context` builder for enriching error conversions with
+  metadata, caller tracking, and redaction hints via `ResultExt::ctx`.
+- Implemented the `ResultExt` trait to wrap fallible operations into
+  `masterror::Error` without extra allocations while merging context fields.
+
+### Documentation
+- Added rustdoc examples showcasing `Context` chaining and the new
+  `ResultExt` helper.
+
+### Tests
+- Added unit coverage for `ResultExt::ctx`, ensuring happy-path results pass
+  through and error branches preserve metadata and sources.
+
+## [0.12.0] - 2025-10-29
+
+### Added
+- Introduced typed `Metadata` storage with `Field`/`FieldValue` builders and helper functions in `field::*`.
+- Captured error sources and backtraces inside the new `app_error::Error` container, exposing `MessageEditPolicy` to control redaction.
+
+### Changed
+- Replaced the legacy `AppError` struct with the richer `Error` model carrying `AppCode`, metadata, retry/auth hints and transport policy.
+- Updated response mapping and constructors to preserve machine-readable codes without extra allocations.
+
+### Documentation
+- Refreshed crate docs, README (EN/RU) and examples to highlight metadata helpers and the new error contract.
+
+### Tests
+- Added regression coverage ensuring codes, metadata and sources survive conversions without unnecessary cloning.
+
+## [0.11.2] - 2025-10-28
+
+### Changed
+- Surfaced the [`AppErrorKind`] display text as the fallback `ErrorResponse`
+  message so clients receive semantic descriptions without providing a custom
+  message.
+
+### Tests
+- Added regression coverage ensuring bare `AppError` kinds map to their
+  corresponding default message.
+
 ## [0.11.1] - 2025-10-27
 
 ### Documentation

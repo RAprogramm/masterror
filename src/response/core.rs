@@ -62,6 +62,7 @@ impl ErrorResponse {
     /// # Errors
     ///
     /// Returns [`AppError`] if `status` is not a valid HTTP status code.
+    #[allow(clippy::result_large_err)]
     pub fn new(status: u16, code: AppCode, message: impl Into<String>) -> AppResult<Self> {
         StatusCode::from_u16(status)
             .map_err(|_| AppError::bad_request(format!("invalid HTTP status: {status}")))?;
@@ -90,5 +91,11 @@ impl ErrorResponse {
     #[must_use]
     pub fn status_code(&self) -> StatusCode {
         StatusCode::from_u16(self.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
+    }
+
+    /// Formatter exposing internals for diagnostic logs.
+    #[must_use]
+    pub fn internal(&self) -> crate::response::internal::ErrorResponseFormatter<'_> {
+        crate::response::internal::ErrorResponseFormatter::new(self)
     }
 }

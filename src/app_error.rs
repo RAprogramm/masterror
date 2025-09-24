@@ -11,6 +11,8 @@
 //!   [`AppErrorKind`].
 //! - **Optional message:** human-readable, safe-to-expose text. Do not put
 //!   secrets here.
+//! - **Structured metadata:** attach typed key/value pairs for diagnostics via
+//!   [`Metadata`].
 //! - **No panics:** all helpers avoid `unwrap/expect`.
 //! - **Transport-agnostic:** mapping to HTTP lives in `kind.rs` and
 //!   `convert/*`.
@@ -51,16 +53,26 @@
 //! }
 //! ```
 //!
-//! ## Logging
+//! ## Telemetry
 //!
-//! [`AppError::log`] emits a single structured `tracing::error!` event with
-//! `kind`, `code` and optional `message` fields. Prefer calling it at the
-//! transport boundary (e.g. in `IntoResponse`) to avoid duplicate logs.
+//! [`AppError::log`] flushes telemetry once: it emits a structured `tracing`
+//! event (when the `tracing` feature is enabled), increments the
+//! `error_total{code,category}` counter (with the `metrics` feature) and
+//! captures a lazy [`Backtrace`] snapshot (with the `backtrace` feature).
+//! Constructors and framework integrations call it automatically, so manual
+//! usage is rarely required.
 
 mod constructors;
+mod context;
 mod core;
+mod metadata;
 
-pub use core::{AppError, AppResult};
+pub use core::{AppError, AppResult, Error, MessageEditPolicy};
+#[cfg(all(test, feature = "backtrace"))]
+pub(crate) use core::{reset_backtrace_preference, set_backtrace_preference_override};
+
+pub use context::Context;
+pub use metadata::{Field, FieldRedaction, FieldValue, Metadata, field};
 
 #[cfg(test)]
 mod tests;

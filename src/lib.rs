@@ -7,15 +7,20 @@
 //! feature flags.
 //!
 //! Core types:
-//! - [`AppError`] — thin wrapper around a semantic error kind and optional
-//!   message
+//! - [`AppError`] — rich error capturing code, taxonomy, message, metadata and
+//!   transport hints
 //! - [`AppErrorKind`] — stable internal taxonomy of application errors
 //! - [`AppResult`] — convenience alias for returning [`AppError`]
-//! - [`ErrorResponse`] — stable wire-level JSON payload for HTTP APIs
+//! - [`ProblemJson`] — RFC7807 payload emitted by HTTP/gRPC adapters
+//! - [`ErrorResponse`] — legacy wire-level JSON payload for HTTP APIs
 //! - [`AppCode`] — public, machine-readable error code for clients
+//! - [`Metadata`] — structured telemetry attached to [`AppError`]
+//! - [`field`] — helper functions to build [`Metadata`] without manual enums
 //!
 //! Key properties:
 //! - Stable, predictable error categories (`AppErrorKind`).
+//! - Explicit, overridable machine-readable codes (`AppCode`).
+//! - Structured metadata for observability without ad-hoc `String` maps.
 //! - Conservative and stable HTTP mappings.
 //! - Internal error sources are never serialized to clients (only logged).
 //! - Messages are safe to expose (human-oriented, non-sensitive).
@@ -29,10 +34,12 @@
 //!
 //! Enable only what you need:
 //!
-//! - `axum` — implements `IntoResponse` for [`AppError`] and [`ErrorResponse`]
-//!   with JSON body
-//! - `actix` — implements `Responder` for [`ErrorResponse`] (and Actix
-//!   integration for [`AppError`])
+//! - `axum` — implements `IntoResponse` for [`AppError`] and [`ProblemJson`]
+//!   with RFC7807 body
+//! - `actix` — implements `Responder` for [`ProblemJson`] and Actix
+//!   `ResponseError` for [`AppError`]
+//! - `tonic` — converts [`struct@Error`] into `tonic::Status` with sanitized
+//!   metadata
 //! - `openapi` — derives an OpenAPI schema for [`ErrorResponse`] (via `utoipa`)
 //! - `sqlx` — `From<sqlx::Error>` mapping
 //! - `redis` — `From<redis::RedisError>` mapping
@@ -46,18 +53,19 @@
 //!   mapping
 //! - `frontend` — convert errors into `wasm_bindgen::JsValue` and emit
 //!   `console.error` logs in WASM/browser contexts
-//! - `serde_json` — support for structured JSON details in [`ErrorResponse`];
-//!   also pulled transitively by `axum`
+//! - `serde_json` — support for structured JSON details in [`ErrorResponse`]
+//!   and [`ProblemJson`]; also pulled transitively by `axum`
 //! - `multipart` — compatibility flag for Axum multipart
 //! - `turnkey` — domain taxonomy and conversions for Turnkey errors, exposed in
 //!   the `turnkey` module
 //!
 //! # Derive macros and telemetry
 //!
-//! The [`masterror::Error`](crate::Error) derive mirrors `thiserror` while
-//! adding `#[app_error]` and `#[provide]` attributes. Annotate your domain
-//! errors once to surface structured telemetry via [`std::error::Request`] and
-//! generate conversions into [`AppError`] / [`AppCode`].
+//! The [`masterror::Error`](derive@crate::Error) derive mirrors `thiserror`
+//! while adding `#[app_error]` and `#[provide]` attributes. Annotate your
+//! domain errors once to surface structured telemetry via
+//! [`std::error::Request`] and generate conversions into [`AppError`] /
+//! [`AppCode`].
 //!
 //! ```rust
 //! use masterror::{AppCode, AppError, AppErrorKind, Error};
@@ -78,6 +86,76 @@
 //!
 //! Use `#[provide]` to forward typed telemetry that downstream consumers can
 //! extract from [`AppError`] via `std::error::Request`.
+//!
+//! ## Masterror derive: end-to-end domain errors
+//!
+//! `#[derive(Masterror)]` builds on top of `#[derive(Error)]`, wiring a domain
+//! error directly into [`struct@crate::Error`] with typed telemetry, redaction
+//! policy and transport hints. The `#[masterror(...)]` attribute mirrors the
+//! `thiserror` style while keeping redaction decisions and metadata in one
+//! place.
+//!
+//! ```rust
+//! use masterror::{
+//!     AppCode, AppErrorKind, Error, Masterror, MessageEditPolicy, mapping::HttpMapping
+//! };
+//!
+//! #[derive(Debug, Masterror)]
+//! #[error("user {user_id} missing flag {flag}")]
+//! #[masterror(
+//!     code = AppCode::NotFound,
+//!     category = AppErrorKind::NotFound,
+//!     message,
+//!     redact(message, fields("user_id" = hash)),
+//!     telemetry(
+//!         Some(masterror::field::str("user_id", user_id.clone())),
+//!         attempt.map(|value| masterror::field::u64("attempt", value))
+//!     ),
+//!     map.grpc = 5,
+//!     map.problem = "https://errors.example.com/not-found"
+//! )]
+//! struct MissingFlag {
+//!     user_id: String,
+//!     flag:    &'static str,
+//!     attempt: Option<u64>,
+//!     #[source]
+//!     source:  Option<std::io::Error>
+//! }
+//!
+//! let err = MissingFlag {
+//!     user_id: "alice".into(),
+//!     flag:    "beta",
+//!     attempt: Some(2),
+//!     source:  None
+//! };
+//! let converted: Error = err.into();
+//! assert_eq!(converted.code, AppCode::NotFound);
+//! assert_eq!(converted.kind, AppErrorKind::NotFound);
+//! assert_eq!(converted.edit_policy, MessageEditPolicy::Redact);
+//! assert!(converted.metadata().get("user_id").is_some());
+//! assert_eq!(
+//!     MissingFlag::HTTP_MAPPING,
+//!     HttpMapping::new(AppCode::NotFound, AppErrorKind::NotFound)
+//! );
+//! ```
+//!
+//! - `code` — public [`AppCode`].
+//! - `category` — semantic [`AppErrorKind`].
+//! - `message` — expose the formatted [`core::fmt::Display`] output as the
+//!   public message.
+//! - `redact(message)` — mark the message as redactable at the transport
+//!   boundary, `fields("name" = hash, "card" = last4)` override metadata
+//!   policies (`hash`, `last4`, `redact`, `none`).
+//! - `telemetry(...)` — list of expressions producing
+//!   `Option<masterror::Field>` to be inserted into [`Metadata`].
+//! - `map.grpc` / `map.problem` — optional gRPC status (as `i32`) and
+//!   problem+json type for generated mapping tables. Access them via
+//!   `TYPE::HTTP_MAPPING`, `TYPE::GRPC_MAPPING`/`MAPPINGS` and
+//!   `TYPE::PROBLEM_MAPPING`/`MAPPINGS`.
+//!
+//! The derive continues to honour `#[from]`, `#[source]` and `#[backtrace]`
+//! field attributes, automatically attaching sources and captured backtraces to
+//! the resulting [`struct@Error`].
 //!
 //! # Domain integrations: Turnkey
 //!
@@ -125,6 +203,16 @@
 //! assert!(matches!(err.kind, AppErrorKind::BadRequest));
 //! ```
 //!
+//! Attach structured metadata for telemetry and logging:
+//! ```rust
+//! use masterror::{AppError, AppErrorKind, field};
+//!
+//! let err = AppError::service("downstream degraded")
+//!     .with_field(field::str("request_id", "abc123"))
+//!     .with_field(field::i64("attempt", 2));
+//! assert_eq!(err.metadata().len(), 2);
+//! ```
+//!
 //! [`AppErrorKind`] controls the default HTTP status mapping.  
 //! [`AppCode`] provides a stable machine-readable code for clients.  
 //! Together, they form the wire contract in [`ErrorResponse`].
@@ -156,6 +244,35 @@
 //! let resp: ErrorResponse = (&app_err).into();
 //! assert_eq!(resp.status, 404);
 //! assert!(matches!(resp.code, AppCode::NotFound));
+//! ```
+//!
+//! # Typed control-flow macros
+//!
+//! Reach for [`ensure!`] and [`fail!`] when you need to exit early with a typed
+//! error without paying for string formatting or heap allocations on the
+//! success path.
+//!
+//! ```rust
+//! use masterror::{AppError, AppErrorKind, AppResult};
+//!
+//! fn guard(flag: bool) -> AppResult<()> {
+//!     masterror::ensure!(flag, AppError::bad_request("flag must be set"));
+//!     Ok(())
+//! }
+//!
+//! fn bail() -> AppResult<()> {
+//!     masterror::fail!(AppError::unauthorized("token expired"));
+//! }
+//!
+//! assert!(guard(true).is_ok());
+//! assert!(matches!(
+//!     guard(false).unwrap_err().kind,
+//!     AppErrorKind::BadRequest
+//! ));
+//! assert!(matches!(
+//!     bail().unwrap_err().kind,
+//!     AppErrorKind::Unauthorized
+//! ));
 //! ```
 //!
 //! # Axum integration
@@ -214,10 +331,12 @@ mod code;
 mod convert;
 pub mod error;
 mod kind;
+mod macros;
 #[cfg(error_generic_member_access)]
 #[doc(hidden)]
 pub mod provide;
 mod response;
+mod result_ext;
 
 #[cfg(feature = "frontend")]
 #[cfg_attr(docsrs, doc(cfg(feature = "frontend")))]
@@ -230,10 +349,16 @@ pub mod turnkey;
 /// Minimal prelude re-exporting core types for handler signatures.
 pub mod prelude;
 
-pub use app_error::{AppError, AppResult};
-pub use code::AppCode;
+/// Transport mapping descriptors for generated domain errors.
+pub mod mapping;
+
+pub use app_error::{
+    AppError, AppResult, Context, Error, Field, FieldRedaction, FieldValue, MessageEditPolicy,
+    Metadata, field
+};
+pub use code::{AppCode, ParseAppCodeError};
 pub use kind::AppErrorKind;
-/// Re-export derive macros so users only depend on [`masterror`].
+/// Re-export derive macros so users only depend on this crate.
 ///
 /// # Examples
 ///
@@ -259,5 +384,16 @@ pub use kind::AppErrorKind;
 /// .into();
 /// assert!(matches!(code, AppCode::BadRequest));
 /// ```
-pub use masterror_derive::*;
-pub use response::{ErrorResponse, RetryAdvice};
+pub use masterror_derive::{Error, Masterror};
+pub use response::{
+    ErrorResponse, ProblemJson, RetryAdvice,
+    problem_json::{
+        CODE_MAPPINGS, CodeMapping, GrpcCode, ProblemMetadata, ProblemMetadataValue,
+        mapping_for_code
+    }
+};
+pub use result_ext::ResultExt;
+
+#[cfg(feature = "tonic")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tonic")))]
+pub use crate::convert::StatusConversionError;
