@@ -537,14 +537,9 @@ fn metrics_counter_is_incremented_once() {
 
 #[test]
 fn result_alias_is_generic() {
-    fn app() -> super::AppResult<u8> {
-        Ok(1)
-    }
+    let default_result: super::AppResult<u8> = Ok(1);
+    let custom_result: super::AppResult<u8, &'static str> = Ok(2);
 
-    fn other() -> super::AppResult<u8, &'static str> {
-        Ok(2)
-    }
-
-    assert_eq!(app().unwrap(), 1);
-    assert_eq!(other().unwrap(), 2);
+    assert_eq!(default_result.unwrap(), 1);
+    assert_eq!(custom_result.unwrap(), 2);
 }
