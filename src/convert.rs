@@ -78,6 +78,10 @@ use std::io::Error as IoError;
 
 use crate::AppError;
 
+#[cfg(feature = "axum")]
+#[cfg_attr(docsrs, doc(cfg(feature = "axum")))]
+mod axum;
+
 #[cfg(all(feature = "axum", feature = "multipart"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "axum", feature = "multipart"))))]
 mod multipart;

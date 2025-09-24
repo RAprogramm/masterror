@@ -3,6 +3,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.20.3] - 2025-10-03
+
+### Fixed
+- Restored the Axum transport adapter in builds by wiring the `convert::axum`
+  module into the crate graph and relaxing the tests to validate responses via
+  `serde_json::Value` instead of requiring `ProblemJson` deserialization.
+- Hardened converter telemetry for Redis, Reqwest, SQLx, Tonic and multipart
+  integrations by owning metadata strings where necessary and covering
+  non-exhaustive enums so the crate compiles cleanly on Rust 1.90.
+- Reworked `ProblemJson` metadata internals to use `Cow<'static, str>` keys and
+  values, preserving zero-copy behaviour for borrowed data while allowing owned
+  fallbacks required by the updated converters.
+
 ## [0.20.2] - 2025-10-02
 
 ### Fixed

@@ -38,7 +38,7 @@ mod tests {
         http::Request
     };
 
-    use crate::{AppErrorKind, FieldValue};
+    use crate::{AppErrorKind, Error, FieldValue};
 
     #[tokio::test]
     async fn multipart_error_maps_to_bad_request() {

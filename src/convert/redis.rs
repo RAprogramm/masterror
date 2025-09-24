@@ -59,7 +59,7 @@ impl From<RedisError> for Error {
 fn build_context(err: &RedisError) -> (Context, Option<u64>) {
     let mut context = Context::new(AppErrorKind::Cache)
         .with(field::str("redis.kind", format!("{:?}", err.kind())))
-        .with(field::str("redis.category", err.category()))
+        .with(field::str("redis.category", err.category().to_owned()))
         .with(field::bool("redis.is_timeout", err.is_timeout()))
         .with(field::bool(
             "redis.is_cluster_error",
@@ -115,7 +115,8 @@ const fn retry_method_details(method: RetryMethod) -> (&'static str, Option<u64>
         RetryMethod::ReconnectFromInitialConnections => {
             ("ReconnectFromInitialConnections", Some(1))
         }
-        RetryMethod::WaitAndRetry => ("WaitAndRetry", Some(2))
+        RetryMethod::WaitAndRetry => ("WaitAndRetry", Some(2)),
+        _ => ("Other", None)
     }
 }
 

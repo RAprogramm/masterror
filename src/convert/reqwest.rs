@@ -107,7 +107,7 @@ fn classify_reqwest_error(err: &ReqwestError) -> (Context, Option<u64>) {
 
     if let Some(url) = err.url() {
         context = context
-            .with(field::str("http.url", url.as_str()))
+            .with(field::str("http.url", url.to_string()))
             .redact_field("http.url", FieldRedaction::Hash);
 
         if let Some(host) = url.host_str() {
