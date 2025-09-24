@@ -36,6 +36,11 @@ pub enum AppCode {
     /// Typically mapped to HTTP **409 Conflict**.
     Conflict,
 
+    /// Attempted to create a user that already exists (unique constraint).
+    ///
+    /// Typically mapped to HTTP **409 Conflict**.
+    UserAlreadyExists,
+
     /// Authentication required or failed (missing/invalid credentials).
     ///
     /// Typically mapped to HTTP **401 Unauthorized**.
@@ -149,6 +154,7 @@ impl AppCode {
             AppCode::NotFound => "NOT_FOUND",
             AppCode::Validation => "VALIDATION",
             AppCode::Conflict => "CONFLICT",
+            AppCode::UserAlreadyExists => "USER_ALREADY_EXISTS",
             AppCode::Unauthorized => "UNAUTHORIZED",
             AppCode::Forbidden => "FORBIDDEN",
             AppCode::NotImplemented => "NOT_IMPLEMENTED",

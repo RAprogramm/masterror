@@ -1,6 +1,6 @@
 //! Conversion from
 //! [`telegram_webapp_sdk::utils::validate_init_data::ValidationError`] into
-//! [`AppError`].
+//! [`Error`].
 //!
 //! Enabled with the `telegram-webapp-sdk` feature flag.
 //!
@@ -22,10 +22,10 @@
 //! # #[cfg(feature = "telegram-webapp-sdk")]
 //! # {
 //! '''rust,ignore
-//! use masterror::{AppError, AppErrorKind};
+//! use masterror::{AppErrorKind, Error};
 //! use telegram_webapp_sdk::utils::validate_init_data::ValidationError;
 //!
-//! fn convert(err: ValidationError) -> AppError {
+//! fn convert(err: ValidationError) -> Error {
 //!     err.into()
 //! }
 //!
@@ -39,14 +39,37 @@
 use telegram_webapp_sdk::utils::validate_init_data::ValidationError;
 
 #[cfg(feature = "telegram-webapp-sdk")]
-use crate::AppError;
+use crate::{
+    AppErrorKind,
+    app_error::{Context, Error, field}
+};
 
 /// Map [`ValidationError`] into an [`AppError`] with kind `TelegramAuth`.
 #[cfg(feature = "telegram-webapp-sdk")]
 #[cfg_attr(docsrs, doc(cfg(feature = "telegram-webapp-sdk")))]
-impl From<ValidationError> for AppError {
+impl From<ValidationError> for Error {
     fn from(err: ValidationError) -> Self {
-        AppError::telegram_auth(err.to_string())
+        build_context(&err).into_error(err)
+    }
+}
+
+#[cfg(feature = "telegram-webapp-sdk")]
+fn build_context(error: &ValidationError) -> Context {
+    match error {
+        ValidationError::MissingField(field) => Context::new(AppErrorKind::TelegramAuth)
+            .with(field::str("telegram_webapp.reason", "missing_field"))
+            .with(field::str("telegram_webapp.field", (*field).to_owned())),
+        ValidationError::InvalidEncoding => Context::new(AppErrorKind::TelegramAuth)
+            .with(field::str("telegram_webapp.reason", "invalid_encoding")),
+        ValidationError::InvalidSignatureEncoding => Context::new(AppErrorKind::TelegramAuth)
+            .with(field::str(
+                "telegram_webapp.reason",
+                "invalid_signature_encoding"
+            )),
+        ValidationError::SignatureMismatch => Context::new(AppErrorKind::TelegramAuth)
+            .with(field::str("telegram_webapp.reason", "signature_mismatch")),
+        ValidationError::InvalidPublicKey => Context::new(AppErrorKind::TelegramAuth)
+            .with(field::str("telegram_webapp.reason", "invalid_public_key"))
     }
 }
 
@@ -55,7 +78,7 @@ mod tests {
     use telegram_webapp_sdk::utils::validate_init_data::ValidationError;
 
     use super::*;
-    use crate::AppErrorKind;
+    use crate::{AppErrorKind, FieldValue};
 
     #[test]
     fn all_variants_map_to_telegram_auth_and_preserve_message() {
@@ -68,16 +91,19 @@ mod tests {
         ];
 
         for case in cases {
-            let msg = case.to_string();
-            let app: AppError = case.into();
+            let app: Error = case.into();
             assert!(matches!(app.kind, AppErrorKind::TelegramAuth));
-            assert_eq!(app.message.as_deref(), Some(msg.as_str()));
+            assert!(app.metadata().get("telegram_webapp.reason").is_some());
         }
     }
 
     #[test]
     fn validation_error_maps_to_telegram_auth() {
-        let err: AppError = ValidationError::SignatureMismatch.into();
+        let err: Error = ValidationError::SignatureMismatch.into();
         assert!(matches!(err.kind, AppErrorKind::TelegramAuth));
+        assert_eq!(
+            err.metadata().get("telegram_webapp.reason"),
+            Some(&FieldValue::Str("signature_mismatch".into()))
+        );
     }
 }

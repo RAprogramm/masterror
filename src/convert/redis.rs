@@ -1,12 +1,14 @@
-//! Conversion from [`redis::RedisError`] into [`AppError`].
+//! Conversion from [`redis::RedisError`] into [`Error`].
 //!
 //! Enabled with the `redis` feature flag.
 //!
 //! ## Mapping
 //!
-//! All Redis client errors are mapped to `AppErrorKind::Cache`.
-//! The full error string from the driver is preserved in `message` for logs
-//! and JSON payloads (if applicable).
+//! All Redis client errors are mapped to `AppErrorKind::Cache` by default and
+//! enriched with structured metadata (error kind, code, retry hints). Timeout
+//! and infrastructure-level failures are promoted to `Timeout` or
+//! `DependencyUnavailable` respectively. Metadata captures cluster redirects,
+//! retry strategy and low-level flags without exposing sensitive payloads.
 //!
 //! This categorization treats Redis as a cache infrastructure dependency.
 //! If you need a different taxonomy (e.g. distinguishing caches from queues),
@@ -16,10 +18,10 @@
 //! ## Example
 //!
 //! ```rust,ignore
-//! use masterror::{AppError, AppErrorKind};
+//! use masterror::{AppErrorKind, Error};
 //! use redis::RedisError;
 //!
-//! fn handle_cache_error(e: RedisError) -> AppError {
+//! fn handle_cache_error(e: RedisError) -> Error {
 //!     e.into()
 //! }
 //!
@@ -31,10 +33,13 @@
 //! ```
 
 #[cfg(feature = "redis")]
-use redis::RedisError;
+use redis::{RedisError, RetryMethod};
 
 #[cfg(feature = "redis")]
-use crate::AppError;
+use crate::{
+    AppErrorKind,
+    app_error::{Context, Error, field}
+};
 
 /// Map any [`redis::RedisError`] into an [`AppError`] with kind `Cache`.
 ///
@@ -42,10 +47,75 @@ use crate::AppError;
 /// Detailed driver errors are kept in the message for diagnostics.
 #[cfg(feature = "redis")]
 #[cfg_attr(docsrs, doc(cfg(feature = "redis")))]
-impl From<RedisError> for AppError {
+impl From<RedisError> for Error {
     fn from(err: RedisError) -> Self {
-        // Infrastructure cache issue -> cache-level error
-        AppError::cache(format!("Redis error: {err}"))
+        let (context, retry_after) = build_context(&err);
+        let mut error = context.into_error(err);
+        if let Some(secs) = retry_after {
+            error = error.with_retry_after_secs(secs);
+        }
+        error
+    }
+}
+
+#[cfg(feature = "redis")]
+fn build_context(err: &RedisError) -> (Context, Option<u64>) {
+    let mut context = Context::new(AppErrorKind::Cache)
+        .with(field::str("redis.kind", format!("{:?}", err.kind())))
+        .with(field::str("redis.category", err.category()))
+        .with(field::bool("redis.is_timeout", err.is_timeout()))
+        .with(field::bool(
+            "redis.is_cluster_error",
+            err.is_cluster_error()
+        ))
+        .with(field::bool(
+            "redis.is_connection_refused",
+            err.is_connection_refusal()
+        ))
+        .with(field::bool(
+            "redis.is_connection_dropped",
+            err.is_connection_dropped()
+        ));
+
+    if let Some(code) = err.code() {
+        context = context.with(field::str("redis.code", code.to_owned()));
+    }
+
+    if err.is_timeout() {
+        context = context.category(AppErrorKind::Timeout);
+    } else if err.is_connection_refusal()
+        || err.is_connection_dropped()
+        || err.is_cluster_error()
+        || err.is_io_error()
+    {
+        context = context.category(AppErrorKind::DependencyUnavailable);
+    }
+
+    if let Some((addr, slot)) = err.redirect_node() {
+        context = context
+            .with(field::str("redis.redirect_addr", addr.to_owned()))
+            .with(field::u64("redis.redirect_slot", u64::from(slot)));
+    }
+
+    let retry_method = err.retry_method();
+    let retry_after = retry_after_hint(retry_method);
+    context = context.with(field::str(
+        "redis.retry_method",
+        format!("{:?}", retry_method)
+    ));
+
+    (context, retry_after)
+}
+
+#[cfg(feature = "redis")]
+const fn retry_after_hint(method: RetryMethod) -> Option<u64> {
+    match method {
+        RetryMethod::NoRetry => None,
+        RetryMethod::RetryImmediately | RetryMethod::AskRedirect | RetryMethod::MovedRedirect => {
+            Some(0)
+        }
+        RetryMethod::Reconnect | RetryMethod::ReconnectFromInitialConnections => Some(1),
+        RetryMethod::WaitAndRetry => Some(2)
     }
 }
 
@@ -54,12 +124,25 @@ mod tests {
     use redis::ErrorKind;
 
     use super::*;
-    use crate::AppErrorKind;
+    use crate::{AppErrorKind, FieldValue};
 
     #[test]
     fn maps_to_cache_kind() {
         let redis_err = RedisError::from((ErrorKind::IoError, "boom"));
-        let app_err: AppError = redis_err.into();
-        assert!(matches!(app_err.kind, AppErrorKind::Cache));
+        let app_err: Error = redis_err.into();
+        assert!(matches!(app_err.kind, AppErrorKind::DependencyUnavailable));
+        let metadata = app_err.metadata();
+        assert_eq!(
+            metadata.get("redis.kind"),
+            Some(&FieldValue::Str("IoError".into()))
+        );
+    }
+
+    #[test]
+    fn busy_loading_sets_retry_hint() {
+        let err = RedisError::from((ErrorKind::BusyLoadingError, "loading"));
+        let app_err: Error = err.into();
+        assert_eq!(app_err.retry.map(|r| r.after_seconds), Some(2));
+        assert!(matches!(app_err.kind, AppErrorKind::DependencyUnavailable));
     }
 }

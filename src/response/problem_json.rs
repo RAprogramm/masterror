@@ -554,6 +554,18 @@ pub const CODE_MAPPINGS: &[(AppCode, CodeMapping)] = &[
         }
     ),
     (
+        AppCode::UserAlreadyExists,
+        CodeMapping {
+            http_status:  409,
+            grpc:         GrpcCode {
+                name:  "ALREADY_EXISTS",
+                value: 6
+            },
+            problem_type: "https://errors.masterror.rs/user-already-exists",
+            kind:         AppErrorKind::Conflict
+        }
+    ),
+    (
         AppCode::Unauthorized,
         CodeMapping {
             http_status:  401,
