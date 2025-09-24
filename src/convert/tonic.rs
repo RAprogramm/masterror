@@ -14,11 +14,11 @@
 //! ```rust,ignore
 //! use masterror::{AppError, AppErrorKind};
 //!
-//! let status = tonic::Status::try_from(AppError::not_found("missing"))?;
+//! let status = tonic::Status::from(AppError::not_found("missing"));
 //! assert_eq!(status.code(), tonic::Code::NotFound);
 //! ```
 
-use std::{borrow::Cow, convert::Infallible};
+use std::{borrow::Cow, fmt};
 
 use tonic::{
     Code, Status,
@@ -32,11 +32,49 @@ use crate::{
     mapping_for_code
 };
 
+/// Error returned when converting [`Error`] into [`Status`] fails.
+///
+/// This type is never constructed in practice because the conversion is
+/// guaranteed to succeed. It exists solely to preserve the `TryFrom` API in
+/// addition to the infallible [`From`] conversion.
+///
+/// # Examples
+/// ```rust,ignore
+/// use masterror::{AppError, StatusConversionError};
+/// use tonic::{Code, Status};
+///
+/// fn convert() -> Result<Status, StatusConversionError> {
+///     Status::try_from(AppError::not_found("missing"))
+/// }
+///
+/// # fn main() -> Result<(), StatusConversionError> {
+/// let status = convert()?;
+/// assert_eq!(status.code(), Code::NotFound);
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StatusConversionError;
+
+impl fmt::Display for StatusConversionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("conversion to tonic::Status cannot fail")
+    }
+}
+
+impl std::error::Error for StatusConversionError {}
+
+impl From<Error> for Status {
+    fn from(error: Error) -> Self {
+        status_from_error(&error)
+    }
+}
+
 impl TryFrom<Error> for Status {
-    type Error = Infallible;
+    type Error = StatusConversionError;
 
     fn try_from(error: Error) -> Result<Self, Self::Error> {
-        Ok(status_from_error(&error))
+        Ok(Status::from(error))
     }
 }
 
@@ -59,10 +97,10 @@ fn status_from_error(error: &Error) -> Status {
     if let Some(advice) = error.retry {
         insert_retry(&mut meta, advice);
     }
-    if let Some(challenge) = error.www_authenticate.as_deref() {
-        if is_ascii_metadata_value(challenge) {
-            insert_ascii(&mut meta, "www-authenticate", challenge);
-        }
+    if let Some(challenge) = error.www_authenticate.as_deref()
+        && is_ascii_metadata_value(challenge)
+    {
+        insert_ascii(&mut meta, "www-authenticate", challenge);
     }
 
     if !matches!(error.edit_policy, MessageEditPolicy::Redact) {
@@ -123,9 +161,7 @@ fn metadata_value_to_ascii(value: &FieldValue) -> Option<Cow<'_, str>> {
         }
         FieldValue::I64(value) => Some(Cow::Owned(value.to_string())),
         FieldValue::U64(value) => Some(Cow::Owned(value.to_string())),
-        FieldValue::Bool(value) => Some(Cow::Owned(
-            if *value { "true" } else { "false" }.to_string()
-        )),
+        FieldValue::Bool(value) => Some(Cow::Borrowed(if *value { "true" } else { "false" })),
         FieldValue::Uuid(value) => Some(Cow::Owned(value.to_string()))
     }
 }
