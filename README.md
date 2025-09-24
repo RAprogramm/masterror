@@ -14,25 +14,58 @@
 
 > 🇷🇺 Читайте README на [русском языке](README.ru.md).
 
-Small, pragmatic error model for API-heavy Rust services with native derives
-and typed telemetry.
-Core is framework-agnostic; integrations are opt-in via feature flags.
-Stable categories, conservative HTTP mapping, no `unsafe`.
+`masterror` grew from a handful of helpers into a workspace of composable crates for
+building consistent, observable error surfaces across Rust services. The core
+crate stays framework-agnostic, while feature flags light up transport adapters,
+integrations and telemetry without pulling in heavyweight defaults. No
+`unsafe`, MSRV is pinned, and the derive macros keep your domain types in charge
+of redaction and metadata.
 
-- Core types: `AppError`, `AppErrorKind`, `AppResult`, `AppCode`, `ProblemJson`, `ErrorResponse`, `Metadata`
-- Derive macros: `#[derive(Error)]`, `#[derive(Masterror)]`, `#[app_error]`,
-  `#[masterror(...)]`, `#[provide]` for domain mappings and structured
-  telemetry
-- Optional Axum/Actix integration and browser/WASM console logging
-- Optional OpenAPI schema (via `utoipa`)
-- Structured metadata helpers via `field::*` builders
-- Conversions from `sqlx`, `reqwest`, `redis`, `validator`, `config`, `tokio`
-- Turnkey domain taxonomy and helpers (`turnkey` feature)
+### Highlights
 
-👉 Explore the new [error-handling wiki](docs/wiki/index.md) for step-by-step
-guides, comparisons with `thiserror`/`anyhow`, and troubleshooting recipes.
+- **Unified taxonomy.** `AppError`, `AppErrorKind` and `AppCode` model domain and
+  transport concerns with conservative HTTP/gRPC mappings, turnkey retry/auth
+  hints and RFC7807 output via `ProblemJson`.
+- **Native derives.** `#[derive(Error)]`, `#[derive(Masterror)]`, `#[app_error]`,
+  `#[masterror(...)]` and `#[provide]` wire custom types into `AppError` while
+  forwarding sources, backtraces, telemetry providers and redaction policy.
+- **Typed telemetry.** `Metadata` stores structured key/value context with
+  per-field redaction controls and builders in `field::*`, so logs stay
+  structured without manual `String` maps.
+- **Transport adapters.** Optional features expose Actix/Axum responders,
+  `tonic::Status` conversions, WASM/browser logging and OpenAPI schema
+  generation without contaminating the lean default build.
+- **Battle-tested integrations.** Enable focused mappings for `sqlx`,
+  `reqwest`, `redis`, `validator`, `config`, `tokio`, `teloxide`, `multipart`,
+  Telegram WebApp SDK and more — each translating library errors into the
+  taxonomy with telemetry attached.
+- **Turnkey defaults.** The `turnkey` module ships a ready-to-use error catalog,
+  helper builders and tracing instrumentation for teams that want a consistent
+  baseline out of the box.
 
----
+### Workspace crates
+
+| Crate | What it provides | When to depend on it |
+| --- | --- | --- |
+| [`masterror`](https://crates.io/crates/masterror) | Core error types, metadata builders, transports, integrations and the prelude. | Application crates, services and libraries that want a stable error surface. |
+| [`masterror-derive`](masterror-derive/README.md) | Proc-macros backing `#[derive(Error)]`, `#[derive(Masterror)]`, `#[app_error]` and `#[provide]`. | Brought in automatically via `masterror`; depend directly only for macro hacking. |
+| [`masterror-template`](masterror-template/README.md) | Shared template parser used by the derive macros for formatter analysis. | Internal dependency; reuse when you need the template parser elsewhere. |
+
+### Feature flags at a glance
+
+Pick only what you need; everything is off by default.
+
+- **Web transports:** `axum`, `actix`, `multipart`, `openapi`, `serde_json`.
+- **Telemetry & observability:** `tracing`, `metrics`, `backtrace`.
+- **Async & IO integrations:** `tokio`, `reqwest`, `sqlx`, `sqlx-migrate`,
+  `redis`, `validator`, `config`.
+- **Messaging & bots:** `teloxide`, `telegram-webapp-sdk`.
+- **Front-end tooling:** `frontend` for WASM/browser console logging.
+- **gRPC:** `tonic` to emit `tonic::Status` responses.
+- **Batteries included:** `turnkey` to adopt the pre-built taxonomy and helpers.
+
+The build script keeps the full feature snippet below in sync with
+`Cargo.toml`.
 
 ### TL;DR
 
@@ -49,53 +82,10 @@ masterror = { version = "0.20.5", default-features = false }
 # ] }
 ~~~
 
-*Since v0.5.0: derive custom errors via `#[derive(Error)]` (`use masterror::Error;`) and inspect browser logging failures with `BrowserConsoleError::context()`.*
-*Since v0.4.0: optional `frontend` feature for WASM/browser console logging.*
-*Since v0.3.0: stable `AppCode` enum and extended `ErrorResponse` with retry/authentication metadata.*
-*Since v0.15.0: RFC7807 `ProblemJson` responses for HTTP integrations and `tonic::Status` conversion.*
-
 ---
 
 <details>
-  <summary><b>Why this crate?</b></summary>
 
-- **Stable taxonomy.** Small set of `AppErrorKind` categories mapping conservatively to HTTP.
-- **Framework-agnostic.** No assumptions, no `unsafe`, MSRV pinned.
-- **Opt-in integrations.** Zero default features; you enable what you need.
-- **Clean wire contract.** `ProblemJson { type?, title, status, detail?, code, grpc?, metadata? }` with `Retry-After` / `WWW-Authenticate` headers when present.
-- **Typed telemetry.** `Metadata` preserves structured key/value context without `String` maps.
-- **One log at boundary.** Log once with `tracing`.
-- **Less boilerplate.** Built-in conversions, compact prelude, and the
-  native `masterror::Error` derive with `#[from]` / `#[error(transparent)]`
-  support.
-- **Consistent workspace.** Same error surface across crates.
-
-</details>
-
-<details>
-  <summary><b>Installation</b></summary>
-
-~~~toml
-[dependencies]
-# lean core
-masterror = { version = "0.20.5", default-features = false }
-
-# with Axum/Actix + JSON + integrations
-# masterror = { version = "0.20.5", features = [
-#   "axum", "actix", "openapi", "serde_json",
-#   "tracing", "metrics", "backtrace", "sqlx",
-#   "sqlx-migrate", "reqwest", "redis", "validator",
-#   "config", "tokio", "multipart", "teloxide",
-#   "telegram-webapp-sdk", "tonic", "frontend", "turnkey"
-# ] }
-~~~
-
-**MSRV:** 1.90
-**No unsafe:** forbidden by crate.
-
-</details>
-
-<details>
   <summary><b>Quick start</b></summary>
 
 Create an error:
@@ -126,7 +116,10 @@ fn do_work(flag: bool) -> AppResult<()> {
 </details>
 
 <details>
-  <summary><b>Derive custom errors</b></summary>
+  <summary><b>Derive domain errors and map them to transports</b></summary>
+
+`masterror` ships native derives so your domain types stay expressive while the
+crate handles conversions, telemetry and redaction for you.
 
 ~~~rust
 use std::io;
@@ -160,7 +153,7 @@ let wrapped = WrappedDomainError::from(err);
 assert_eq!(wrapped.to_string(), "I/O failed: disk offline");
 ~~~
 
-- `use masterror::Error;` brings the crate's derive macro into scope.
+- `use masterror::Error;` brings the derive macro into scope.
 - `#[from]` automatically implements `From<...>` while ensuring wrapper shapes are
   valid.
 - `#[error(transparent)]` enforces single-field wrappers that forward
@@ -183,12 +176,15 @@ assert_eq!(wrapped.to_string(), "I/O failed: disk offline");
   placeholder, making it easy to branch on the requested rendering behaviour
   without manually matching every enum variant.
 
-#### `#[derive(Masterror)]` and `#[masterror(...)]`
+</details>
 
-`#[derive(Masterror)]` wires a domain error directly into [`masterror::Error`],
-augmenting it with metadata, redaction policy and optional transport mappings.
-The accompanying `#[masterror(...)]` attribute mirrors the `#[app_error]`
-syntax while remaining explicit about telemetry:
+<details>
+  <summary><b>Attach telemetry, redaction policy and conversions</b></summary>
+
+`#[derive(Masterror)]` wires a domain error into [`masterror::Error`], adds
+metadata, redaction policy and optional transport mappings. The accompanying
+`#[masterror(...)]` attribute mirrors the `#[app_error]` syntax while staying
+explicit about telemetry and redaction.
 
 ~~~rust
 use masterror::{
@@ -255,103 +251,10 @@ All familiar field-level attributes (`#[from]`, `#[source]`, `#[backtrace]`)
 are still honoured. Sources and backtraces are automatically attached to the
 generated [`masterror::Error`].
 
-#### Display shorthand projections
+</details>
 
-`#[error("...")]` supports the same shorthand syntax as `thiserror` for
-referencing fields with `.field` or `.0`. The derive now understands chained
-segments, so projections like `.limits.lo`, `.0.data` or
-`.suggestion.as_ref().map_or_else(...)` keep compiling unchanged. Raw
-identifiers and tuple indices are preserved, ensuring keywords such as
-`r#type` and tuple fields continue to work even when you call methods on the
-projected value.
-
-~~~rust
-use masterror::Error;
-
-#[derive(Debug)]
-struct Limits {
-    lo: i32,
-    hi: i32,
-}
-
-#[derive(Debug, Error)]
-#[error(
-    "range {lo}-{hi} suggestion {suggestion}",
-    lo = .limits.lo,
-    hi = .limits.hi,
-    suggestion = .suggestion.as_ref().map_or_else(|| "<none>", |s| s.as_str())
-)]
-struct RangeError {
-    limits: Limits,
-    suggestion: Option<String>,
-}
-
-#[derive(Debug)]
-struct Payload {
-    data: &'static str,
-}
-
-#[derive(Debug, Error)]
-enum UiError {
-    #[error("tuple data {data}", data = .0.data)]
-    Tuple(Payload),
-    #[error(
-        "named suggestion {value}",
-        value = .suggestion.as_ref().map_or_else(|| "<none>", |s| s.as_str())
-    )]
-    Named { suggestion: Option<String> },
-}
-~~~
-
-#### AppError conversions
-
-Annotating structs or enum variants with `#[app_error(...)]` captures the
-metadata required to convert the domain error into `AppError` (and optionally
-`AppCode`). Every variant in an enum must provide the mapping when any variant
-requests it.
-
-~~~rust
-use masterror::{AppCode, AppError, AppErrorKind, Error};
-
-#[derive(Debug, Error)]
-#[error("missing flag: {name}")]
-#[app_error(kind = AppErrorKind::BadRequest, code = AppCode::BadRequest, message)]
-struct MissingFlag {
-    name: &'static str,
-}
-
-let app: AppError = MissingFlag { name: "feature" }.into();
-assert!(matches!(app.kind, AppErrorKind::BadRequest));
-assert_eq!(app.message.as_deref(), Some("missing flag: feature"));
-
-let code: AppCode = MissingFlag { name: "feature" }.into();
-assert!(matches!(code, AppCode::BadRequest));
-~~~
-
-For enums, each variant specifies the mapping while the derive generates a
-single `From<Enum>` implementation that matches every variant:
-
-~~~rust
-#[derive(Debug, Error)]
-enum ApiError {
-    #[error("missing resource {id}")]
-    #[app_error(
-        kind = AppErrorKind::NotFound,
-        code = AppCode::NotFound,
-        message
-    )]
-    Missing { id: u64 },
-    #[error("backend unavailable")]
-    #[app_error(kind = AppErrorKind::Service, code = AppCode::Service)]
-    Backend,
-}
-
-let missing = ApiError::Missing { id: 7 };
-let as_app: AppError = missing.into();
-assert_eq!(as_app.message.as_deref(), Some("missing resource 7"));
-~~~
-
-#### Structured telemetry providers and AppError mappings
+<details>
+  <summary><b>Structured telemetry providers and AppError mappings</b></summary>
 
 `#[provide(...)]` exposes typed context through `std::error::Request`, while
 `#[app_error(...)]` records how your domain error translates into `AppError`
@@ -452,173 +355,12 @@ assert!(matches!(app.kind, AppErrorKind::Service));
 
 Compared to `thiserror`, you retain the familiar deriving surface while gaining
 structured telemetry (`#[provide]`) and first-class conversions into
-`AppError`/`AppCode` without writing manual `From` implementations.
-
-#### Formatter traits
-
-Placeholders default to `Display` (`{value}`) but can opt into richer
-formatters via the same specifiers supported by `thiserror` v2.
-`TemplateFormatter::is_alternate()` tracks the `#` flag, while
-`TemplateFormatterKind` exposes the underlying `core::fmt` trait so derived
-code can branch on the requested renderer without manual pattern matching.
-Unsupported formatters surface a compile error that mirrors `thiserror`'s
-diagnostics.
-
-| Specifier        | `core::fmt` trait          | Example output         | Notes |
-|------------------|----------------------------|------------------------|-------|
-| _default_        | `core::fmt::Display`       | `value`                | User-facing strings; `#` has no effect. |
-| `:?` / `:#?`     | `core::fmt::Debug`         | `Struct { .. }` / multi-line | Mirrors `Debug`; `#` pretty-prints structs. |
-| `:x` / `:#x`     | `core::fmt::LowerHex`      | `0x2a`                 | Hexadecimal; `#` prepends `0x`. |
-| `:X` / `:#X`     | `core::fmt::UpperHex`      | `0x2A`                 | Uppercase hex; `#` prepends `0x`. |
-| `:p` / `:#p`     | `core::fmt::Pointer`       | `0x1f00` / `0x1f00`    | Raw pointers; `#` is accepted for compatibility. |
-| `:b` / `:#b`     | `core::fmt::Binary`        | `101010` / `0b101010` | Binary; `#` prepends `0b`. |
-| `:o` / `:#o`     | `core::fmt::Octal`         | `52` / `0o52`         | Octal; `#` prepends `0o`. |
-| `:e` / `:#e`     | `core::fmt::LowerExp`      | `1.5e-2`              | Scientific notation; `#` forces the decimal point. |
-| `:E` / `:#E`     | `core::fmt::UpperExp`      | `1.5E-2`              | Uppercase scientific; `#` forces the decimal point. |
-
-- `TemplateFormatterKind::supports_alternate()` reports whether the `#` flag is
-  meaningful for the requested trait (pointer accepts it even though the output
-  matches the non-alternate form).
-- `TemplateFormatterKind::specifier()` returns the canonical format specifier
-  character when one exists, enabling custom derives to re-render placeholders
-  in their original style.
-- `TemplateFormatter::from_kind(kind, alternate)` reconstructs a formatter from
-  the lightweight `TemplateFormatterKind`, making it easy to toggle the
-  alternate flag in generated code.
-
-~~~rust
-use core::ptr;
-
-use masterror::Error;
-
-#[derive(Debug, Error)]
-#[error(
-    "debug={payload:?}, hex={id:#x}, ptr={ptr:p}, bin={mask:#b}, \
-     oct={mask:o}, lower={ratio:e}, upper={ratio:E}"
-)]
-struct FormattedError {
-    id: u32,
-    payload: String,
-    ptr: *const u8,
-    mask: u8,
-    ratio: f32,
-}
-
-let err = FormattedError {
-    id: 0x2a,
-    payload: "hello".into(),
-    ptr: ptr::null(),
-    mask: 0b1010_0001,
-    ratio: 0.15625,
-};
-
-let rendered = err.to_string();
-assert!(rendered.contains("debug=\"hello\""));
-assert!(rendered.contains("hex=0x2a"));
-assert!(rendered.contains("ptr=0x0"));
-assert!(rendered.contains("bin=0b10100001"));
-assert!(rendered.contains("oct=241"));
-assert!(rendered.contains("lower=1.5625e-1"));
-assert!(rendered.contains("upper=1.5625E-1"));
-~~~
-
-~~~rust
-use masterror::error::template::{
-    ErrorTemplate, TemplateFormatter, TemplateFormatterKind
-};
-
-let template = ErrorTemplate::parse("{code:#x} → {payload:?}").expect("parse");
-let mut placeholders = template.placeholders();
-
-let code = placeholders.next().expect("code placeholder");
-let code_formatter = code.formatter();
-assert!(matches!(
-    code_formatter,
-    TemplateFormatter::LowerHex { alternate: true }
-));
-let code_kind = code_formatter.kind();
-assert_eq!(code_kind, TemplateFormatterKind::LowerHex);
-assert!(code_formatter.is_alternate());
-assert_eq!(code_kind.specifier(), Some('x'));
-assert!(code_kind.supports_alternate());
-let lowered = TemplateFormatter::from_kind(code_kind, false);
-assert!(matches!(
-    lowered,
-    TemplateFormatter::LowerHex { alternate: false }
-));
-
-let payload = placeholders.next().expect("payload placeholder");
-let payload_formatter = payload.formatter();
-assert_eq!(
-    payload_formatter,
-    &TemplateFormatter::Debug { alternate: false }
-);
-let payload_kind = payload_formatter.kind();
-assert_eq!(payload_kind, TemplateFormatterKind::Debug);
-assert_eq!(payload_kind.specifier(), Some('?'));
-assert!(payload_kind.supports_alternate());
-let pretty_debug = TemplateFormatter::from_kind(payload_kind, true);
-assert!(matches!(
-    pretty_debug,
-    TemplateFormatter::Debug { alternate: true }
-));
-assert!(pretty_debug.is_alternate());
-~~~
-
-Display-only format specs (alignment, precision, fill — including `#` as a fill
-character) are preserved so you can forward them to `write!` without rebuilding
-the fragment:
-
-~~~rust
-use masterror::error::template::ErrorTemplate;
-
-let aligned = ErrorTemplate::parse("{value:>8}").expect("parse");
-let display = aligned.placeholders().next().expect("display placeholder");
-assert_eq!(display.formatter().display_spec(), Some(">8"));
-assert_eq!(
-    display
-        .formatter()
-        .format_fragment()
-        .as_deref(),
-    Some(">8")
-);
-
-let hashed = ErrorTemplate::parse("{value:#>4}").expect("parse");
-let hash_placeholder = hashed
-    .placeholders()
-    .next()
-    .expect("hash-fill display placeholder");
-assert_eq!(hash_placeholder.formatter().display_spec(), Some("#>4"));
-assert_eq!(
-    hash_placeholder
-        .formatter()
-        .format_fragment()
-        .as_deref(),
-    Some("#>4")
-);
-~~~
-
-> **Compatibility with `thiserror` v2:** the derive understands the extended
-> formatter set introduced in `thiserror` 2.x and reports identical diagnostics
-> for unsupported specifiers, so migrating existing derives is drop-in.
-
-```rust
-use masterror::error::template::{ErrorTemplate, TemplateIdentifier};
-
-let template = ErrorTemplate::parse("{code}: {message}").expect("parse");
-let display = template.display_with(|placeholder, f| match placeholder.identifier() {
-    TemplateIdentifier::Named("code") => write!(f, "{}", 404),
-    TemplateIdentifier::Named("message") => f.write_str("Not Found"),
-    _ => Ok(()),
-});
-
-assert_eq!(display.to_string(), "404: Not Found");
-```
+`AppError`/`AppCode` without manual glue.
 
 </details>
 
 <details>
-  <summary><b>Error response payload</b></summary>
+  <summary><b>Problem JSON payloads and retry/authentication hints</b></summary>
 
 ~~~rust
 use masterror::{AppError, AppErrorKind, ProblemJson};
@@ -636,7 +378,6 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 ~~~
 
 </details>
-
 <details>
   <summary><b>Web framework integrations</b></summary>
 
@@ -775,34 +516,12 @@ assert_eq!(app.kind, AppErrorKind::RateLimited);
 <details>
   <summary><b>Versioning & MSRV</b></summary>
 
-Semantic versioning. Breaking API/wire contract → major bump.
-MSRV = 1.90 (may raise in minor, never in patch).
+- Explore the [error-handling wiki](docs/wiki/index.md) for step-by-step guides,
+  comparisons with `thiserror`/`anyhow`, and troubleshooting recipes.
+- Browse the [crate documentation on docs.rs](https://docs.rs/masterror) for API
+  details, feature-specific guides and transport tables.
+- Check [`CHANGELOG.md`](CHANGELOG.md) for release highlights and migration notes.
 
-</details>
+---
 
-<details>
-  <summary><b>Release checklist</b></summary>
-
-1. `cargo +nightly fmt --`
-1. `cargo clippy -- -D warnings`
-1. `cargo test --all`
-1. `cargo build` (regenerates README.md from the template)
-1. `cargo doc --no-deps`
-1. `cargo package --locked`
-
-</details>
-
-<details>
-  <summary><b>Non-goals</b></summary>
-
-- Not a general-purpose error aggregator like `anyhow`
-- Not a replacement for your domain errors
-
-</details>
-
-<details>
-  <summary><b>License</b></summary>
-
-Apache-2.0 OR MIT, at your option.
-
-</details>
+MSRV: **1.90** · License: **MIT OR Apache-2.0** · No `unsafe`

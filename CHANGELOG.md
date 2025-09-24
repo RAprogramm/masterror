@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 
 ## [0.20.5] - 2025-10-05
 
+### Changed
+- Rewrote the English and Russian READMEs to reflect the matured workspace, feature flags, telemetry flows and transport integrations introduced across the 0.20 releases.
 ### Fixed
 - Promoted the gRPC converter to an infallible `From<Error>` implementation
   while retaining the `TryFrom` API via the new documented
