@@ -67,6 +67,8 @@ mod context;
 mod core;
 mod metadata;
 
+#[cfg(all(test, feature = "backtrace"))]
+pub(crate) use core::reset_backtrace_preference;
 pub use core::{AppError, AppResult, Error, MessageEditPolicy};
 
 pub use context::Context;

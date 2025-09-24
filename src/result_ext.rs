@@ -51,13 +51,20 @@ mod tests {
         fmt::{Display, Formatter, Result as FmtResult},
         sync::Arc
     };
+    #[cfg(feature = "backtrace")]
+    use std::{env, sync::Mutex};
 
     use super::ResultExt;
+    #[cfg(feature = "backtrace")]
+    use crate::app_error::reset_backtrace_preference;
     use crate::{
         AppCode, AppErrorKind,
         app_error::{Context, FieldValue, MessageEditPolicy},
         field
     };
+
+    #[cfg(feature = "backtrace")]
+    static BACKTRACE_ENV_GUARD: Mutex<()> = Mutex::new(());
 
     #[derive(Debug)]
     struct DummyError;
@@ -69,6 +76,23 @@ mod tests {
     }
 
     impl StdError for DummyError {}
+
+    #[derive(Debug)]
+    struct LayeredError {
+        inner: DummyError
+    }
+
+    impl Display for LayeredError {
+        fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+            Display::fmt(&self.inner, f)
+        }
+    }
+
+    impl StdError for LayeredError {
+        fn source(&self) -> Option<&(dyn StdError + 'static)> {
+            Some(&self.inner)
+        }
+    }
 
     #[test]
     fn ctx_preserves_ok() {
@@ -104,6 +128,20 @@ mod tests {
         assert_eq!(caller_file, &FieldValue::Str(Cow::Borrowed(file!())));
         assert!(metadata.get("caller.line").is_some());
         assert!(metadata.get("caller.column").is_some());
+    }
+
+    #[test]
+    fn ctx_preserves_error_chain() {
+        let err = Result::<(), LayeredError>::Err(LayeredError {
+            inner: DummyError
+        })
+        .ctx(|| Context::new(AppErrorKind::Internal))
+        .expect_err("err");
+
+        let mut source = StdError::source(&err).expect("layered source");
+        assert!(source.is::<LayeredError>());
+        source = source.source().expect("inner source");
+        assert!(source.is::<DummyError>());
     }
 
     #[derive(Debug, Clone)]
@@ -148,5 +186,36 @@ mod tests {
             .and_then(|src| src.downcast_ref::<SharedError>())
             .expect("shared source");
         assert!(Arc::ptr_eq(&stored.0, &inner));
+    }
+
+    #[cfg(feature = "backtrace")]
+    fn with_backtrace_env(value: Option<&str>, test: impl FnOnce()) {
+        let _guard = BACKTRACE_ENV_GUARD.lock().expect("env guard");
+        reset_backtrace_preference();
+        match value {
+            Some(value) => env::set_var("RUST_BACKTRACE", value),
+            None => env::remove_var("RUST_BACKTRACE")
+        }
+        test();
+        env::remove_var("RUST_BACKTRACE");
+        reset_backtrace_preference();
+    }
+
+    #[cfg(feature = "backtrace")]
+    #[test]
+    fn ctx_respects_backtrace_environment() {
+        with_backtrace_env(Some("0"), || {
+            let err = Result::<(), DummyError>::Err(DummyError)
+                .ctx(|| Context::new(AppErrorKind::Internal))
+                .expect_err("err");
+            assert!(err.backtrace().is_none());
+        });
+
+        with_backtrace_env(Some("1"), || {
+            let err = Result::<(), DummyError>::Err(DummyError)
+                .ctx(|| Context::new(AppErrorKind::Internal))
+                .expect_err("err");
+            assert!(err.backtrace().is_some());
+        });
     }
 }
