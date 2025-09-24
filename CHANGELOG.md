@@ -3,6 +3,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.20.7] - 2025-10-07
+
+### Fixed
+- Replaced the remaining fallible `Status::try_from` conversions in the Tonic
+  adapter tests with the infallible `Status::from` API so Clippy's
+  `unnecessary_fallible_conversions` lint passes under `-D warnings`.
+
 ## [0.20.6] - 2025-10-06
 
 ### Fixed

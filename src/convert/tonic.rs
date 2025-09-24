@@ -167,7 +167,7 @@ mod tests {
     fn status_maps_codes_correctly() {
         for (code, mapping) in CODE_MAPPINGS.iter() {
             let err = AppError::with(mapping.kind(), format!("{:?}", code));
-            let status = Status::try_from(err).expect("status");
+            let status = Status::from(err);
             assert_eq!(status.code(), Code::from_i32(mapping.grpc().value));
             let expected_detail = format!("{:?}", code);
             assert_eq!(
@@ -184,7 +184,7 @@ mod tests {
         let err = AppError::internal("secret")
             .redactable()
             .with_field(field::str("request_id", "abc"));
-        let status = Status::try_from(err).expect("status");
+        let status = Status::from(err);
         assert_eq!(status.message(), AppErrorKind::Internal.to_string());
         assert!(status.metadata().get("request_id").is_none());
     }
@@ -194,7 +194,7 @@ mod tests {
         let err = AppError::service("downstream")
             .with_field(field::str("request_id", "abc"))
             .with_field(field::u64("attempt", 2));
-        let status = Status::try_from(err).expect("status");
+        let status = Status::from(err);
         assert_eq!(
             status
                 .metadata()

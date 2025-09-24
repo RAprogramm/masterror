@@ -540,6 +540,6 @@ fn result_alias_is_generic() {
     let default_result: super::AppResult<u8> = Ok(1);
     let custom_result: super::AppResult<u8, &'static str> = Ok(2);
 
-    assert_eq!(default_result.unwrap(), 1);
-    assert_eq!(custom_result.unwrap(), 2);
+    assert!(matches!(default_result, Ok(value) if value == 1));
+    assert!(matches!(custom_result, Ok(value) if value == 2));
 }
