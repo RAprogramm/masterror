@@ -133,7 +133,7 @@ mod tests {
         );
         assert_eq!(
             metadata.get("serde_json.position"),
-            Some(&FieldValue::Str("1:1".into()))
+            Some(&FieldValue::Str("1:2".into()))
         );
     }
 }

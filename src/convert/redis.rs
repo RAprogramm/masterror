@@ -33,7 +33,7 @@
 //! ```
 
 #[cfg(feature = "redis")]
-use redis::{RedisError, RetryMethod};
+use redis::{ErrorKind, RedisError, RetryMethod};
 
 #[cfg(feature = "redis")]
 use crate::{AppErrorKind, Context, Error, field};
@@ -84,6 +84,7 @@ fn build_context(err: &RedisError) -> (Context, Option<u64>) {
         || err.is_connection_dropped()
         || err.is_cluster_error()
         || err.is_io_error()
+        || matches!(err.kind(), ErrorKind::BusyLoadingError)
     {
         context = context.category(AppErrorKind::DependencyUnavailable);
     }
