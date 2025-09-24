@@ -1,4 +1,4 @@
-#[cfg(feature = "backtrace")]
+#[cfg(any(feature = "backtrace", feature = "tracing"))]
 use std::sync::Mutex;
 use std::{borrow::Cow, error::Error as StdError, fmt::Display, sync::Arc};
 
@@ -7,6 +7,9 @@ use super::core::{reset_backtrace_preference, set_backtrace_preference_override}
 
 #[cfg(feature = "backtrace")]
 static BACKTRACE_ENV_GUARD: Mutex<()> = Mutex::new(());
+
+#[cfg(feature = "tracing")]
+static TELEMETRY_GUARD: Mutex<()> = Mutex::new(());
 
 use super::{AppError, FieldRedaction, FieldValue, MessageEditPolicy, field};
 use crate::{AppCode, AppErrorKind};
@@ -314,6 +317,8 @@ fn log_uses_kind_and_code() {
 #[cfg(feature = "tracing")]
 #[test]
 fn telemetry_emits_single_tracing_event_with_trace_id() {
+    let _guard = TELEMETRY_GUARD.lock().expect("telemetry guard");
+
     use std::{
         fmt,
         sync::{Arc, Mutex}
