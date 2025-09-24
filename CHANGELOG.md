@@ -3,6 +3,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.20.2] - 2025-10-02
+
+### Fixed
+- Restored compatibility with Rust 1.89 by updating gRPC, Redis, SQLx and
+  serde_json integrations to avoid deprecated APIs, unsafe environment
+  mutations and Debug requirements that no longer hold.
+- Added deterministic backtrace preference overrides for unit tests so
+  telemetry behavior remains covered without mutating global environment
+  variables.
+- Ensured config error mapping gracefully handles new non-exhaustive variants
+  by falling back to a generic context that captures the formatted error.
+
 ## [0.20.1] - 2025-10-01
 
 ### Changed

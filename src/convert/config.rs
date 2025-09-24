@@ -88,6 +88,9 @@ fn build_context(error: &ConfigError) -> Context {
         ConfigError::Foreign(_) => {
             Context::new(AppErrorKind::Config).with(field::str("config.phase", "foreign"))
         }
+        other => Context::new(AppErrorKind::Config)
+            .with(field::str("config.phase", "unclassified"))
+            .with(field::str("config.debug", other.to_string()))
     }
 }
 

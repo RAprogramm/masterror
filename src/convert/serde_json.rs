@@ -31,6 +31,9 @@
 //! ```
 
 #[cfg(feature = "serde_json")]
+use std::convert::TryFrom;
+
+#[cfg(feature = "serde_json")]
 use serde_json::{Error as SjError, error::Category};
 
 #[cfg(feature = "serde_json")]
@@ -62,11 +65,19 @@ fn build_context(err: &SjError) -> Context {
 
     let line = err.line();
     if line != 0 {
-        context = context.with(field::u64("serde_json.line", u64::from(line)));
+        let value = match u64::try_from(line) {
+            Ok(converted) => converted,
+            Err(_) => u64::MAX
+        };
+        context = context.with(field::u64("serde_json.line", value));
     }
     let column = err.column();
     if column != 0 {
-        context = context.with(field::u64("serde_json.column", u64::from(column)));
+        let value = match u64::try_from(column) {
+            Ok(converted) => converted,
+            Err(_) => u64::MAX
+        };
+        context = context.with(field::u64("serde_json.column", value));
     }
     if line != 0 && column != 0 {
         context = context.with(field::str(

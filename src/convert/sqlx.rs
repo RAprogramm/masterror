@@ -255,6 +255,11 @@ fn classify_database_error(error: &(dyn DatabaseError + 'static)) -> (Context, O
 
 #[cfg(feature = "sqlx-migrate")]
 fn build_migrate_context(err: &MigrateError) -> Context {
+    if is_invalid_mix(err) {
+        return Context::new(AppErrorKind::Database)
+            .with(field::str("migration.phase", "invalid_mix"));
+    }
+
     match err {
         MigrateError::Execute(inner) => Context::new(AppErrorKind::Database)
             .with(field::str("migration.phase", "execute"))
@@ -285,12 +290,20 @@ fn build_migrate_context(err: &MigrateError) -> Context {
             .with(field::i64("migration.latest", *latest)),
         MigrateError::ForceNotSupported => Context::new(AppErrorKind::Database)
             .with(field::str("migration.phase", "force_not_supported")),
-        MigrateError::InvalidMixReversibleAndSimple => {
-            Context::new(AppErrorKind::Database).with(field::str("migration.phase", "invalid_mix"))
-        }
         MigrateError::Dirty(version) => Context::new(AppErrorKind::Database)
             .with(field::str("migration.phase", "dirty"))
-            .with(field::i64("migration.version", *version))
+            .with(field::i64("migration.version", *version)),
+        _ => Context::new(AppErrorKind::Database)
+            .with(field::str("migration.phase", "unclassified"))
+            .with(field::str("migration.detail", err.to_string()))
+    }
+}
+
+#[cfg(feature = "sqlx-migrate")]
+fn is_invalid_mix(err: &MigrateError) -> bool {
+    #[allow(deprecated)]
+    {
+        matches!(err, MigrateError::InvalidMixReversibleAndSimple)
     }
 }
 
@@ -402,7 +415,13 @@ mod tests_sqlx {
         }
 
         fn kind(&self) -> SqlxErrorKind {
-            self.kind
+            match self.kind {
+                SqlxErrorKind::UniqueViolation => SqlxErrorKind::UniqueViolation,
+                SqlxErrorKind::ForeignKeyViolation => SqlxErrorKind::ForeignKeyViolation,
+                SqlxErrorKind::NotNullViolation => SqlxErrorKind::NotNullViolation,
+                SqlxErrorKind::CheckViolation => SqlxErrorKind::CheckViolation,
+                SqlxErrorKind::Other => SqlxErrorKind::Other
+            }
         }
     }
 }

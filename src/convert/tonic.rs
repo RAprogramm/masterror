@@ -18,9 +18,6 @@
 //! assert_eq!(status.code(), tonic::Code::NotFound);
 //! ```
 
-#![cfg(feature = "tonic")]
-#![cfg_attr(docsrs, doc(cfg(feature = "tonic")))]
-
 use std::{borrow::Cow, convert::Infallible};
 
 use tonic::{
@@ -39,29 +36,19 @@ impl TryFrom<Error> for Status {
     type Error = Infallible;
 
     fn try_from(error: Error) -> Result<Self, Self::Error> {
-        Ok(status_from_error(error))
+        Ok(status_from_error(&error))
     }
 }
 
-fn status_from_error(error: Error) -> Status {
+fn status_from_error(error: &Error) -> Status {
     error.emit_telemetry();
-    let Error {
-        code,
-        kind,
-        message,
-        metadata,
-        edit_policy,
-        retry,
-        www_authenticate,
-        ..
-    } = error;
 
-    let mapping = mapping_for_code(code);
+    let mapping = mapping_for_code(error.code);
     let grpc_code = Code::from_i32(mapping.grpc().value);
-    let detail = sanitize_detail(message, kind, edit_policy);
+    let detail = sanitize_detail(error.message.as_ref(), error.kind, error.edit_policy);
     let mut meta = MetadataMap::new();
 
-    insert_ascii(&mut meta, "app-code", code.as_str());
+    insert_ascii(&mut meta, "app-code", error.code.as_str());
     insert_ascii(
         &mut meta,
         "app-http-status",
@@ -69,24 +56,24 @@ fn status_from_error(error: Error) -> Status {
     );
     insert_ascii(&mut meta, "app-problem-type", mapping.problem_type());
 
-    if let Some(advice) = retry {
+    if let Some(advice) = error.retry {
         insert_retry(&mut meta, advice);
     }
-    if let Some(challenge) = www_authenticate {
-        if is_ascii_metadata_value(&challenge) {
+    if let Some(challenge) = error.www_authenticate.as_deref() {
+        if is_ascii_metadata_value(challenge) {
             insert_ascii(&mut meta, "www-authenticate", challenge);
         }
     }
 
-    if !matches!(edit_policy, MessageEditPolicy::Redact) {
-        attach_metadata(&mut meta, metadata);
+    if !matches!(error.edit_policy, MessageEditPolicy::Redact) {
+        attach_metadata(&mut meta, error.metadata());
     }
 
     Status::with_metadata(grpc_code, detail, meta)
 }
 
 fn sanitize_detail(
-    message: Option<Cow<'static, str>>,
+    message: Option<&Cow<'static, str>>,
     kind: AppErrorKind,
     policy: MessageEditPolicy
 ) -> String {
@@ -94,16 +81,15 @@ fn sanitize_detail(
         return kind.to_string();
     }
 
-    message.map_or_else(|| kind.to_string(), Cow::into_owned)
+    message.map_or_else(|| kind.to_string(), |msg| msg.as_ref().to_owned())
 }
 
 fn insert_retry(meta: &mut MetadataMap, retry: RetryAdvice) {
     insert_ascii(meta, "retry-after", retry.after_seconds.to_string());
 }
 
-fn attach_metadata(meta: &mut MetadataMap, metadata: Metadata) {
-    for field in metadata {
-        let (name, value, redaction) = field.into_parts();
+fn attach_metadata(meta: &mut MetadataMap, metadata: &Metadata) {
+    for (name, value, redaction) in metadata.iter_with_redaction() {
         if !matches!(redaction, FieldRedaction::None) {
             continue;
         }
@@ -124,21 +110,23 @@ fn insert_ascii(meta: &mut MetadataMap, key: &'static str, value: impl AsRef<str
     if !is_ascii_metadata_value(value) {
         return;
     }
-    if let Ok(metadata_value) = MetadataValue::try_from(value) {
+    if let Ok(metadata_value) = MetadataValue::try_from(value.as_ref()) {
         let _ = meta.insert(key, metadata_value);
     }
 }
 
-fn metadata_value_to_ascii(value: FieldValue) -> Option<String> {
+fn metadata_value_to_ascii(value: &FieldValue) -> Option<Cow<'_, str>> {
     match value {
         FieldValue::Str(value) => {
-            let owned = value.into_owned();
-            is_ascii_metadata_value(&owned).then_some(owned)
+            let text = value.as_ref();
+            is_ascii_metadata_value(text).then(|| Cow::Borrowed(text))
         }
-        FieldValue::I64(value) => Some(value.to_string()),
-        FieldValue::U64(value) => Some(value.to_string()),
-        FieldValue::Bool(value) => Some(if value { "true" } else { "false" }.to_string()),
-        FieldValue::Uuid(value) => Some(value.to_string())
+        FieldValue::I64(value) => Some(Cow::Owned(value.to_string())),
+        FieldValue::U64(value) => Some(Cow::Owned(value.to_string())),
+        FieldValue::Bool(value) => Some(Cow::Owned(
+            if *value { "true" } else { "false" }.to_string()
+        )),
+        FieldValue::Uuid(value) => Some(Cow::Owned(value.to_string()))
     }
 }
 

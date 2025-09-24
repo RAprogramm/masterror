@@ -67,9 +67,9 @@ mod context;
 mod core;
 mod metadata;
 
-#[cfg(all(test, feature = "backtrace"))]
-pub(crate) use core::reset_backtrace_preference;
 pub use core::{AppError, AppResult, Error, MessageEditPolicy};
+#[cfg(all(test, feature = "backtrace"))]
+pub(crate) use core::{reset_backtrace_preference, set_backtrace_preference_override};
 
 pub use context::Context;
 pub use metadata::{Field, FieldRedaction, FieldValue, Metadata, field};

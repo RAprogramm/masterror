@@ -95,6 +95,11 @@ fn should_capture_backtrace() -> bool {
 
 #[cfg(feature = "backtrace")]
 fn detect_backtrace_preference() -> bool {
+    #[cfg(all(test, feature = "backtrace"))]
+    if let Some(value) = test_backtrace_override::get() {
+        return value;
+    }
+
     match env::var_os("RUST_BACKTRACE") {
         None => false,
         Some(value) => {
@@ -112,6 +117,40 @@ fn detect_backtrace_preference() -> bool {
 #[cfg(all(test, feature = "backtrace"))]
 pub(crate) fn reset_backtrace_preference() {
     BACKTRACE_STATE.store(BACKTRACE_STATE_UNSET, AtomicOrdering::Release);
+    test_backtrace_override::set(None);
+}
+
+#[cfg(all(test, feature = "backtrace"))]
+pub(crate) fn set_backtrace_preference_override(value: Option<bool>) {
+    test_backtrace_override::set(value);
+}
+
+#[cfg(all(test, feature = "backtrace"))]
+mod test_backtrace_override {
+    use std::sync::atomic::{AtomicI8, Ordering};
+
+    const OVERRIDE_UNSET: i8 = -1;
+    const OVERRIDE_DISABLED: i8 = 0;
+    const OVERRIDE_ENABLED: i8 = 1;
+
+    static OVERRIDE_STATE: AtomicI8 = AtomicI8::new(OVERRIDE_UNSET);
+
+    pub(super) fn set(value: Option<bool>) {
+        let state = match value {
+            Some(true) => OVERRIDE_ENABLED,
+            Some(false) => OVERRIDE_DISABLED,
+            None => OVERRIDE_UNSET
+        };
+        OVERRIDE_STATE.store(state, Ordering::Release);
+    }
+
+    pub(super) fn get() -> Option<bool> {
+        match OVERRIDE_STATE.load(Ordering::Acquire) {
+            OVERRIDE_ENABLED => Some(true),
+            OVERRIDE_DISABLED => Some(false),
+            _ => None
+        }
+    }
 }
 
 /// Rich application error preserving domain code, taxonomy and metadata.
@@ -150,11 +189,6 @@ impl StdError for Error {
         self.source
             .as_deref()
             .map(|source| source as &(dyn StdError + 'static))
-    }
-
-    #[cfg(feature = "backtrace")]
-    fn backtrace(&self) -> Option<&Backtrace> {
-        self.capture_backtrace()
     }
 }
 

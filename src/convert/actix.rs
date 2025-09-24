@@ -72,13 +72,7 @@
 //! See also: Axum integration in [`convert::axum`].
 
 #[cfg(feature = "actix")]
-use actix_web::{
-    HttpResponse, ResponseError,
-    http::{
-        StatusCode as ActixStatus,
-        header::{RETRY_AFTER, WWW_AUTHENTICATE}
-    }
-};
+use actix_web::{HttpResponse, ResponseError, http::StatusCode as ActixStatus};
 
 #[cfg(feature = "actix")]
 use crate::response::actix_impl::respond_with_problem_json;
