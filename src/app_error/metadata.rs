@@ -1,6 +1,5 @@
-use std::{
-    borrow::Cow,
-    collections::BTreeMap,
+use alloc::{borrow::Cow, collections::BTreeMap, string::String};
+use core::{
     fmt::{Display, Formatter, Result as FmtResult, Write},
     net::IpAddr,
     time::Duration
@@ -354,8 +353,8 @@ impl Metadata {
 
 impl IntoIterator for Metadata {
     type Item = Field;
-    type IntoIter = std::iter::Map<
-        std::collections::btree_map::IntoIter<&'static str, Field>,
+    type IntoIter = core::iter::Map<
+        alloc::collections::btree_map::IntoIter<&'static str, Field>,
         fn((&'static str, Field)) -> Field
     >;
 
@@ -371,7 +370,8 @@ impl IntoIterator for Metadata {
 
 /// Factories for [`Field`] values.
 pub mod field {
-    use std::{borrow::Cow, net::IpAddr, time::Duration};
+    use alloc::borrow::Cow;
+    use core::{net::IpAddr, time::Duration};
 
     #[cfg(feature = "serde_json")]
     use serde_json::Value as JsonValue;
@@ -425,7 +425,7 @@ pub mod field {
     /// Build a duration metadata field.
     ///
     /// ```
-    /// use std::time::Duration;
+    /// use core::time::Duration;
     /// use masterror::{field, FieldValue};
     ///
     /// let (_, value, _) = field::duration("elapsed", Duration::from_millis(1500)).into_parts();
@@ -439,7 +439,7 @@ pub mod field {
     /// Build an IP address metadata field.
     ///
     /// ```
-    /// use std::net::{IpAddr, Ipv4Addr};
+    /// use core::net::{IpAddr, Ipv4Addr};
     /// use masterror::{field, FieldValue};
     ///
     /// let (_, value, _) = field::ip("peer", IpAddr::from(Ipv4Addr::LOCALHOST)).into_parts();

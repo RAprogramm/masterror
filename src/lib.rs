@@ -1,3 +1,14 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+#![forbid(unsafe_code)]
+#![deny(rustdoc::broken_intra_doc_links)]
+#![warn(
+    missing_docs,
+    missing_debug_implementations,
+    rust_2018_idioms,
+    clippy::all
+)]
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+
 //! Framework-agnostic application error types for backend services.
 //!
 //! # Overview
@@ -315,16 +326,7 @@
 //!
 //! at your option.
 
-#![forbid(unsafe_code)]
-#![deny(rustdoc::broken_intra_doc_links)]
-#![warn(
-    missing_docs,
-    missing_debug_implementations,
-    rust_2018_idioms,
-    clippy::all
-)]
-// Show feature-gated items on docs.rs
-#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+extern crate alloc;
 
 mod app_error;
 mod code;

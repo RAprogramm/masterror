@@ -1,4 +1,4 @@
-use std::fmt::{self, Debug, Display, Formatter};
+use core::fmt::{self, Debug, Display, Formatter};
 
 use super::{core::ErrorResponse, problem_json::ProblemJson};
 

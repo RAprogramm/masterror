@@ -1,5 +1,5 @@
-use std::{
-    error::Error as StdError,
+use core::{
+    error::Error as CoreError,
     fmt::{self, Display},
     str::FromStr
 };
@@ -23,7 +23,7 @@ impl Display for ParseAppCodeError {
     }
 }
 
-impl StdError for ParseAppCodeError {}
+impl CoreError for ParseAppCodeError {}
 
 /// Stable machine-readable error code exposed to clients.
 ///

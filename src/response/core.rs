@@ -99,3 +99,4 @@ impl ErrorResponse {
         crate::response::internal::ErrorResponseFormatter::new(self)
     }
 }
+use alloc::{format, string::String};
