@@ -74,14 +74,15 @@ The build script keeps the full feature snippet below in sync with
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.21.2", default-features = false }
+masterror = { version = "0.22.0", default-features = false }
 # or with features:
-# masterror = { version = "0.21.2", features = [
-#   "axum", "actix", "openapi", "serde_json",
-#   "tracing", "metrics", "backtrace", "sqlx",
-#   "sqlx-migrate", "reqwest", "redis", "validator",
-#   "config", "tokio", "multipart", "teloxide",
-#   "telegram-webapp-sdk", "tonic", "frontend", "turnkey"
+# masterror = { version = "0.22.0", features = [
+#   "std", "axum", "actix", "openapi",
+#   "serde_json", "tracing", "metrics", "backtrace",
+#   "sqlx", "sqlx-migrate", "reqwest", "redis",
+#   "validator", "config", "tokio", "multipart",
+#   "teloxide", "telegram-webapp-sdk", "tonic", "frontend",
+#   "turnkey"
 # ] }
 ~~~
 
@@ -418,4 +419,3 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 ---
 
 MSRV: **1.90** · License: **MIT OR Apache-2.0** · No `unsafe`
-

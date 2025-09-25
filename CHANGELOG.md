@@ -3,6 +3,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.22.0] - 2025-10-11
+
+### Added
+- Introduced an explicit `std` feature (enabled by default) and made the core
+  crate compile in `no_std + alloc` environments, including metadata builders
+  and error helpers.
+
+### Changed
+- Reworked `AppError` internals to rely on `core`/`alloc` primitives and
+  `core::error::Error`, providing `std::error::Error` only when the `std`
+  feature is active.
+- Replaced `thiserror` derives on `AppErrorKind` with manual `Display`/error
+  implementations so the taxonomy remains available without the standard
+  library.
+
 ## [0.21.2] - 2025-10-10
 
 ### Added

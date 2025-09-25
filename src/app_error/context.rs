@@ -1,4 +1,5 @@
-use std::{error::Error as StdError, panic::Location};
+use alloc::vec::Vec;
+use core::{error::Error as CoreError, panic::Location};
 
 use super::{
     core::{AppError, Error, MessageEditPolicy},
@@ -133,7 +134,7 @@ impl Context {
 
     pub(crate) fn into_error<E>(mut self, source: E) -> Error
     where
-        E: StdError + Send + Sync + 'static
+        E: CoreError + Send + Sync + 'static
     {
         if let Some(location) = self.caller_location {
             self.fields.push(Field::new(

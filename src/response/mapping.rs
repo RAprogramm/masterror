@@ -1,4 +1,5 @@
-use std::fmt::{Display, Formatter, Result as FmtResult};
+use alloc::string::ToString;
+use core::fmt::{Display, Formatter, Result as FmtResult};
 
 use super::core::ErrorResponse;
 use crate::AppError;

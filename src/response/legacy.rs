@@ -23,3 +23,4 @@ impl ErrorResponse {
         })
     }
 }
+use alloc::string::String;

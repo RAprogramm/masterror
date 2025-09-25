@@ -1,3 +1,15 @@
+use alloc::{
+    borrow::Cow,
+    boxed::Box,
+    string::{String, ToString},
+    sync::Arc
+};
+use core::{
+    error::Error as CoreError,
+    fmt::{Display, Formatter, Result as FmtResult},
+    ops::{Deref, DerefMut},
+    sync::atomic::{AtomicBool, Ordering}
+};
 #[cfg(feature = "backtrace")]
 use std::{
     backtrace::Backtrace,
@@ -7,22 +19,20 @@ use std::{
         atomic::{AtomicU8, Ordering as AtomicOrdering}
     }
 };
-use std::{
-    borrow::Cow,
-    error::Error as StdError,
-    fmt::{Display, Formatter, Result as FmtResult},
-    ops::{Deref, DerefMut},
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering}
-    }
-};
 
 #[cfg(feature = "tracing")]
 use tracing::{Level, event};
 
 use super::metadata::{Field, FieldRedaction, Metadata};
 use crate::{AppCode, AppErrorKind, RetryAdvice};
+
+#[cfg(feature = "std")]
+pub type CapturedBacktrace = std::backtrace::Backtrace;
+
+#[cfg(not(feature = "std"))]
+#[allow(dead_code)]
+#[derive(Debug)]
+pub enum CapturedBacktrace {}
 
 /// Controls whether the public message may be redacted before exposure.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -51,7 +61,7 @@ pub struct ErrorInner {
     pub retry:              Option<RetryAdvice>,
     /// Optional authentication challenge for `WWW-Authenticate`.
     pub www_authenticate:   Option<String>,
-    pub source:             Option<Arc<dyn StdError + Send + Sync + 'static>>,
+    pub source:             Option<Arc<dyn CoreError + Send + Sync + 'static>>,
     #[cfg(feature = "backtrace")]
     pub backtrace:          Option<Backtrace>,
     #[cfg(feature = "backtrace")]
@@ -184,11 +194,11 @@ impl Display for Error {
     }
 }
 
-impl StdError for Error {
-    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+impl CoreError for Error {
+    fn source(&self) -> Option<&(dyn CoreError + 'static)> {
         self.source
             .as_deref()
-            .map(|source| source as &(dyn StdError + 'static))
+            .map(|source| source as &(dyn CoreError + 'static))
     }
 }
 
@@ -247,7 +257,7 @@ impl Error {
     }
 
     #[cfg(feature = "backtrace")]
-    fn capture_backtrace(&self) -> Option<&std::backtrace::Backtrace> {
+    fn capture_backtrace(&self) -> Option<&CapturedBacktrace> {
         if let Some(backtrace) = self.backtrace.as_ref() {
             return Some(backtrace);
         }
@@ -258,18 +268,18 @@ impl Error {
     }
 
     #[cfg(not(feature = "backtrace"))]
-    fn capture_backtrace(&self) -> Option<&std::backtrace::Backtrace> {
+    fn capture_backtrace(&self) -> Option<&CapturedBacktrace> {
         None
     }
 
     #[cfg(feature = "backtrace")]
-    fn set_backtrace_slot(&mut self, backtrace: std::backtrace::Backtrace) {
+    fn set_backtrace_slot(&mut self, backtrace: CapturedBacktrace) {
         self.backtrace = Some(backtrace);
         self.captured_backtrace = OnceLock::new();
     }
 
     #[cfg(not(feature = "backtrace"))]
-    fn set_backtrace_slot(&mut self, _backtrace: std::backtrace::Backtrace) {}
+    fn set_backtrace_slot(&mut self, _backtrace: CapturedBacktrace) {}
 
     pub(crate) fn emit_telemetry(&self) {
         if self.take_dirty() {
@@ -416,7 +426,7 @@ impl Error {
 
     /// Attach a source error for diagnostics.
     #[must_use]
-    pub fn with_source(mut self, source: impl StdError + Send + Sync + 'static) -> Self {
+    pub fn with_source(mut self, source: impl CoreError + Send + Sync + 'static) -> Self {
         self.source = Some(Arc::new(source));
         self.mark_dirty();
         self
@@ -437,7 +447,7 @@ impl Error {
     /// assert_eq!(Arc::strong_count(&source), 2);
     /// ```
     #[must_use]
-    pub fn with_source_arc(mut self, source: Arc<dyn StdError + Send + Sync + 'static>) -> Self {
+    pub fn with_source_arc(mut self, source: Arc<dyn CoreError + Send + Sync + 'static>) -> Self {
         self.source = Some(source);
         self.mark_dirty();
         self
@@ -445,7 +455,7 @@ impl Error {
 
     /// Attach a captured backtrace.
     #[must_use]
-    pub fn with_backtrace(mut self, backtrace: std::backtrace::Backtrace) -> Self {
+    pub fn with_backtrace(mut self, backtrace: CapturedBacktrace) -> Self {
         self.set_backtrace_slot(backtrace);
         self.mark_dirty();
         self
@@ -460,13 +470,13 @@ impl Error {
     /// Borrow the backtrace, capturing it lazily when the `backtrace` feature
     /// is enabled.
     #[must_use]
-    pub fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
+    pub fn backtrace(&self) -> Option<&CapturedBacktrace> {
         self.capture_backtrace()
     }
 
     /// Borrow the source if present.
     #[must_use]
-    pub fn source_ref(&self) -> Option<&(dyn StdError + Send + Sync + 'static)> {
+    pub fn source_ref(&self) -> Option<&(dyn CoreError + Send + Sync + 'static)> {
         self.source.as_deref()
     }
 

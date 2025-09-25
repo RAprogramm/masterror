@@ -1,4 +1,10 @@
-use std::{borrow::Cow, collections::BTreeMap, fmt::Write, net::IpAddr};
+use alloc::{
+    borrow::Cow,
+    collections::BTreeMap,
+    string::{String, ToString},
+    vec::Vec
+};
+use core::{fmt::Write, net::IpAddr};
 
 use http::StatusCode;
 use serde::Serialize;

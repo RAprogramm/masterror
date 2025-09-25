@@ -74,6 +74,8 @@
 //! assert!(matches!(err.kind, AppErrorKind::BadRequest));
 //! ```
 
+use alloc::string::String;
+#[cfg(feature = "std")]
 use std::io::Error as IoError;
 
 use crate::AppError;
@@ -148,6 +150,7 @@ pub use self::tonic::StatusConversionError;
 /// let app_err: AppError = io_err.into();
 /// assert!(matches!(app_err.kind, AppErrorKind::Internal));
 /// ```
+#[cfg(feature = "std")]
 impl From<IoError> for AppError {
     fn from(err: IoError) -> Self {
         AppError::internal(err.to_string())
