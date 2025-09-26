@@ -1665,13 +1665,14 @@ dependencies = [
 
 [[package]]
 name = "masterror"
-version = "0.23.2"
+version = "0.23.3"
 dependencies = [
  "actix-web",
  "anyhow",
  "axum",
  "config",
  "http 1.3.1",
+ "itoa",
  "js-sys",
  "log",
  "log-mdc",
@@ -1680,6 +1681,7 @@ dependencies = [
  "metrics",
  "redis",
  "reqwest",
+ "ryu",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
