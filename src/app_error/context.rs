@@ -89,9 +89,16 @@ impl Context {
 
     /// Attach a metadata [`Field`].
     #[must_use]
-    pub fn with(mut self, field: Field) -> Self {
+    pub fn with(mut self, mut field: Field) -> Self {
+        if let Some((_, policy)) = self
+            .field_policies
+            .iter()
+            .rev()
+            .find(|(name, _)| *name == field.name())
+        {
+            field.set_redaction(*policy);
+        }
         self.fields.push(field);
-        Self::apply_field_redactions(&mut self.fields, &self.field_policies);
         self
     }
 
