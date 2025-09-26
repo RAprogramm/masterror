@@ -224,6 +224,15 @@
 //! assert_eq!(err.metadata().len(), 2);
 //! ```
 //!
+//! Attach upstream diagnostics without cloning existing `Arc`s:
+//! ```rust
+//! use masterror::AppError;
+//!
+//! let err = AppError::internal("db down")
+//!     .with_context(std::io::Error::new(std::io::ErrorKind::Other, "boom"));
+//! assert!(err.source_ref().is_some());
+//! ```
+//!
 //! [`AppErrorKind`] controls the default HTTP status mapping.  
 //! [`AppCode`] provides a stable machine-readable code for clients.  
 //! Together, they form the wire contract in [`ErrorResponse`].

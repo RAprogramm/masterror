@@ -123,8 +123,9 @@ fn load_configuration(path: &std::path::Path) -> masterror::AppResult<String> {
 ```
 
 `AppError` stores the `anyhow::Error` internally without exposing it to clients.
-You still emit clean JSON responses, while logs retain the full diagnostic
-payload.
+`with_context` reuses any shared `Arc` handles provided by upstream crates, so
+you preserve pointer identity without extra allocations. You still emit clean
+JSON responses, while logs retain the full diagnostic payload.
 
 ## Why choose `masterror`
 

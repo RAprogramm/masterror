@@ -3,6 +3,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.23.1] - 2025-10-13
+
+### Fixed
+- Restored the `AppError::with_context` helper as an alias for `with_source`,
+  preserving the `Arc` fast-path, updating documentation and README templates,
+  and adding regression tests for plain and `anyhow::Error` diagnostics.
+
 ## [0.23.0] - 2025-10-12
 
 ### Added

@@ -1,6 +1,33 @@
 #[cfg(any(feature = "backtrace", feature = "tracing"))]
 use std::sync::Mutex;
-use std::{borrow::Cow, error::Error as StdError, fmt::Display, sync::Arc};
+use std::{
+    borrow::Cow,
+    error::Error as StdError,
+    fmt::{Display, Formatter, Result as FmtResult},
+    io::{Error as IoError, ErrorKind as IoErrorKind},
+    sync::Arc
+};
+
+#[cfg(feature = "std")]
+use anyhow::Error as AnyhowError;
+
+#[cfg(feature = "std")]
+#[derive(Debug)]
+struct AnyhowSource(AnyhowError);
+
+#[cfg(feature = "std")]
+impl Display for AnyhowSource {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        Display::fmt(&self.0, f)
+    }
+}
+
+#[cfg(feature = "std")]
+impl StdError for AnyhowSource {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        self.0.source()
+    }
+}
 
 #[cfg(feature = "backtrace")]
 use super::core::{reset_backtrace_preference, set_backtrace_preference_override};
@@ -117,6 +144,29 @@ fn constructors_match_kinds() {
     );
     assert_err_with_msg(AppError::queue("queue"), AppErrorKind::Queue, "queue");
     assert_err_with_msg(AppError::cache("cache"), AppErrorKind::Cache, "cache");
+}
+
+#[cfg(feature = "std")]
+#[test]
+fn with_context_attaches_plain_source() {
+    let err = AppError::internal("boom").with_context(IoError::from(IoErrorKind::Other));
+
+    let source = err.source_ref().expect("stored source");
+    assert!(source.is::<IoError>());
+    assert_eq!(source.to_string(), IoErrorKind::Other.to_string());
+}
+
+#[cfg(feature = "std")]
+#[test]
+fn with_context_accepts_anyhow_error() {
+    let upstream: AnyhowError = anyhow::anyhow!("context failed");
+    let err = AppError::service("downstream").with_context(AnyhowSource(upstream));
+
+    let source = err.source_ref().expect("stored source");
+    let stored = source
+        .downcast_ref::<AnyhowSource>()
+        .expect("anyhow source");
+    assert_eq!(stored.0.to_string(), "context failed");
 }
 
 #[test]
