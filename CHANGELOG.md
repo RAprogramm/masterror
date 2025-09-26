@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.23.2] - 2025-10-14
+
+### Fixed
+- Removed an unused `String` import from the response details module to keep
+  builds warning-free under `-D warnings`.
+
 ## [0.23.1] - 2025-10-13
 
 ### Fixed
