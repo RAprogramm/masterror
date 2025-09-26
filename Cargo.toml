@@ -31,7 +31,7 @@ include = [
   "masterror-derive/**",
   "masterror-template/**",
   ".cargo/audit.toml",
-  ".cargo/config.toml"
+  ".cargo/config.toml",
 ]
 
 [workspace]
@@ -50,10 +50,7 @@ readme = "README.md"
 
 [features]
 default = ["std"]
-std = [
-  "uuid/std",
-  "serde/std"
-]
+std = ["uuid/std", "serde/std"]
 tracing = ["dep:tracing", "dep:log", "dep:log-mdc", "std"]
 metrics = ["dep:metrics", "std"]
 backtrace = ["std"]
@@ -87,14 +84,19 @@ masterror-derive = { version = "0.9" }
 masterror-template = { workspace = true }
 tracing = { version = "0.1", optional = true, default-features = false, features = [
   "attributes",
-  "std"
+  "std",
 ] }
 log = { version = "0.4", optional = true }
 log-mdc = { version = "0.1", optional = true }
 metrics = { version = "0.24", optional = true }
 
-serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
-serde_json = { version = "1", optional = true, default-features = false, features = ["std"] }
+serde = { version = "1", default-features = false, features = [
+  "derive",
+  "alloc",
+] }
+serde_json = { version = "1", optional = true, default-features = false, features = [
+  "std",
+] }
 http = "1"
 sha2 = "0.10"
 
@@ -126,7 +128,7 @@ wasm-bindgen = { version = "0.2", optional = true }
 js-sys = { version = "0.3", optional = true }
 serde-wasm-bindgen = { version = "0.6", optional = true }
 uuid = { version = "1", default-features = false }
-tonic = { version = "0.12", optional = true }
+tonic = { version = "0.14", optional = true }
 
 [dev-dependencies]
 anyhow = { version = "1", default-features = false, features = ["std"] }

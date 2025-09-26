@@ -63,6 +63,5 @@ impl ErrorResponse {
         Ok(self.with_details_json(details))
     }
 }
-use alloc::string::String;
 #[cfg(feature = "serde_json")]
 use alloc::string::ToString;
