@@ -1,8 +1,7 @@
 use alloc::{
     borrow::Cow,
     collections::BTreeMap,
-    string::{String, ToString},
-    vec::Vec
+    string::{String, ToString}
 };
 use core::{fmt::Write, net::IpAddr};
 
@@ -598,8 +597,8 @@ fn mask_last4_field_value(value: &FieldValue) -> Option<String> {
 }
 
 fn mask_last4(value: &str) -> String {
-    let chars: Vec<char> = value.chars().collect();
-    let total = chars.len();
+    let chars = value.chars();
+    let total = chars.clone().count();
     if total == 0 {
         return String::new();
     }
@@ -607,12 +606,8 @@ fn mask_last4(value: &str) -> String {
     let keep = if total <= 4 { 1 } else { 4 };
     let mask_len = total.saturating_sub(keep);
     let mut masked = String::with_capacity(value.len());
-    for _ in 0..mask_len {
-        masked.push('*');
-    }
-    for ch in chars.iter().skip(mask_len) {
-        masked.push(*ch);
-    }
+    masked.extend(core::iter::repeat_n('*', mask_len));
+    masked.extend(chars.skip(mask_len));
     masked
 }
 
@@ -1075,6 +1070,34 @@ mod tests {
             ProblemMetadataValue::String(text) => {
                 assert!(text.ends_with("1111"));
                 assert!(text.starts_with("************"));
+            }
+            other => panic!("unexpected metadata value: {other:?}")
+        }
+    }
+
+    #[test]
+    fn last4_metadata_handles_multibyte_suffix() {
+        let multibyte = "💳💳💳💳💳💳";
+        let err = AppError::internal("oops").with_field(
+            crate::field::str("emoji", multibyte).with_redaction(FieldRedaction::Last4)
+        );
+        let problem = ProblemJson::from_ref(&err);
+        let metadata = problem.metadata.expect("metadata");
+        let value = metadata.0.get("emoji").expect("emoji field");
+        match value {
+            ProblemMetadataValue::String(text) => {
+                let total = multibyte.chars().count();
+                let keep = if total <= 4 { 1 } else { 4 };
+                let expected_mask_len = total.saturating_sub(keep);
+                let expected_suffix: String = multibyte.chars().skip(expected_mask_len).collect();
+
+                assert!(text.ends_with(&expected_suffix));
+                assert!(text.chars().take(expected_mask_len).all(|c| c == '*'));
+                assert_eq!(
+                    text.chars().filter(|c| *c == '*').count(),
+                    expected_mask_len
+                );
+                assert_eq!(text.chars().count(), multibyte.chars().count());
             }
             other => panic!("unexpected metadata value: {other:?}")
         }
