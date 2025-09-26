@@ -6,6 +6,8 @@ use alloc::{
 use core::{fmt::Write, net::IpAddr};
 
 use http::StatusCode;
+use itoa::Buffer as IntegerBuffer;
+use ryu::Buffer as FloatBuffer;
 use serde::Serialize;
 #[cfg(feature = "serde_json")]
 use serde_json::Value as JsonValue;
@@ -532,17 +534,51 @@ fn sanitize_problem_metadata_value_ref(
     }
 }
 
+struct StackBuffer<const N: usize> {
+    buf: [u8; N],
+    len: usize
+}
+
+impl<const N: usize> StackBuffer<N> {
+    const fn new() -> Self {
+        Self {
+            buf: [0; N],
+            len: 0
+        }
+    }
+
+    fn as_bytes(&self) -> &[u8] {
+        &self.buf[..self.len]
+    }
+
+    fn as_str(&self) -> Option<&str> {
+        core::str::from_utf8(self.as_bytes()).ok()
+    }
+}
+
+impl<const N: usize> Write for StackBuffer<N> {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        let remaining = N.saturating_sub(self.len);
+        if s.len() > remaining {
+            return Err(core::fmt::Error);
+        }
+        self.buf[self.len..self.len + s.len()].copy_from_slice(s.as_bytes());
+        self.len += s.len();
+        Ok(())
+    }
+}
+
 fn hash_field_value(value: &FieldValue) -> String {
     let mut hasher = Sha256::new();
     match value {
         FieldValue::Str(value) => hasher.update(value.as_ref().as_bytes()),
         FieldValue::I64(value) => {
-            let string = value.to_string();
-            hasher.update(string.as_bytes());
+            let mut buffer = IntegerBuffer::new();
+            hasher.update(buffer.format(*value).as_bytes());
         }
         FieldValue::U64(value) => {
-            let string = value.to_string();
-            hasher.update(string.as_bytes());
+            let mut buffer = IntegerBuffer::new();
+            hasher.update(buffer.format(*value).as_bytes());
         }
         FieldValue::F64(value) => hasher.update(value.to_le_bytes()),
         FieldValue::Bool(value) => {
@@ -553,17 +589,25 @@ fn hash_field_value(value: &FieldValue) -> String {
             }
         }
         FieldValue::Uuid(value) => {
-            let string = value.to_string();
-            hasher.update(string.as_bytes());
+            // `Uuid::to_string()` produces a lowercase hyphenated representation; we
+            // keep the same bytes to preserve the hash output that clients rely on.
+            let mut repr = [0u8; 36];
+            let text = value.hyphenated().encode_lower(&mut repr);
+            hasher.update(text.as_bytes());
         }
         FieldValue::Duration(value) => {
             hasher.update(value.as_secs().to_le_bytes());
             hasher.update(value.subsec_nanos().to_le_bytes());
         }
-        FieldValue::Ip(value) => match value {
-            IpAddr::V4(addr) => hasher.update(addr.octets()),
-            IpAddr::V6(addr) => hasher.update(addr.octets())
-        },
+        FieldValue::Ip(value) => {
+            let mut buffer = StackBuffer::<46>::new();
+            if write!(&mut buffer, "{value}").is_ok() {
+                hasher.update(buffer.as_bytes());
+            } else {
+                let fallback = value.to_string();
+                hasher.update(fallback.as_bytes());
+            }
+        }
         #[cfg(feature = "serde_json")]
         FieldValue::Json(value) => {
             if let Ok(serialized) = serde_json::to_vec(value) {
@@ -582,12 +626,31 @@ fn hash_field_value(value: &FieldValue) -> String {
 fn mask_last4_field_value(value: &FieldValue) -> Option<String> {
     match value {
         FieldValue::Str(value) => Some(mask_last4(value.as_ref())),
-        FieldValue::I64(value) => Some(mask_last4(&value.to_string())),
-        FieldValue::U64(value) => Some(mask_last4(&value.to_string())),
-        FieldValue::F64(value) => Some(mask_last4(&value.to_string())),
-        FieldValue::Uuid(value) => Some(mask_last4(&value.to_string())),
+        FieldValue::I64(value) => {
+            let mut buffer = IntegerBuffer::new();
+            Some(mask_last4(buffer.format(*value)))
+        }
+        FieldValue::U64(value) => {
+            let mut buffer = IntegerBuffer::new();
+            Some(mask_last4(buffer.format(*value)))
+        }
+        FieldValue::F64(value) => {
+            let mut buffer = FloatBuffer::new();
+            Some(mask_last4(buffer.format(*value)))
+        }
+        FieldValue::Uuid(value) => {
+            let mut repr = [0u8; 36];
+            let text = value.hyphenated().encode_lower(&mut repr);
+            Some(mask_last4(text))
+        }
         FieldValue::Duration(value) => Some(mask_last4(&duration_to_string(*value))),
-        FieldValue::Ip(value) => Some(mask_last4(&value.to_string())),
+        FieldValue::Ip(value) => {
+            let mut buffer = StackBuffer::<46>::new();
+            if write!(&mut buffer, "{value}").is_err() {
+                return Some(mask_last4(&value.to_string()));
+            }
+            buffer.as_str().map(mask_last4)
+        }
         #[cfg(feature = "serde_json")]
         FieldValue::Json(value) => serde_json::to_string(value)
             .ok()
@@ -959,9 +1022,22 @@ mod tests {
 
     use serde_json::Value;
     use sha2::{Digest, Sha256};
+    use uuid::Uuid;
 
     use super::*;
     use crate::AppError;
+
+    fn sha256_hex(input: &[u8]) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(input);
+        hasher
+            .finalize()
+            .iter()
+            .fold(String::with_capacity(64), |mut acc, byte| {
+                let _ = write!(&mut acc, "{:02x}", byte);
+                acc
+            })
+    }
 
     #[test]
     fn metadata_is_skipped_when_redacted() {
@@ -1060,6 +1136,58 @@ mod tests {
     }
 
     #[test]
+    fn hashed_numeric_metadata_uses_decimal_text() {
+        let err = AppError::internal("oops")
+            .with_field(crate::field::u64("attempt", 42).with_redaction(FieldRedaction::Hash));
+        let problem = ProblemJson::from_ref(&err);
+        let metadata = problem.metadata.expect("metadata");
+        let value = metadata.0.get("attempt").expect("attempt field");
+        match value {
+            ProblemMetadataValue::String(text) => {
+                let expected = sha256_hex(b"42");
+                assert_eq!(text.as_ref(), expected);
+            }
+            other => panic!("unexpected metadata value: {other:?}")
+        }
+    }
+
+    #[test]
+    fn hashed_uuid_metadata_preserves_hyphenated_text() {
+        let uuid = Uuid::from_u128(0x1234_5678_9abc_def0_1234_5678_9abc_def0);
+        let err = AppError::internal("oops")
+            .with_field(crate::field::uuid("trace", uuid).with_redaction(FieldRedaction::Hash));
+        let problem = ProblemJson::from_ref(&err);
+        let metadata = problem.metadata.expect("metadata");
+        let value = metadata.0.get("trace").expect("trace field");
+        match value {
+            ProblemMetadataValue::String(text) => {
+                let mut repr = [0u8; 36];
+                let expected_repr = uuid.hyphenated().encode_lower(&mut repr);
+                let expected = sha256_hex(expected_repr.as_bytes());
+                assert_eq!(text.as_ref(), expected);
+            }
+            other => panic!("unexpected metadata value: {other:?}")
+        }
+    }
+
+    #[test]
+    fn hashed_ip_metadata_preserves_display_text() {
+        let ip = IpAddr::from(Ipv4Addr::new(10, 10, 10, 10));
+        let err = AppError::internal("oops")
+            .with_field(crate::field::ip("peer", ip).with_redaction(FieldRedaction::Hash));
+        let problem = ProblemJson::from_ref(&err);
+        let metadata = problem.metadata.expect("metadata");
+        let value = metadata.0.get("peer").expect("peer field");
+        match value {
+            ProblemMetadataValue::String(text) => {
+                let expected = sha256_hex(ip.to_string().as_bytes());
+                assert_eq!(text.as_ref(), expected);
+            }
+            other => panic!("unexpected metadata value: {other:?}")
+        }
+    }
+
+    #[test]
     fn last4_metadata_preserves_suffix() {
         let err = AppError::internal("oops")
             .with_field(crate::field::str("card_number", "4111111111111111"));
@@ -1098,6 +1226,59 @@ mod tests {
                     expected_mask_len
                 );
                 assert_eq!(text.chars().count(), multibyte.chars().count());
+            }
+            other => panic!("unexpected metadata value: {other:?}")
+        }
+    }
+
+    #[test]
+    fn last4_numeric_metadata_matches_decimal_format() {
+        let number = 123456789u64;
+        let err = AppError::internal("oops").with_field(
+            crate::field::u64("invoice", number).with_redaction(FieldRedaction::Last4)
+        );
+        let problem = ProblemJson::from_ref(&err);
+        let metadata = problem.metadata.expect("metadata");
+        let metadata_value = metadata.0.get("invoice").expect("invoice field");
+        let expected_suffix = mask_last4(&number.to_string());
+        match metadata_value {
+            ProblemMetadataValue::String(text) => {
+                assert_eq!(text.as_ref(), expected_suffix);
+            }
+            other => panic!("unexpected metadata value: {other:?}")
+        }
+    }
+
+    #[test]
+    fn last4_uuid_metadata_matches_previous_format() {
+        let uuid = Uuid::from_u128(0x4321_8765_cba9_0fed_cba9_8765_4321_0fed);
+        let err = AppError::internal("oops")
+            .with_field(crate::field::uuid("trace", uuid).with_redaction(FieldRedaction::Last4));
+        let problem = ProblemJson::from_ref(&err);
+        let metadata = problem.metadata.expect("metadata");
+        let metadata_value = metadata.0.get("trace").expect("trace field");
+        let expected_repr = uuid.to_string();
+        let expected_suffix = mask_last4(&expected_repr);
+        match metadata_value {
+            ProblemMetadataValue::String(text) => {
+                assert_eq!(text.as_ref(), expected_suffix);
+            }
+            other => panic!("unexpected metadata value: {other:?}")
+        }
+    }
+
+    #[test]
+    fn last4_ip_metadata_matches_previous_format() {
+        let ip = IpAddr::from(Ipv4Addr::new(172, 16, 10, 1));
+        let err = AppError::internal("oops")
+            .with_field(crate::field::ip("peer", ip).with_redaction(FieldRedaction::Last4));
+        let problem = ProblemJson::from_ref(&err);
+        let metadata = problem.metadata.expect("metadata");
+        let metadata_value = metadata.0.get("peer").expect("peer field");
+        let expected_suffix = mask_last4(&ip.to_string());
+        match metadata_value {
+            ProblemMetadataValue::String(text) => {
+                assert_eq!(text.as_ref(), expected_suffix);
             }
             other => panic!("unexpected metadata value: {other:?}")
         }

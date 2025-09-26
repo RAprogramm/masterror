@@ -3,6 +3,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.23.3] - 2025-10-15
+
+### Changed
+- Replaced temporary `String` allocations in RFC7807 metadata hashing and masking
+  with stack buffers to keep the textual representations and digests stable
+  while avoiding heap usage.
+
+### Added
+- Regression tests covering hashed and last-four redaction paths for numeric,
+  UUID, and IP metadata to guarantee the legacy formatting remains unchanged.
+
 ## [0.23.2] - 2025-10-14
 
 ### Fixed
