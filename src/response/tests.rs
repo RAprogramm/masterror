@@ -126,6 +126,104 @@ fn details_text_are_attached() {
     assert_eq!(e.details.as_deref(), Some("retry later"));
 }
 
+#[cfg(feature = "serde_json")]
+#[test]
+fn app_error_mappings_propagate_json_details() {
+    use serde_json::json;
+
+    let payload = json!({"hint": "enable"});
+
+    let resp: ErrorResponse = AppError::validation("invalid")
+        .with_details_json(payload.clone())
+        .into();
+    assert_eq!(resp.details, Some(payload.clone()));
+
+    let borrowed = AppError::validation("invalid").with_details_json(payload.clone());
+    let resp_ref: ErrorResponse = (&borrowed).into();
+    assert_eq!(resp_ref.details, Some(payload.clone()));
+
+    let problem_owned = ProblemJson::from_app_error(
+        AppError::validation("invalid").with_details_json(payload.clone())
+    );
+    assert_eq!(problem_owned.details, Some(payload.clone()));
+
+    let problem_ref = ProblemJson::from_ref(&borrowed);
+    assert_eq!(problem_ref.details, Some(payload));
+}
+
+#[cfg(feature = "serde_json")]
+#[test]
+fn redacted_app_error_strips_json_details() {
+    use serde_json::json;
+
+    let resp: ErrorResponse = AppError::internal("boom")
+        .with_details_json(json!({"private": true}))
+        .redactable()
+        .into();
+    assert!(resp.details.is_none());
+
+    let borrowed = AppError::internal("boom")
+        .with_details_json(json!({"private": true}))
+        .redactable();
+    let resp_ref: ErrorResponse = (&borrowed).into();
+    assert!(resp_ref.details.is_none());
+    let problem = ProblemJson::from_ref(&borrowed);
+    assert!(problem.details.is_none());
+
+    let owned_problem = ProblemJson::from_app_error(
+        AppError::internal("boom")
+            .with_details_json(json!({"private": true}))
+            .redactable()
+    );
+    assert!(owned_problem.details.is_none());
+}
+
+#[cfg(not(feature = "serde_json"))]
+#[test]
+fn app_error_mappings_propagate_text_details() {
+    let resp: ErrorResponse = AppError::validation("invalid")
+        .with_details_text("enable feature")
+        .into();
+    assert_eq!(resp.details.as_deref(), Some("enable feature"));
+
+    let borrowed = AppError::validation("invalid").with_details_text("enable feature");
+    let resp_ref: ErrorResponse = (&borrowed).into();
+    assert_eq!(resp_ref.details.as_deref(), Some("enable feature"));
+
+    let problem_owned = ProblemJson::from_app_error(
+        AppError::validation("invalid").with_details_text("enable feature")
+    );
+    assert_eq!(problem_owned.details.as_deref(), Some("enable feature"));
+
+    let problem_ref = ProblemJson::from_ref(&borrowed);
+    assert_eq!(problem_ref.details.as_deref(), Some("enable feature"));
+}
+
+#[cfg(not(feature = "serde_json"))]
+#[test]
+fn redacted_app_error_strips_text_details() {
+    let resp: ErrorResponse = AppError::internal("boom")
+        .with_details_text("private")
+        .redactable()
+        .into();
+    assert!(resp.details.is_none());
+
+    let borrowed = AppError::internal("boom")
+        .with_details_text("private")
+        .redactable();
+    let resp_ref: ErrorResponse = (&borrowed).into();
+    assert!(resp_ref.details.is_none());
+    let problem = ProblemJson::from_ref(&borrowed);
+    assert!(problem.details.is_none());
+
+    let owned_problem = ProblemJson::from_app_error(
+        AppError::internal("boom")
+            .with_details_text("private")
+            .redactable()
+    );
+    assert!(owned_problem.details.is_none());
+}
+
 // --- From<&AppError> mapping --------------------------------------------
 
 #[test]

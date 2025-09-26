@@ -173,6 +173,45 @@ fn metadata_and_code_are_preserved() {
     assert_eq!(metadata.get("attempt"), Some(&FieldValue::I64(2)));
 }
 
+#[cfg(feature = "serde_json")]
+#[test]
+fn with_details_json_attaches_payload() {
+    use serde_json::json;
+
+    let payload = json!({"field": "email"});
+    let err = AppError::validation("invalid").with_details_json(payload.clone());
+    assert_eq!(err.details, Some(payload));
+}
+
+#[cfg(feature = "serde_json")]
+#[test]
+fn with_details_serialization_failure_is_bad_request() {
+    use serde::{Serialize, Serializer};
+
+    struct Failing;
+
+    impl Serialize for Failing {
+        fn serialize<S>(&self, _: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer
+        {
+            Err(serde::ser::Error::custom("nope"))
+        }
+    }
+
+    let err = AppError::internal("boom")
+        .with_details(Failing)
+        .expect_err("should fail");
+    assert!(matches!(err.kind, AppErrorKind::BadRequest));
+}
+
+#[cfg(not(feature = "serde_json"))]
+#[test]
+fn with_details_text_attaches_payload() {
+    let err = AppError::internal("boom").with_details_text("retry later");
+    assert_eq!(err.details.as_deref(), Some("retry later"));
+}
+
 #[test]
 fn context_redact_field_overrides_policy() {
     let err = super::Context::new(AppErrorKind::Service)
