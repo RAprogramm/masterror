@@ -230,6 +230,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.100"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
+
+[[package]]
 name = "arraydeque"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1727,9 +1733,10 @@ dependencies = [
 
 [[package]]
 name = "masterror"
-version = "0.23.0"
+version = "0.23.1"
 dependencies = [
  "actix-web",
+ "anyhow",
  "axum 0.8.4",
  "config",
  "http 1.3.1",

@@ -66,8 +66,10 @@ pub fn parse_payload(json: &str) -> masterror::AppResult<&str> {
 }
 ```
 
-`with_context` stores the original `serde_json::Error` for logging; clients only
-see the sanitized message, code, and JSON details. Enable the `serde_json`
+`with_context` stores the original `serde_json::Error` for logging while reusing
+any shared `Arc` the upstream library hands you, avoiding extra reference-count
+allocations. Clients only see the sanitized message, code, and JSON details.
+Enable the `serde_json`
 feature to use `.with_details(..)`; without it, fall back to
 `AppError::with_details_text` for plain-text payloads.
 

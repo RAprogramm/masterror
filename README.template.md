@@ -96,6 +96,10 @@ assert!(matches!(err.kind, AppErrorKind::BadRequest));
 let err_with_meta = AppError::service("downstream")
     .with_field(field::str("request_id", "abc123"));
 assert_eq!(err_with_meta.metadata().len(), 1);
+
+let err_with_context = AppError::internal("db down")
+    .with_context(std::io::Error::new(std::io::ErrorKind::Other, "boom"));
+assert!(err_with_context.source_ref().is_some());
 ~~~
 
 With prelude:

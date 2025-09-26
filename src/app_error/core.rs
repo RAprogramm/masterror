@@ -30,6 +30,23 @@ use tracing::{Level, event};
 use super::metadata::{Field, FieldRedaction, Metadata};
 use crate::{AppCode, AppErrorKind, RetryAdvice};
 
+/// Attachments accepted by [`Error::with_context`].
+#[derive(Debug)]
+#[doc(hidden)]
+pub enum ContextAttachment {
+    Owned(Box<dyn CoreError + Send + Sync + 'static>),
+    Shared(Arc<dyn CoreError + Send + Sync + 'static>)
+}
+
+impl<E> From<E> for ContextAttachment
+where
+    E: CoreError + Send + Sync + 'static
+{
+    fn from(source: E) -> Self {
+        Self::Owned(Box::new(source))
+    }
+}
+
 #[cfg(feature = "std")]
 pub type CapturedBacktrace = std::backtrace::Backtrace;
 
@@ -435,7 +452,40 @@ impl Error {
         self
     }
 
+    /// Attach upstream diagnostics using [`with_source`](Self::with_source) or
+    /// an existing [`Arc`].
+    ///
+    /// This is the preferred alias for capturing upstream errors. It accepts
+    /// either an owned error implementing [`core::error::Error`] or a
+    /// shared [`Arc`] produced by other APIs, reusing the allocation when
+    /// possible.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use masterror::AppError;
+    ///
+    /// let err = AppError::service("downstream degraded")
+    ///     .with_context(std::io::Error::new(std::io::ErrorKind::Other, "boom"));
+    /// assert!(err.source_ref().is_some());
+    /// ```
+    #[must_use]
+    pub fn with_context(self, context: impl Into<ContextAttachment>) -> Self {
+        match context.into() {
+            ContextAttachment::Owned(source) => {
+                match source.downcast::<Arc<dyn CoreError + Send + Sync + 'static>>() {
+                    Ok(shared) => self.with_source_arc(*shared),
+                    Err(source) => self.with_source_arc(Arc::from(source))
+                }
+            }
+            ContextAttachment::Shared(source) => self.with_source_arc(source)
+        }
+    }
+
     /// Attach a source error for diagnostics.
+    ///
+    /// Prefer [`with_context`](Self::with_context) when capturing upstream
+    /// diagnostics without additional `Arc` allocations.
     #[must_use]
     pub fn with_source(mut self, source: impl CoreError + Send + Sync + 'static) -> Self {
         self.source = Some(Arc::new(source));

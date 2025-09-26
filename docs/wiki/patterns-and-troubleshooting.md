@@ -80,9 +80,9 @@ fn to_json(err: masterror::AppError) -> serde_json::Value {
 
 1. Log errors at the boundary with `tracing::error!`, including `kind`,
    `code`, and `retry` metadata.
-2. Attach upstream errors via `with_context`. When you need additional metadata,
-   derive your error type with fields annotated using `#[provide]` from
-   `masterror::Error`.
+2. Attach upstream errors via `with_context` to preserve shared `Arc` handles and
+   reuse upstream diagnostics. When you need additional metadata, derive your
+   error type with fields annotated using `#[provide]` from `masterror::Error`.
 
 ```rust
 #[tracing::instrument(skip(err))]

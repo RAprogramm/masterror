@@ -163,7 +163,7 @@ impl Context {
         if matches!(self.edit_policy, MessageEditPolicy::Redact) {
             error.edit_policy = MessageEditPolicy::Redact;
         }
-        let error = error.with_source(source);
+        let error = error.with_context(source);
         error.emit_telemetry();
         error
     }
