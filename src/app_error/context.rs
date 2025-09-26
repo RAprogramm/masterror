@@ -152,7 +152,7 @@ impl Context {
         }
 
         let mut error = AppError::new_raw(self.category, None);
-        error.code = self.code;
+        error.code = self.code.clone();
         if !self.fields.is_empty() {
             self.apply_field_redactions();
             error.metadata.extend(self.fields);

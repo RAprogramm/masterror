@@ -14,7 +14,7 @@ impl Display for ErrorResponse {
 impl From<AppError> for ErrorResponse {
     fn from(mut err: AppError) -> Self {
         let kind = err.kind;
-        let code = err.code;
+        let code = err.code.clone();
         let retry = err.retry.take();
         let www_authenticate = err.www_authenticate.take();
         let policy = err.edit_policy;
@@ -71,7 +71,7 @@ impl From<&AppError> for ErrorResponse {
 
         Self {
             status,
-            code: err.code,
+            code: err.code.clone(),
             message,
             details,
             retry: err.retry,

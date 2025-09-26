@@ -24,6 +24,10 @@ pub async fn fetch_user(client: &reqwest::Client) -> masterror::AppResult<String
 }
 ```
 
+For runtime-defined identifiers (e.g., partner- or tenant-specific codes), use
+[`AppCode::try_new`](https://docs.rs/masterror/latest/masterror/struct.AppCode.html#method.try_new)
+and handle [`ParseAppCodeError`] if validation fails.
+
 Enable the `reqwest` feature to classify timeouts and HTTP status codes
 automatically. Similar conversions exist for `sqlx`, `redis`, `validator`,
 `config`, and more.

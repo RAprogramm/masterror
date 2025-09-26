@@ -122,6 +122,10 @@ fn load_configuration(path: &std::path::Path) -> masterror::AppResult<String> {
 }
 ```
 
+If the configuration source must encode per-environment values in the code, use
+`AppCode::try_new` to build the identifier dynamically and bubble up
+`ParseAppCodeError` when validation fails.
+
 `AppError` stores the `anyhow::Error` internally without exposing it to clients.
 `with_context` reuses any shared `Arc` handles provided by upstream crates, so
 you preserve pointer identity without extra allocations. You still emit clean

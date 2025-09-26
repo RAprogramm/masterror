@@ -74,6 +74,19 @@ fn details_json_are_attached() {
 
 #[cfg(feature = "serde_json")]
 #[test]
+fn custom_codes_roundtrip_via_json() {
+    let custom = AppCode::new("INVALID_JSON");
+    let response = ErrorResponse::new(400, custom.clone(), "invalid body").expect("status");
+
+    let json = serde_json::to_string(&response).expect("serialize");
+    let decoded: ErrorResponse = serde_json::from_str(&json).expect("decode");
+
+    assert_eq!(decoded.code, custom);
+    assert_eq!(decoded.code.as_str(), "INVALID_JSON");
+}
+
+#[cfg(feature = "serde_json")]
+#[test]
 fn with_details_serializes_custom_struct() {
     use serde::Serialize;
     use serde_json::json;

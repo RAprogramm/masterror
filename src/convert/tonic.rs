@@ -62,7 +62,7 @@ impl From<Error> for Status {
 fn status_from_error(error: &Error) -> Status {
     error.emit_telemetry();
 
-    let mapping = mapping_for_code(error.code);
+    let mapping = mapping_for_code(&error.code);
     let grpc_code = Code::from_i32(mapping.grpc().value);
     let detail = sanitize_detail(error.message.as_ref(), error.kind, error.edit_policy);
     let mut meta = MetadataMap::new();
