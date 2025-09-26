@@ -39,7 +39,7 @@ static BACKTRACE_ENV_GUARD: Mutex<()> = Mutex::new(());
 static TELEMETRY_GUARD: Mutex<()> = Mutex::new(());
 
 use super::{AppError, FieldRedaction, FieldValue, MessageEditPolicy, field};
-use crate::{AppCode, AppErrorKind, ErrorResponse};
+use crate::{AppCode, AppErrorKind, Context, ErrorResponse, ResultExt};
 
 // --- Helpers -------------------------------------------------------------
 
@@ -196,6 +196,19 @@ fn retry_and_www_authenticate_are_attached() {
         .with_www_authenticate("Bearer");
     assert_eq!(err.retry.unwrap().after_seconds, 30);
     assert_eq!(err.www_authenticate.as_deref(), Some("Bearer"));
+}
+
+#[test]
+fn context_moves_dynamic_code_without_cloning() {
+    let dynamic_code =
+        AppCode::try_new(String::from("THIRD_PARTY_FAILURE")).expect("valid dynamic code");
+    let expected_ptr = dynamic_code.as_str().as_ptr();
+
+    let err = Result::<(), IoError>::Err(IoError::from(IoErrorKind::Other))
+        .ctx(|| Context::new(AppErrorKind::Service).code(dynamic_code))
+        .unwrap_err();
+
+    assert_eq!(err.code.as_str().as_ptr(), expected_ptr);
 }
 
 #[test]

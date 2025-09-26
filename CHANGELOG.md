@@ -3,6 +3,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.1] - 2025-10-17
+
+### Fixed
+- Updated `Context::into_error` to move dynamic `AppCode` values into the
+  resulting `AppError`, reworking field redaction plumbing to avoid clones and
+  preserve custom code ownership. Added a regression test covering pointer
+  identity for context-promoted errors.
+
 ## [0.24.0] - 2025-10-16
 
 ### Added

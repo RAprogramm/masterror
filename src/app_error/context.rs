@@ -91,7 +91,7 @@ impl Context {
     #[must_use]
     pub fn with(mut self, field: Field) -> Self {
         self.fields.push(field);
-        self.apply_field_redactions();
+        Self::apply_field_redactions(&mut self.fields, &self.field_policies);
         self
     }
 
@@ -132,35 +132,45 @@ impl Context {
         self
     }
 
-    pub(crate) fn into_error<E>(mut self, source: E) -> Error
+    pub(crate) fn into_error<E>(self, source: E) -> Error
     where
         E: CoreError + Send + Sync + 'static
     {
-        if let Some(location) = self.caller_location {
-            self.fields.push(Field::new(
+        let Context {
+            mut fields,
+            field_policies,
+            edit_policy,
+            caller_location,
+            code,
+            category,
+            ..
+        } = self;
+
+        if let Some(location) = caller_location {
+            fields.push(Field::new(
                 "caller.file",
                 FieldValue::Str(location.file().into())
             ));
-            self.fields.push(Field::new(
+            fields.push(Field::new(
                 "caller.line",
                 FieldValue::U64(u64::from(location.line()))
             ));
-            self.fields.push(Field::new(
+            fields.push(Field::new(
                 "caller.column",
                 FieldValue::U64(u64::from(location.column()))
             ));
         }
 
-        let mut error = AppError::new_raw(self.category, None);
-        error.code = self.code.clone();
-        if !self.fields.is_empty() {
-            self.apply_field_redactions();
-            error.metadata.extend(self.fields);
+        let mut error = AppError::new_raw(category, None);
+        error.code = code;
+        if !fields.is_empty() {
+            Self::apply_field_redactions(&mut fields, &field_policies);
+            error.metadata.extend(fields);
         }
-        for &(name, redaction) in &self.field_policies {
+        for &(name, redaction) in &field_policies {
             error = error.redact_field(name, redaction);
         }
-        if matches!(self.edit_policy, MessageEditPolicy::Redact) {
+        if matches!(edit_policy, MessageEditPolicy::Redact) {
             error.edit_policy = MessageEditPolicy::Redact;
         }
         let error = error.with_context(source);
@@ -170,13 +180,15 @@ impl Context {
 }
 
 impl Context {
-    fn apply_field_redactions(&mut self) {
-        if self.field_policies.is_empty() {
+    fn apply_field_redactions(
+        fields: &mut Vec<Field>,
+        policies: &[(&'static str, FieldRedaction)]
+    ) {
+        if policies.is_empty() {
             return;
         }
-        for field in &mut self.fields {
-            if let Some((_, policy)) = self
-                .field_policies
+        for field in fields {
+            if let Some((_, policy)) = policies
                 .iter()
                 .rev()
                 .find(|(name, _)| *name == field.name())
