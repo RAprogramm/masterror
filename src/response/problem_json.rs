@@ -117,6 +117,14 @@ pub struct ProblemJson {
     /// Optional human-readable detail (redacted when marked private).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail:           Option<Cow<'static, str>>,
+    /// Optional structured details emitted to clients.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(feature = "serde_json")]
+    pub details:          Option<JsonValue>,
+    /// Optional textual details emitted to clients when JSON is disabled.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(not(feature = "serde_json"))]
+    pub details:          Option<String>,
     /// Stable machine-readable code.
     pub code:             AppCode,
     /// Optional gRPC mapping for multi-protocol clients.
@@ -158,6 +166,7 @@ impl ProblemJson {
         let message = error.message.take();
         let metadata = core::mem::take(&mut error.metadata);
         let edit_policy = error.edit_policy;
+        let details = sanitize_details_owned(error.details.take(), edit_policy);
         let retry = error.retry.take();
         let www_authenticate = error.www_authenticate.take();
 
@@ -172,6 +181,7 @@ impl ProblemJson {
             title,
             status,
             detail,
+            details,
             code,
             grpc: Some(mapping.grpc()),
             metadata,
@@ -201,6 +211,7 @@ impl ProblemJson {
         let status = error.kind.http_status();
         let title = Cow::Owned(error.kind.to_string());
         let detail = sanitize_detail_ref(error);
+        let details = sanitize_details_ref(error);
         let metadata = sanitize_metadata_ref(error.metadata(), error.edit_policy);
 
         Self {
@@ -208,6 +219,7 @@ impl ProblemJson {
             title,
             status,
             detail,
+            details,
             code: error.code,
             grpc: Some(mapping.grpc()),
             metadata,
@@ -244,6 +256,7 @@ impl ProblemJson {
             title: Cow::Owned(mapping.kind().to_string()),
             status: response.status,
             detail,
+            details: response.details,
             code: response.code,
             grpc: Some(mapping.grpc()),
             metadata: None,
@@ -398,6 +411,45 @@ fn sanitize_detail_ref(error: &AppError) -> Option<Cow<'static, str>> {
     }
 
     Some(Cow::Owned(error.render_message().into_owned()))
+}
+
+#[cfg(feature = "serde_json")]
+fn sanitize_details_owned(
+    details: Option<JsonValue>,
+    policy: MessageEditPolicy
+) -> Option<JsonValue> {
+    if matches!(policy, MessageEditPolicy::Redact) {
+        None
+    } else {
+        details
+    }
+}
+
+#[cfg(not(feature = "serde_json"))]
+fn sanitize_details_owned(details: Option<String>, policy: MessageEditPolicy) -> Option<String> {
+    if matches!(policy, MessageEditPolicy::Redact) {
+        None
+    } else {
+        details
+    }
+}
+
+#[cfg(feature = "serde_json")]
+fn sanitize_details_ref(error: &AppError) -> Option<JsonValue> {
+    if matches!(error.edit_policy, MessageEditPolicy::Redact) {
+        None
+    } else {
+        error.details.clone()
+    }
+}
+
+#[cfg(not(feature = "serde_json"))]
+fn sanitize_details_ref(error: &AppError) -> Option<String> {
+    if matches!(error.edit_policy, MessageEditPolicy::Redact) {
+        None
+    } else {
+        error.details.clone()
+    }
 }
 
 fn sanitize_metadata_owned(

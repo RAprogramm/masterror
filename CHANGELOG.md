@@ -3,6 +3,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.23.0] - 2025-10-12
+
+### Added
+- Added feature-gated detail payload storage to `AppError` with new
+  `with_details`, `with_details_json`, and `with_details_text` helpers plus unit
+  tests covering both serde-json configurations.
+- Exposed the stored details through `ProblemJson` and legacy `ErrorResponse`
+  conversions so RFC7807 and historical payloads emit the supplied data.
+
+### Changed
+- Updated the documentation set to highlight the new helpers and clarify
+  feature requirements for attaching structured details.
+
 ## [0.22.0] - 2025-10-11
 
 ### Added

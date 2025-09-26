@@ -24,12 +24,24 @@ impl From<AppError> for ErrorResponse {
             Some(msg) if !matches!(policy, crate::MessageEditPolicy::Redact) => msg.into_owned(),
             _ => kind.to_string()
         };
+        #[cfg(feature = "serde_json")]
+        let details = if matches!(policy, crate::MessageEditPolicy::Redact) {
+            None
+        } else {
+            err.details.take()
+        };
+        #[cfg(not(feature = "serde_json"))]
+        let details = if matches!(policy, crate::MessageEditPolicy::Redact) {
+            None
+        } else {
+            err.details.take()
+        };
 
         Self {
             status,
             code,
             message,
-            details: None,
+            details,
             retry,
             www_authenticate
         }
@@ -44,12 +56,24 @@ impl From<&AppError> for ErrorResponse {
         } else {
             err.render_message().into_owned()
         };
+        #[cfg(feature = "serde_json")]
+        let details = if matches!(err.edit_policy, crate::MessageEditPolicy::Redact) {
+            None
+        } else {
+            err.details.clone()
+        };
+        #[cfg(not(feature = "serde_json"))]
+        let details = if matches!(err.edit_policy, crate::MessageEditPolicy::Redact) {
+            None
+        } else {
+            err.details.clone()
+        };
 
         Self {
             status,
             code: err.code,
             message,
-            details: None,
+            details,
             retry: err.retry,
             www_authenticate: err.www_authenticate.clone()
         }
