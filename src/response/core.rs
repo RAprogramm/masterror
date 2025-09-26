@@ -27,7 +27,7 @@ pub struct RetryAdvice {
 pub struct ErrorResponse {
     /// HTTP status code (e.g. 404, 422, 500).
     pub status:  u16,
-    /// Stable machine-readable error code (enum).
+    /// Stable machine-readable error code.
     pub code:    AppCode,
     /// Human-oriented, non-sensitive message.
     pub message: String,

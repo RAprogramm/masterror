@@ -73,6 +73,10 @@ Enable the `serde_json`
 feature to use `.with_details(..)`; without it, fall back to
 `AppError::with_details_text` for plain-text payloads.
 
+Need to generate codes dynamically (e.g., include partner identifiers)? Call
+[`AppCode::try_new`](https://docs.rs/masterror/latest/masterror/struct.AppCode.html#method.try_new)
+with a runtime string and propagate [`ParseAppCodeError`] when validation fails.
+
 ## Deriving domain errors
 
 Combine `masterror::Error` derive macros with `#[app_error]` to convert domain

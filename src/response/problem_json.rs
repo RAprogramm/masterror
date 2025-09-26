@@ -26,7 +26,7 @@ use crate::{
 /// ```rust
 /// use masterror::{AppCode, mapping_for_code};
 ///
-/// let mapping = mapping_for_code(AppCode::NotFound);
+/// let mapping = mapping_for_code(&AppCode::NotFound);
 /// assert_eq!(mapping.http_status(), 404);
 /// assert_eq!(
 ///     mapping.problem_type(),
@@ -78,7 +78,7 @@ impl CodeMapping {
 /// ```rust
 /// use masterror::{AppCode, mapping_for_code};
 ///
-/// let grpc = mapping_for_code(AppCode::Internal).grpc();
+/// let grpc = mapping_for_code(&AppCode::Internal).grpc();
 /// assert_eq!(grpc.name, "INTERNAL");
 /// assert_eq!(grpc.value, 13);
 /// ```
@@ -162,7 +162,7 @@ impl ProblemJson {
     pub fn from_app_error(mut error: AppError) -> Self {
         error.emit_telemetry();
 
-        let code = error.code;
+        let code = error.code.clone();
         let kind = error.kind;
         let message = error.message.take();
         let metadata = core::mem::take(&mut error.metadata);
@@ -171,7 +171,7 @@ impl ProblemJson {
         let retry = error.retry.take();
         let www_authenticate = error.www_authenticate.take();
 
-        let mapping = mapping_for_code(code);
+        let mapping = mapping_for_code(&code);
         let status = kind.http_status();
         let title = Cow::Owned(kind.to_string());
         let detail = sanitize_detail(message, kind, edit_policy);
@@ -208,7 +208,7 @@ impl ProblemJson {
     /// ```
     #[must_use]
     pub fn from_ref(error: &AppError) -> Self {
-        let mapping = mapping_for_code(error.code);
+        let mapping = mapping_for_code(&error.code);
         let status = error.kind.http_status();
         let title = Cow::Owned(error.kind.to_string());
         let detail = sanitize_detail_ref(error);
@@ -221,7 +221,7 @@ impl ProblemJson {
             status,
             detail,
             details,
-            code: error.code,
+            code: error.code.clone(),
             grpc: Some(mapping.grpc()),
             metadata,
             retry_after: error.retry.map(|value| value.after_seconds),
@@ -245,24 +245,33 @@ impl ProblemJson {
     /// ```
     #[must_use]
     pub fn from_error_response(response: ErrorResponse) -> Self {
-        let mapping = mapping_for_code(response.code);
-        let detail = if response.message.is_empty() {
+        let ErrorResponse {
+            status,
+            code,
+            message,
+            details,
+            retry,
+            www_authenticate
+        } = response;
+
+        let mapping = mapping_for_code(&code);
+        let detail = if message.is_empty() {
             None
         } else {
-            Some(Cow::Owned(response.message))
+            Some(Cow::Owned(message))
         };
 
         Self {
             type_uri: Some(Cow::Borrowed(mapping.problem_type())),
             title: Cow::Owned(mapping.kind().to_string()),
-            status: response.status,
+            status,
             detail,
-            details: response.details,
-            code: response.code,
+            details,
+            code,
             grpc: Some(mapping.grpc()),
             metadata: None,
-            retry_after: response.retry.map(|value| value.after_seconds),
-            www_authenticate: response.www_authenticate
+            retry_after: retry.map(|value| value.after_seconds),
+            www_authenticate
         }
     }
 
@@ -995,15 +1004,15 @@ const DEFAULT_MAPPING: CodeMapping = CodeMapping {
 /// ```rust
 /// use masterror::{AppCode, mapping_for_code};
 ///
-/// let mapping = mapping_for_code(AppCode::Timeout);
+/// let mapping = mapping_for_code(&AppCode::Timeout);
 /// assert_eq!(mapping.grpc().name, "DEADLINE_EXCEEDED");
 /// ```
 #[must_use]
-pub fn mapping_for_code(code: AppCode) -> CodeMapping {
+pub fn mapping_for_code(code: &AppCode) -> CodeMapping {
     CODE_MAPPINGS
         .iter()
         .find_map(|(candidate, mapping)| {
-            if *candidate == code {
+            if candidate == code {
                 Some(*mapping)
             } else {
                 None

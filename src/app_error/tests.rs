@@ -39,7 +39,7 @@ static BACKTRACE_ENV_GUARD: Mutex<()> = Mutex::new(());
 static TELEMETRY_GUARD: Mutex<()> = Mutex::new(());
 
 use super::{AppError, FieldRedaction, FieldValue, MessageEditPolicy, field};
-use crate::{AppCode, AppErrorKind};
+use crate::{AppCode, AppErrorKind, ErrorResponse};
 
 // --- Helpers -------------------------------------------------------------
 
@@ -221,6 +221,26 @@ fn metadata_and_code_are_preserved() {
         Some(&FieldValue::Str(Cow::Borrowed("abc-123")))
     );
     assert_eq!(metadata.get("attempt"), Some(&FieldValue::I64(2)));
+}
+
+#[test]
+fn custom_literal_codes_flow_into_responses() {
+    let custom = AppCode::new("INVALID_JSON");
+    let err = AppError::bad_request("invalid").with_code(custom.clone());
+    assert_eq!(err.code, custom);
+
+    let response: ErrorResponse = err.into();
+    assert_eq!(response.code, custom);
+}
+
+#[test]
+fn dynamic_codes_flow_into_responses() {
+    let custom = AppCode::try_new(String::from("THIRD_PARTY_FAILURE")).expect("valid code");
+    let err = AppError::service("down").with_code(custom.clone());
+    assert_eq!(err.code, custom);
+
+    let response: ErrorResponse = err.into();
+    assert_eq!(response.code, custom);
 }
 
 #[cfg(feature = "serde_json")]

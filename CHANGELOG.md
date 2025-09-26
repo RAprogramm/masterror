@@ -3,6 +3,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.0] - 2025-10-16
+
+### Added
+- Introduced `AppCode::new` and `AppCode::try_new` constructors with strict
+  SCREAMING_SNAKE_CASE validation, plus regression tests covering custom codes
+  flowing through `AppError` and `ErrorResponse` JSON serialization.
+- Documented runtime-defined codes across the wiki pages to highlight
+  `AppCode::try_new` usage.
+
+### Changed
+- Replaced the closed `AppCode` enum with a string-backed newtype supporting
+  caller-defined codes while preserving built-in constants.
+- Updated mapping helpers and generated tables to work with the new representation
+  by returning references instead of copying codes.
+- Adjusted serde parsing to validate custom codes and report
+  `ParseAppCodeError` on invalid payloads.
+
 ## [0.23.3] - 2025-10-15
 
 ### Changed
