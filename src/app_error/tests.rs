@@ -296,6 +296,21 @@ fn with_details_text_attaches_payload() {
 }
 
 #[test]
+fn context_with_preserves_default_redaction() {
+    let err = super::Context::new(AppErrorKind::Service)
+        .with(field::str("request_id", "abc-123"))
+        .into_error(DummyError);
+
+    let metadata = err.metadata();
+    assert_eq!(metadata.len(), 1);
+    assert_eq!(
+        metadata.get("request_id"),
+        Some(&FieldValue::Str(Cow::Borrowed("abc-123")))
+    );
+    assert_eq!(metadata.redaction("request_id"), Some(FieldRedaction::None));
+}
+
+#[test]
 fn context_redact_field_overrides_policy() {
     let err = super::Context::new(AppErrorKind::Service)
         .with(field::str("token", "super-secret"))
@@ -323,6 +338,22 @@ fn context_redact_field_mut_applies_policies() {
         Some(&FieldValue::Str(Cow::Borrowed("super-secret")))
     );
     assert_eq!(metadata.redaction("token"), Some(FieldRedaction::Hash));
+}
+
+#[test]
+fn context_with_uses_latest_matching_policy() {
+    let err = super::Context::new(AppErrorKind::Service)
+        .redact_field("token", FieldRedaction::Hash)
+        .redact_field("token", FieldRedaction::Redact)
+        .with(field::str("token", "super-secret"))
+        .into_error(DummyError);
+
+    let metadata = err.metadata();
+    assert_eq!(
+        metadata.get("token"),
+        Some(&FieldValue::Str(Cow::Borrowed("super-secret")))
+    );
+    assert_eq!(metadata.redaction("token"), Some(FieldRedaction::Redact));
 }
 
 #[test]
