@@ -134,7 +134,7 @@ tonic = { version = "0.14", optional = true }
 
 [dev-dependencies]
 anyhow = { version = "1", default-features = false, features = ["std"] }
-criterion = "0.5"
+criterion = "0.7"
 serde_json = "1"
 tokio = { version = "1", features = [
   "macros",
