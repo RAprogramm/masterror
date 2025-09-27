@@ -3,6 +3,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.3] - 2025-10-19
+
+### Fixed
+- Reused stack-allocated format buffers when emitting gRPC metadata for HTTP
+  status codes and retry hints, and added regression coverage to ensure metadata
+  strings remain ASCII encoded.
+
 ## [0.24.2] - 2025-10-18
 
 ### Added
