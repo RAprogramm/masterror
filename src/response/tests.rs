@@ -365,7 +365,16 @@ fn display_is_concise_and_does_not_leak_details() {
 #[allow(deprecated)]
 #[test]
 fn new_legacy_defaults_to_internal_code() {
-    let e = ErrorResponse::new_legacy(500, "boom");
+    let e = ErrorResponse::new_legacy(404, "boom");
+    assert_eq!(e.status, 404);
+    assert!(matches!(e.code, AppCode::Internal));
+    assert_eq!(e.message, "boom");
+}
+
+#[allow(deprecated)]
+#[test]
+fn new_legacy_invalid_status_falls_back_to_internal_error() {
+    let e = ErrorResponse::new_legacy(0, "boom");
     assert_eq!(e.status, 500);
     assert!(matches!(e.code, AppCode::Internal));
     assert_eq!(e.message, "boom");
