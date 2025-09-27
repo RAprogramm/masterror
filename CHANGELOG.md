@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.5] - 2025-10-21
+
+### Fixed
+- Replaced deprecated `criterion::black_box` usage in the error path benchmarks
+  with `std::hint::black_box` so benches compile cleanly under `-D warnings`.
+
 ## [0.24.4] - 2025-10-20
 
 ### Fixed
