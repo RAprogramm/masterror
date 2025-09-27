@@ -1,7 +1,8 @@
-use std::fmt::{Display, Formatter, Result as FmtResult};
+use alloc::string::String;
+use core::fmt::{Display, Formatter, Result as FmtResult};
 
 use super::core::ErrorResponse;
-use crate::AppError;
+use crate::{AppCode, AppError};
 
 impl Display for ErrorResponse {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
@@ -13,7 +14,7 @@ impl Display for ErrorResponse {
 impl From<AppError> for ErrorResponse {
     fn from(mut err: AppError) -> Self {
         let kind = err.kind;
-        let code = err.code;
+        let code = core::mem::replace(&mut err.code, AppCode::from(kind));
         let retry = err.retry.take();
         let www_authenticate = err.www_authenticate.take();
         let policy = err.edit_policy;
@@ -21,14 +22,26 @@ impl From<AppError> for ErrorResponse {
         let status = kind.http_status();
         let message = match err.message.take() {
             Some(msg) if !matches!(policy, crate::MessageEditPolicy::Redact) => msg.into_owned(),
-            _ => kind.to_string()
+            _ => String::from(kind.label())
+        };
+        #[cfg(feature = "serde_json")]
+        let details = if matches!(policy, crate::MessageEditPolicy::Redact) {
+            None
+        } else {
+            err.details.take()
+        };
+        #[cfg(not(feature = "serde_json"))]
+        let details = if matches!(policy, crate::MessageEditPolicy::Redact) {
+            None
+        } else {
+            err.details.take()
         };
 
         Self {
             status,
             code,
             message,
-            details: None,
+            details,
             retry,
             www_authenticate
         }
@@ -39,16 +52,28 @@ impl From<&AppError> for ErrorResponse {
     fn from(err: &AppError) -> Self {
         let status = err.kind.http_status();
         let message = if matches!(err.edit_policy, crate::MessageEditPolicy::Redact) {
-            err.kind.to_string()
+            String::from(err.kind.label())
         } else {
             err.render_message().into_owned()
+        };
+        #[cfg(feature = "serde_json")]
+        let details = if matches!(err.edit_policy, crate::MessageEditPolicy::Redact) {
+            None
+        } else {
+            err.details.clone()
+        };
+        #[cfg(not(feature = "serde_json"))]
+        let details = if matches!(err.edit_policy, crate::MessageEditPolicy::Redact) {
+            None
+        } else {
+            err.details.clone()
         };
 
         Self {
             status,
-            code: err.code,
+            code: err.code.clone(),
             message,
-            details: None,
+            details,
             retry: err.retry,
             www_authenticate: err.www_authenticate.clone()
         }

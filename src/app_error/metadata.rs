@@ -1,6 +1,5 @@
-use std::{
-    borrow::Cow,
-    collections::BTreeMap,
+use alloc::{borrow::Cow, collections::BTreeMap, string::String};
+use core::{
     fmt::{Display, Formatter, Result as FmtResult, Write},
     net::IpAddr,
     time::Duration
@@ -199,36 +198,36 @@ impl Field {
 }
 
 fn infer_default_redaction(name: &str) -> FieldRedaction {
-    let lowered = name.to_ascii_lowercase();
-
-    if lowered.contains("password")
-        || lowered.contains("passphrase")
-        || lowered.contains("secret")
-        || lowered.contains("authorization")
-        || lowered.contains("cookie")
-        || lowered.contains("session")
-        || lowered.contains("jwt")
-        || lowered.contains("bearer")
-        || lowered.contains("otp")
-        || lowered.contains("pin")
+    if contains_ascii_case_insensitive(name, "password")
+        || contains_ascii_case_insensitive(name, "passphrase")
+        || contains_ascii_case_insensitive(name, "secret")
+        || contains_ascii_case_insensitive(name, "authorization")
+        || contains_ascii_case_insensitive(name, "cookie")
+        || contains_ascii_case_insensitive(name, "session")
+        || contains_ascii_case_insensitive(name, "jwt")
+        || contains_ascii_case_insensitive(name, "bearer")
+        || contains_ascii_case_insensitive(name, "otp")
+        || contains_ascii_case_insensitive(name, "pin")
     {
         return FieldRedaction::Redact;
     }
 
     let mut card_like = false;
     let mut number_like = false;
+    let has_token = contains_ascii_case_insensitive(name, "token");
+    let has_key = contains_ascii_case_insensitive(name, "key");
 
-    for segment in lowered.split(['.', '_', '-', ':', '/']) {
+    for segment in name.split(['.', '_', '-', ':', '/']) {
         if segment.is_empty() {
             continue;
         }
         if segment.eq_ignore_ascii_case("token")
             || segment.eq_ignore_ascii_case("apikey")
-            || segment.eq_ignore_ascii_case("api") && lowered.contains("key")
-            || segment.ends_with("token")
+            || segment.eq_ignore_ascii_case("api") && has_key
+            || ends_with_ascii_case_insensitive(segment, "token")
             || segment.eq_ignore_ascii_case("key")
-            || segment.eq_ignore_ascii_case("access") && lowered.contains("token")
-            || segment.eq_ignore_ascii_case("refresh") && lowered.contains("token")
+            || segment.eq_ignore_ascii_case("access") && has_token
+            || segment.eq_ignore_ascii_case("refresh") && has_token
         {
             return FieldRedaction::Hash;
         }
@@ -255,6 +254,38 @@ fn infer_default_redaction(name: &str) -> FieldRedaction {
     } else {
         FieldRedaction::None
     }
+}
+
+fn ends_with_ascii_case_insensitive(value: &str, suffix: &str) -> bool {
+    let value_bytes = value.as_bytes();
+    let suffix_bytes = suffix.as_bytes();
+    value_bytes.len() >= suffix_bytes.len()
+        && eq_ascii_case_insensitive_bytes(
+            &value_bytes[value_bytes.len() - suffix_bytes.len()..],
+            suffix_bytes
+        )
+}
+
+fn contains_ascii_case_insensitive(haystack: &str, needle: &str) -> bool {
+    if needle.is_empty() {
+        return true;
+    }
+
+    let haystack_bytes = haystack.as_bytes();
+    let needle_bytes = needle.as_bytes();
+
+    haystack_bytes.len() >= needle_bytes.len()
+        && haystack_bytes
+            .windows(needle_bytes.len())
+            .any(|window| eq_ascii_case_insensitive_bytes(window, needle_bytes))
+}
+
+fn eq_ascii_case_insensitive_bytes(left: &[u8], right: &[u8]) -> bool {
+    left.len() == right.len()
+        && left
+            .iter()
+            .zip(right)
+            .all(|(&lhs, &rhs)| lhs.eq_ignore_ascii_case(&rhs))
 }
 
 /// Structured metadata attached to [`crate::AppError`].
@@ -354,8 +385,8 @@ impl Metadata {
 
 impl IntoIterator for Metadata {
     type Item = Field;
-    type IntoIter = std::iter::Map<
-        std::collections::btree_map::IntoIter<&'static str, Field>,
+    type IntoIter = core::iter::Map<
+        alloc::collections::btree_map::IntoIter<&'static str, Field>,
         fn((&'static str, Field)) -> Field
     >;
 
@@ -371,7 +402,8 @@ impl IntoIterator for Metadata {
 
 /// Factories for [`Field`] values.
 pub mod field {
-    use std::{borrow::Cow, net::IpAddr, time::Duration};
+    use alloc::borrow::Cow;
+    use core::{net::IpAddr, time::Duration};
 
     #[cfg(feature = "serde_json")]
     use serde_json::Value as JsonValue;
@@ -425,7 +457,7 @@ pub mod field {
     /// Build a duration metadata field.
     ///
     /// ```
-    /// use std::time::Duration;
+    /// use core::time::Duration;
     /// use masterror::{field, FieldValue};
     ///
     /// let (_, value, _) = field::duration("elapsed", Duration::from_millis(1500)).into_parts();
@@ -439,7 +471,7 @@ pub mod field {
     /// Build an IP address metadata field.
     ///
     /// ```
-    /// use std::net::{IpAddr, Ipv4Addr};
+    /// use core::net::{IpAddr, Ipv4Addr};
     /// use masterror::{field, FieldValue};
     ///
     /// let (_, value, _) = field::ip("peer", IpAddr::from(Ipv4Addr::LOCALHOST)).into_parts();
@@ -556,6 +588,26 @@ mod tests {
 
         let card = field::str("card_number", Cow::Borrowed("4111111111111111"));
         assert!(matches!(card.redaction(), FieldRedaction::Last4));
+    }
+
+    #[test]
+    fn default_redaction_remains_case_insensitive() {
+        let cases = [
+            ("Password", FieldRedaction::Redact),
+            ("SESSION_ID", FieldRedaction::Redact),
+            ("X-API-Token", FieldRedaction::Hash),
+            ("RefreshToken", FieldRedaction::Hash),
+            ("CARD_NUMBER", FieldRedaction::Last4)
+        ];
+
+        for (name, expected) in cases {
+            let field = field::str(name, Cow::Borrowed("value"));
+            assert!(
+                matches!(field.redaction(), policy if policy == expected),
+                "expected {:?} for {name}",
+                expected
+            );
+        }
     }
 
     #[test]

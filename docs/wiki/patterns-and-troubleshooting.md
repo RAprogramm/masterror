@@ -24,6 +24,10 @@ pub async fn fetch_user(client: &reqwest::Client) -> masterror::AppResult<String
 }
 ```
 
+For runtime-defined identifiers (e.g., partner- or tenant-specific codes), use
+[`AppCode::try_new`](https://docs.rs/masterror/latest/masterror/struct.AppCode.html#method.try_new)
+and handle [`ParseAppCodeError`] if validation fails.
+
 Enable the `reqwest` feature to classify timeouts and HTTP status codes
 automatically. Similar conversions exist for `sqlx`, `redis`, `validator`,
 `config`, and more.
@@ -56,7 +60,8 @@ pub fn validate(payload: &CreateUser) -> masterror::AppResult<()> {
 ```
 
 `validator::ValidationErrors` implements `Serialize`, so it plugs directly into
-`with_details`.
+`with_details`. When `serde_json` is disabled, switch to
+`AppError::with_details_text`.
 
 ## Emitting HTTP responses manually
 
@@ -64,10 +69,10 @@ Sometimes you need to control the HTTP layer yourself (e.g., custom middleware).
 Convert `AppError` into `ErrorResponse` and format it however you need.
 
 ```rust
-fn to_json(err: &masterror::AppError) -> serde_json::Value {
-    let response: masterror::ErrorResponse = err.clone().into();
+fn to_json(err: masterror::AppError) -> serde_json::Value {
+    let response: masterror::ErrorResponse = err.into();
     serde_json::json!({
-        "status": response.status.as_u16(),
+        "status": response.status,
         "code": response.code,
         "message": response.message,
         "details": response.details,
@@ -75,16 +80,13 @@ fn to_json(err: &masterror::AppError) -> serde_json::Value {
 }
 ```
 
-The clone is cheap because `AppError` uses shared references for heavy context
-objects.
-
 ## Capturing reproducible logs
 
 1. Log errors at the boundary with `tracing::error!`, including `kind`,
    `code`, and `retry` metadata.
-2. Attach upstream errors via `with_context`. When you need additional metadata,
-   derive your error type with fields annotated using `#[provide]` from
-   `masterror::Error`.
+2. Attach upstream errors via `with_context` to preserve shared `Arc` handles and
+   reuse upstream diagnostics. When you need additional metadata, derive your
+   error type with fields annotated using `#[provide]` from `masterror::Error`.
 
 ```rust
 #[tracing::instrument(skip(err))]
@@ -109,7 +111,7 @@ reconstruct what happened.
 | Validation failures return HTTP 500 | Enable the `validator` feature and expose handlers as `AppResult<T>`. |
 | JSON response lacks `code` | Call `.with_code(AppCode::new("..."))` or derive it via `#[app_error(code = ...)]`. |
 | Logs show duplicated errors | Log once per request at the boundary; do not log again inside helpers. |
-| `with_details` fails to compile | Ensure the value implements `Serialize` (derive or implement it manually). |
+| `with_details` fails to compile | Ensure the value implements `Serialize` and enable the `serde_json` feature, or call `with_details_text`. |
 | Need to inspect nested errors | Call `err.context()` to retrieve captured sources, including `anyhow::Error`. |
 
 ## Testing strategies

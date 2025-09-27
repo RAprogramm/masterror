@@ -16,6 +16,7 @@ use axum::{
     },
     response::{IntoResponse, Response}
 };
+use itoa::Buffer as IntegerBuffer;
 
 use super::{ErrorResponse, ProblemJson};
 
@@ -32,10 +33,12 @@ impl IntoResponse for ProblemJson {
             HeaderValue::from_static("application/problem+json")
         );
 
-        if let Some(retry) = retry_after
-            && let Ok(hv) = HeaderValue::from_str(&retry.to_string())
-        {
-            response.headers_mut().insert(RETRY_AFTER, hv);
+        if let Some(retry) = retry_after {
+            let mut buffer = IntegerBuffer::new();
+            let retry_str = buffer.format(retry);
+            if let Ok(hv) = HeaderValue::from_str(retry_str) {
+                response.headers_mut().insert(RETRY_AFTER, hv);
+            }
         }
         if let Some(challenge) = www_authenticate
             && let Ok(hv) = HeaderValue::from_str(&challenge)

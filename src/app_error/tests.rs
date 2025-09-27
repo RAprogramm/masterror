@@ -1,6 +1,33 @@
 #[cfg(any(feature = "backtrace", feature = "tracing"))]
 use std::sync::Mutex;
-use std::{borrow::Cow, error::Error as StdError, fmt::Display, sync::Arc};
+use std::{
+    borrow::Cow,
+    error::Error as StdError,
+    fmt::{Display, Formatter, Result as FmtResult},
+    io::{Error as IoError, ErrorKind as IoErrorKind},
+    sync::Arc
+};
+
+#[cfg(feature = "std")]
+use anyhow::Error as AnyhowError;
+
+#[cfg(feature = "std")]
+#[derive(Debug)]
+struct AnyhowSource(AnyhowError);
+
+#[cfg(feature = "std")]
+impl Display for AnyhowSource {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        Display::fmt(&self.0, f)
+    }
+}
+
+#[cfg(feature = "std")]
+impl StdError for AnyhowSource {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        self.0.source()
+    }
+}
 
 #[cfg(feature = "backtrace")]
 use super::core::{reset_backtrace_preference, set_backtrace_preference_override};
@@ -12,7 +39,7 @@ static BACKTRACE_ENV_GUARD: Mutex<()> = Mutex::new(());
 static TELEMETRY_GUARD: Mutex<()> = Mutex::new(());
 
 use super::{AppError, FieldRedaction, FieldValue, MessageEditPolicy, field};
-use crate::{AppCode, AppErrorKind};
+use crate::{AppCode, AppErrorKind, Context, ErrorResponse, ResultExt};
 
 // --- Helpers -------------------------------------------------------------
 
@@ -119,6 +146,29 @@ fn constructors_match_kinds() {
     assert_err_with_msg(AppError::cache("cache"), AppErrorKind::Cache, "cache");
 }
 
+#[cfg(feature = "std")]
+#[test]
+fn with_context_attaches_plain_source() {
+    let err = AppError::internal("boom").with_context(IoError::from(IoErrorKind::Other));
+
+    let source = err.source_ref().expect("stored source");
+    assert!(source.is::<IoError>());
+    assert_eq!(source.to_string(), IoErrorKind::Other.to_string());
+}
+
+#[cfg(feature = "std")]
+#[test]
+fn with_context_accepts_anyhow_error() {
+    let upstream: AnyhowError = anyhow::anyhow!("context failed");
+    let err = AppError::service("downstream").with_context(AnyhowSource(upstream));
+
+    let source = err.source_ref().expect("stored source");
+    let stored = source
+        .downcast_ref::<AnyhowSource>()
+        .expect("anyhow source");
+    assert_eq!(stored.0.to_string(), "context failed");
+}
+
 #[test]
 fn database_accepts_optional_message() {
     let with_msg = AppError::database_with_message("db down");
@@ -140,12 +190,35 @@ fn bare_sets_kind_without_message() {
 }
 
 #[test]
+fn render_message_returns_borrowed_label_for_bare_errors() {
+    let err = AppError::bare(AppErrorKind::Forbidden);
+    let rendered = err.render_message();
+    assert!(matches!(
+        rendered,
+        Cow::Borrowed(label) if label == AppErrorKind::Forbidden.label()
+    ));
+}
+
+#[test]
 fn retry_and_www_authenticate_are_attached() {
     let err = AppError::internal("boom")
         .with_retry_after_secs(30)
         .with_www_authenticate("Bearer");
     assert_eq!(err.retry.unwrap().after_seconds, 30);
     assert_eq!(err.www_authenticate.as_deref(), Some("Bearer"));
+}
+
+#[test]
+fn context_moves_dynamic_code_without_cloning() {
+    let dynamic_code =
+        AppCode::try_new(String::from("THIRD_PARTY_FAILURE")).expect("valid dynamic code");
+    let expected_ptr = dynamic_code.as_str().as_ptr();
+
+    let err = Result::<(), IoError>::Err(IoError::from(IoErrorKind::Other))
+        .ctx(|| Context::new(AppErrorKind::Service).code(dynamic_code))
+        .unwrap_err();
+
+    assert_eq!(err.code.as_str().as_ptr(), expected_ptr);
 }
 
 #[test]
@@ -174,6 +247,80 @@ fn metadata_and_code_are_preserved() {
 }
 
 #[test]
+fn custom_literal_codes_flow_into_responses() {
+    let custom = AppCode::new("INVALID_JSON");
+    let err = AppError::bad_request("invalid").with_code(custom.clone());
+    assert_eq!(err.code, custom);
+
+    let response: ErrorResponse = err.into();
+    assert_eq!(response.code, custom);
+}
+
+#[test]
+fn dynamic_codes_flow_into_responses() {
+    let custom = AppCode::try_new(String::from("THIRD_PARTY_FAILURE")).expect("valid code");
+    let err = AppError::service("down").with_code(custom.clone());
+    assert_eq!(err.code, custom);
+
+    let response: ErrorResponse = err.into();
+    assert_eq!(response.code, custom);
+}
+
+#[cfg(feature = "serde_json")]
+#[test]
+fn with_details_json_attaches_payload() {
+    use serde_json::json;
+
+    let payload = json!({"field": "email"});
+    let err = AppError::validation("invalid").with_details_json(payload.clone());
+    assert_eq!(err.details, Some(payload));
+}
+
+#[cfg(feature = "serde_json")]
+#[test]
+fn with_details_serialization_failure_is_bad_request() {
+    use serde::{Serialize, Serializer};
+
+    struct Failing;
+
+    impl Serialize for Failing {
+        fn serialize<S>(&self, _: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer
+        {
+            Err(serde::ser::Error::custom("nope"))
+        }
+    }
+
+    let err = AppError::internal("boom")
+        .with_details(Failing)
+        .expect_err("should fail");
+    assert!(matches!(err.kind, AppErrorKind::BadRequest));
+}
+
+#[cfg(not(feature = "serde_json"))]
+#[test]
+fn with_details_text_attaches_payload() {
+    let err = AppError::internal("boom").with_details_text("retry later");
+    assert_eq!(err.details.as_deref(), Some("retry later"));
+}
+
+#[test]
+fn context_with_preserves_default_redaction() {
+    let err = super::Context::new(AppErrorKind::Service)
+        .with(field::str("request_id", "abc-123"))
+        .into_error(DummyError);
+
+    let metadata = err.metadata();
+    assert_eq!(metadata.len(), 1);
+    assert_eq!(
+        metadata.get("request_id"),
+        Some(&FieldValue::Str(Cow::Borrowed("abc-123")))
+    );
+    assert_eq!(metadata.redaction("request_id"), Some(FieldRedaction::None));
+}
+
+#[test]
 fn context_redact_field_overrides_policy() {
     let err = super::Context::new(AppErrorKind::Service)
         .with(field::str("token", "super-secret"))
@@ -189,6 +336,21 @@ fn context_redact_field_overrides_policy() {
 }
 
 #[test]
+fn context_redact_field_before_insertion_applies_policy() {
+    let err = super::Context::new(AppErrorKind::Service)
+        .redact_field("token", FieldRedaction::Hash)
+        .with(field::str("token", "super-secret"))
+        .into_error(DummyError);
+
+    let metadata = err.metadata();
+    assert_eq!(
+        metadata.get("token"),
+        Some(&FieldValue::Str(Cow::Borrowed("super-secret")))
+    );
+    assert_eq!(metadata.redaction("token"), Some(FieldRedaction::Hash));
+}
+
+#[test]
 fn context_redact_field_mut_applies_policies() {
     let mut context = super::Context::new(AppErrorKind::Service);
     let _ = context.redact_field_mut("token", FieldRedaction::Hash);
@@ -201,6 +363,22 @@ fn context_redact_field_mut_applies_policies() {
         Some(&FieldValue::Str(Cow::Borrowed("super-secret")))
     );
     assert_eq!(metadata.redaction("token"), Some(FieldRedaction::Hash));
+}
+
+#[test]
+fn context_with_uses_latest_matching_policy() {
+    let err = super::Context::new(AppErrorKind::Service)
+        .redact_field("token", FieldRedaction::Hash)
+        .redact_field("token", FieldRedaction::Redact)
+        .with(field::str("token", "super-secret"))
+        .into_error(DummyError);
+
+    let metadata = err.metadata();
+    assert_eq!(
+        metadata.get("token"),
+        Some(&FieldValue::Str(Cow::Borrowed("super-secret")))
+    );
+    assert_eq!(metadata.redaction("token"), Some(FieldRedaction::Redact));
 }
 
 #[test]

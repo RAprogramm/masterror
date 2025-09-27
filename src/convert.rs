@@ -44,6 +44,8 @@
 //! `std::io::Error` mapping:
 //!
 //! ```rust
+//! # #[cfg(feature = "std")]
+//! # {
 //! use std::io::{self, ErrorKind};
 //!
 //! use masterror::{AppError, AppErrorKind, AppResult};
@@ -55,6 +57,7 @@
 //!
 //! let err = open().unwrap_err();
 //! assert!(matches!(err.kind, AppErrorKind::Internal));
+//! # }
 //! ```
 //!
 //! `String` mapping (useful for ad-hoc validation without the `validator`
@@ -74,6 +77,8 @@
 //! assert!(matches!(err.kind, AppErrorKind::BadRequest));
 //! ```
 
+use alloc::string::String;
+#[cfg(feature = "std")]
 use std::io::Error as IoError;
 
 use crate::AppError;
@@ -148,6 +153,7 @@ pub use self::tonic::StatusConversionError;
 /// let app_err: AppError = io_err.into();
 /// assert!(matches!(app_err.kind, AppErrorKind::Internal));
 /// ```
+#[cfg(feature = "std")]
 impl From<IoError> for AppError {
     fn from(err: IoError) -> Self {
         AppError::internal(err.to_string())

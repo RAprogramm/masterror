@@ -12,9 +12,11 @@
 //!   which remains stable even if your transport mapping changes.
 //!
 //! ## Stability and SemVer
-//! - New variants **may be added in minor releases** (non-breaking).
-//! - The enum is marked `#[non_exhaustive]` so downstream users must include a
-//!   wildcard arm (`_`) when matching, which keeps them forward-compatible.
+//! - New built-in constants **may be added in minor releases** (non-breaking).
+//! - The type is marked `#[non_exhaustive]` to allow future metadata additions
+//!   without breaking downstream code.
+//! - Custom codes can be defined at compile time with [`AppCode::new`] or at
+//!   runtime with [`AppCode::try_new`].
 //!
 //! ## Typical usage
 //! Construct an `ErrorResponse` with a code and return it to clients:
@@ -45,26 +47,37 @@
 //! # }
 //! ```
 //!
-//! Match codes safely (note the wildcard arm due to `#[non_exhaustive]`):
+//! Match codes safely:
 //!
 //! ```rust
 //! use masterror::AppCode;
 //!
-//! fn is_client_error(code: AppCode) -> bool {
-//!     match code {
-//!         AppCode::NotFound
-//!         | AppCode::Validation
-//!         | AppCode::Conflict
-//!         | AppCode::Unauthorized
-//!         | AppCode::Forbidden
-//!         | AppCode::NotImplemented
-//!         | AppCode::BadRequest
-//!         | AppCode::RateLimited
-//!         | AppCode::TelegramAuth
-//!         | AppCode::InvalidJwt => true,
-//!         _ => false // future-proof: treat unknown as not client error
-//!     }
+//! fn is_client_error(code: &AppCode) -> bool {
+//!     matches!(
+//!         code.as_str(),
+//!         "NOT_FOUND"
+//!             | "VALIDATION"
+//!             | "CONFLICT"
+//!             | "UNAUTHORIZED"
+//!             | "FORBIDDEN"
+//!             | "NOT_IMPLEMENTED"
+//!             | "BAD_REQUEST"
+//!             | "RATE_LIMITED"
+//!             | "TELEGRAM_AUTH"
+//!             | "INVALID_JWT"
+//!     )
 //! }
+//! ```
+//!
+//! Define custom codes:
+//!
+//! ```rust
+//! use masterror::AppCode;
+//!
+//! const INVALID_JSON: AppCode = AppCode::new("INVALID_JSON");
+//! let third_party = AppCode::try_new(String::from("THIRD_PARTY_FAILURE")).expect("valid code");
+//! assert_eq!(INVALID_JSON.as_str(), "INVALID_JSON");
+//! assert_eq!(third_party.as_str(), "THIRD_PARTY_FAILURE");
 //! ```
 
 mod app_code;

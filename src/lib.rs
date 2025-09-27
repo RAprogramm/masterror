@@ -1,3 +1,14 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+#![forbid(unsafe_code)]
+#![deny(rustdoc::broken_intra_doc_links)]
+#![warn(
+    missing_docs,
+    missing_debug_implementations,
+    rust_2018_idioms,
+    clippy::all
+)]
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+
 //! Framework-agnostic application error types for backend services.
 //!
 //! # Overview
@@ -27,7 +38,7 @@
 //!
 //! # Minimum Supported Rust Version (MSRV)
 //!
-//! MSRV is **1.90**. New minor releases may increase MSRV with a changelog
+//! MSRV is **1.89**. New minor releases may increase MSRV with a changelog
 //! note, but never in a patch release.
 //!
 //! # Feature flags
@@ -213,6 +224,15 @@
 //! assert_eq!(err.metadata().len(), 2);
 //! ```
 //!
+//! Attach upstream diagnostics without cloning existing `Arc`s:
+//! ```rust
+//! use masterror::AppError;
+//!
+//! let err = AppError::internal("db down")
+//!     .with_context(std::io::Error::new(std::io::ErrorKind::Other, "boom"));
+//! assert!(err.source_ref().is_some());
+//! ```
+//!
 //! [`AppErrorKind`] controls the default HTTP status mapping.  
 //! [`AppCode`] provides a stable machine-readable code for clients.  
 //! Together, they form the wire contract in [`ErrorResponse`].
@@ -315,16 +335,7 @@
 //!
 //! at your option.
 
-#![forbid(unsafe_code)]
-#![deny(rustdoc::broken_intra_doc_links)]
-#![warn(
-    missing_docs,
-    missing_debug_implementations,
-    rust_2018_idioms,
-    clippy::all
-)]
-// Show feature-gated items on docs.rs
-#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+extern crate alloc;
 
 mod app_error;
 mod code;

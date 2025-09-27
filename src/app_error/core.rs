@@ -1,3 +1,10 @@
+use alloc::{borrow::Cow, boxed::Box, string::String, sync::Arc};
+use core::{
+    error::Error as CoreError,
+    fmt::{Display, Formatter, Result as FmtResult},
+    ops::{Deref, DerefMut},
+    sync::atomic::{AtomicBool, Ordering}
+};
 #[cfg(feature = "backtrace")]
 use std::{
     backtrace::Backtrace,
@@ -7,22 +14,41 @@ use std::{
         atomic::{AtomicU8, Ordering as AtomicOrdering}
     }
 };
-use std::{
-    borrow::Cow,
-    error::Error as StdError,
-    fmt::{Display, Formatter, Result as FmtResult},
-    ops::{Deref, DerefMut},
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering}
-    }
-};
 
+#[cfg(feature = "serde_json")]
+use serde::Serialize;
+#[cfg(feature = "serde_json")]
+use serde_json::{Value as JsonValue, to_value};
 #[cfg(feature = "tracing")]
 use tracing::{Level, event};
 
 use super::metadata::{Field, FieldRedaction, Metadata};
 use crate::{AppCode, AppErrorKind, RetryAdvice};
+
+/// Attachments accepted by [`Error::with_context`].
+#[derive(Debug)]
+#[doc(hidden)]
+pub enum ContextAttachment {
+    Owned(Box<dyn CoreError + Send + Sync + 'static>),
+    Shared(Arc<dyn CoreError + Send + Sync + 'static>)
+}
+
+impl<E> From<E> for ContextAttachment
+where
+    E: CoreError + Send + Sync + 'static
+{
+    fn from(source: E) -> Self {
+        Self::Owned(Box::new(source))
+    }
+}
+
+#[cfg(feature = "std")]
+pub type CapturedBacktrace = std::backtrace::Backtrace;
+
+#[cfg(not(feature = "std"))]
+#[allow(dead_code)]
+#[derive(Debug)]
+pub enum CapturedBacktrace {}
 
 /// Controls whether the public message may be redacted before exposure.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -51,7 +77,13 @@ pub struct ErrorInner {
     pub retry:              Option<RetryAdvice>,
     /// Optional authentication challenge for `WWW-Authenticate`.
     pub www_authenticate:   Option<String>,
-    pub source:             Option<Arc<dyn StdError + Send + Sync + 'static>>,
+    /// Optional structured details exposed to clients.
+    #[cfg(feature = "serde_json")]
+    pub details:            Option<JsonValue>,
+    /// Optional textual details when JSON is unavailable.
+    #[cfg(not(feature = "serde_json"))]
+    pub details:            Option<String>,
+    pub source:             Option<Arc<dyn CoreError + Send + Sync + 'static>>,
     #[cfg(feature = "backtrace")]
     pub backtrace:          Option<Backtrace>,
     #[cfg(feature = "backtrace")]
@@ -184,11 +216,11 @@ impl Display for Error {
     }
 }
 
-impl StdError for Error {
-    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+impl CoreError for Error {
+    fn source(&self) -> Option<&(dyn CoreError + 'static)> {
         self.source
             .as_deref()
-            .map(|source| source as &(dyn StdError + 'static))
+            .map(|source| source as &(dyn CoreError + 'static))
     }
 }
 
@@ -228,6 +260,7 @@ impl Error {
                 edit_policy: MessageEditPolicy::Preserve,
                 retry: None,
                 www_authenticate: None,
+                details: None,
                 source: None,
                 #[cfg(feature = "backtrace")]
                 backtrace: None,
@@ -247,7 +280,7 @@ impl Error {
     }
 
     #[cfg(feature = "backtrace")]
-    fn capture_backtrace(&self) -> Option<&std::backtrace::Backtrace> {
+    fn capture_backtrace(&self) -> Option<&CapturedBacktrace> {
         if let Some(backtrace) = self.backtrace.as_ref() {
             return Some(backtrace);
         }
@@ -258,18 +291,18 @@ impl Error {
     }
 
     #[cfg(not(feature = "backtrace"))]
-    fn capture_backtrace(&self) -> Option<&std::backtrace::Backtrace> {
+    fn capture_backtrace(&self) -> Option<&CapturedBacktrace> {
         None
     }
 
     #[cfg(feature = "backtrace")]
-    fn set_backtrace_slot(&mut self, backtrace: std::backtrace::Backtrace) {
+    fn set_backtrace_slot(&mut self, backtrace: CapturedBacktrace) {
         self.backtrace = Some(backtrace);
         self.captured_backtrace = OnceLock::new();
     }
 
     #[cfg(not(feature = "backtrace"))]
-    fn set_backtrace_slot(&mut self, _backtrace: std::backtrace::Backtrace) {}
+    fn set_backtrace_slot(&mut self, _backtrace: CapturedBacktrace) {}
 
     pub(crate) fn emit_telemetry(&self) {
         if self.take_dirty() {
@@ -278,10 +311,12 @@ impl Error {
 
             #[cfg(feature = "metrics")]
             {
+                let code_label = self.code.as_str().to_owned();
+                let category_label = kind_label(self.kind).to_owned();
                 metrics::counter!(
                     "error_total",
-                    "code" => self.code.as_str(),
-                    "category" => kind_label(self.kind)
+                    "code" => code_label,
+                    "category" => category_label
                 )
                 .increment(1);
             }
@@ -414,9 +449,42 @@ impl Error {
         self
     }
 
-    /// Attach a source error for diagnostics.
+    /// Attach upstream diagnostics using [`with_source`](Self::with_source) or
+    /// an existing [`Arc`].
+    ///
+    /// This is the preferred alias for capturing upstream errors. It accepts
+    /// either an owned error implementing [`core::error::Error`] or a
+    /// shared [`Arc`] produced by other APIs, reusing the allocation when
+    /// possible.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use masterror::AppError;
+    ///
+    /// let err = AppError::service("downstream degraded")
+    ///     .with_context(std::io::Error::new(std::io::ErrorKind::Other, "boom"));
+    /// assert!(err.source_ref().is_some());
+    /// ```
     #[must_use]
-    pub fn with_source(mut self, source: impl StdError + Send + Sync + 'static) -> Self {
+    pub fn with_context(self, context: impl Into<ContextAttachment>) -> Self {
+        match context.into() {
+            ContextAttachment::Owned(source) => {
+                match source.downcast::<Arc<dyn CoreError + Send + Sync + 'static>>() {
+                    Ok(shared) => self.with_source_arc(*shared),
+                    Err(source) => self.with_source_arc(Arc::from(source))
+                }
+            }
+            ContextAttachment::Shared(source) => self.with_source_arc(source)
+        }
+    }
+
+    /// Attach a source error for diagnostics.
+    ///
+    /// Prefer [`with_context`](Self::with_context) when capturing upstream
+    /// diagnostics without additional `Arc` allocations.
+    #[must_use]
+    pub fn with_source(mut self, source: impl CoreError + Send + Sync + 'static) -> Self {
         self.source = Some(Arc::new(source));
         self.mark_dirty();
         self
@@ -437,7 +505,7 @@ impl Error {
     /// assert_eq!(Arc::strong_count(&source), 2);
     /// ```
     #[must_use]
-    pub fn with_source_arc(mut self, source: Arc<dyn StdError + Send + Sync + 'static>) -> Self {
+    pub fn with_source_arc(mut self, source: Arc<dyn CoreError + Send + Sync + 'static>) -> Self {
         self.source = Some(source);
         self.mark_dirty();
         self
@@ -445,8 +513,94 @@ impl Error {
 
     /// Attach a captured backtrace.
     #[must_use]
-    pub fn with_backtrace(mut self, backtrace: std::backtrace::Backtrace) -> Self {
+    pub fn with_backtrace(mut self, backtrace: CapturedBacktrace) -> Self {
         self.set_backtrace_slot(backtrace);
+        self.mark_dirty();
+        self
+    }
+
+    /// Attach structured JSON details for the client payload.
+    ///
+    /// The details are omitted from responses when the error has been marked as
+    /// [`redactable`](Self::redactable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "serde_json")]
+    /// # {
+    /// use masterror::{AppError, AppErrorKind};
+    /// use serde_json::json;
+    ///
+    /// let err = AppError::new(AppErrorKind::Validation, "invalid input")
+    ///     .with_details_json(json!({"field": "email"}));
+    /// assert!(err.details.is_some());
+    /// # }
+    /// ```
+    #[must_use]
+    #[cfg(feature = "serde_json")]
+    pub fn with_details_json(mut self, details: JsonValue) -> Self {
+        self.details = Some(details);
+        self.mark_dirty();
+        self
+    }
+
+    /// Serialize and attach structured details.
+    ///
+    /// Returns [`AppError`] with [`AppErrorKind::BadRequest`] if serialization
+    /// fails.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "serde_json")]
+    /// # {
+    /// use masterror::{AppError, AppErrorKind};
+    /// use serde::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// struct Extra {
+    ///     reason: &'static str
+    /// }
+    ///
+    /// let err = AppError::new(AppErrorKind::BadRequest, "invalid")
+    ///     .with_details(Extra {
+    ///         reason: "missing"
+    ///     })
+    ///     .expect("details should serialize");
+    /// assert!(err.details.is_some());
+    /// # }
+    /// ```
+    #[cfg(feature = "serde_json")]
+    #[allow(clippy::result_large_err)]
+    pub fn with_details<T>(self, payload: T) -> crate::AppResult<Self>
+    where
+        T: Serialize
+    {
+        let details = to_value(payload).map_err(|err| Self::bad_request(err.to_string()))?;
+        Ok(self.with_details_json(details))
+    }
+
+    /// Attach plain-text details for client payloads.
+    ///
+    /// The text is omitted from responses when the error is
+    /// [`redactable`](Self::redactable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(not(feature = "serde_json"))]
+    /// # {
+    /// use masterror::{AppError, AppErrorKind};
+    ///
+    /// let err = AppError::new(AppErrorKind::Internal, "boom").with_details_text("retry later");
+    /// assert!(err.details.is_some());
+    /// # }
+    /// ```
+    #[must_use]
+    #[cfg(not(feature = "serde_json"))]
+    pub fn with_details_text(mut self, details: impl Into<String>) -> Self {
+        self.details = Some(details.into());
         self.mark_dirty();
         self
     }
@@ -460,13 +614,13 @@ impl Error {
     /// Borrow the backtrace, capturing it lazily when the `backtrace` feature
     /// is enabled.
     #[must_use]
-    pub fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
+    pub fn backtrace(&self) -> Option<&CapturedBacktrace> {
         self.capture_backtrace()
     }
 
     /// Borrow the source if present.
     #[must_use]
-    pub fn source_ref(&self) -> Option<&(dyn StdError + Send + Sync + 'static)> {
+    pub fn source_ref(&self) -> Option<&(dyn CoreError + Send + Sync + 'static)> {
         self.source.as_deref()
     }
 
@@ -475,7 +629,7 @@ impl Error {
     pub fn render_message(&self) -> Cow<'_, str> {
         match &self.message {
             Some(msg) => Cow::Borrowed(msg.as_ref()),
-            None => Cow::Owned(self.kind.to_string())
+            None => Cow::Borrowed(self.kind.label())
         }
     }
 

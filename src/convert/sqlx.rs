@@ -231,7 +231,7 @@ fn classify_database_error(error: &(dyn DatabaseError + 'static)) -> (Context, O
             .iter()
             .find(|(state, _)| *state == sqlstate.as_str())
         {
-            code_override = Some(*app_code);
+            code_override = Some(app_code.clone());
         }
     }
 

@@ -1,3 +1,7 @@
+use alloc::string::String;
+
+use http::StatusCode;
+
 use super::core::ErrorResponse;
 use crate::AppCode;
 
@@ -12,14 +16,29 @@ impl ErrorResponse {
     /// ease migration from versions prior to 0.3.0.
     #[must_use]
     pub fn new_legacy(status: u16, message: impl Into<String>) -> Self {
-        let msg = message.into();
-        Self::new(status, AppCode::Internal, msg.clone()).unwrap_or(Self {
-            status:           500,
-            code:             AppCode::Internal,
-            message:          msg,
-            details:          None,
-            retry:            None,
-            www_authenticate: None
-        })
+        match StatusCode::from_u16(status) {
+            Ok(_) => {
+                let message = message.into();
+                Self {
+                    status,
+                    code: AppCode::Internal,
+                    message,
+                    details: None,
+                    retry: None,
+                    www_authenticate: None
+                }
+            }
+            Err(_) => {
+                let message = message.into();
+                Self {
+                    status: 500,
+                    code: AppCode::Internal,
+                    message,
+                    details: None,
+                    retry: None,
+                    www_authenticate: None
+                }
+            }
+        }
     }
 }

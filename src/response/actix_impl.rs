@@ -12,6 +12,7 @@ use actix_web::{
     body::BoxBody,
     http::header::{CONTENT_TYPE, RETRY_AFTER, WWW_AUTHENTICATE}
 };
+use itoa::Buffer as IntegerBuffer;
 
 use super::{ErrorResponse, ProblemJson};
 
@@ -26,7 +27,9 @@ pub(crate) fn respond_with_problem_json(mut problem: ProblemJson) -> HttpRespons
     builder.insert_header((CONTENT_TYPE, "application/problem+json"));
 
     if let Some(retry) = retry_after {
-        builder.insert_header((RETRY_AFTER, retry.to_string()));
+        let mut buffer = IntegerBuffer::new();
+        let retry_str = buffer.format(retry);
+        builder.insert_header((RETRY_AFTER, retry_str));
     }
     if let Some(challenge) = www_authenticate {
         builder.insert_header((WWW_AUTHENTICATE, challenge));

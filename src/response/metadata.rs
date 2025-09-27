@@ -1,4 +1,5 @@
-use std::time::Duration;
+use alloc::string::String;
+use core::time::Duration;
 
 use super::core::{ErrorResponse, RetryAdvice};
 
@@ -24,7 +25,7 @@ impl ErrorResponse {
     /// # Examples
     ///
     /// ```rust
-    /// use std::time::Duration;
+    /// use core::time::Duration;
     ///
     /// use masterror::{AppCode, ErrorResponse};
     ///

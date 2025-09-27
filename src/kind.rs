@@ -35,68 +35,63 @@
 //! assert_eq!(kind.status_code().as_u16(), 404);
 //! ```
 
+use core::{
+    error::Error as CoreError,
+    fmt::{self, Display, Formatter}
+};
+
 #[cfg(feature = "axum")]
 use axum::http::StatusCode;
-
-use crate::Error;
 
 /// Canonical application error taxonomy.
 ///
 /// Keep it small, stable, and framework-agnostic. Each variant has a clear,
 /// documented meaning and a predictable mapping to an HTTP status code.
-#[derive(Debug, Error, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppErrorKind {
     // ── Generic, client-visible failures (4xx/5xx) ────────────────────────────
     /// Resource does not exist or is not visible to the caller.
     ///
     /// Maps to **404 Not Found**.
-    #[error("Not found")]
     NotFound,
 
     /// Input failed validation (shape, constraints, business rules).
     ///
     /// Prefer this over `BadRequest` when you validate structured input.
     /// Maps to **422 Unprocessable Entity**.
-    #[error("Validation error")]
     Validation,
 
     /// State conflict with an existing resource or concurrent update.
     ///
     /// Typical cases: unique key violation, version mismatch (ETag).
     /// Maps to **409 Conflict**.
-    #[error("Conflict")]
     Conflict,
 
     /// Authentication required or failed (missing/invalid credentials).
     ///
     /// Maps to **401 Unauthorized**.
-    #[error("Unauthorized")]
     Unauthorized,
 
     /// Authenticated but not allowed to perform the operation.
     ///
     /// Maps to **403 Forbidden**.
-    #[error("Forbidden")]
     Forbidden,
 
     /// Operation is not implemented or not supported by this deployment.
     ///
     /// Maps to **501 Not Implemented**.
-    #[error("Not implemented")]
     NotImplemented,
 
     /// Unexpected server-side failure not captured by more specific kinds.
     ///
     /// Use sparingly; prefer a more precise category when possible.
     /// Maps to **500 Internal Server Error**.
-    #[error("Internal server error")]
     Internal,
 
     /// Malformed request or missing required parameters.
     ///
     /// Prefer `Validation` for structured input with field-level issues.
     /// Maps to **400 Bad Request**.
-    #[error("Bad request")]
     BadRequest,
 
     // ── Domain-specific categories (map conservatively) ───────────────────────
@@ -104,21 +99,18 @@ pub enum AppErrorKind {
     ///
     /// Treated as an authentication failure.
     /// Maps to **401 Unauthorized**.
-    #[error("Telegram authentication error")]
     TelegramAuth,
 
     /// Provided JWT is invalid (expired, malformed, wrong signature/claims).
     ///
     /// Treated as an authentication failure.
     /// Maps to **401 Unauthorized**.
-    #[error("Invalid JWT")]
     InvalidJwt,
 
     /// Database-related failure (query, connection, migration, etc.).
     ///
     /// Keep driver-specific details out of the public contract.
     /// Maps to **500 Internal Server Error**.
-    #[error("Database error")]
     Database,
 
     /// Generic service-layer failure (business logic or internal
@@ -126,19 +118,16 @@ pub enum AppErrorKind {
     ///
     /// Use when no more specific category applies.
     /// Maps to **500 Internal Server Error**.
-    #[error("Service error")]
     Service,
 
     /// Configuration error (missing/invalid environment or runtime config).
     ///
     /// Maps to **500 Internal Server Error**.
-    #[error("Configuration error")]
     Config,
 
     /// Failure in the Turnkey subsystem/integration.
     ///
     /// Maps to **500 Internal Server Error**.
-    #[error("Turnkey error")]
     Turnkey,
 
     // ── Infrastructure / network ──────────────────────────────────────────────
@@ -146,63 +135,92 @@ pub enum AppErrorKind {
     ///
     /// Typically returned by timeouts around I/O or remote calls.
     /// Maps to **504 Gateway Timeout**.
-    #[error("Operation timed out")]
     Timeout,
 
     /// Network-level error (DNS, connect, TLS, request build).
     ///
     /// For upstream HTTP status failures use `ExternalApi` instead.
     /// Maps to **503 Service Unavailable**.
-    #[error("Network error")]
     Network,
 
     /// Client exceeded rate limits or quota.
     ///
     /// Maps to **429 Too Many Requests**.
-    #[error("Rate limit exceeded")]
     RateLimited,
 
     /// External dependency is unavailable or degraded.
     ///
     /// Examples: cache down, message broker unreachable, third-party outage.
     /// Maps to **503 Service Unavailable**.
-    #[error("External dependency unavailable")]
     DependencyUnavailable,
 
     // ── Serialization / external API / infra subsystems ───────────────────────
     /// Failed to serialize data (encode).
     ///
     /// Maps to **500 Internal Server Error**.
-    #[error("Serialization error")]
     Serialization,
 
     /// Failed to deserialize data (decode).
     ///
     /// Maps to **500 Internal Server Error**.
-    #[error("Deserialization error")]
     Deserialization,
 
     /// Upstream API returned an error or the call failed at protocol level.
     ///
     /// Use `Network` for connect/build failures; use this for HTTP status
     /// errors. Maps to **500 Internal Server Error** by default.
-    #[error("External API error")]
     ExternalApi,
 
     /// Queue processing failure (publish/consume/ack).
     ///
     /// Maps to **500 Internal Server Error**.
-    #[error("Queue processing error")]
     Queue,
 
     /// Cache subsystem failure (read/write/encoding).
     ///
     /// Maps to **500 Internal Server Error**.
-    #[error("Cache error")]
     Cache
 }
 
+impl Display for AppErrorKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(self.label())
+    }
+}
+
+impl CoreError for AppErrorKind {}
+
 impl AppErrorKind {
+    /// Human-readable label exposed in HTTP and telemetry payloads.
+    #[must_use]
+    pub const fn label(&self) -> &'static str {
+        match self {
+            Self::NotFound => "Not found",
+            Self::Validation => "Validation error",
+            Self::Conflict => "Conflict",
+            Self::Unauthorized => "Unauthorized",
+            Self::Forbidden => "Forbidden",
+            Self::NotImplemented => "Not implemented",
+            Self::Internal => "Internal server error",
+            Self::BadRequest => "Bad request",
+            Self::TelegramAuth => "Telegram authentication error",
+            Self::InvalidJwt => "Invalid JWT",
+            Self::Database => "Database error",
+            Self::Service => "Service error",
+            Self::Config => "Configuration error",
+            Self::Turnkey => "Turnkey error",
+            Self::Timeout => "Operation timed out",
+            Self::Network => "Network error",
+            Self::RateLimited => "Rate limit exceeded",
+            Self::DependencyUnavailable => "External dependency unavailable",
+            Self::Serialization => "Serialization error",
+            Self::Deserialization => "Deserialization error",
+            Self::ExternalApi => "External API error",
+            Self::Queue => "Queue processing error",
+            Self::Cache => "Cache error"
+        }
+    }
+
     /// Framework-agnostic mapping to an HTTP status code (`u16`).
     ///
     /// This mapping is intentionally conservative and stable. It should **not**

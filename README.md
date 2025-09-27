@@ -6,7 +6,7 @@
 [![Crates.io](https://img.shields.io/crates/v/masterror)](https://crates.io/crates/masterror)
 [![docs.rs](https://img.shields.io/docsrs/masterror)](https://docs.rs/masterror)
 [![Downloads](https://img.shields.io/crates/d/masterror)](https://crates.io/crates/masterror)
-![MSRV](https://img.shields.io/badge/MSRV-1.90-blue)
+![MSRV](https://img.shields.io/badge/MSRV-1.89-blue)
 ![License](https://img.shields.io/badge/License-MIT%20or%20Apache--2.0-informational)
 [![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
 [![Security audit](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main&label=Security%20audit)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
@@ -74,16 +74,40 @@ The build script keeps the full feature snippet below in sync with
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.21.2", default-features = false }
+masterror = { version = "0.24.7", default-features = false }
 # or with features:
-# masterror = { version = "0.21.2", features = [
-#   "axum", "actix", "openapi", "serde_json",
-#   "tracing", "metrics", "backtrace", "sqlx",
-#   "sqlx-migrate", "reqwest", "redis", "validator",
-#   "config", "tokio", "multipart", "teloxide",
-#   "telegram-webapp-sdk", "tonic", "frontend", "turnkey"
+# masterror = { version = "0.24.7", features = [
+#   "std", "axum", "actix", "openapi",
+#   "serde_json", "tracing", "metrics", "backtrace",
+#   "sqlx", "sqlx-migrate", "reqwest", "redis",
+#   "validator", "config", "tokio", "multipart",
+#   "teloxide", "telegram-webapp-sdk", "tonic", "frontend",
+#   "turnkey"
 # ] }
 ~~~
+
+---
+
+### Benchmarks
+
+Criterion benchmarks cover the hottest conversion paths so regressions are
+visible before shipping. Run them locally with:
+
+~~~sh
+cargo bench --bench error_paths
+~~~
+
+The suite emits two groups:
+
+- `context_into_error/*` promotes a dummy source error with representative
+  metadata (strings, counters, durations, IPs) through `Context::into_error` in
+  both redacted and non-redacted modes.
+- `problem_json_from_app_error/*` consumes the resulting `AppError` values to
+  build RFC 7807 payloads via `ProblemJson::from_app_error`, showing how message
+  redaction and field policies impact serialization.
+
+Adjust Criterion CLI flags (for example `--sample-size 200`) after `--` to trade
+throughput for tighter confidence intervals when investigating changes.
 
 ---
 
@@ -100,6 +124,10 @@ assert!(matches!(err.kind, AppErrorKind::BadRequest));
 let err_with_meta = AppError::service("downstream")
     .with_field(field::str("request_id", "abc123"));
 assert_eq!(err_with_meta.metadata().len(), 1);
+
+let err_with_context = AppError::internal("db down")
+    .with_context(std::io::Error::new(std::io::ErrorKind::Other, "boom"));
+assert!(err_with_context.source_ref().is_some());
 ~~~
 
 With prelude:
@@ -417,5 +445,4 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 
 ---
 
-MSRV: **1.90** · License: **MIT OR Apache-2.0** · No `unsafe`
-
+MSRV: **1.89** · License: **MIT OR Apache-2.0** · No `unsafe`
