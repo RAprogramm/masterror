@@ -7,7 +7,10 @@ use core::{
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "openapi")]
-use utoipa::ToSchema;
+use utoipa::{
+    PartialSchema, ToSchema,
+    openapi::schema::{ObjectBuilder, Type}
+};
 
 use crate::kind::AppErrorKind;
 
@@ -40,7 +43,6 @@ impl CoreError for ParseAppCodeError {}
 /// - Do not encode private/internal details in codes.
 /// - Validate custom codes using [`AppCode::try_new`] before exposing them
 ///   publicly.
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AppCode {
@@ -294,6 +296,23 @@ impl<'de> Deserialize<'de> for AppCode {
         deserializer.deserialize_str(Visitor)
     }
 }
+
+#[cfg(feature = "openapi")]
+impl PartialSchema for AppCode {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        ObjectBuilder::new()
+            .schema_type(Type::String)
+            .description(Some(
+                "Stable machine-readable error code in SCREAMING_SNAKE_CASE.".to_owned()
+            ))
+            .pattern(Some("^[A-Z0-9_]+$".to_owned()))
+            .build()
+            .into()
+    }
+}
+
+#[cfg(feature = "openapi")]
+impl ToSchema for AppCode {}
 
 fn validate_code(value: &str) -> Result<(), ParseAppCodeError> {
     if !is_valid_literal(value) {
