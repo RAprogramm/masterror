@@ -1,6 +1,6 @@
 [package]
 name = "masterror"
-version = "0.24.1"
+version = "0.24.2"
 rust-version = "1.90"
 edition = "2024"
 license = "MIT OR Apache-2.0"
@@ -134,6 +134,7 @@ tonic = { version = "0.14", optional = true }
 
 [dev-dependencies]
 anyhow = { version = "1", default-features = false, features = ["std"] }
+criterion = "0.5"
 serde_json = "1"
 tokio = { version = "1", features = [
   "macros",
@@ -145,6 +146,10 @@ trybuild = "1"
 toml = "0.9"
 tempfile = "3"
 tracing-subscriber = { version = "0.3", features = ["registry"] }
+
+[[bench]]
+name = "error_paths"
+harness = false
 
 [build-dependencies]
 serde = { version = "1", features = ["derive"] }

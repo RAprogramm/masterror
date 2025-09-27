@@ -3,6 +3,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.2] - 2025-10-18
+
+### Added
+- Introduced a Criterion benchmark (`benches/error_paths.rs`) covering
+  `Context::into_error` redaction scenarios and `ProblemJson::from_app_error`
+  conversions to track serialization hot paths.
+- Documented the benchmarking workflow in the README and exposed the suite via
+  `cargo bench --bench error_paths` with the default harness disabled.
+
 ## [0.24.1] - 2025-10-17
 
 ### Fixed
