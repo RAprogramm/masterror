@@ -1,3 +1,6 @@
+#[cfg(not(feature = "serde_json"))]
+use alloc::string::String;
+
 #[cfg(feature = "serde_json")]
 use serde::Serialize;
 #[cfg(feature = "serde_json")]
