@@ -1,9 +1,4 @@
-use alloc::{
-    borrow::Cow,
-    boxed::Box,
-    string::{String, ToString},
-    sync::Arc
-};
+use alloc::{borrow::Cow, boxed::Box, string::String, sync::Arc};
 use core::{
     error::Error as CoreError,
     fmt::{Display, Formatter, Result as FmtResult},
@@ -632,7 +627,7 @@ impl Error {
     pub fn render_message(&self) -> Cow<'_, str> {
         match &self.message {
             Some(msg) => Cow::Borrowed(msg.as_ref()),
-            None => Cow::Owned(self.kind.to_string())
+            None => Cow::Borrowed(self.kind.label())
         }
     }
 

@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use super::ErrorResponse;
 use crate::{AppCode, AppError, AppErrorKind, ProblemJson};
 
@@ -255,7 +257,7 @@ fn from_app_error_uses_default_message_when_none() {
     let e: ErrorResponse = (&app).into();
     assert_eq!(e.status, 500);
     assert!(matches!(e.code, AppCode::Internal));
-    assert_eq!(e.message, AppErrorKind::Internal.to_string());
+    assert_eq!(e.message, AppErrorKind::Internal.label());
 }
 
 #[test]
@@ -279,7 +281,7 @@ fn from_owned_app_error_defaults_message_when_absent() {
 
     assert_eq!(resp.status, 500);
     assert!(matches!(resp.code, AppCode::Internal));
-    assert_eq!(resp.message, AppErrorKind::Internal.to_string());
+    assert_eq!(resp.message, AppErrorKind::Internal.label());
 }
 
 #[test]
@@ -289,7 +291,31 @@ fn from_app_error_bare_uses_kind_display_as_message() {
 
     assert_eq!(resp.status, 504);
     assert!(matches!(resp.code, AppCode::Timeout));
-    assert_eq!(resp.message, AppErrorKind::Timeout.to_string());
+    assert_eq!(resp.message, AppErrorKind::Timeout.label());
+}
+
+#[test]
+fn problem_json_fallbacks_borrow_bare_labels() {
+    let owned = ProblemJson::from_app_error(AppError::bare(AppErrorKind::Internal));
+    assert!(matches!(
+        owned.title,
+        Cow::Borrowed(label) if label == AppErrorKind::Internal.label()
+    ));
+    assert!(matches!(
+        owned.detail,
+        Some(Cow::Borrowed(label)) if label == AppErrorKind::Internal.label()
+    ));
+
+    let borrowed_error = AppError::bare(AppErrorKind::Timeout);
+    let borrowed_problem = ProblemJson::from_ref(&borrowed_error);
+    assert!(matches!(
+        borrowed_problem.title,
+        Cow::Borrowed(label) if label == AppErrorKind::Timeout.label()
+    ));
+    assert!(matches!(
+        borrowed_problem.detail,
+        Some(Cow::Borrowed(label)) if label == AppErrorKind::Timeout.label()
+    ));
 }
 
 #[test]
@@ -297,11 +323,11 @@ fn from_app_error_redacts_message_when_policy_allows() {
     let app = AppError::internal("sensitive").redactable();
     let resp: ErrorResponse = app.into();
 
-    assert_eq!(resp.message, AppErrorKind::Internal.to_string());
+    assert_eq!(resp.message, AppErrorKind::Internal.label());
 
     let borrowed = AppError::internal("private").redactable();
     let resp_ref: ErrorResponse = (&borrowed).into();
-    assert_eq!(resp_ref.message, AppErrorKind::Internal.to_string());
+    assert_eq!(resp_ref.message, AppErrorKind::Internal.label());
 }
 
 #[test]
@@ -310,10 +336,10 @@ fn error_response_serialization_hides_redacted_message() {
     let resp: ErrorResponse = AppError::internal(secret).redactable().into();
     let json = serde_json::to_value(&resp).expect("serialize response");
 
-    let fallback = AppErrorKind::Internal.to_string();
+    let fallback = AppErrorKind::Internal.label();
     assert_eq!(
         json.get("message").and_then(|value| value.as_str()),
-        Some(fallback.as_str())
+        Some(fallback)
     );
     assert!(!json.to_string().contains(secret));
 }

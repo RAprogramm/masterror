@@ -173,7 +173,7 @@ impl ProblemJson {
 
         let mapping = mapping_for_code(&code);
         let status = kind.http_status();
-        let title = Cow::Owned(kind.to_string());
+        let title = Cow::Borrowed(kind.label());
         let detail = sanitize_detail(message, kind, edit_policy);
         let metadata = sanitize_metadata_owned(metadata, edit_policy);
 
@@ -210,7 +210,7 @@ impl ProblemJson {
     pub fn from_ref(error: &AppError) -> Self {
         let mapping = mapping_for_code(&error.code);
         let status = error.kind.http_status();
-        let title = Cow::Owned(error.kind.to_string());
+        let title = Cow::Borrowed(error.kind.label());
         let detail = sanitize_detail_ref(error);
         let details = sanitize_details_ref(error);
         let metadata = sanitize_metadata_ref(error.metadata(), error.edit_policy);
@@ -263,7 +263,7 @@ impl ProblemJson {
 
         Self {
             type_uri: Some(Cow::Borrowed(mapping.problem_type())),
-            title: Cow::Owned(mapping.kind().to_string()),
+            title: Cow::Borrowed(mapping.kind().label()),
             status,
             detail,
             details,
@@ -412,7 +412,7 @@ fn sanitize_detail(
         return None;
     }
 
-    Some(message.unwrap_or_else(|| Cow::Owned(kind.to_string())))
+    Some(message.unwrap_or_else(|| Cow::Borrowed(kind.label())))
 }
 
 fn sanitize_detail_ref(error: &AppError) -> Option<Cow<'static, str>> {
@@ -420,7 +420,11 @@ fn sanitize_detail_ref(error: &AppError) -> Option<Cow<'static, str>> {
         return None;
     }
 
-    Some(Cow::Owned(error.render_message().into_owned()))
+    match error.message.as_ref() {
+        Some(Cow::Borrowed(msg)) => Some(Cow::Borrowed(*msg)),
+        Some(Cow::Owned(msg)) => Some(Cow::Owned(msg.clone())),
+        None => Some(Cow::Borrowed(error.kind.label()))
+    }
 }
 
 #[cfg(feature = "serde_json")]
