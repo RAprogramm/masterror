@@ -21,6 +21,7 @@
 use core::convert::Infallible;
 use std::borrow::Cow;
 
+use itoa::Buffer as IntegerBuffer;
 use tonic::{
     Code, Status,
     metadata::{MetadataMap, MetadataValue}
@@ -68,11 +69,9 @@ fn status_from_error(error: &Error) -> Status {
     let mut meta = MetadataMap::new();
 
     insert_ascii(&mut meta, "app-code", error.code.as_str());
-    insert_ascii(
-        &mut meta,
-        "app-http-status",
-        mapping.http_status().to_string()
-    );
+    let mut http_status_buffer = IntegerBuffer::new();
+    let http_status = http_status_buffer.format(mapping.http_status());
+    insert_ascii(&mut meta, "app-http-status", http_status);
     insert_ascii(&mut meta, "app-problem-type", mapping.problem_type());
 
     if let Some(advice) = error.retry {
@@ -104,7 +103,9 @@ fn sanitize_detail(
 }
 
 fn insert_retry(meta: &mut MetadataMap, retry: RetryAdvice) {
-    insert_ascii(meta, "retry-after", retry.after_seconds.to_string());
+    let mut retry_after_buffer = IntegerBuffer::new();
+    let retry_after = retry_after_buffer.format(retry.after_seconds);
+    insert_ascii(meta, "retry-after", retry_after);
 }
 
 fn attach_metadata(meta: &mut MetadataMap, metadata: &Metadata) {
@@ -213,6 +214,24 @@ mod tests {
                 .get("attempt")
                 .and_then(|value| value.to_str().ok()),
             Some("2")
+        );
+    }
+
+    #[test]
+    fn timeout_status_carries_ascii_metadata() {
+        let status = Status::from(AppError::timeout("deadline exceeded").with_retry_after_secs(7));
+        let metadata = status.metadata();
+        assert_eq!(
+            metadata
+                .get("app-http-status")
+                .and_then(|value| value.to_str().ok()),
+            Some("504")
+        );
+        assert_eq!(
+            metadata
+                .get("retry-after")
+                .and_then(|value| value.to_str().ok()),
+            Some("7")
         );
     }
 }

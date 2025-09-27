@@ -1826,7 +1826,7 @@ dependencies = [
 
 [[package]]
 name = "masterror"
-version = "0.24.2"
+version = "0.24.3"
 dependencies = [
  "actix-web",
  "anyhow",
