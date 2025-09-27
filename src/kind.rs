@@ -184,7 +184,17 @@ pub enum AppErrorKind {
 
 impl Display for AppErrorKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let label = match self {
+        f.write_str(self.label())
+    }
+}
+
+impl CoreError for AppErrorKind {}
+
+impl AppErrorKind {
+    /// Human-readable label exposed in HTTP and telemetry payloads.
+    #[must_use]
+    pub const fn label(&self) -> &'static str {
+        match self {
             Self::NotFound => "Not found",
             Self::Validation => "Validation error",
             Self::Conflict => "Conflict",
@@ -208,14 +218,9 @@ impl Display for AppErrorKind {
             Self::ExternalApi => "External API error",
             Self::Queue => "Queue processing error",
             Self::Cache => "Cache error"
-        };
-        f.write_str(label)
+        }
     }
-}
 
-impl CoreError for AppErrorKind {}
-
-impl AppErrorKind {
     /// Framework-agnostic mapping to an HTTP status code (`u16`).
     ///
     /// This mapping is intentionally conservative and stable. It should **not**

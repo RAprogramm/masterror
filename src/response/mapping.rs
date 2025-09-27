@@ -1,4 +1,4 @@
-use alloc::string::ToString;
+use alloc::string::String;
 use core::fmt::{Display, Formatter, Result as FmtResult};
 
 use super::core::ErrorResponse;
@@ -22,7 +22,7 @@ impl From<AppError> for ErrorResponse {
         let status = kind.http_status();
         let message = match err.message.take() {
             Some(msg) if !matches!(policy, crate::MessageEditPolicy::Redact) => msg.into_owned(),
-            _ => kind.to_string()
+            _ => String::from(kind.label())
         };
         #[cfg(feature = "serde_json")]
         let details = if matches!(policy, crate::MessageEditPolicy::Redact) {
@@ -52,7 +52,7 @@ impl From<&AppError> for ErrorResponse {
     fn from(err: &AppError) -> Self {
         let status = err.kind.http_status();
         let message = if matches!(err.edit_policy, crate::MessageEditPolicy::Redact) {
-            err.kind.to_string()
+            String::from(err.kind.label())
         } else {
             err.render_message().into_owned()
         };

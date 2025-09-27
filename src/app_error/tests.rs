@@ -190,6 +190,16 @@ fn bare_sets_kind_without_message() {
 }
 
 #[test]
+fn render_message_returns_borrowed_label_for_bare_errors() {
+    let err = AppError::bare(AppErrorKind::Forbidden);
+    let rendered = err.render_message();
+    assert!(matches!(
+        rendered,
+        Cow::Borrowed(label) if label == AppErrorKind::Forbidden.label()
+    ));
+}
+
+#[test]
 fn retry_and_www_authenticate_are_attached() {
     let err = AppError::internal("boom")
         .with_retry_after_secs(30)
