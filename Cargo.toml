@@ -1,7 +1,7 @@
 [package]
 name = "masterror"
-version = "0.24.6"
-rust-version = "1.90"
+version = "0.24.7"
+rust-version = "1.89"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/RAprogramm/masterror"
@@ -42,7 +42,7 @@ resolver = "3"
 # Defaults for members (root объявлен строками выше, потому что build.rs парсит его как строки)
 [workspace.package]
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.89"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/RAprogramm/masterror"
 readme = "README.md"
@@ -76,8 +76,8 @@ tonic = ["dep:tonic", "std"]
 openapi = ["dep:utoipa", "std"]
 
 [workspace.dependencies]
-masterror-derive = { version = "0.9.0" }
-masterror-template = { version = "0.3.6" }
+masterror-derive = { version = "0.9.1" }
+masterror-template = { version = "0.3.7" }
 
 [dependencies]
 masterror-derive = { version = "0.9" }

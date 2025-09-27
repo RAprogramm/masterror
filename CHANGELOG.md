@@ -3,6 +3,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.7] - 2025-10-23
+
+### Fixed
+- Restored the documented MSRV of Rust 1.89 across the workspace so crates
+  compile on stable 1.89 again, updating metadata, READMEs and regression tests
+  to match.
+
 ## [0.24.6] - 2025-10-22
 
 ### Fixed
