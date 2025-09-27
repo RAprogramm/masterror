@@ -74,9 +74,9 @@ The build script keeps the full feature snippet below in sync with
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.24.1", default-features = false }
+masterror = { version = "0.24.2", default-features = false }
 # or with features:
-# masterror = { version = "0.24.1", features = [
+# masterror = { version = "0.24.2", features = [
 #   "std", "axum", "actix", "openapi",
 #   "serde_json", "tracing", "metrics", "backtrace",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
@@ -85,6 +85,29 @@ masterror = { version = "0.24.1", default-features = false }
 #   "turnkey"
 # ] }
 ~~~
+
+---
+
+### Benchmarks
+
+Criterion benchmarks cover the hottest conversion paths so regressions are
+visible before shipping. Run them locally with:
+
+~~~sh
+cargo bench --bench error_paths
+~~~
+
+The suite emits two groups:
+
+- `context_into_error/*` promotes a dummy source error with representative
+  metadata (strings, counters, durations, IPs) through `Context::into_error` in
+  both redacted and non-redacted modes.
+- `problem_json_from_app_error/*` consumes the resulting `AppError` values to
+  build RFC 7807 payloads via `ProblemJson::from_app_error`, showing how message
+  redaction and field policies impact serialization.
+
+Adjust Criterion CLI flags (for example `--sample-size 200`) after `--` to trade
+throughput for tighter confidence intervals when investigating changes.
 
 ---
 
