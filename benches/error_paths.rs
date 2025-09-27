@@ -2,9 +2,12 @@ use core::{
     net::{IpAddr, Ipv4Addr},
     time::Duration
 };
-use std::fmt::{Display, Formatter, Result as FmtResult};
+use std::{
+    fmt::{Display, Formatter, Result as FmtResult},
+    hint::black_box
+};
 
-use criterion::{BatchSize, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use masterror::{AppError, AppErrorKind, Context, FieldRedaction, ProblemJson, ResultExt, field};
 
 #[derive(Debug)]
