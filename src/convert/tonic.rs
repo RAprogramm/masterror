@@ -22,6 +22,7 @@ use core::convert::Infallible;
 use std::borrow::Cow;
 
 use itoa::Buffer as IntegerBuffer;
+use ryu::Buffer as FloatBuffer;
 use tonic::{
     Code, Status,
     metadata::{MetadataMap, MetadataValue}
@@ -109,6 +110,7 @@ fn insert_retry(meta: &mut MetadataMap, retry: RetryAdvice) {
 }
 
 fn attach_metadata(meta: &mut MetadataMap, metadata: &Metadata) {
+    let mut formatter = MetadataValueFormatter::new();
     for (name, value, redaction) in metadata.iter_with_redaction() {
         if !matches!(redaction, FieldRedaction::None) {
             continue;
@@ -116,7 +118,7 @@ fn attach_metadata(meta: &mut MetadataMap, metadata: &Metadata) {
         if !is_safe_metadata_key(name) {
             continue;
         }
-        if let Some(serialized) = metadata_value_to_ascii(value) {
+        if let Some(serialized) = metadata_value_to_ascii(value, &mut formatter) {
             insert_ascii(meta, name, serialized);
         }
     }
@@ -135,19 +137,55 @@ fn insert_ascii(meta: &mut MetadataMap, key: &'static str, value: impl AsRef<str
     }
 }
 
-fn metadata_value_to_ascii(value: &FieldValue) -> Option<Cow<'_, str>> {
+#[derive(Debug)]
+enum MetadataAscii<'a> {
+    Static(&'static str),
+    Buffer(&'a str),
+    Owned(String)
+}
+
+impl AsRef<str> for MetadataAscii<'_> {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::Static(text) | Self::Buffer(text) => text,
+            Self::Owned(text) => text.as_str()
+        }
+    }
+}
+
+#[derive(Default)]
+struct MetadataValueFormatter {
+    integers: IntegerBuffer,
+    floats:   FloatBuffer
+}
+
+impl MetadataValueFormatter {
+    fn new() -> Self {
+        Self {
+            integers: IntegerBuffer::new(),
+            floats:   FloatBuffer::new()
+        }
+    }
+}
+
+fn metadata_value_to_ascii<'a>(
+    value: &FieldValue,
+    formatter: &'a mut MetadataValueFormatter
+) -> Option<MetadataAscii<'a>> {
     match value {
         FieldValue::Str(value) => {
             let text = value.as_ref();
-            is_ascii_metadata_value(text).then_some(Cow::Borrowed(text))
+            is_ascii_metadata_value(text).then_some(MetadataAscii::Static(text))
         }
-        FieldValue::I64(value) => Some(Cow::Owned(value.to_string())),
-        FieldValue::U64(value) => Some(Cow::Owned(value.to_string())),
-        FieldValue::F64(value) => Some(Cow::Owned(value.to_string())),
-        FieldValue::Bool(value) => Some(Cow::Borrowed(if *value { "true" } else { "false" })),
-        FieldValue::Uuid(value) => Some(Cow::Owned(value.to_string())),
-        FieldValue::Duration(value) => Some(Cow::Owned(duration_to_string(*value))),
-        FieldValue::Ip(value) => Some(Cow::Owned(value.to_string())),
+        FieldValue::I64(value) => Some(MetadataAscii::Buffer(formatter.integers.format(*value))),
+        FieldValue::U64(value) => Some(MetadataAscii::Buffer(formatter.integers.format(*value))),
+        FieldValue::F64(value) => Some(MetadataAscii::Buffer(formatter.floats.format(*value))),
+        FieldValue::Bool(value) => {
+            Some(MetadataAscii::Static(if *value { "true" } else { "false" }))
+        }
+        FieldValue::Uuid(value) => Some(MetadataAscii::Owned(value.to_string())),
+        FieldValue::Duration(value) => Some(MetadataAscii::Owned(duration_to_string(*value))),
+        FieldValue::Ip(value) => Some(MetadataAscii::Owned(value.to_string())),
         #[cfg(feature = "serde_json")]
         FieldValue::Json(_) => None
     }
@@ -214,6 +252,30 @@ mod tests {
                 .get("attempt")
                 .and_then(|value| value.to_str().ok()),
             Some("2")
+        );
+    }
+
+    #[test]
+    fn numeric_metadata_is_rendered_consistently() {
+        let err = AppError::service("numbers")
+            .with_field(field::i64("signed", -42))
+            .with_field(field::u64("unsigned", 9000))
+            .with_field(field::f64("ratio", 1.25));
+        let status = Status::from(err);
+        let metadata = status.metadata();
+        assert_eq!(
+            metadata.get("signed").and_then(|value| value.to_str().ok()),
+            Some("-42")
+        );
+        assert_eq!(
+            metadata
+                .get("unsigned")
+                .and_then(|value| value.to_str().ok()),
+            Some("9000")
+        );
+        assert_eq!(
+            metadata.get("ratio").and_then(|value| value.to_str().ok()),
+            Some("1.25")
         );
     }
 
