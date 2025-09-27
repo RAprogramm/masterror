@@ -1,3 +1,5 @@
+use alloc::string::String;
+
 use http::StatusCode;
 
 use super::core::ErrorResponse;

@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, string::String};
+use alloc::{borrow::ToOwned, boxed::Box, string::String};
 use core::{
     error::Error as CoreError,
     fmt::{self, Display},
