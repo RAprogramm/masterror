@@ -147,7 +147,8 @@ enum MetadataAscii<'a> {
 impl AsRef<str> for MetadataAscii<'_> {
     fn as_ref(&self) -> &str {
         match self {
-            Self::Static(text) | Self::Buffer(text) => text,
+            Self::Static(text) => text,
+            Self::Buffer(text) => text,
             Self::Owned(text) => text.as_str()
         }
     }
@@ -175,7 +176,14 @@ fn metadata_value_to_ascii<'a>(
     match value {
         FieldValue::Str(value) => {
             let text = value.as_ref();
-            is_ascii_metadata_value(text).then_some(MetadataAscii::Static(text))
+            if !is_ascii_metadata_value(text) {
+                return None;
+            }
+
+            match value {
+                Cow::Borrowed(borrowed) => Some(MetadataAscii::Static(borrowed)),
+                Cow::Owned(owned) => Some(MetadataAscii::Owned(owned.clone()))
+            }
         }
         FieldValue::I64(value) => Some(MetadataAscii::Buffer(formatter.integers.format(*value))),
         FieldValue::U64(value) => Some(MetadataAscii::Buffer(formatter.integers.format(*value))),

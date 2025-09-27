@@ -311,10 +311,12 @@ impl Error {
 
             #[cfg(feature = "metrics")]
             {
+                let code_label = self.code.as_str().to_owned();
+                let category_label = kind_label(self.kind).to_owned();
                 metrics::counter!(
                     "error_total",
-                    "code" => self.code.as_str(),
-                    "category" => kind_label(self.kind)
+                    "code" => code_label,
+                    "category" => category_label
                 )
                 .increment(1);
             }

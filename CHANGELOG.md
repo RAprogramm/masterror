@@ -3,6 +3,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.4] - 2025-10-20
+
+### Fixed
+- Implemented a manual OpenAPI schema for `AppCode`, restoring `utoipa`
+  compatibility and documenting the SCREAMING_SNAKE_CASE contract in generated
+  specs.
+- Emitted owned label values when incrementing `error_total` telemetry metrics
+  so the updated `metrics` crate no longer requires `'static` lifetimes.
+- Relaxed gRPC metadata serialization to avoid `'static` lifetime requirements
+  introduced by recent compiler changes, preserving zero-copy formatting where
+  possible.
+
 ## [0.24.3] - 2025-10-19
 
 ### Fixed
