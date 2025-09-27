@@ -44,6 +44,8 @@
 //! `std::io::Error` mapping:
 //!
 //! ```rust
+//! # #[cfg(feature = "std")]
+//! # {
 //! use std::io::{self, ErrorKind};
 //!
 //! use masterror::{AppError, AppErrorKind, AppResult};
@@ -55,6 +57,7 @@
 //!
 //! let err = open().unwrap_err();
 //! assert!(matches!(err.kind, AppErrorKind::Internal));
+//! # }
 //! ```
 //!
 //! `String` mapping (useful for ad-hoc validation without the `validator`

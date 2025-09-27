@@ -37,10 +37,10 @@ use crate::{
 
 /// Error alias retained for backwards compatibility with 0.20 conversions.
 ///
-/// Since Rust 1.90 the standard library implements [`TryFrom`] for every
-/// [`Into`] conversion with [`core::convert::Infallible`] as the error type.
-/// Tonic conversions are therefore guaranteed to succeed, and this alias keeps
-/// the historic [`StatusConversionError`] name available for downstream APIs.
+/// The standard library implements [`TryFrom`] for every [`Into`] conversion
+/// with [`core::convert::Infallible`] as the error type, so tonic conversions
+/// are guaranteed to succeed. This alias keeps the historic
+/// [`StatusConversionError`] name available for downstream APIs.
 ///
 /// # Examples
 /// ```rust,ignore

@@ -1806,7 +1806,7 @@ dependencies = [
 
 [[package]]
 name = "masterror"
-version = "0.24.5"
+version = "0.24.7"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -1818,7 +1818,7 @@ dependencies = [
  "js-sys",
  "log",
  "log-mdc",
- "masterror-derive 0.9.0",
+ "masterror-derive 0.9.1",
  "masterror-template",
  "metrics",
  "redis",
@@ -1859,7 +1859,7 @@ dependencies = [
 
 [[package]]
 name = "masterror-derive"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "masterror-template",
  "proc-macro2",
@@ -1869,7 +1869,7 @@ dependencies = [
 
 [[package]]
 name = "masterror-template"
-version = "0.3.6"
+version = "0.3.7"
 
 [[package]]
 name = "matchit"
