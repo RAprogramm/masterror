@@ -389,9 +389,13 @@ fn axum_into_response_sets_headers_and_status() {
 
     assert_eq!(resp.status(), 401);
     let headers = resp.headers();
-    assert_eq!(headers.get(RETRY_AFTER).unwrap(), "7");
+    let retry_after = headers.get(RETRY_AFTER).expect("Retry-After");
+    assert_eq!(retry_after.to_str().expect("ASCII value"), "7");
+    let www_authenticate = headers
+        .get(WWW_AUTHENTICATE)
+        .expect("WWW-Authenticate header");
     assert_eq!(
-        headers.get(WWW_AUTHENTICATE).unwrap(),
+        www_authenticate.to_str().expect("ASCII challenge"),
         r#"Bearer realm="api", error="invalid_token""#
     );
 }
@@ -424,8 +428,15 @@ fn actix_responder_sets_headers_and_status() {
     assert_eq!(http.status(), StatusCode::TOO_MANY_REQUESTS);
 
     let headers = http.headers();
-    assert_eq!(headers.get(RETRY_AFTER).unwrap(), "42");
-    assert_eq!(headers.get(WWW_AUTHENTICATE).unwrap(), "Bearer");
+    let retry_after = headers.get(RETRY_AFTER).expect("Retry-After");
+    assert_eq!(retry_after.to_str().expect("ASCII value"), "42");
+    let www_authenticate = headers
+        .get(WWW_AUTHENTICATE)
+        .expect("WWW-Authenticate header");
+    assert_eq!(
+        www_authenticate.to_str().expect("ASCII challenge"),
+        "Bearer"
+    );
 }
 
 #[cfg(feature = "actix")]
