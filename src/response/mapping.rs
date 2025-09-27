@@ -2,7 +2,7 @@ use alloc::string::String;
 use core::fmt::{Display, Formatter, Result as FmtResult};
 
 use super::core::ErrorResponse;
-use crate::AppError;
+use crate::{AppCode, AppError};
 
 impl Display for ErrorResponse {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
@@ -14,7 +14,7 @@ impl Display for ErrorResponse {
 impl From<AppError> for ErrorResponse {
     fn from(mut err: AppError) -> Self {
         let kind = err.kind;
-        let code = err.code.clone();
+        let code = core::mem::replace(&mut err.code, AppCode::from(kind));
         let retry = err.retry.take();
         let www_authenticate = err.www_authenticate.take();
         let policy = err.edit_policy;

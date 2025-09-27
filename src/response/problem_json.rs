@@ -162,8 +162,8 @@ impl ProblemJson {
     pub fn from_app_error(mut error: AppError) -> Self {
         error.emit_telemetry();
 
-        let code = error.code.clone();
         let kind = error.kind;
+        let code = core::mem::replace(&mut error.code, AppCode::from(kind));
         let message = error.message.take();
         let metadata = core::mem::take(&mut error.metadata);
         let edit_policy = error.edit_policy;
