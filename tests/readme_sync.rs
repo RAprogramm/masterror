@@ -8,7 +8,7 @@ use tempfile::tempdir;
 const MINIMAL_MANIFEST: &str = r#"[package]
 name = "demo"
 version = "1.2.3"
-rust-version = "1.89"
+rust-version = "1.90"
 edition = "2024"
 
 [features]

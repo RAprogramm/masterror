@@ -38,7 +38,7 @@
 //!
 //! # Minimum Supported Rust Version (MSRV)
 //!
-//! MSRV is **1.89**. New minor releases may increase MSRV with a changelog
+//! MSRV is **1.90**. New minor releases may increase MSRV with a changelog
 //! note, but never in a patch release.
 //!
 //! # Feature flags

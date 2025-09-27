@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.8] - 2025-10-24
+
+### Changed
+- Raised the documented and enforced MSRV to Rust 1.90 across the workspace to
+  satisfy dependencies that no longer compile on Rust 1.89.
+
 ## [0.24.7] - 2025-10-23
 
 ### Fixed

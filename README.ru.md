@@ -5,7 +5,7 @@
 [![Crates.io](https://img.shields.io/crates/v/masterror)](https://crates.io/crates/masterror)
 [![docs.rs](https://img.shields.io/docsrs/masterror)](https://docs.rs/masterror)
 [![Downloads](https://img.shields.io/crates/d/masterror)](https://crates.io/crates/masterror)
-![MSRV](https://img.shields.io/badge/MSRV-1.89-blue)
+![MSRV](https://img.shields.io/badge/MSRV-1.90-blue)
 ![License](https://img.shields.io/badge/License-MIT%20or%20Apache--2.0-informational)
 [![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
 [![Security audit](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main&label=Security%20audit)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
@@ -364,4 +364,4 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 
 ---
 
-MSRV: **1.89** · Лицензия: **MIT OR Apache-2.0** · Без `unsafe`
+MSRV: **1.90** · Лицензия: **MIT OR Apache-2.0** · Без `unsafe`
