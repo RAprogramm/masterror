@@ -173,9 +173,10 @@ impl Context {
         if !fields.is_empty() {
             Self::apply_field_redactions(&mut fields, &field_policies);
             error.metadata.extend(fields);
-        }
-        for &(name, redaction) in &field_policies {
-            error = error.redact_field(name, redaction);
+        } else if !field_policies.is_empty() {
+            for &(name, redaction) in &field_policies {
+                error = error.redact_field(name, redaction);
+            }
         }
         if matches!(edit_policy, MessageEditPolicy::Redact) {
             error.edit_policy = MessageEditPolicy::Redact;

@@ -336,6 +336,21 @@ fn context_redact_field_overrides_policy() {
 }
 
 #[test]
+fn context_redact_field_before_insertion_applies_policy() {
+    let err = super::Context::new(AppErrorKind::Service)
+        .redact_field("token", FieldRedaction::Hash)
+        .with(field::str("token", "super-secret"))
+        .into_error(DummyError);
+
+    let metadata = err.metadata();
+    assert_eq!(
+        metadata.get("token"),
+        Some(&FieldValue::Str(Cow::Borrowed("super-secret")))
+    );
+    assert_eq!(metadata.redaction("token"), Some(FieldRedaction::Hash));
+}
+
+#[test]
 fn context_redact_field_mut_applies_policies() {
     let mut context = super::Context::new(AppErrorKind::Service);
     let _ = context.redact_field_mut("token", FieldRedaction::Hash);
