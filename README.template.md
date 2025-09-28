@@ -83,6 +83,29 @@ masterror = { version = "{{CRATE_VERSION}}", default-features = false }
 
 ---
 
+### Benchmarks
+
+Criterion benchmarks cover the hottest conversion paths so regressions are
+visible before shipping. Run them locally with:
+
+~~~sh
+cargo bench --bench error_paths
+~~~
+
+The suite emits two groups:
+
+- `context_into_error/*` promotes a dummy source error with representative
+  metadata (strings, counters, durations, IPs) through `Context::into_error` in
+  both redacted and non-redacted modes.
+- `problem_json_from_app_error/*` consumes the resulting `AppError` values to
+  build RFC 7807 payloads via `ProblemJson::from_app_error`, showing how message
+  redaction and field policies impact serialization.
+
+Adjust Criterion CLI flags (for example `--sample-size 200`) after `--` to trade
+throughput for tighter confidence intervals when investigating changes.
+
+---
+
 <details>
   <summary><b>Quick start</b></summary>
 
@@ -96,6 +119,10 @@ assert!(matches!(err.kind, AppErrorKind::BadRequest));
 let err_with_meta = AppError::service("downstream")
     .with_field(field::str("request_id", "abc123"));
 assert_eq!(err_with_meta.metadata().len(), 1);
+
+let err_with_context = AppError::internal("db down")
+    .with_context(std::io::Error::new(std::io::ErrorKind::Other, "boom"));
+assert!(err_with_context.source_ref().is_some());
 ~~~
 
 With prelude:

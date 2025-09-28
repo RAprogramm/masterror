@@ -10,7 +10,7 @@ Add the crate alongside `masterror` if you need direct access to the parser:
 
 ```toml
 [dependencies]
-masterror-template = { version = "0.3.6" }
+masterror-template = { version = "0.3.8" }
 ```
 
 `masterror-template` targets Rust 1.90 and builds on stable and nightly toolchains alike.

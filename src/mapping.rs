@@ -12,7 +12,7 @@ use crate::{AppCode, AppErrorKind};
 /// Stores the stable public [`AppCode`] and semantic [`AppErrorKind`]. The
 /// HTTP status code can be derived from the kind via
 /// [`AppErrorKind::http_status`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HttpMapping {
     code: AppCode,
     kind: AppErrorKind
@@ -30,8 +30,8 @@ impl HttpMapping {
 
     /// Stable machine-readable error code.
     #[must_use]
-    pub const fn code(&self) -> AppCode {
-        self.code
+    pub fn code(&self) -> &AppCode {
+        &self.code
     }
 
     /// Semantic application error category.
@@ -50,7 +50,7 @@ impl HttpMapping {
 /// gRPC mapping for a domain error.
 ///
 /// Stores the [`AppCode`], [`AppErrorKind`] and a gRPC status code (as `i32`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GrpcMapping {
     code:   AppCode,
     kind:   AppErrorKind,
@@ -70,8 +70,8 @@ impl GrpcMapping {
 
     /// Stable machine-readable error code.
     #[must_use]
-    pub const fn code(&self) -> AppCode {
-        self.code
+    pub fn code(&self) -> &AppCode {
+        &self.code
     }
 
     /// Semantic application error category.
@@ -91,7 +91,7 @@ impl GrpcMapping {
 ///
 /// Associates an error with the [`AppCode`], [`AppErrorKind`] and a canonical
 /// problem `type` URI.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProblemMapping {
     code:   AppCode,
     kind:   AppErrorKind,
@@ -111,8 +111,8 @@ impl ProblemMapping {
 
     /// Stable machine-readable error code.
     #[must_use]
-    pub const fn code(&self) -> AppCode {
-        self.code
+    pub fn code(&self) -> &AppCode {
+        &self.code
     }
 
     /// Semantic application error category.

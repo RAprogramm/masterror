@@ -12,7 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CARGO_LOCKED: "true"
-      CARGO_TERM_COLOR: always
 
     steps:
       - uses: actions/checkout@v4

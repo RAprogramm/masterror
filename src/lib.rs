@@ -1,3 +1,14 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+#![forbid(unsafe_code)]
+#![deny(rustdoc::broken_intra_doc_links)]
+#![warn(
+    missing_docs,
+    missing_debug_implementations,
+    rust_2018_idioms,
+    clippy::all
+)]
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+
 //! Framework-agnostic application error types for backend services.
 //!
 //! # Overview
@@ -213,6 +224,15 @@
 //! assert_eq!(err.metadata().len(), 2);
 //! ```
 //!
+//! Attach upstream diagnostics without cloning existing `Arc`s:
+//! ```rust
+//! use masterror::AppError;
+//!
+//! let err = AppError::internal("db down")
+//!     .with_context(std::io::Error::new(std::io::ErrorKind::Other, "boom"));
+//! assert!(err.source_ref().is_some());
+//! ```
+//!
 //! [`AppErrorKind`] controls the default HTTP status mapping.  
 //! [`AppCode`] provides a stable machine-readable code for clients.  
 //! Together, they form the wire contract in [`ErrorResponse`].
@@ -243,7 +263,7 @@
 //! let app_err = AppError::new(AppErrorKind::NotFound, "user_not_found");
 //! let resp: ErrorResponse = (&app_err).into();
 //! assert_eq!(resp.status, 404);
-//! assert!(matches!(resp.code, AppCode::NotFound));
+//! assert_eq!(resp.code, AppCode::NotFound);
 //! ```
 //!
 //! # Typed control-flow macros
@@ -315,16 +335,7 @@
 //!
 //! at your option.
 
-#![forbid(unsafe_code)]
-#![deny(rustdoc::broken_intra_doc_links)]
-#![warn(
-    missing_docs,
-    missing_debug_implementations,
-    rust_2018_idioms,
-    clippy::all
-)]
-// Show feature-gated items on docs.rs
-#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+extern crate alloc;
 
 mod app_error;
 mod code;
@@ -382,7 +393,7 @@ pub use kind::AppErrorKind;
 ///     name: "other"
 /// }
 /// .into();
-/// assert!(matches!(code, AppCode::BadRequest));
+/// assert_eq!(code, AppCode::BadRequest);
 /// ```
 pub use masterror_derive::{Error, Masterror};
 pub use response::{

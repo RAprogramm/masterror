@@ -1,4 +1,4 @@
-use std::fmt::{self, Debug, Display, Formatter};
+use core::fmt::{self, Debug, Display, Formatter};
 
 use super::{core::ErrorResponse, problem_json::ProblemJson};
 
@@ -56,6 +56,7 @@ impl Debug for ProblemJsonFormatter<'_> {
             .field("title", &self.inner.title)
             .field("status", &self.inner.status)
             .field("detail", &self.inner.detail)
+            .field("details", &self.inner.details)
             .field("code", &self.inner.code)
             .field("grpc", &self.inner.grpc)
             .field("metadata", &self.inner.metadata)

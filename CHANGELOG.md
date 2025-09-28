@@ -3,6 +3,151 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.9] - 2025-10-25
+
+### Fixed
+- Treat compile-time and runtime custom `AppCode` values as equal by comparing
+  their canonical string representation, restoring successful JSON roundtrips
+  for `AppCode::new("…")` literals.
+
+### Changed
+- Equality for `AppCode` is now string-based; prefer `==` checks instead of
+  pattern matching on `AppCode::Variant` constants.
+
+## [0.24.8] - 2025-10-24
+
+### Changed
+- Raised the documented and enforced MSRV to Rust 1.90 across the workspace to
+  satisfy dependencies that no longer compile on Rust 1.89.
+
+## [0.24.7] - 2025-10-23
+
+### Fixed
+- Restored the documented MSRV of Rust 1.89 across the workspace so crates
+  compile on stable 1.89 again, updating metadata, READMEs and regression tests
+  to match.
+
+## [0.24.6] - 2025-10-22
+
+### Fixed
+- Restored `no_std` builds by importing `alloc::String` for response helpers and
+  the legacy constructor, keeping textual detail setters available without the
+  `std` feature.
+- Ensured `AppCode::from_str` remains available in `no_std` mode by explicitly
+  bringing `ToOwned` into scope and gated the `std::io::Error` conversion example
+  so doctests compile without the standard library.
+
+## [0.24.5] - 2025-10-21
+
+### Fixed
+- Replaced deprecated `criterion::black_box` usage in the error path benchmarks
+  with `std::hint::black_box` so benches compile cleanly under `-D warnings`.
+
+## [0.24.4] - 2025-10-20
+
+### Fixed
+- Implemented a manual OpenAPI schema for `AppCode`, restoring `utoipa`
+  compatibility and documenting the SCREAMING_SNAKE_CASE contract in generated
+  specs.
+- Emitted owned label values when incrementing `error_total` telemetry metrics
+  so the updated `metrics` crate no longer requires `'static` lifetimes.
+- Relaxed gRPC metadata serialization to avoid `'static` lifetime requirements
+  introduced by recent compiler changes, preserving zero-copy formatting where
+  possible.
+
+## [0.24.3] - 2025-10-19
+
+### Fixed
+- Reused stack-allocated format buffers when emitting gRPC metadata for HTTP
+  status codes and retry hints, and added regression coverage to ensure metadata
+  strings remain ASCII encoded.
+
+## [0.24.2] - 2025-10-18
+
+### Added
+- Introduced a Criterion benchmark (`benches/error_paths.rs`) covering
+  `Context::into_error` redaction scenarios and `ProblemJson::from_app_error`
+  conversions to track serialization hot paths.
+- Documented the benchmarking workflow in the README and exposed the suite via
+  `cargo bench --bench error_paths` with the default harness disabled.
+
+## [0.24.1] - 2025-10-17
+
+### Fixed
+- Updated `Context::into_error` to move dynamic `AppCode` values into the
+  resulting `AppError`, reworking field redaction plumbing to avoid clones and
+  preserve custom code ownership. Added a regression test covering pointer
+  identity for context-promoted errors.
+
+## [0.24.0] - 2025-10-16
+
+### Added
+- Introduced `AppCode::new` and `AppCode::try_new` constructors with strict
+  SCREAMING_SNAKE_CASE validation, plus regression tests covering custom codes
+  flowing through `AppError` and `ErrorResponse` JSON serialization.
+- Documented runtime-defined codes across the wiki pages to highlight
+  `AppCode::try_new` usage.
+
+### Changed
+- Replaced the closed `AppCode` enum with a string-backed newtype supporting
+  caller-defined codes while preserving built-in constants.
+- Updated mapping helpers and generated tables to work with the new representation
+  by returning references instead of copying codes.
+- Adjusted serde parsing to validate custom codes and report
+  `ParseAppCodeError` on invalid payloads.
+
+## [0.23.3] - 2025-10-15
+
+### Changed
+- Replaced temporary `String` allocations in RFC7807 metadata hashing and masking
+  with stack buffers to keep the textual representations and digests stable
+  while avoiding heap usage.
+
+### Added
+- Regression tests covering hashed and last-four redaction paths for numeric,
+  UUID, and IP metadata to guarantee the legacy formatting remains unchanged.
+
+## [0.23.2] - 2025-10-14
+
+### Fixed
+- Removed an unused `String` import from the response details module to keep
+  builds warning-free under `-D warnings`.
+
+## [0.23.1] - 2025-10-13
+
+### Fixed
+- Restored the `AppError::with_context` helper as an alias for `with_source`,
+  preserving the `Arc` fast-path, updating documentation and README templates,
+  and adding regression tests for plain and `anyhow::Error` diagnostics.
+
+## [0.23.0] - 2025-10-12
+
+### Added
+- Added feature-gated detail payload storage to `AppError` with new
+  `with_details`, `with_details_json`, and `with_details_text` helpers plus unit
+  tests covering both serde-json configurations.
+- Exposed the stored details through `ProblemJson` and legacy `ErrorResponse`
+  conversions so RFC7807 and historical payloads emit the supplied data.
+
+### Changed
+- Updated the documentation set to highlight the new helpers and clarify
+  feature requirements for attaching structured details.
+
+## [0.22.0] - 2025-10-11
+
+### Added
+- Introduced an explicit `std` feature (enabled by default) and made the core
+  crate compile in `no_std + alloc` environments, including metadata builders
+  and error helpers.
+
+### Changed
+- Reworked `AppError` internals to rely on `core`/`alloc` primitives and
+  `core::error::Error`, providing `std::error::Error` only when the `std`
+  feature is active.
+- Replaced `thiserror` derives on `AppErrorKind` with manual `Display`/error
+  implementations so the taxonomy remains available without the standard
+  library.
+
 ## [0.21.2] - 2025-10-10
 
 ### Added

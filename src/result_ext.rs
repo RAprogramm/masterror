@@ -1,4 +1,4 @@
-use std::error::Error as StdError;
+use core::error::Error as CoreError;
 
 use crate::app_error::{Context, Error};
 
@@ -31,13 +31,13 @@ pub trait ResultExt<T, E> {
     #[allow(clippy::result_large_err)]
     fn ctx(self, build: impl FnOnce() -> Context) -> Result<T, Error>
     where
-        E: StdError + Send + Sync + 'static;
+        E: CoreError + Send + Sync + 'static;
 }
 
 impl<T, E> ResultExt<T, E> for Result<T, E> {
     fn ctx(self, build: impl FnOnce() -> Context) -> Result<T, Error>
     where
-        E: StdError + Send + Sync + 'static
+        E: CoreError + Send + Sync + 'static
     {
         self.map_err(|err| build().into_error(err))
     }
