@@ -14,5 +14,5 @@ fn main() {
     assert_eq!(app.message.as_deref(), Some("missing flag: feature"));
 
     let code: AppCode = MissingFlag { name: "other" }.into();
-    assert!(matches!(code, AppCode::BadRequest));
+    assert_eq!(code, AppCode::BadRequest);
 }

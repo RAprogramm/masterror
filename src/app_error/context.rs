@@ -1,4 +1,5 @@
-use std::{error::Error as StdError, panic::Location};
+use alloc::vec::Vec;
+use core::{error::Error as CoreError, panic::Location};
 
 use super::{
     core::{AppError, Error, MessageEditPolicy},
@@ -88,9 +89,16 @@ impl Context {
 
     /// Attach a metadata [`Field`].
     #[must_use]
-    pub fn with(mut self, field: Field) -> Self {
+    pub fn with(mut self, mut field: Field) -> Self {
+        if let Some((_, policy)) = self
+            .field_policies
+            .iter()
+            .rev()
+            .find(|(name, _)| *name == field.name())
+        {
+            field.set_redaction(*policy);
+        }
         self.fields.push(field);
-        self.apply_field_redactions();
         self
     }
 
@@ -131,51 +139,64 @@ impl Context {
         self
     }
 
-    pub(crate) fn into_error<E>(mut self, source: E) -> Error
+    pub(crate) fn into_error<E>(self, source: E) -> Error
     where
-        E: StdError + Send + Sync + 'static
+        E: CoreError + Send + Sync + 'static
     {
-        if let Some(location) = self.caller_location {
-            self.fields.push(Field::new(
+        let Context {
+            mut fields,
+            field_policies,
+            edit_policy,
+            caller_location,
+            code,
+            category,
+            ..
+        } = self;
+
+        if let Some(location) = caller_location {
+            fields.push(Field::new(
                 "caller.file",
                 FieldValue::Str(location.file().into())
             ));
-            self.fields.push(Field::new(
+            fields.push(Field::new(
                 "caller.line",
                 FieldValue::U64(u64::from(location.line()))
             ));
-            self.fields.push(Field::new(
+            fields.push(Field::new(
                 "caller.column",
                 FieldValue::U64(u64::from(location.column()))
             ));
         }
 
-        let mut error = AppError::new_raw(self.category, None);
-        error.code = self.code;
-        if !self.fields.is_empty() {
-            self.apply_field_redactions();
-            error.metadata.extend(self.fields);
+        let mut error = AppError::new_raw(category, None);
+        error.code = code;
+        if !fields.is_empty() {
+            Self::apply_field_redactions(&mut fields, &field_policies);
+            error.metadata.extend(fields);
+        } else if !field_policies.is_empty() {
+            for &(name, redaction) in &field_policies {
+                error = error.redact_field(name, redaction);
+            }
         }
-        for &(name, redaction) in &self.field_policies {
-            error = error.redact_field(name, redaction);
-        }
-        if matches!(self.edit_policy, MessageEditPolicy::Redact) {
+        if matches!(edit_policy, MessageEditPolicy::Redact) {
             error.edit_policy = MessageEditPolicy::Redact;
         }
-        let error = error.with_source(source);
+        let error = error.with_context(source);
         error.emit_telemetry();
         error
     }
 }
 
 impl Context {
-    fn apply_field_redactions(&mut self) {
-        if self.field_policies.is_empty() {
+    fn apply_field_redactions(
+        fields: &mut Vec<Field>,
+        policies: &[(&'static str, FieldRedaction)]
+    ) {
+        if policies.is_empty() {
             return;
         }
-        for field in &mut self.fields {
-            if let Some((_, policy)) = self
-                .field_policies
+        for field in fields {
+            if let Some((_, policy)) = policies
                 .iter()
                 .rev()
                 .find(|(name, _)| *name == field.name())

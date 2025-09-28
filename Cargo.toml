@@ -1,6 +1,6 @@
 [package]
 name = "masterror"
-version = "0.21.2"
+version = "0.24.9"
 rust-version = "1.90"
 edition = "2024"
 license = "MIT OR Apache-2.0"
@@ -31,7 +31,7 @@ include = [
   "masterror-derive/**",
   "masterror-template/**",
   ".cargo/audit.toml",
-  ".cargo/config.toml"
+  ".cargo/config.toml",
 ]
 
 [workspace]
@@ -49,47 +49,58 @@ readme = "README.md"
 
 
 [features]
-default = []
-tracing = ["dep:tracing", "dep:log", "dep:log-mdc"]
-metrics = ["dep:metrics"]
-backtrace = []
-axum = ["dep:axum", "dep:serde_json"]
-actix = ["dep:actix-web", "dep:serde_json"]
+default = ["std"]
+std = ["uuid/std", "serde/std"]
+tracing = ["dep:tracing", "dep:log", "dep:log-mdc", "std"]
+metrics = ["dep:metrics", "std"]
+backtrace = ["std"]
+axum = ["dep:axum", "dep:serde_json", "std"]
+actix = ["dep:actix-web", "dep:serde_json", "std"]
 
 # Разделили: лёгкая обработка ошибок (sqlx-core) и опциональные миграции (полный sqlx)
 sqlx = ["dep:sqlx-core"]    # maps sqlx_core::Error
 sqlx-migrate = ["dep:sqlx"] # maps sqlx::migrate::MigrateError
 
-redis = ["dep:redis"]
-validator = ["dep:validator"]
-serde_json = ["dep:serde_json"]
-config = ["dep:config"]
-multipart = ["axum"]
-tokio = ["dep:tokio"]
-reqwest = ["dep:reqwest"]
-teloxide = ["dep:teloxide-core"]
-telegram-webapp-sdk = ["dep:telegram-webapp-sdk"]
-frontend = ["dep:wasm-bindgen", "dep:js-sys", "dep:serde-wasm-bindgen"]
-turnkey = []
-tonic = ["dep:tonic"]
-openapi = ["dep:utoipa"]
+redis = ["dep:redis", "std"]
+validator = ["dep:validator", "std"]
+serde_json = ["dep:serde_json", "std"]
+config = ["dep:config", "std"]
+multipart = ["axum", "std"]
+tokio = ["dep:tokio", "std"]
+reqwest = ["dep:reqwest", "std"]
+teloxide = ["dep:teloxide-core", "std"]
+telegram-webapp-sdk = ["dep:telegram-webapp-sdk", "std"]
+frontend = ["dep:wasm-bindgen", "dep:js-sys", "dep:serde-wasm-bindgen", "std"]
+turnkey = ["std"]
+tonic = ["dep:tonic", "std"]
+openapi = ["dep:utoipa", "std"]
 
 [workspace.dependencies]
-masterror-derive = { version = "0.9.0" }
-masterror-template = { version = "0.3.6" }
+masterror-derive = { version = "0.9.2" }
+masterror-template = { version = "0.3.8" }
 
 [dependencies]
 masterror-derive = { version = "0.9" }
 masterror-template = { workspace = true }
-tracing = { version = "0.1", optional = true }
+tracing = { version = "0.1", optional = true, default-features = false, features = [
+  "attributes",
+  "std",
+] }
 log = { version = "0.4", optional = true }
 log-mdc = { version = "0.1", optional = true }
 metrics = { version = "0.24", optional = true }
 
-serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1", optional = true }
+serde = { version = "1", default-features = false, features = [
+  "derive",
+  "alloc",
+] }
+serde_json = { version = "1", optional = true, default-features = false, features = [
+  "std",
+] }
 http = "1"
 sha2 = "0.10"
+itoa = "1"
+ryu = "1"
 
 # optional integrations
 axum = { version = "0.8", optional = true, default-features = false, features = [
@@ -118,12 +129,12 @@ telegram-webapp-sdk = { version = "0.2", optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 js-sys = { version = "0.3", optional = true }
 serde-wasm-bindgen = { version = "0.6", optional = true }
-uuid = { version = "1", default-features = false, features = [
-  "std"
-] }
-tonic = { version = "0.12", optional = true }
+uuid = { version = "1", default-features = false }
+tonic = { version = "0.14", optional = true }
 
 [dev-dependencies]
+anyhow = { version = "1", default-features = false, features = ["std"] }
+criterion = "0.7"
 serde_json = "1"
 tokio = { version = "1", features = [
   "macros",
@@ -136,12 +147,17 @@ toml = "0.9"
 tempfile = "3"
 tracing-subscriber = { version = "0.3", features = ["registry"] }
 
+[[bench]]
+name = "error_paths"
+harness = false
+
 [build-dependencies]
 serde = { version = "1", features = ["derive"] }
 toml = "0.9"
 
 [package.metadata.masterror.readme]
 feature_order = [
+  "std",
   "axum",
   "actix",
   "openapi",
@@ -183,6 +199,9 @@ description = "IntoResponse integration with structured JSON bodies"
 
 [package.metadata.masterror.readme.features.actix]
 description = "Actix Web ResponseError and Responder implementations"
+
+[package.metadata.masterror.readme.features.std]
+description = "Enable std support (default); required for runtime integrations"
 
 [package.metadata.masterror.readme.features.openapi]
 description = "Generate utoipa OpenAPI schema for ErrorResponse"

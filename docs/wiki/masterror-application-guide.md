@@ -66,8 +66,16 @@ pub fn parse_payload(json: &str) -> masterror::AppResult<&str> {
 }
 ```
 
-`with_context` stores the original `serde_json::Error` for logging; clients only
-see the sanitized message, code, and JSON details.
+`with_context` stores the original `serde_json::Error` for logging while reusing
+any shared `Arc` the upstream library hands you, avoiding extra reference-count
+allocations. Clients only see the sanitized message, code, and JSON details.
+Enable the `serde_json`
+feature to use `.with_details(..)`; without it, fall back to
+`AppError::with_details_text` for plain-text payloads.
+
+Need to generate codes dynamically (e.g., include partner identifiers)? Call
+[`AppCode::try_new`](https://docs.rs/masterror/latest/masterror/struct.AppCode.html#method.try_new)
+with a runtime string and propagate [`ParseAppCodeError`] when validation fails.
 
 ## Deriving domain errors
 
@@ -154,10 +162,12 @@ fn missing_field_is_bad_request() {
     assert!(matches!(err.kind, AppErrorKind::BadRequest));
     assert_eq!(err.code.unwrap().as_str(), "MISSING_FIELD");
 
-    let response: masterror::ErrorResponse = err.clone().into();
-    assert_eq!(response.status.as_u16(), 400);
+    let response: masterror::ErrorResponse = (&err).into();
+    assert_eq!(response.status, 400);
+    assert!(response.details.is_some());
 }
 ```
 
-Cloning is cheap because `AppError` stores data on the stack and shares context
-via `Arc` under the hood. Use these assertions to guarantee stable APIs.
+Use these assertions to guarantee stable APIs without exposing secrets. Borrowed
+conversions (`(&err).into()`) preserve the original error so it can be reused in
+additional assertions.

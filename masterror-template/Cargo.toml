@@ -1,6 +1,6 @@
 [package]
 name = "masterror-template"
-version = "0.3.6"
+version = "0.3.8"
 rust-version = "1.90"
 edition = "2024"
 repository = "https://github.com/RAprogramm/masterror"
