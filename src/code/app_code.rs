@@ -1,7 +1,11 @@
-use alloc::{borrow::ToOwned, boxed::Box, string::String};
+use alloc::{
+    borrow::{Cow, ToOwned},
+    string::String
+};
 use core::{
     error::Error as CoreError,
     fmt::{self, Display},
+    hash::{Hash, Hasher},
     str::FromStr
 };
 
@@ -44,15 +48,9 @@ impl CoreError for ParseAppCodeError {}
 /// - Validate custom codes using [`AppCode::try_new`] before exposing them
 ///   publicly.
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone)]
 pub struct AppCode {
-    repr: CodeRepr
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum CodeRepr {
-    Static(&'static str),
-    Owned(Box<str>)
+    repr: Cow<'static, str>
 }
 
 #[allow(non_upper_case_globals)]
@@ -108,13 +106,13 @@ impl AppCode {
 
     const fn from_static(code: &'static str) -> Self {
         Self {
-            repr: CodeRepr::Static(code)
+            repr: Cow::Borrowed(code)
         }
     }
 
     fn from_owned(code: String) -> Self {
         Self {
-            repr: CodeRepr::Owned(code.into_boxed_str())
+            repr: Cow::Owned(code)
         }
     }
 
@@ -169,10 +167,21 @@ impl AppCode {
     /// This matches the JSON serialization.
     #[must_use]
     pub fn as_str(&self) -> &str {
-        match &self.repr {
-            CodeRepr::Static(value) => value,
-            CodeRepr::Owned(value) => value
-        }
+        self.repr.as_ref()
+    }
+}
+
+impl PartialEq for AppCode {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_str() == other.as_str()
+    }
+}
+
+impl Eq for AppCode {}
+
+impl Hash for AppCode {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_str().hash(state);
     }
 }
 

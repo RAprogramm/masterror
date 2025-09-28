@@ -263,7 +263,7 @@
 //! let app_err = AppError::new(AppErrorKind::NotFound, "user_not_found");
 //! let resp: ErrorResponse = (&app_err).into();
 //! assert_eq!(resp.status, 404);
-//! assert!(matches!(resp.code, AppCode::NotFound));
+//! assert_eq!(resp.code, AppCode::NotFound);
 //! ```
 //!
 //! # Typed control-flow macros
@@ -393,7 +393,7 @@ pub use kind::AppErrorKind;
 ///     name: "other"
 /// }
 /// .into();
-/// assert!(matches!(code, AppCode::BadRequest));
+/// assert_eq!(code, AppCode::BadRequest);
 /// ```
 pub use masterror_derive::{Error, Masterror};
 pub use response::{

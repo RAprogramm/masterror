@@ -26,5 +26,5 @@ fn main() {
     assert!(app_backend.message.is_none());
 
     let code: AppCode = ApiError::Backend.into();
-    assert!(matches!(code, AppCode::Service));
+    assert_eq!(code, AppCode::Service);
 }
