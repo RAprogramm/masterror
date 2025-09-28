@@ -9,7 +9,7 @@ use crate::{AppCode, AppError, AppErrorKind, ProblemJson};
 fn new_sets_status_code_and_message() {
     let e = ErrorResponse::new(404, AppCode::NotFound, "missing").expect("status");
     assert_eq!(e.status, 404);
-    assert!(matches!(e.code, AppCode::NotFound));
+    assert_eq!(e.code, AppCode::NotFound);
     assert_eq!(e.message, "missing");
     assert!(e.retry.is_none());
     assert!(e.www_authenticate.is_none());
@@ -246,7 +246,7 @@ fn from_app_error_preserves_status_and_sets_code() {
     let app = AppError::new(AppErrorKind::NotFound, "user");
     let e: ErrorResponse = (&app).into();
     assert_eq!(e.status, 404);
-    assert!(matches!(e.code, AppCode::NotFound));
+    assert_eq!(e.code, AppCode::NotFound);
     assert_eq!(e.message, "user");
     assert!(e.retry.is_none());
 }
@@ -256,7 +256,7 @@ fn from_app_error_uses_default_message_when_none() {
     let app = AppError::bare(AppErrorKind::Internal);
     let e: ErrorResponse = (&app).into();
     assert_eq!(e.status, 500);
-    assert!(matches!(e.code, AppCode::Internal));
+    assert_eq!(e.code, AppCode::Internal);
     assert_eq!(e.message, AppErrorKind::Internal.label());
 }
 
@@ -269,7 +269,7 @@ fn from_owned_app_error_moves_message_and_metadata() {
     let resp: ErrorResponse = err.into();
 
     assert_eq!(resp.status, 401);
-    assert!(matches!(resp.code, AppCode::Unauthorized));
+    assert_eq!(resp.code, AppCode::Unauthorized);
     assert_eq!(resp.message, "owned message");
     assert_eq!(resp.retry.unwrap().after_seconds, 5);
     assert_eq!(resp.www_authenticate.as_deref(), Some("Bearer"));
@@ -280,7 +280,7 @@ fn from_owned_app_error_defaults_message_when_absent() {
     let resp: ErrorResponse = AppError::bare(AppErrorKind::Internal).into();
 
     assert_eq!(resp.status, 500);
-    assert!(matches!(resp.code, AppCode::Internal));
+    assert_eq!(resp.code, AppCode::Internal);
     assert_eq!(resp.message, AppErrorKind::Internal.label());
 }
 
@@ -290,7 +290,7 @@ fn from_app_error_bare_uses_kind_display_as_message() {
     let resp: ErrorResponse = app.into();
 
     assert_eq!(resp.status, 504);
-    assert!(matches!(resp.code, AppCode::Timeout));
+    assert_eq!(resp.code, AppCode::Timeout);
     assert_eq!(resp.message, AppErrorKind::Timeout.label());
 }
 
@@ -367,7 +367,7 @@ fn display_is_concise_and_does_not_leak_details() {
 fn new_legacy_defaults_to_internal_code() {
     let e = ErrorResponse::new_legacy(404, "boom");
     assert_eq!(e.status, 404);
-    assert!(matches!(e.code, AppCode::Internal));
+    assert_eq!(e.code, AppCode::Internal);
     assert_eq!(e.message, "boom");
 }
 
@@ -376,7 +376,7 @@ fn new_legacy_defaults_to_internal_code() {
 fn new_legacy_invalid_status_falls_back_to_internal_error() {
     let e = ErrorResponse::new_legacy(0, "boom");
     assert_eq!(e.status, 500);
-    assert!(matches!(e.code, AppCode::Internal));
+    assert_eq!(e.code, AppCode::Internal);
     assert_eq!(e.message, "boom");
 }
 

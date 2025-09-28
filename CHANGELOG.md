@@ -3,6 +3,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.9] - 2025-10-25
+
+### Fixed
+- Treat compile-time and runtime custom `AppCode` values as equal by comparing
+  their canonical string representation, restoring successful JSON roundtrips
+  for `AppCode::new("…")` literals.
+
+### Changed
+- Equality for `AppCode` is now string-based; prefer `==` checks instead of
+  pattern matching on `AppCode::Variant` constants.
+
 ## [0.24.8] - 2025-10-24
 
 ### Changed
