@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.10] - 2025-10-26
+
+### Fixed
+- Removed the deprecated `doc_auto_cfg` rustdoc feature gate so documentation
+  builds succeed on the docs.rs nightly toolchain again.
+
 ## [0.24.9] - 2025-10-25
 
 ### Fixed

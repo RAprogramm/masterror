@@ -41,7 +41,8 @@ use telegram_webapp_sdk::utils::validate_init_data::ValidationError;
 #[cfg(feature = "telegram-webapp-sdk")]
 use crate::{AppErrorKind, Context, Error, field};
 
-/// Map [`ValidationError`] into an [`AppError`] with kind `TelegramAuth`.
+/// Map [`ValidationError`] into an [`crate::AppError`] with kind
+/// `TelegramAuth`.
 #[cfg(feature = "telegram-webapp-sdk")]
 #[cfg_attr(docsrs, doc(cfg(feature = "telegram-webapp-sdk")))]
 impl From<ValidationError> for Error {

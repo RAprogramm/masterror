@@ -44,7 +44,7 @@ use validator::{ValidationErrors, ValidationErrorsKind};
 #[cfg(feature = "validator")]
 use crate::{AppErrorKind, Context, Error, field};
 
-/// Map [`validator::ValidationErrors`] into an [`AppError`] with kind
+/// Map [`validator::ValidationErrors`] into an [`crate::AppError`] with kind
 /// `Validation`.
 ///
 /// By default, the error is converted to a string for human-readable logs.

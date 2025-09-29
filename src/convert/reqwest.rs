@@ -49,7 +49,8 @@ use reqwest::{Error as ReqwestError, StatusCode};
 
 use crate::{AppErrorKind, Context, Error, FieldRedaction, field};
 
-/// Map a [`reqwest::Error`] into an [`Error`] according to its category.
+/// Map a [`reqwest::Error`] into an [`struct@crate::Error`] according to its
+/// category.
 ///
 /// - Timeout → `Timeout`
 /// - Connect or request build error → `Network`

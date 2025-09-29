@@ -7,7 +7,7 @@
     rust_2018_idioms,
     clippy::all
 )]
-#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 //! Framework-agnostic application error types for backend services.
 //!

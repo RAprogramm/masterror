@@ -1,11 +1,11 @@
 //! Turnkey integration: error kinds, classification, and conversions.
 //!
 //! This module centralizes Turnkey-specific error taxonomy and mapping into
-//! framework-agnostic [`AppError`] and [`AppErrorKind`].
+//! framework-agnostic [`crate::AppError`] and [`crate::AppErrorKind`].
 //!
 //! # Goals
 //! - Stable domain kinds (`TurnkeyErrorKind`) decoupled from SDK texts.
-//! - Conservative mapping to the canonical [`AppErrorKind`].
+//! - Conservative mapping to the canonical [`crate::AppErrorKind`].
 //! - Heuristic classifier for stringly-typed upstream errors.
 //!
 //! # Examples

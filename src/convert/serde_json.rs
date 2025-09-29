@@ -39,7 +39,7 @@ use serde_json::{Error as SjError, error::Category};
 #[cfg(feature = "serde_json")]
 use crate::{AppErrorKind, Context, Error, field};
 
-/// Map a [`serde_json::Error`] into an [`AppError`].
+/// Map a [`serde_json::Error`] into an [`crate::AppError`].
 ///
 /// Errors are classified to `Serialization` or `Deserialization` using
 /// [`serde_json::Error::classify`]. The original error string is preserved for

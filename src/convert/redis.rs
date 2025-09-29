@@ -38,7 +38,7 @@ use redis::{ErrorKind, RedisError, RetryMethod};
 #[cfg(feature = "redis")]
 use crate::{AppErrorKind, Context, Error, field};
 
-/// Map any [`redis::RedisError`] into an [`AppError`] with kind `Cache`.
+/// Map any [`redis::RedisError`] into an [`crate::AppError`] with kind `Cache`.
 ///
 /// Rationale: Redis is treated as a backend cache dependency.
 /// Detailed driver errors are kept in the message for diagnostics.
