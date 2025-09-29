@@ -47,7 +47,8 @@ use axum::{
 use crate::{AppError, response::ProblemJson};
 
 impl AppError {
-    /// Map this error to an HTTP status derived from its [`AppErrorKind`].
+    /// Map this error to an HTTP status derived from its
+    /// [`crate::AppErrorKind`].
     ///
     /// This is the transport-specific view over the framework-agnostic
     /// `AppErrorKind::http_status()` mapping.
