@@ -1246,10 +1246,7 @@ impl Parse for RawFormatArg {
             input.parse::<Token![=]>()?;
             let value = parse_format_arg_value(input)?;
             let value_span = format_arg_value_span(&value);
-            let span = ident
-                .span()
-                .join(value_span)
-                .unwrap_or_else(|| ident.span());
+            let span = ident.span().join(value_span).unwrap_or(value_span);
             Ok(Self::Named {
                 ident,
                 value,
