@@ -53,7 +53,7 @@ const SQLSTATE_CODE_OVERRIDES: &[(&str, AppCode)] = &[
 #[cfg(feature = "sqlx")]
 const SQLSTATE_RETRY_HINTS: &[(&str, u64)] = &[("40001", 1), ("55P03", 1)];
 
-/// Map a `sqlx_core::error::Error` into [`Error`].
+/// Map a `sqlx_core::error::Error` into [`struct@crate::Error`].
 ///
 /// - `RowNotFound` → `AppErrorKind::NotFound`
 /// - database constraint errors attach SQLSTATE and constraint metadata
@@ -71,7 +71,7 @@ impl From<SqlxError> for Error {
     }
 }
 
-/// Map a `sqlx::migrate::MigrateError` into [`Error`].
+/// Map a `sqlx::migrate::MigrateError` into [`struct@crate::Error`].
 ///
 /// Errors are categorised as `Database` with metadata describing the failing
 /// migration phase.

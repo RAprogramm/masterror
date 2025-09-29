@@ -8,4 +8,5 @@ error: multiple unused formatting arguments
   |                 argument never used
   |                 argument never used
   |
+  = note: consider adding 2 format specifiers
   = note: this error originates in the derive macro `Error` (in Nightly builds, run with -Z macro-backtrace for more info)
