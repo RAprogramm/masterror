@@ -168,30 +168,30 @@ jobs:
           delete-branch: true
       # ---------- end README handling ----------
 
-        - name: Check formatting (nightly rustfmt)
-          uses: ./.github/actions/cargo-fmt
-          with:
-            toolchain: nightly
+      - name: Check formatting (nightly rustfmt)
+        uses: ./.github/actions/cargo-fmt
+        with:
+          toolchain: nightly
 
-        - name: Clippy (MSRV)
-          uses: ./.github/actions/cargo-clippy
-          with:
-            toolchain: ${{ steps.msrv.outputs.msrv }}
-            all-features: ${{ inputs.all-features }}
+      - name: Clippy (MSRV)
+        uses: ./.github/actions/cargo-clippy
+        with:
+          toolchain: ${{ steps.msrv.outputs.msrv }}
+          all-features: ${{ inputs.all-features }}
 
-        - name: Cargo deny
-          uses: ./.github/actions/cargo-deny
+      - name: Cargo deny
+        uses: ./.github/actions/cargo-deny
 
-        - name: Tests (MSRV)
-          uses: ./.github/actions/cargo-test
-          with:
-            toolchain: ${{ steps.msrv.outputs.msrv }}
-            all-features: ${{ inputs.all-features }}
+      - name: Tests (MSRV)
+        uses: ./.github/actions/cargo-test
+        with:
+          toolchain: ${{ steps.msrv.outputs.msrv }}
+          all-features: ${{ inputs.all-features }}
 
-        - name: Security audit
-          uses: ./.github/actions/cargo-audit
+      - name: Security audit
+        uses: ./.github/actions/cargo-audit
 
-        - name: Auto-commit README changes (any branch)
+      - name: Auto-commit README changes (any branch)
         if: always()
         run: |
           set -euo pipefail
