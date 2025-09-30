@@ -8,6 +8,10 @@
     clippy::all
 )]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(
+    masterror_requires_error_generic_feature,
+    feature(error_generic_member_access)
+)]
 
 //! Framework-agnostic application error types for backend services.
 //!
@@ -343,7 +347,7 @@ mod convert;
 pub mod error;
 mod kind;
 mod macros;
-#[cfg(error_generic_member_access)]
+#[cfg(masterror_has_error_generic_member_access)]
 #[doc(hidden)]
 pub mod provide;
 mod response;

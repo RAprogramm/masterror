@@ -208,7 +208,7 @@ fn struct_backtrace_method(fields: &Fields) -> Option<TokenStream> {
     let member = &field.member;
     let body = field_backtrace_expr(quote!(self.#member), quote!(&self.#member), field);
     Some(quote! {
-        #[cfg(error_generic_member_access)]
+        #[cfg(masterror_has_error_generic_member_access)]
         fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
             #body
         }
@@ -227,7 +227,7 @@ fn enum_backtrace_method(variants: &[VariantData]) -> Option<TokenStream> {
 
     if has_backtrace {
         Some(quote! {
-            #[cfg(error_generic_member_access)]
+            #[cfg(masterror_has_error_generic_member_access)]
             fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
                 match self {
                     #(#arms),*
@@ -369,7 +369,7 @@ fn struct_provide_method(fields: &Fields) -> Option<TokenStream> {
     };
 
     Some(quote! {
-        #[cfg(error_generic_member_access)]
+        #[cfg(masterror_has_error_generic_member_access)]
         fn provide<'a>(&'a self, #request: &mut core::error::Request<'a>) {
             #trait_import
             #(#statements)*
@@ -413,7 +413,7 @@ fn enum_provide_method(variants: &[VariantData]) -> Option<TokenStream> {
     };
 
     Some(quote! {
-        #[cfg(error_generic_member_access)]
+        #[cfg(masterror_has_error_generic_member_access)]
         fn provide<'a>(&'a self, #request: &mut core::error::Request<'a>) {
             #trait_import
             #[allow(deprecated)]

@@ -1,6 +1,6 @@
 #![allow(unused_variables, non_shorthand_field_patterns)]
 
-#[cfg(error_generic_member_access)]
+#[cfg(masterror_has_error_generic_member_access)]
 use std::ptr;
 use std::{error::Error as StdError, fmt};
 
@@ -150,14 +150,14 @@ enum EnumWithBacktrace {
     Unit
 }
 
-#[cfg_attr(not(error_generic_member_access), allow(dead_code))]
+#[cfg_attr(not(masterror_has_error_generic_member_access), allow(dead_code))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct TelemetrySnapshot {
     name:  &'static str,
     value: u64
 }
 
-#[cfg_attr(not(error_generic_member_access), allow(dead_code))]
+#[cfg_attr(not(masterror_has_error_generic_member_access), allow(dead_code))]
 #[derive(Debug, Error)]
 #[error("structured telemetry {snapshot:?}")]
 struct StructuredTelemetryError {
@@ -165,7 +165,7 @@ struct StructuredTelemetryError {
     snapshot: TelemetrySnapshot
 }
 
-#[cfg_attr(not(error_generic_member_access), allow(dead_code))]
+#[cfg_attr(not(masterror_has_error_generic_member_access), allow(dead_code))]
 #[derive(Debug, Error)]
 #[error("optional telemetry {telemetry:?}")]
 struct OptionalTelemetryError {
@@ -173,7 +173,7 @@ struct OptionalTelemetryError {
     telemetry: Option<TelemetrySnapshot>
 }
 
-#[cfg_attr(not(error_generic_member_access), allow(dead_code))]
+#[cfg_attr(not(masterror_has_error_generic_member_access), allow(dead_code))]
 #[derive(Debug, Error)]
 #[error("optional owned telemetry {telemetry:?}")]
 struct OptionalOwnedTelemetryError {
@@ -181,7 +181,7 @@ struct OptionalOwnedTelemetryError {
     telemetry: Option<TelemetrySnapshot>
 }
 
-#[cfg_attr(not(error_generic_member_access), allow(dead_code))]
+#[cfg_attr(not(masterror_has_error_generic_member_access), allow(dead_code))]
 #[derive(Debug, Error)]
 enum EnumTelemetryError {
     #[error("named {label}")]
@@ -442,7 +442,7 @@ struct DisplayDynamicPrecisionError {
     precision: usize
 }
 
-#[cfg(error_generic_member_access)]
+#[cfg(masterror_has_error_generic_member_access)]
 fn assert_backtrace_interfaces<E>(error: &E, expected: &std::backtrace::Backtrace)
 where
     E: StdError + ?Sized
@@ -454,14 +454,14 @@ where
     assert!(ptr::eq(reported, provided));
 }
 
-#[cfg(not(error_generic_member_access))]
+#[cfg(not(masterror_has_error_generic_member_access))]
 fn assert_backtrace_interfaces<E>(_error: &E, _expected: &std::backtrace::Backtrace)
 where
     E: StdError + ?Sized
 {
 }
 
-#[cfg(error_generic_member_access)]
+#[cfg(masterror_has_error_generic_member_access)]
 #[test]
 fn struct_provides_custom_telemetry() {
     let telemetry = TelemetrySnapshot {
@@ -481,7 +481,7 @@ fn struct_provides_custom_telemetry() {
     assert_eq!(provided_value, telemetry);
 }
 
-#[cfg(error_generic_member_access)]
+#[cfg(masterror_has_error_generic_member_access)]
 #[test]
 fn option_telemetry_only_provided_when_present() {
     let snapshot = TelemetrySnapshot {
@@ -515,7 +515,7 @@ fn option_telemetry_only_provided_when_present() {
     assert!(std::error::request_value::<TelemetrySnapshot>(&owned_none).is_none());
 }
 
-#[cfg(error_generic_member_access)]
+#[cfg(masterror_has_error_generic_member_access)]
 #[test]
 fn enum_variants_provide_custom_telemetry() {
     let named_snapshot = TelemetrySnapshot {
@@ -796,7 +796,7 @@ fn optional_source_backtrace_absent_when_none() {
         source: None
     };
     assert!(StdError::source(&err).is_none());
-    #[cfg(error_generic_member_access)]
+    #[cfg(masterror_has_error_generic_member_access)]
     {
         assert!(std::error::Error::backtrace(&err).is_none());
         assert!(std::error::request_ref::<std::backtrace::Backtrace>(&err).is_none());
@@ -822,7 +822,7 @@ fn enum_backtrace_field_is_returned() {
     }
 
     let unit = EnumWithBacktrace::Unit;
-    #[cfg(error_generic_member_access)]
+    #[cfg(masterror_has_error_generic_member_access)]
     {
         assert!(std::error::Error::backtrace(&unit).is_none());
     }
@@ -952,7 +952,7 @@ fn enum_backtrace_is_inferred_without_attribute() {
     }
     assert!(StdError::source(&tuple).is_none());
 
-    #[cfg(error_generic_member_access)]
+    #[cfg(masterror_has_error_generic_member_access)]
     {
         let none = AutoBacktraceEnum::Tuple(None);
         assert!(std::error::Error::backtrace(&none).is_none());
