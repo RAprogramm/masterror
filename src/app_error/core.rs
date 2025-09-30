@@ -460,11 +460,13 @@ impl Error {
     /// # Examples
     ///
     /// ```rust
+    /// # #[cfg(feature = "std")] {
     /// use masterror::AppError;
     ///
     /// let err = AppError::service("downstream degraded")
     ///     .with_context(std::io::Error::new(std::io::ErrorKind::Other, "boom"));
     /// assert!(err.source_ref().is_some());
+    /// # }
     /// ```
     #[must_use]
     pub fn with_context(self, context: impl Into<ContextAttachment>) -> Self {
@@ -495,6 +497,7 @@ impl Error {
     /// # Examples
     ///
     /// ```rust
+    /// # #[cfg(feature = "std")] {
     /// use std::sync::Arc;
     ///
     /// use masterror::{AppError, AppErrorKind};
@@ -503,6 +506,7 @@ impl Error {
     /// let err = AppError::internal("boom").with_source_arc(source.clone());
     /// assert!(err.source_ref().is_some());
     /// assert_eq!(Arc::strong_count(&source), 2);
+    /// # }
     /// ```
     #[must_use]
     pub fn with_source_arc(mut self, source: Arc<dyn CoreError + Send + Sync + 'static>) -> Self {
