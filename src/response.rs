@@ -26,7 +26,7 @@
 //! # Example
 //!
 //! ```rust
-//! use std::time::Duration;
+//! use core::time::Duration;
 //!
 //! use masterror::{AppCode, ErrorResponse};
 //!

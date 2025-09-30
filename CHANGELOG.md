@@ -3,6 +3,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.12] - 2025-10-28
+
+### Fixed
+- Gated documentation examples that rely on the standard library and switched
+  the `ErrorResponse` retry example to `core::time::Duration` so docs compile
+  without the `std` feature.
+
 ## [0.24.11] - 2025-10-27
 
 ### Fixed

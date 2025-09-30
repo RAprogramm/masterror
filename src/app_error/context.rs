@@ -17,6 +17,7 @@ use crate::{AppCode, AppErrorKind};
 /// # Examples
 ///
 /// ```rust
+/// # #[cfg(feature = "std")] {
 /// use std::io::{Error as IoError, ErrorKind};
 ///
 /// use masterror::{AppErrorKind, Context, ResultExt, field};
@@ -36,6 +37,7 @@ use crate::{AppCode, AppErrorKind};
 ///
 /// assert_eq!(err.kind, AppErrorKind::Service);
 /// assert!(err.metadata().get("operation").is_some());
+/// # }
 /// ```
 #[derive(Debug, Clone)]
 pub struct Context {
