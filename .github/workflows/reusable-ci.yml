@@ -168,39 +168,30 @@ jobs:
           delete-branch: true
       # ---------- end README handling ----------
 
-      - name: Check formatting (nightly rustfmt)
-        run: cargo +nightly fmt --all -- --check
+        - name: Check formatting (nightly rustfmt)
+          uses: ./.github/actions/cargo-fmt
+          with:
+            toolchain: nightly
 
-      - name: Clippy (MSRV)
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ "${{ inputs.all-features }}" = "true" ]; then
-            cargo +${{ steps.msrv.outputs.msrv }} clippy --workspace --all-targets --all-features -- -D warnings
-          else
-            cargo +${{ steps.msrv.outputs.msrv }} clippy --workspace --all-targets -- -D warnings
-          fi
+        - name: Clippy (MSRV)
+          uses: ./.github/actions/cargo-clippy
+          with:
+            toolchain: ${{ steps.msrv.outputs.msrv }}
+            all-features: ${{ inputs.all-features }}
 
-      - name: Cargo deny
-        uses: ./.github/actions/cargo-deny
+        - name: Cargo deny
+          uses: ./.github/actions/cargo-deny
 
-      - name: Tests (MSRV)
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ "${{ inputs.all-features }}" = "true" ]; then
-            cargo +${{ steps.msrv.outputs.msrv }} test --workspace --all-features --no-fail-fast
-          else
-            cargo +${{ steps.msrv.outputs.msrv }} test --workspace --no-fail-fast
-          fi
+        - name: Tests (MSRV)
+          uses: ./.github/actions/cargo-test
+          with:
+            toolchain: ${{ steps.msrv.outputs.msrv }}
+            all-features: ${{ inputs.all-features }}
 
-      - name: Install cargo-audit
-        run: cargo install --locked cargo-audit
+        - name: Security audit
+          uses: ./.github/actions/cargo-audit
 
-      - name: Security audit
-        run: cargo audit --deny warnings
-
-      - name: Auto-commit README changes (any branch)
+        - name: Auto-commit README changes (any branch)
         if: always()
         run: |
           set -euo pipefail

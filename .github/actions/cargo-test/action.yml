@@ -1,0 +1,44 @@
+name: "Cargo test"
+description: "Run cargo test for the workspace with consistent flags"
+inputs:
+  toolchain:
+    description: "Rust toolchain identifier to use (without the leading +)"
+    required: true
+  all-features:
+    description: "Whether to enable --all-features"
+    required: false
+    default: "false"
+  no-fail-fast:
+    description: "Whether to include --no-fail-fast"
+    required: false
+    default: "true"
+  extra-args:
+    description: "Additional arguments passed to cargo test"
+    required: false
+    default: ""
+runs:
+  using: "composite"
+  steps:
+    - name: Run cargo test
+      shell: bash
+      env:
+        TOOLCHAIN: ${{ inputs.toolchain }}
+        ALL_FEATURES: ${{ inputs.all-features }}
+        NO_FAIL_FAST: ${{ inputs.no-fail-fast }}
+        EXTRA_ARGS: ${{ inputs.extra-args }}
+      run: |
+        set -euo pipefail
+        args=("--workspace")
+        if [ "${ALL_FEATURES}" = "true" ]; then
+          args+=("--all-features")
+        fi
+        if [ "${NO_FAIL_FAST}" = "true" ]; then
+          args+=("--no-fail-fast")
+        fi
+        if [ -n "${EXTRA_ARGS}" ]; then
+          # shellcheck disable=SC2206
+          extra_parts=(${EXTRA_ARGS})
+          args+=("${extra_parts[@]}")
+        fi
+        cargo +"${TOOLCHAIN}" test "${args[@]}"
+

@@ -1,0 +1,18 @@
+name: "Cargo fmt check"
+description: "Run cargo fmt in check mode using the provided toolchain"
+inputs:
+  toolchain:
+    description: "Rust toolchain identifier to use (without the leading +)"
+    required: false
+    default: "nightly"
+runs:
+  using: "composite"
+  steps:
+    - name: Run cargo fmt
+      shell: bash
+      env:
+        TOOLCHAIN: ${{ inputs.toolchain }}
+      run: |
+        set -euo pipefail
+        cargo +"${TOOLCHAIN}" fmt --all -- --check
+
