@@ -3,6 +3,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.11] - 2025-10-27
+
+### Fixed
+- Detect `std::error::Request` support at build time and gate the internal
+  `provide` shim accordingly so `cargo +msrv package --locked` succeeds on the
+  documented MSRV toolchain.
+
 ## [0.24.10] - 2025-10-26
 
 ### Fixed
