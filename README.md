@@ -446,4 +446,3 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 ---
 
 MSRV: **1.90** · License: **MIT OR Apache-2.0** · No `unsafe`
-
