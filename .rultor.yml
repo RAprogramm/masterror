@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: Copyright (c) 2023-2025 RA
+# SPDX-License-Identifier: MIT
+
+docker:
+  image: rust:latest
+
+assets:
+  credentials: home#assets/crates-credentials
+
+env:
+  CARGO_TERM_COLOR: never
+
+install: |
+  rustup component add rustfmt clippy
+
+merge:
+  script: |
+    cargo test -vv
+    cargo +nightly fmt --check
+    cargo doc --no-deps
+    cargo clippy -- --no-deps -D warnings
+
+release:
+  pre: false
+  script: |
+    [[ "${tag}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+    sed -i -e "s/^version = \"0.0.0\"/version = \"${tag}\"/" Cargo.toml
+    sed -i -e "s/0.0.0/${tag}/" src/lib.rs
+    cargo test --all-features -vv -- --nocapture
+    cargo +nightly fmt --check
+    cargo clippy -- --no-deps -D warnings
+    git commit -am "${tag}"
+    mkdir -p ~/.cargo && cp ../credentials ~/.cargo
+    cargo publish
+

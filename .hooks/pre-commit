@@ -14,7 +14,7 @@ echo "🔍 Running clippy (all features, all targets)..."
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 echo "🧪 Running tests (all features)..."
-cargo test --workspace --all-features
+cargo test -vv
 
 echo "🛡️ Running cargo audit..."
 if ! command -v cargo-audit >/dev/null 2>&1; then
