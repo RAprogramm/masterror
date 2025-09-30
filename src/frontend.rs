@@ -2,7 +2,7 @@
 //! values.
 //!
 //! This module is available when the `frontend` feature is enabled. It provides
-//! helpers to serialize [`AppError`] and [`ErrorResponse`] into
+//! helpers to serialize [`crate::AppError`] and [`crate::ErrorResponse`] into
 //! [`wasm_bindgen::JsValue`] and optionally emit structured logs via
 //! `console.error` when running inside a browser.
 //!

@@ -3,6 +3,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.10] - 2025-10-26
+
+### Fixed
+- Regenerated the README from its template so the \`readme_is_in_sync\` check
+  passes after refreshing the crate version metadata.
+- Removed the deprecated `doc_auto_cfg` rustdoc feature gate so documentation
+  builds succeed on the docs.rs nightly toolchain again.
+
 ## [0.24.9] - 2025-10-25
 
 ### Fixed
