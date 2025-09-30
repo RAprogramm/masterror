@@ -1,0 +1,58 @@
+name: "Cargo audit"
+description: "Ensure cargo-audit is installed and run it with consistent flags"
+inputs:
+  version:
+    description: "cargo-audit crate version to install (leave empty for latest)"
+    required: false
+    default: ""
+  deny-warnings:
+    description: "Whether to pass --deny warnings"
+    required: false
+    default: "true"
+  extra-args:
+    description: "Additional arguments passed to cargo audit"
+    required: false
+    default: ""
+runs:
+  using: "composite"
+  steps:
+    - name: Ensure cargo-audit
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        desired_version="${VERSION}"
+        if command -v cargo-audit >/dev/null 2>&1; then
+          if [ -n "${desired_version}" ]; then
+            current_version="$(cargo-audit --version | awk '{print $2}')"
+            if [ "${current_version}" = "${desired_version}" ]; then
+              exit 0
+            fi
+          else
+            exit 0
+          fi
+        fi
+        if [ -n "${desired_version}" ]; then
+          cargo install cargo-audit --locked --force --version "${desired_version}"
+        else
+          cargo install cargo-audit --locked --force
+        fi
+    - name: Run cargo audit
+      shell: bash
+      env:
+        DENY_WARNINGS: ${{ inputs.deny-warnings }}
+        EXTRA_ARGS: ${{ inputs.extra-args }}
+      run: |
+        set -euo pipefail
+        args=()
+        if [ "${DENY_WARNINGS}" = "true" ]; then
+          args+=("--deny" "warnings")
+        fi
+        if [ -n "${EXTRA_ARGS}" ]; then
+          # shellcheck disable=SC2206
+          extra_parts=(${EXTRA_ARGS})
+          args+=("${extra_parts[@]}")
+        fi
+        cargo audit "${args[@]}"
+

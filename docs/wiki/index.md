@@ -8,6 +8,7 @@ section that matches your experience level.
 - [Building applications with `masterror`](masterror-application-guide.md)
 - [When to reach for `thiserror`, `anyhow`, or `masterror`](error-crate-comparison.md)
 - [Patterns and troubleshooting](patterns-and-troubleshooting.md)
+- [Continuous integration recipes](ci.md)
 
 ## How the wiki is organised
 

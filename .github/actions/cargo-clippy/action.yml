@@ -1,0 +1,31 @@
+name: "Cargo clippy"
+description: "Run cargo clippy with workspace defaults and optional all-features"
+inputs:
+  toolchain:
+    description: "Rust toolchain identifier to use (without the leading +)"
+    required: true
+  all-features:
+    description: "Whether to enable --all-features"
+    required: false
+    default: "false"
+  extra-args:
+    description: "Additional arguments passed to cargo clippy"
+    required: false
+    default: ""
+runs:
+  using: "composite"
+  steps:
+    - name: Run cargo clippy
+      shell: bash
+      env:
+        TOOLCHAIN: ${{ inputs.toolchain }}
+        ALL_FEATURES: ${{ inputs.all-features }}
+        EXTRA_ARGS: ${{ inputs.extra-args }}
+      run: |
+        set -euo pipefail
+        if [ "${ALL_FEATURES}" = "true" ]; then
+          cargo +"${TOOLCHAIN}" clippy --workspace --all-targets --all-features ${EXTRA_ARGS} -- -D warnings
+        else
+          cargo +"${TOOLCHAIN}" clippy --workspace --all-targets ${EXTRA_ARGS} -- -D warnings
+        fi
+
