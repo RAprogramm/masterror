@@ -9,6 +9,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.13] - 2025-10-29
+
+### Fixed
+- Rebuilt the tracing telemetry test to refresh callsite interest so
+  `cargo test --all-features` remains stable under parallel CI execution.
+
 ## [0.24.12] - 2025-10-28
 
 ### Fixed
