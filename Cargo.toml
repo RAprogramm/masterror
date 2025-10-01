@@ -4,7 +4,7 @@
 
 [package]
 name = "masterror"
-version = "0.24.13"
+version = "0.24.14"
 rust-version = "1.90"
 edition = "2024"
 license = "MIT OR Apache-2.0"
@@ -78,6 +78,7 @@ frontend = ["dep:wasm-bindgen", "dep:js-sys", "dep:serde-wasm-bindgen", "std"]
 turnkey = ["std"]
 tonic = ["dep:tonic", "std"]
 openapi = ["dep:utoipa", "std"]
+benchmarks = ["std"]
 
 [workspace.dependencies]
 masterror-derive = { version = "0.9.2" }
@@ -182,6 +183,7 @@ feature_order = [
   "tonic",
   "frontend",
   "turnkey",
+  "benchmarks",
 ]
 feature_snippet_group = 4
 conversion_lines = [
@@ -261,5 +263,12 @@ description = "Log to the browser console and convert to JsValue on WASM"
 [package.metadata.masterror.readme.features.turnkey]
 description = "Ship Turnkey-specific error taxonomy and conversions"
 
+[package.metadata.masterror.readme.features.benchmarks]
+description = "Enable Criterion benchmarks and CI baseline tooling"
+extra = [
+  "Primarily used for local profiling and continuous benchmarking runs"
+]
+
 [lib]
 crate-type = ["cdylib", "rlib"]
+bench = false
