@@ -9,6 +9,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.14] - 2025-10-30
+
+### Fixed
+- Declared a dedicated `benchmarks` Cargo feature and disabled the default
+  library benchmark harness so automation can enable Criterion with custom CLI
+  flags, restoring support for `--save-baseline` and other passthrough options
+  in CI.
+- Documented the required feature flag in the README and template to keep local
+  runs aligned with the CI workflow.
+
 ## [0.24.13] - 2025-10-29
 
 ### Fixed

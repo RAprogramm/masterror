@@ -80,15 +80,15 @@ The build script keeps the full feature snippet below in sync with
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.24.13", default-features = false }
+masterror = { version = "0.24.14", default-features = false }
 # or with features:
-# masterror = { version = "0.24.13", features = [
+# masterror = { version = "0.24.14", features = [
 #   "std", "axum", "actix", "openapi",
 #   "serde_json", "tracing", "metrics", "backtrace",
 #   "sqlx", "sqlx-migrate", "reqwest", "redis",
 #   "validator", "config", "tokio", "multipart",
 #   "teloxide", "telegram-webapp-sdk", "tonic", "frontend",
-#   "turnkey"
+#   "turnkey", "benchmarks"
 # ] }
 ~~~
 
@@ -100,7 +100,7 @@ Criterion benchmarks cover the hottest conversion paths so regressions are
 visible before shipping. Run them locally with:
 
 ~~~sh
-cargo bench --bench error_paths
+cargo bench -F benchmarks --bench error_paths
 ~~~
 
 The suite emits two groups:
@@ -112,7 +112,7 @@ The suite emits two groups:
   build RFC 7807 payloads via `ProblemJson::from_app_error`, showing how message
   redaction and field policies impact serialization.
 
-Adjust Criterion CLI flags (for example `--sample-size 200`) after `--` to trade
+Adjust Criterion CLI flags (for example `--sample-size 200` or `--save-baseline local`) after `--` to trade
 throughput for tighter confidence intervals when investigating changes.
 
 ---
