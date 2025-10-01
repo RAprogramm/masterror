@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 //! Turnkey integration: error kinds, classification, and conversions.
 //!
 //! This module centralizes Turnkey-specific error taxonomy and mapping into

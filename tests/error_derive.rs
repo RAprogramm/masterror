@@ -1,5 +1,9 @@
 #![allow(unused_variables, non_shorthand_field_patterns)]
 
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 #[cfg(masterror_has_error_generic_member_access)]
 use std::ptr;
 use std::{error::Error as StdError, fmt};

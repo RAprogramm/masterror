@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+
+SPDX-License-Identifier: MIT
+-->
+
 # Masterror error-handling wiki
 
 This wiki collects step-by-step guides for building reliable error handling in Rust services.

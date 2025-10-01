@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 use super::domain::TurnkeyErrorKind;
 
 const STACK_NEEDLE_INLINE_CAP: usize = 64;

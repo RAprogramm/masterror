@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+
+SPDX-License-Identifier: MIT
+-->
+
 Коротко: добей masterror по трём фронтам — типобезопасный контекст, наблюдаемость из коробки, и строгая «доменность». Тогда thiserror/anyhow будут выглядеть как милые ретро-игрушки.
 
 Ниже — конкретный план, без воды.

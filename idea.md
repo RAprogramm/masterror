@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+
+SPDX-License-Identifier: MIT
+-->
+
 ## 1) Декларативный DSL-макрос `errors!`
 
 Макрос сгенерирует enum, `Display`, `Error`, `MasterError`, `From`, маппинг категорий на HTTP, и билдер-конструкторы.

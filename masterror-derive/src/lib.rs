@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 //! Derive macro for `masterror::Error`.
 //!
 //! This crate is not intended to be used directly. Re-exported as

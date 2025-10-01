@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+#
+# SPDX-License-Identifier: MIT
+
 set -euo pipefail
 
 # Определяем последнюю версию из CHANGELOG.md (первая строка, начинающаяся с "## [")

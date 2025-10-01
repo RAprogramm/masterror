@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 //! Tonic integration: convert [`crate::Error`] into [`tonic::Status`].
 //!
 //! Enabled with the `tonic` feature flag.

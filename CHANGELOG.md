@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+
+SPDX-License-Identifier: MIT
+-->
+
 # Changelog
 All notable changes to this project will be documented in this file.
 

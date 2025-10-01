@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 //! Conversion from
 //! [`telegram_webapp_sdk::utils::validate_init_data::ValidationError`] into
 //! [`Error`].

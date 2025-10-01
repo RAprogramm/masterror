@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+
+SPDX-License-Identifier: MIT
+-->
+
 # masterror · Framework-agnostic application error types
 
 <!-- ⚠️ GENERATED FILE: edit README.template.md and run `cargo build` to refresh README.md before publishing.
@@ -446,4 +452,3 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 ---
 
 MSRV: **1.90** · License: **MIT OR Apache-2.0** · No `unsafe`
-

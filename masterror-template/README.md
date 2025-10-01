@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+
+SPDX-License-Identifier: MIT
+-->
+
 # masterror-template
 
 `masterror-template` packages the template parser shared by the [`masterror`][masterror] runtime crate and the [`masterror-derive`][derive] procedural macros. It understands the `#[error("...")]` formatting language popularised by `thiserror` v2, producing a structured representation that downstream code can inspect or render.

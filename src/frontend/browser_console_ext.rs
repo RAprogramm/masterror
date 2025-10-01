@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 #[cfg(target_arch = "wasm32")]
 use js_sys::{Function, Reflect};
 #[cfg(target_arch = "wasm32")]

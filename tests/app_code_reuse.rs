@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 use masterror::{AppCode, AppError, ErrorResponse, ProblemJson};
 
 fn error_with_dynamic_code() -> AppError {

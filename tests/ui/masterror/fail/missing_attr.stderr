@@ -1,5 +1,0 @@
-error: #[derive(Masterror)] requires #[masterror(...)] on structs
- --> tests/ui/masterror/fail/missing_attr.rs:5:8
-  |
-5 | struct Missing;
-  |        ^^^^^^^

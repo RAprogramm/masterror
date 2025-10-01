@@ -1,5 +1,9 @@
 #![allow(non_shorthand_field_patterns)]
 
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 use std::{error::Error as StdError, sync::Arc};
 
 use masterror::{

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 //! Canonical application error taxonomy and HTTP mappings.
 //!
 //! This enum defines the **stable**, framework-agnostic set of error categories

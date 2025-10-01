@@ -1,5 +1,9 @@
 #![allow(dead_code)]
 
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs, io,

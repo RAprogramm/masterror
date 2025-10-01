@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+
+SPDX-License-Identifier: MIT
+-->
+
 # masterror · Каркас-независимые типы ошибок приложений
 
 > Эта страница — русская версия основной документации. Английский оригинал см. в [README.md](README.md).

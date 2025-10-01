@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+#
+# SPDX-License-Identifier: MIT
+
 name: "Cargo test"
 description: "Run cargo test for the workspace with consistent flags"
 inputs:

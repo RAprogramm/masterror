@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 //! Conversion from [`validator::ValidationErrors`] into [`Error`].
 //!
 //! Enabled with the `validator` feature flag.

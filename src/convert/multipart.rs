@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 //! Maps [`MultipartError`] into [`Error`] with
 //! [`AppErrorKind::BadRequest`], preserving the original message.
 //!

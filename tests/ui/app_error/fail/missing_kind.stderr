@@ -1,5 +1,0 @@
-error: missing `kind = ...` in #[app_error(...)]
- --> tests/ui/app_error/fail/missing_kind.rs:5:1
-  |
-5 | #[app_error(message)]
-  | ^

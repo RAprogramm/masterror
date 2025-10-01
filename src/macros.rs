@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 //! Control-flow macros for early returns with typed errors.
 //!
 //! These macros complement the typed [`AppError`](crate::AppError) APIs by

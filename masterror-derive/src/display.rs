@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 use std::{borrow::Cow, collections::HashMap};
 
 use masterror_template::template::{TemplateFormatter, TemplateFormatterKind};

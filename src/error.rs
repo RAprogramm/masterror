@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 //! Utilities for building custom error derive infrastructure.
 //!
 //! This module exposes lower-level building blocks that will eventually power

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 //! Parser and formatter helpers for `#[error("...")]` attributes.
 //!
 //! This module re-exports the shared helpers from the internal

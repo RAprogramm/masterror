@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 //! Actix Web integration: `ResponseError` for [`AppError`] and RFC7807 payload.
 //!
 //! Enabled with the `actix` feature flag.

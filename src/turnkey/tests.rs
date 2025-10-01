@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 use super::{TurnkeyError, TurnkeyErrorKind, classify_turnkey_error, map_turnkey_kind};
 use crate::{AppError, AppErrorKind};
 

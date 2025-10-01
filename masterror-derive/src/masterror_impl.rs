@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use syn::{Error, Expr, ExprPath, Index};

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 //! Conversion from [`teloxide_core::RequestError`] into [`Error`].
 //!
 //! Enabled with the `teloxide` feature flag.

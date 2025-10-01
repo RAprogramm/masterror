@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+
+SPDX-License-Identifier: MIT
+-->
+
 # When to use `thiserror`, `anyhow`, or `masterror`
 
 Rust gives you multiple complementary error crates. This page compares how they

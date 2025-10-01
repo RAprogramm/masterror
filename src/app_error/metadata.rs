@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 use alloc::{borrow::Cow, collections::BTreeMap, string::String};
 use core::{
     fmt::{Display, Formatter, Result as FmtResult, Write},

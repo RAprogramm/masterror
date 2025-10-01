@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+
+SPDX-License-Identifier: MIT
+-->
+
 # masterror-derive
 
 Procedural macros that power [`masterror`](https://crates.io/crates/masterror)'s

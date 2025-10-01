@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+#
+# SPDX-License-Identifier: MIT
+
 name: "Cargo audit"
 description: "Ensure cargo-audit is installed and run it with consistent flags"
 inputs:
