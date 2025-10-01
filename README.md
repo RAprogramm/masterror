@@ -13,7 +13,6 @@ SPDX-License-Identifier: MIT
 [![docs.rs](https://img.shields.io/docsrs/masterror)](https://docs.rs/masterror)
 [![Downloads](https://img.shields.io/crates/d/masterror)](https://crates.io/crates/masterror)
 ![MSRV](https://img.shields.io/badge/MSRV-1.90-blue)
-[![Hits-of-Code](https://hitsofcode.com/github/RAprogramm/masterror?branch=main)](https://hitsofcode.com/github/RAprogramm/masterror/view?branch=main)
 ![License](https://img.shields.io/badge/License-MIT%20or%20Apache--2.0-informational)
 [![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
 [![Security audit](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main&label=Security%20audit)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
