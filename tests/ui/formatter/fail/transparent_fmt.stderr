@@ -1,0 +1,5 @@
+error: format arguments are not supported with #[error(transparent)]
+  --> tests/ui/formatter/fail/transparent_fmt.rs:12:20
+   |
+12 | #[error(transparent, fmt = crate::format_unit)]
+   |                    ^

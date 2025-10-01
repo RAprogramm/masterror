@@ -1,0 +1,13 @@
+error: missing `category = ...` in #[masterror(...)]
+ --> tests/ui/masterror/fail/missing_category.rs:9:1
+  |
+9 | #[masterror(code = AppCode::Internal)]
+  | ^
+
+warning: unused import: `AppCode`
+ --> tests/ui/masterror/fail/missing_category.rs:5:17
+  |
+5 | use masterror::{AppCode, Masterror};
+  |                 ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

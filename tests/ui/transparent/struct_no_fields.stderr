@@ -1,0 +1,11 @@
+error: #[error(transparent)] requires exactly one field
+ --> tests/ui/transparent/struct_no_fields.rs:8:1
+  |
+8 | #[error(transparent)]
+  | ^^^^^^^^^^^^^^^^^^^^^
+
+error[E0601]: `main` function not found in crate `$CRATE`
+ --> tests/ui/transparent/struct_no_fields.rs:9:24
+  |
+9 | struct TransparentUnit;
+  |                        ^ consider adding a `main` function to `$DIR/tests/ui/transparent/struct_no_fields.rs`

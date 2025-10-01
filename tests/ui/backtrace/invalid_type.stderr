@@ -1,0 +1,5 @@
+error: fields with #[backtrace] must be std::backtrace::Backtrace or Option<std::backtrace::Backtrace>
+  --> tests/ui/backtrace/invalid_type.rs:10:5
+   |
+10 |     #[backtrace]
+   |     ^^^^^^^^^^^^

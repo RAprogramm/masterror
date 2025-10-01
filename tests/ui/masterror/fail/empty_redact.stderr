@@ -1,0 +1,13 @@
+error: redact(...) requires at least one option
+ --> tests/ui/masterror/fail/empty_redact.rs:9:74
+  |
+9 | #[masterror(code = AppCode::Internal, category = AppErrorKind::Internal, redact())]
+  |                                                                          ^^^^^^
+
+warning: unused imports: `AppCode` and `AppErrorKind`
+ --> tests/ui/masterror/fail/empty_redact.rs:5:17
+  |
+5 | use masterror::{AppCode, AppErrorKind, Masterror};
+  |                 ^^^^^^^  ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

@@ -1,0 +1,13 @@
+error: AppCode conversion requires `code = ...` in #[app_error(...)]
+  --> tests/ui/app_error/fail/missing_code.rs:13:5
+   |
+13 |     #[app_error(kind = AppErrorKind::Service)]
+   |     ^
+
+warning: unused imports: `AppCode` and `AppErrorKind`
+ --> tests/ui/app_error/fail/missing_code.rs:5:17
+  |
+5 | use masterror::{AppCode, AppErrorKind, Error};
+  |                 ^^^^^^^  ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

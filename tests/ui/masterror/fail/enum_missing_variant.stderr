@@ -1,0 +1,13 @@
+error: all variants must use #[masterror(...)] to derive masterror::Error conversion
+  --> tests/ui/masterror/fail/enum_missing_variant.rs:12:5
+   |
+12 |     #[error("missing")]
+   |     ^
+
+warning: unused imports: `AppCode` and `AppErrorKind`
+ --> tests/ui/masterror/fail/enum_missing_variant.rs:5:17
+  |
+5 | use masterror::{AppCode, AppErrorKind, Masterror};
+  |                 ^^^^^^^  ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

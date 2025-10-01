@@ -1,0 +1,5 @@
+error: duplicate format argument `value`
+ --> tests/ui/formatter/fail/duplicate_named_arguments.rs:8:40
+  |
+8 | #[error("{value}", value = self.value, value = self.value)]
+  |                                        ^^^^^

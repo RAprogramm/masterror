@@ -1,0 +1,13 @@
+error: duplicate telemetry(...) block
+  --> tests/ui/masterror/fail/duplicate_telemetry.rs:13:5
+   |
+13 |     telemetry()
+   |     ^^^^^^^^^
+
+warning: unused imports: `AppCode` and `AppErrorKind`
+ --> tests/ui/masterror/fail/duplicate_telemetry.rs:5:17
+  |
+5 | use masterror::{AppCode, AppErrorKind, Masterror};
+  |                 ^^^^^^^  ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

@@ -1,0 +1,13 @@
+error: unknown #[masterror] option `unknown`
+ --> tests/ui/masterror/fail/unknown_option.rs:9:74
+  |
+9 | #[masterror(code = AppCode::Internal, category = AppErrorKind::Internal, unknown)]
+  |                                                                          ^^^^^^^
+
+warning: unused imports: `AppCode` and `AppErrorKind`
+ --> tests/ui/masterror/fail/unknown_option.rs:5:17
+  |
+5 | use masterror::{AppCode, AppErrorKind, Masterror};
+  |                 ^^^^^^^  ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

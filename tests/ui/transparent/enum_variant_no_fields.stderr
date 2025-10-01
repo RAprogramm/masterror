@@ -1,0 +1,12 @@
+error: #[error(transparent)] requires exactly one field
+  --> tests/ui/transparent/enum_variant_no_fields.rs:9:5
+   |
+ 9 | /     #[error(transparent)]
+10 | |     Variant
+   | |___________^
+
+error[E0601]: `main` function not found in crate `$CRATE`
+  --> tests/ui/transparent/enum_variant_no_fields.rs:11:2
+   |
+11 | }
+   |  ^ consider adding a `main` function to `$DIR/tests/ui/transparent/enum_variant_no_fields.rs`

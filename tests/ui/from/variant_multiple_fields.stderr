@@ -1,0 +1,5 @@
+error: deriving From requires no fields other than source and backtrace
+  --> tests/ui/from/variant_multiple_fields.rs:11:9
+   |
+11 |         #[from]
+   |         ^^^^^^^
