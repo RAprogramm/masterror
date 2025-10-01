@@ -507,7 +507,7 @@ fn telemetry_emits_single_tracing_event_with_trace_id() {
     };
 
     use tracing::{
-        Dispatch, Event, Subscriber, dispatcher,
+        Dispatch, Event, Subscriber, callsite, dispatcher,
         field::{Field, Visit}
     };
     use tracing_subscriber::{
@@ -578,6 +578,7 @@ fn telemetry_emits_single_tracing_event_with_trace_id() {
     let dispatch = Dispatch::new(subscriber);
 
     dispatcher::with_default(&dispatch, || {
+        callsite::rebuild_interest_cache();
         log_mdc::insert("trace_id", "trace-123");
         let err = AppError::internal("boom");
         err.log();
