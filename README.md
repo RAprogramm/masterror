@@ -453,7 +453,4 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 
 MSRV: **1.90** · License: **MIT OR Apache-2.0** · No `unsafe`
 
-## Metrics
-
-[![Repo metrics](https://raw.githubusercontent.com/RAprogramm/infra-metrics-renderer/main/public/masterror.svg)](https://crates.io/crates/masterror)
 
