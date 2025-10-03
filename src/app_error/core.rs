@@ -24,6 +24,8 @@ use serde::Serialize;
 #[cfg(feature = "serde_json")]
 use serde_json::{Value as JsonValue, to_value};
 #[cfg(feature = "tracing")]
+use tracing::callsite::rebuild_interest_cache;
+#[cfg(feature = "tracing")]
 use tracing::{Level, event};
 
 use super::metadata::{Field, FieldRedaction, Metadata};
@@ -353,8 +355,12 @@ impl Error {
         }
 
         if !tracing::event_enabled!(target: "masterror::error", Level::ERROR) {
-            self.mark_tracing_dirty();
-            return;
+            rebuild_interest_cache();
+
+            if !tracing::event_enabled!(target: "masterror::error", Level::ERROR) {
+                self.mark_tracing_dirty();
+                return;
+            }
         }
 
         let message = self.message.as_deref();
