@@ -9,6 +9,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.16] - 2025-11-01
+
+### Fixed
+- Refresh tracing callsite interest while flushing telemetry so late subscriber
+  installs still emit a single `masterror::error` event when logging existing
+  errors.
+
 ## [0.24.15] - 2025-10-31
 
 ### Fixed
