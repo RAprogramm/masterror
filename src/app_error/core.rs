@@ -92,7 +92,9 @@ pub struct ErrorInner {
     pub backtrace:          Option<Backtrace>,
     #[cfg(feature = "backtrace")]
     pub captured_backtrace: OnceLock<Option<Backtrace>>,
-    telemetry_dirty:        AtomicBool
+    telemetry_dirty:        AtomicBool,
+    #[cfg(feature = "tracing")]
+    tracing_dirty:          AtomicBool
 }
 
 #[cfg(feature = "backtrace")]
@@ -270,17 +272,31 @@ impl Error {
                 backtrace: None,
                 #[cfg(feature = "backtrace")]
                 captured_backtrace: OnceLock::new(),
-                telemetry_dirty: AtomicBool::new(true)
+                telemetry_dirty: AtomicBool::new(true),
+                #[cfg(feature = "tracing")]
+                tracing_dirty: AtomicBool::new(true)
             })
         }
     }
 
     fn mark_dirty(&self) {
         self.telemetry_dirty.store(true, Ordering::Release);
+        #[cfg(feature = "tracing")]
+        self.mark_tracing_dirty();
     }
 
     fn take_dirty(&self) -> bool {
         self.telemetry_dirty.swap(false, Ordering::AcqRel)
+    }
+
+    #[cfg(feature = "tracing")]
+    fn mark_tracing_dirty(&self) {
+        self.tracing_dirty.store(true, Ordering::Release);
+    }
+
+    #[cfg(feature = "tracing")]
+    fn take_tracing_dirty(&self) -> bool {
+        self.tracing_dirty.swap(false, Ordering::AcqRel)
     }
 
     #[cfg(feature = "backtrace")]
@@ -324,27 +340,39 @@ impl Error {
                 )
                 .increment(1);
             }
-
-            #[cfg(feature = "tracing")]
-            {
-                let message = self.message.as_deref();
-                let retry_seconds = self.retry.map(|value| value.after_seconds);
-                let trace_id = log_mdc::get("trace_id", |value| value.map(str::to_owned));
-                event!(
-                    target: "masterror::error",
-                    Level::ERROR,
-                    code = self.code.as_str(),
-                    category = kind_label(self.kind),
-                    message = message,
-                    retry_seconds,
-                    redactable = matches!(self.edit_policy, MessageEditPolicy::Redact),
-                    metadata_len = self.metadata.len() as u64,
-                    www_authenticate = self.www_authenticate.as_deref(),
-                    trace_id = trace_id.as_deref(),
-                    "app error constructed"
-                );
-            }
         }
+
+        #[cfg(feature = "tracing")]
+        self.flush_tracing();
+    }
+
+    #[cfg(feature = "tracing")]
+    fn flush_tracing(&self) {
+        if !self.take_tracing_dirty() {
+            return;
+        }
+
+        if !tracing::event_enabled!(target: "masterror::error", Level::ERROR) {
+            self.mark_tracing_dirty();
+            return;
+        }
+
+        let message = self.message.as_deref();
+        let retry_seconds = self.retry.map(|value| value.after_seconds);
+        let trace_id = log_mdc::get("trace_id", |value| value.map(str::to_owned));
+        event!(
+            target: "masterror::error",
+            Level::ERROR,
+            code = self.code.as_str(),
+            category = kind_label(self.kind),
+            message = message,
+            retry_seconds,
+            redactable = matches!(self.edit_policy, MessageEditPolicy::Redact),
+            metadata_len = self.metadata.len() as u64,
+            www_authenticate = self.www_authenticate.as_deref(),
+            trace_id = trace_id.as_deref(),
+            "app error constructed"
+        );
     }
 
     /// Create a new [`Error`] with a kind and message.

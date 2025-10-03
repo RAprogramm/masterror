@@ -9,6 +9,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.15] - 2025-10-31
+
+### Fixed
+- Reworked telemetry flushing so tracing events retry emission when the
+  subscriber enables interest after an error is constructed, preserving the
+  expected single event in concurrent test runs.
+
 ## [0.24.14] - 2025-10-30
 
 ### Fixed
