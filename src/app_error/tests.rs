@@ -740,3 +740,78 @@ fn app_error_fits_result_budget() {
         "AppError grew to {size} bytes; keep the Err variant lean"
     );
 }
+
+#[test]
+#[cfg(feature = "std")]
+fn error_chain_iterates_through_sources() {
+    let io_err = IoError::other("disk offline");
+    let app_err = AppError::internal("db down").with_context(io_err);
+
+    let chain: Vec<_> = app_err.chain().collect();
+    assert_eq!(chain.len(), 2);
+
+    assert_eq!(chain[0].to_string(), "Internal server error");
+    assert_eq!(chain[1].to_string(), "disk offline");
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn error_chain_single_error() {
+    let err = AppError::bad_request("missing field");
+    let chain: Vec<_> = err.chain().collect();
+
+    assert_eq!(chain.len(), 1);
+    assert_eq!(chain[0].to_string(), "Bad request");
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn error_chain_multiple_sources() {
+    let root = IoError::new(IoErrorKind::NotFound, "file not found");
+    let wrapped = IoError::other(format!("config error: {}", root));
+    let app_err = AppError::internal("startup failed").with_context(wrapped);
+
+    let chain: Vec<_> = app_err.chain().collect();
+    assert_eq!(chain.len(), 2);
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn root_cause_returns_deepest_error() {
+    let io_err = IoError::other("disk offline");
+    let app_err = AppError::internal("db down").with_context(io_err);
+
+    let root = app_err.root_cause();
+    assert_eq!(root.to_string(), "disk offline");
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn root_cause_returns_self_when_no_source() {
+    let err = AppError::timeout("operation timed out");
+    let root = err.root_cause();
+
+    assert_eq!(root.to_string(), "Operation timed out");
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn is_checks_source_type() {
+    let io_err = IoError::other("disk offline");
+    let app_err = AppError::internal("db down").with_context(io_err);
+
+    assert!(app_err.is::<IoError>());
+
+    let anyhow_err = anyhow::anyhow!("test error");
+    let anyhow_app_err = AppError::internal("wrapped").with_context(AnyhowSource(anyhow_err));
+    assert!(!anyhow_app_err.is::<IoError>());
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn is_returns_false_when_no_source() {
+    let err = AppError::not_found("user not found");
+
+    assert!(!err.is::<IoError>());
+    assert!(!err.is::<AnyhowSource>());
+}

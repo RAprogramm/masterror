@@ -194,6 +194,24 @@ mod test_backtrace_override {
     }
 }
 
+/// Iterator over an error chain, yielding each error in the source sequence.
+///
+/// Created by [`Error::chain`].
+#[derive(Clone, Debug)]
+pub struct ErrorChain<'a> {
+    current: Option<&'a (dyn CoreError + 'static)>
+}
+
+impl<'a> Iterator for ErrorChain<'a> {
+    type Item = &'a (dyn CoreError + 'static);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let current = self.current.take()?;
+        self.current = current.source();
+        Some(current)
+    }
+}
+
 /// Rich application error preserving domain code, taxonomy and metadata.
 #[derive(Debug)]
 pub struct Error {
@@ -647,6 +665,92 @@ impl Error {
     /// error. It is automatically invoked by constructors and conversions.
     pub fn log(&self) {
         self.emit_telemetry();
+    }
+
+    /// Returns an iterator over the error chain, starting with this error.
+    ///
+    /// The iterator yields references to each error in the source chain,
+    /// walking through [`source()`](CoreError::source) until reaching the
+    /// root cause.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "std")] {
+    /// use std::io::Error as IoError;
+    ///
+    /// use masterror::AppError;
+    ///
+    /// let io_err = IoError::other("disk offline");
+    /// let app_err = AppError::internal("db down").with_context(io_err);
+    ///
+    /// let chain: Vec<_> = app_err.chain().collect();
+    /// assert_eq!(chain.len(), 2);
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn chain(&self) -> ErrorChain<'_> {
+        ErrorChain {
+            current: Some(self as &(dyn CoreError + 'static))
+        }
+    }
+
+    /// Returns the lowest-level source error in the chain.
+    ///
+    /// This traverses the error source chain until it finds an error with no
+    /// further source, then returns a reference to it. If this error has no
+    /// source, it returns a reference to itself.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "std")] {
+    /// use std::io::Error as IoError;
+    ///
+    /// use masterror::AppError;
+    ///
+    /// let io_err = IoError::other("disk offline");
+    /// let app_err = AppError::internal("db down").with_context(io_err);
+    ///
+    /// let root = app_err.root_cause();
+    /// assert_eq!(root.to_string(), "disk offline");
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn root_cause(&self) -> &(dyn CoreError + 'static) {
+        self.chain()
+            .last()
+            .expect("chain always has at least one error")
+    }
+
+    /// Attempts to downcast the error source to a concrete type.
+    ///
+    /// Returns `true` if the error source is of type `E`, `false` otherwise.
+    /// This only checks the immediate source, not the entire chain.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "std")] {
+    /// use std::io::Error as IoError;
+    ///
+    /// use masterror::AppError;
+    ///
+    /// let io_err = IoError::other("disk offline");
+    /// let app_err = AppError::internal("db down").with_context(io_err);
+    ///
+    /// assert!(app_err.is::<IoError>());
+    ///
+    /// let err_without_source = AppError::not_found("missing");
+    /// assert!(!err_without_source.is::<IoError>());
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn is<E>(&self) -> bool
+    where
+        E: CoreError + 'static
+    {
+        self.source_ref().is_some_and(|source| source.is::<E>())
     }
 }
 
