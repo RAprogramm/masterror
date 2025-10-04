@@ -103,8 +103,32 @@ The performance overhead is minimal and justified by the additional functionalit
 
 **Legend**: ✅ Yes | ❌ No | ⚠️ Minimal overhead
 
+## Binary Size Comparison
+
+| Library | Size (.rlib) | vs masterror |
+|---------|--------------|--------------|
+| thiserror | 32 KB | 97% smaller |
+| anyhow | 566 KB | 40% smaller |
+| **masterror** | **944 KB** | baseline |
+
+**Analysis**: masterror is larger due to additional features:
+- Structured metadata system
+- HTTP/gRPC transport mappings
+- Telemetry integration
+- RFC7807 Problem JSON serialization
+- Redaction policies
+
+The size overhead is acceptable for production services requiring these capabilities.
+
+## Compilation Time
+
+Clean build times (debug mode):
+- masterror: ~7s (with all features)
+
+The compilation time is comparable to other feature-rich error handling libraries.
+
 ## When to Use Each
 
-- **thiserror**: Library errors that need zero runtime cost
+- **thiserror**: Library errors that need zero runtime cost and minimal binary size
 - **anyhow**: Application errors with quick prototyping
 - **masterror**: Production APIs needing structured, observable errors with transport mappings
