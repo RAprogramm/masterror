@@ -9,6 +9,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.16] - 2025-11-01
+
+### Fixed
+- Refresh tracing callsite interest while flushing telemetry so late subscriber
+  installs still emit a single `masterror::error` event when logging existing
+  errors.
+
+## [0.24.15] - 2025-10-31
+
+### Fixed
+- Reworked telemetry flushing so tracing events retry emission when the
+  subscriber enables interest after an error is constructed, preserving the
+  expected single event in concurrent test runs.
+
+## [0.24.14] - 2025-10-30
+
+### Fixed
+- Declared a dedicated `benchmarks` Cargo feature and disabled the default
+  library benchmark harness so automation can enable Criterion with custom CLI
+  flags, restoring support for `--save-baseline` and other passthrough options
+  in CI.
+- Documented the required feature flag in the README and template to keep local
+  runs aligned with the CI workflow.
+
 ## [0.24.13] - 2025-10-29
 
 ### Fixed

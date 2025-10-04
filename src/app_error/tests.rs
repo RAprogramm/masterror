@@ -42,6 +42,90 @@ static BACKTRACE_ENV_GUARD: Mutex<()> = Mutex::new(());
 #[cfg(feature = "tracing")]
 static TELEMETRY_GUARD: Mutex<()> = Mutex::new(());
 
+#[cfg(feature = "tracing")]
+mod telemetry_support {
+    use std::{
+        fmt,
+        sync::{Arc, Mutex}
+    };
+
+    use tracing::{
+        Dispatch, Event, Subscriber,
+        field::{Field, Visit}
+    };
+    use tracing_subscriber::{
+        Registry,
+        layer::{Context, Layer, SubscriberExt}
+    };
+
+    #[derive(Default, Clone)]
+    pub(super) struct RecordedEvent {
+        pub(super) trace_id: Option<String>,
+        pub(super) code:     Option<String>,
+        pub(super) category: Option<String>
+    }
+
+    pub(super) type RecordedEvents = Arc<Mutex<Vec<RecordedEvent>>>;
+
+    pub(super) fn new_recording_dispatch() -> (Dispatch, RecordedEvents) {
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let layer = RecordingLayer {
+            events: events.clone()
+        };
+        let subscriber = Registry::default().with(layer);
+        let dispatch = Dispatch::new(subscriber);
+        (dispatch, events)
+    }
+
+    struct RecordingLayer {
+        events: RecordedEvents
+    }
+
+    impl<S> Layer<S> for RecordingLayer
+    where
+        S: Subscriber
+    {
+        fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, S>) {
+            if event.metadata().target() != "masterror::error" {
+                return;
+            }
+
+            let mut record = RecordedEvent::default();
+            event.record(&mut EventVisitor {
+                record: &mut record
+            });
+            self.events.lock().expect("events lock").push(record);
+        }
+    }
+
+    struct EventVisitor<'a> {
+        record: &'a mut RecordedEvent
+    }
+
+    impl<'a> Visit for EventVisitor<'a> {
+        fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
+            let normalized = normalize_debug(value);
+            match field.name() {
+                "trace_id" => self.record.trace_id = Some(normalized),
+                "code" => self.record.code = Some(normalized),
+                "category" => self.record.category = Some(normalized),
+                _ => {}
+            }
+        }
+    }
+
+    fn normalize_debug(value: &dyn fmt::Debug) -> String {
+        let mut rendered = format!("{value:?}");
+        while let Some(stripped) = rendered
+            .strip_prefix("Some(")
+            .and_then(|s| s.strip_suffix(')'))
+        {
+            rendered = stripped.to_owned();
+        }
+        rendered.trim_matches('"').to_owned()
+    }
+}
+
 use super::{AppError, FieldRedaction, FieldValue, MessageEditPolicy, field};
 use crate::{AppCode, AppErrorKind, Context, ErrorResponse, ResultExt};
 
@@ -501,84 +585,14 @@ fn log_uses_kind_and_code() {
 fn telemetry_emits_single_tracing_event_with_trace_id() {
     let _guard = TELEMETRY_GUARD.lock().expect("telemetry guard");
 
-    use std::{
-        fmt,
-        sync::{Arc, Mutex}
-    };
+    use telemetry_support::new_recording_dispatch;
+    use tracing::{callsite::rebuild_interest_cache, dispatcher};
 
-    use tracing::{
-        Dispatch, Event, Subscriber, callsite, dispatcher,
-        field::{Field, Visit}
-    };
-    use tracing_subscriber::{
-        Registry,
-        layer::{Context, Layer, SubscriberExt}
-    };
-
-    #[derive(Default, Clone)]
-    struct RecordedEvent {
-        trace_id: Option<String>,
-        code:     Option<String>,
-        category: Option<String>
-    }
-
-    struct RecordingLayer {
-        events: Arc<Mutex<Vec<RecordedEvent>>>
-    }
-
-    impl<S> Layer<S> for RecordingLayer
-    where
-        S: Subscriber
-    {
-        fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, S>) {
-            if event.metadata().target() != "masterror::error" {
-                return;
-            }
-
-            let mut record = RecordedEvent::default();
-            event.record(&mut EventVisitor {
-                record: &mut record
-            });
-            self.events.lock().expect("events lock").push(record);
-        }
-    }
-
-    struct EventVisitor<'a> {
-        record: &'a mut RecordedEvent
-    }
-
-    impl<'a> Visit for EventVisitor<'a> {
-        fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
-            let normalized = normalize_debug(value);
-            match field.name() {
-                "trace_id" => self.record.trace_id = Some(normalized),
-                "code" => self.record.code = Some(normalized),
-                "category" => self.record.category = Some(normalized),
-                _ => {}
-            }
-        }
-    }
-
-    fn normalize_debug(value: &dyn fmt::Debug) -> String {
-        let mut rendered = format!("{value:?}");
-        while let Some(stripped) = rendered
-            .strip_prefix("Some(")
-            .and_then(|s| s.strip_suffix(')'))
-        {
-            rendered = stripped.to_owned();
-        }
-        rendered.trim_matches('"').to_owned()
-    }
-
-    let events = Arc::new(Mutex::new(Vec::new()));
-    let layer = RecordingLayer {
-        events: events.clone()
-    };
-    let subscriber = Registry::default().with(layer);
-    let dispatch = Dispatch::new(subscriber);
+    let (dispatch, events) = new_recording_dispatch();
+    let events = events.clone();
 
     dispatcher::with_default(&dispatch, || {
-        callsite::rebuild_interest_cache();
+        rebuild_interest_cache();
         log_mdc::insert("trace_id", "trace-123");
         let err = AppError::internal("boom");
         err.log();
@@ -597,6 +611,34 @@ fn telemetry_emits_single_tracing_event_with_trace_id() {
                 .is_some_and(|value| value.contains("trace-123"))
         );
     });
+}
+
+#[cfg(feature = "tracing")]
+#[test]
+fn telemetry_flushes_after_subscriber_install() {
+    let _guard = TELEMETRY_GUARD.lock().expect("telemetry guard");
+
+    use telemetry_support::new_recording_dispatch;
+    use tracing::dispatcher;
+
+    let err = AppError::internal("boom");
+
+    let (dispatch, events) = new_recording_dispatch();
+    let events = events.clone();
+
+    dispatcher::with_default(&dispatch, || {
+        err.log();
+    });
+
+    let events = events.lock().expect("events lock");
+    assert_eq!(
+        events.len(),
+        1,
+        "expected telemetry after subscriber install"
+    );
+    let event = &events[0];
+    assert_eq!(event.code.as_deref(), Some(AppCode::Internal.as_str()));
+    assert_eq!(event.category.as_deref(), Some("Internal"));
 }
 
 #[cfg(feature = "metrics")]

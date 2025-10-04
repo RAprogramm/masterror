@@ -95,7 +95,7 @@ Criterion benchmarks cover the hottest conversion paths so regressions are
 visible before shipping. Run them locally with:
 
 ~~~sh
-cargo bench --bench error_paths
+cargo bench -F benchmarks --bench error_paths
 ~~~
 
 The suite emits two groups:
@@ -107,7 +107,7 @@ The suite emits two groups:
   build RFC 7807 payloads via `ProblemJson::from_app_error`, showing how message
   redaction and field policies impact serialization.
 
-Adjust Criterion CLI flags (for example `--sample-size 200`) after `--` to trade
+Adjust Criterion CLI flags (for example `--sample-size 200` or `--save-baseline local`) after `--` to trade
 throughput for tighter confidence intervals when investigating changes.
 
 ---
@@ -446,4 +446,11 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 
 ---
 
+## Metrics
+
+![Metrics](https://github.com/RAprogramm/infra-metrics-renderer/blob/main/metrics/masterror.svg)
+
+---
+
 MSRV: **{{MSRV}}** · License: **MIT OR Apache-2.0** · No `unsafe`
+
