@@ -140,6 +140,7 @@ tonic = { version = "0.14", optional = true }
 anyhow = { version = "1", default-features = false, features = ["std"] }
 criterion = "0.7"
 serde_json = "1"
+thiserror = "2.0"
 tokio = { version = "1", features = [
   "macros",
   "rt-multi-thread",
@@ -153,6 +154,10 @@ tracing-subscriber = { version = "0.3", features = ["registry"] }
 
 [[bench]]
 name = "error_paths"
+harness = false
+
+[[bench]]
+name = "comparison"
 harness = false
 
 [build-dependencies]

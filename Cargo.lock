@@ -1831,6 +1831,7 @@ dependencies = [
  "telegram-webapp-sdk",
  "teloxide-core",
  "tempfile",
+ "thiserror",
  "tokio",
  "toml",
  "tonic",
