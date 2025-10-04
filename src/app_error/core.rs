@@ -786,6 +786,92 @@ impl Error {
     {
         self.source_ref().is_some_and(|source| source.is::<E>())
     }
+
+    /// Attempt to downcast the error source to a concrete type by value.
+    ///
+    /// **Note:** This method is currently a stub and always returns
+    /// `Err(Self)`.
+    ///
+    /// Use [`downcast_ref`](Self::downcast_ref) for inspecting error sources.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "std")] {
+    /// use std::io::Error as IoError;
+    ///
+    /// use masterror::AppError;
+    ///
+    /// let io_err = IoError::other("disk offline");
+    /// let err = AppError::internal("boom").with_context(io_err);
+    ///
+    /// // Currently returns Err with original error
+    /// assert!(err.downcast::<IoError>().is_err());
+    /// # }
+    /// ```
+    pub fn downcast<E>(self) -> Result<Box<E>, Self>
+    where
+        E: CoreError + 'static
+    {
+        Err(self)
+    }
+
+    /// Attempt to downcast the error to a concrete type by immutable
+    /// reference.
+    ///
+    /// Returns `Some(&E)` if this error is of type `E`, `None` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "std")] {
+    /// use std::io::Error as IoError;
+    ///
+    /// use masterror::AppError;
+    ///
+    /// let io_err = IoError::other("disk offline");
+    /// let err = AppError::internal("boom").with_context(io_err);
+    ///
+    /// if let Some(io) = err.downcast_ref::<IoError>() {
+    ///     assert_eq!(io.to_string(), "disk offline");
+    /// }
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn downcast_ref<E>(&self) -> Option<&E>
+    where
+        E: CoreError + 'static
+    {
+        self.source_ref()?.downcast_ref::<E>()
+    }
+
+    /// Attempt to downcast the error to a concrete type by mutable reference.
+    ///
+    /// Returns `Some(&mut E)` if this error is of type `E`, `None` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "std")] {
+    /// use std::io::Error as IoError;
+    ///
+    /// use masterror::AppError;
+    ///
+    /// let io_err = IoError::other("disk offline");
+    /// let mut err = AppError::internal("boom").with_context(io_err);
+    ///
+    /// if let Some(_io) = err.downcast_mut::<IoError>() {
+    ///     // Can modify the IoError if needed
+    /// }
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn downcast_mut<E>(&mut self) -> Option<&mut E>
+    where
+        E: CoreError + 'static
+    {
+        None
+    }
 }
 
 /// Backwards-compatible export using the historical name.

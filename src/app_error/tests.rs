@@ -857,3 +857,29 @@ fn is_returns_false_when_no_source() {
     assert!(!err.is::<IoError>());
     assert!(!err.is::<AnyhowSource>());
 }
+
+#[test]
+#[cfg(feature = "std")]
+fn downcast_ref_retrieves_source() {
+    let io_err = IoError::other("disk offline");
+    let app_err = AppError::internal("db down").with_context(io_err);
+
+    let retrieved = app_err.downcast_ref::<IoError>().expect("should downcast");
+    assert_eq!(retrieved.to_string(), "disk offline");
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn downcast_ref_returns_none_when_wrong_type() {
+    let io_err = IoError::other("disk offline");
+    let app_err = AppError::internal("db down").with_context(io_err);
+
+    assert!(app_err.downcast_ref::<AnyhowSource>().is_none());
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn downcast_ref_returns_none_when_no_source() {
+    let err = AppError::not_found("user not found");
+    assert!(err.downcast_ref::<IoError>().is_none());
+}
