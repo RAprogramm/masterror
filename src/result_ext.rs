@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-use alloc::borrow::Cow;
+use alloc::{borrow::Cow, sync::Arc};
 use core::error::Error as CoreError;
 
 use crate::app_error::{Context, Error};
@@ -42,6 +42,24 @@ pub trait ResultExt<T, E> {
     ///
     /// This is a convenience method equivalent to anyhow's `.context()`.
     /// For more control, use [`ctx`](ResultExt::ctx).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::io::{Error as IoError, ErrorKind};
+    ///
+    /// use masterror::ResultExt;
+    ///
+    /// fn read_config() -> Result<String, IoError> {
+    ///     Err(IoError::from(ErrorKind::NotFound))
+    /// }
+    ///
+    /// let err = read_config()
+    ///     .context("Failed to read config file")
+    ///     .unwrap_err();
+    ///
+    /// assert!(err.source_ref().is_some());
+    /// ```
     #[allow(clippy::result_large_err)]
     fn context(self, msg: impl Into<Cow<'static, str>>) -> Result<T, Error>
     where
@@ -60,7 +78,42 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
     where
         E: CoreError + Send + Sync + 'static
     {
-        self.map_err(|err| Error::internal(msg).with_source(err))
+        let msg = msg.into();
+
+        self.map_err(|err| {
+            let source: Box<dyn CoreError + Send + Sync + 'static> = Box::new(err);
+
+            match source.downcast::<Error>() {
+                Ok(app_err) => {
+                    let app_err = *app_err;
+                    let mut enriched = Error::new_raw(app_err.kind, Some(msg.clone()));
+
+                    enriched.code = app_err.code.clone();
+                    enriched.metadata = app_err.metadata.clone();
+                    enriched.edit_policy = app_err.edit_policy;
+                    enriched.retry = app_err.retry;
+                    enriched.www_authenticate = app_err.www_authenticate.clone();
+                    #[cfg(feature = "serde_json")]
+                    {
+                        enriched.details = app_err.details.clone();
+                    }
+                    #[cfg(not(feature = "serde_json"))]
+                    {
+                        enriched.details = app_err.details.clone();
+                    }
+                    #[cfg(feature = "backtrace")]
+                    let shared_backtrace = app_err.backtrace_shared();
+
+                    #[cfg(feature = "backtrace")]
+                    if let Some(backtrace) = shared_backtrace {
+                        enriched = enriched.with_shared_backtrace(backtrace);
+                    }
+
+                    enriched.with_context(app_err)
+                }
+                Err(source) => Error::internal(msg.clone()).with_source_arc(Arc::from(source))
+            }
+        })
     }
 }
 
@@ -80,7 +133,7 @@ mod tests {
     use crate::app_error::{reset_backtrace_preference, set_backtrace_preference_override};
     use crate::{
         AppCode, AppErrorKind,
-        app_error::{Context, FieldValue, MessageEditPolicy},
+        app_error::{Context, Error, FieldValue, MessageEditPolicy},
         field
     };
 
@@ -235,5 +288,43 @@ mod tests {
                 .expect_err("err");
             assert!(err.backtrace().is_some());
         });
+    }
+
+    #[test]
+    fn context_wraps_with_simple_message() {
+        let result: Result<(), DummyError> = Err(DummyError);
+        let err = result.context("operation failed").expect_err("err");
+
+        assert_eq!(err.kind, AppErrorKind::Internal);
+        assert!(err.source_ref().is_some());
+        assert!(err.source_ref().unwrap().is::<DummyError>());
+    }
+
+    #[test]
+    fn context_preserves_app_error_classification() {
+        let base = Error::bad_request("missing flag")
+            .with_field(field::str("flag", "beta"))
+            .with_code(AppCode::Cache)
+            .redactable();
+
+        let err = Result::<(), Error>::Err(base)
+            .context("parsing configuration failed")
+            .expect_err("err");
+
+        assert_eq!(err.kind, AppErrorKind::BadRequest);
+        assert_eq!(err.code, AppCode::Cache);
+        assert_eq!(err.message.as_deref(), Some("parsing configuration failed"));
+        assert!(matches!(err.edit_policy, MessageEditPolicy::Redact));
+        assert_eq!(
+            err.metadata().get("flag"),
+            Some(&FieldValue::Str(Cow::Borrowed("beta")))
+        );
+
+        let source = err
+            .source_ref()
+            .and_then(|src| src.downcast_ref::<Error>())
+            .expect("app error source");
+        assert_eq!(source.kind, AppErrorKind::BadRequest);
+        assert_eq!(source.message.as_deref(), Some("missing flag"));
     }
 }
