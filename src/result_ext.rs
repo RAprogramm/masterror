@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+use alloc::borrow::Cow;
 use core::error::Error as CoreError;
 
 use crate::app_error::{Context, Error};
@@ -36,6 +37,15 @@ pub trait ResultExt<T, E> {
     fn ctx(self, build: impl FnOnce() -> Context) -> Result<T, Error>
     where
         E: CoreError + Send + Sync + 'static;
+
+    /// Wrap the error with a simple context message.
+    ///
+    /// This is a convenience method equivalent to anyhow's `.context()`.
+    /// For more control, use [`ctx`](ResultExt::ctx).
+    #[allow(clippy::result_large_err)]
+    fn context(self, msg: impl Into<Cow<'static, str>>) -> Result<T, Error>
+    where
+        E: CoreError + Send + Sync + 'static;
 }
 
 impl<T, E> ResultExt<T, E> for Result<T, E> {
@@ -44,6 +54,13 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
         E: CoreError + Send + Sync + 'static
     {
         self.map_err(|err| build().into_error(err))
+    }
+
+    fn context(self, msg: impl Into<Cow<'static, str>>) -> Result<T, Error>
+    where
+        E: CoreError + Send + Sync + 'static
+    {
+        self.map_err(|err| Error::internal(msg).with_source(err))
     }
 }
 
