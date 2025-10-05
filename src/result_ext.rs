@@ -102,8 +102,11 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
                         enriched.details = app_err.details.clone();
                     }
                     #[cfg(feature = "backtrace")]
-                    if let Some(backtrace) = app_err.backtrace().cloned() {
-                        enriched = enriched.with_backtrace(backtrace);
+                    let shared_backtrace = app_err.backtrace_shared();
+
+                    #[cfg(feature = "backtrace")]
+                    if let Some(backtrace) = shared_backtrace {
+                        enriched = enriched.with_shared_backtrace(backtrace);
                     }
 
                     enriched.with_context(app_err)
