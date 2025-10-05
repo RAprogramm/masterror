@@ -36,6 +36,33 @@ pub trait ResultExt<T, E> {
     fn ctx(self, build: impl FnOnce() -> Context) -> Result<T, Error>
     where
         E: CoreError + Send + Sync + 'static;
+
+    /// Wrap the error with a simple context message.
+    ///
+    /// This is a convenience method equivalent to anyhow's `.context()`.
+    /// For more control, use [`ctx`](ResultExt::ctx).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::io::{Error as IoError, ErrorKind};
+    ///
+    /// use masterror::ResultExt;
+    ///
+    /// fn read_config() -> Result<String, IoError> {
+    ///     Err(IoError::from(ErrorKind::NotFound))
+    /// }
+    ///
+    /// let err = read_config()
+    ///     .context("Failed to read config file")
+    ///     .unwrap_err();
+    ///
+    /// assert!(err.source_ref().is_some());
+    /// ```
+    #[allow(clippy::result_large_err)]
+    fn context(self, msg: impl Into<alloc::borrow::Cow<'static, str>>) -> Result<T, Error>
+    where
+        E: CoreError + Send + Sync + 'static;
 }
 
 impl<T, E> ResultExt<T, E> for Result<T, E> {
@@ -44,6 +71,13 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
         E: CoreError + Send + Sync + 'static
     {
         self.map_err(|err| build().into_error(err))
+    }
+
+    fn context(self, msg: impl Into<alloc::borrow::Cow<'static, str>>) -> Result<T, Error>
+    where
+        E: CoreError + Send + Sync + 'static
+    {
+        self.map_err(|err| Error::internal(msg).with_context(err))
     }
 }
 
@@ -218,5 +252,15 @@ mod tests {
                 .expect_err("err");
             assert!(err.backtrace().is_some());
         });
+    }
+
+    #[test]
+    fn context_wraps_with_simple_message() {
+        let result: Result<(), DummyError> = Err(DummyError);
+        let err = result.context("operation failed").expect_err("err");
+
+        assert_eq!(err.kind, AppErrorKind::Internal);
+        assert!(err.source_ref().is_some());
+        assert!(err.source_ref().unwrap().is::<DummyError>());
     }
 }
