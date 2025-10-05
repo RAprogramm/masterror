@@ -91,6 +91,10 @@ use masterror::prelude::*;
 fn process() -> AppResult<()> {
     ensure!(condition, AppError::bad_request("invalid input"));
 
+    // Simple context (anyhow-style)
+    database_call().context("db operation failed")?;
+
+    // Or structured context with metadata
     database_call()
         .ctx(|| Context::new(AppErrorKind::Database)
             .with(field::str("table", "users"))
@@ -100,7 +104,7 @@ fn process() -> AppResult<()> {
     fail!(AppError::internal("unrecoverable"));
 }
 
-// ✅ Same ergonomics as anyhow
+// ✅ Same ergonomics as anyhow (.context(), .chain(), .downcast_ref())
 // ✅ Plus: typed errors
 // ✅ Plus: structured metadata
 // ✅ Plus: automatic tracing
@@ -194,6 +198,32 @@ let err = AppError::database("query failed")
 // ✅ Zero boilerplate
 ```
 
+#### 5. Error Introspection (anyhow Parity)
+
+```rust
+// anyhow: type-safe error inspection
+if let Some(io_err) = err.downcast_ref::<io::Error>() {
+    match io_err.kind() {
+        io::ErrorKind::NotFound => /* handle */,
+        _ => /* other */
+    }
+}
+
+// masterror: same API, works with AppError
+use masterror::ResultExt;
+
+match database_op().context("db failed") {
+    Err(err) => {
+        if let Some(io_err) = err.downcast_ref::<io::Error>() {
+            // ✅ Type-safe downcasting
+            // ✅ Inspect wrapped error sources
+            // ✅ Full anyhow API compatibility
+        }
+    }
+    Ok(val) => val
+}
+```
+
 ## Migration Guide
 
 ### From thiserror
@@ -243,18 +273,29 @@ bail!("invalid input");
 fail!(AppError::bad_request("invalid input"));
 ```
 
-**Step 3:** Enhance context
+**Step 3:** Keep using .context() (it just works!)
 ```rust
-// Before
+// Before (anyhow)
 .context("db error")?
 
-// After
+// After (masterror) - identical API
+.context("db error")?
+
+// Or use structured context for better observability
 .ctx(|| Context::new(AppErrorKind::Database)
     .with(field::str("table", "users"))
 )?
 ```
 
-**Result:** Type-safe, structured, observable errors.
+**Step 4:** Error introspection works the same
+```rust
+// anyhow API still works
+if let Some(io_err) = err.downcast_ref::<io::Error>() {
+    // handle specific error type
+}
+```
+
+**Result:** Type-safe, structured, observable errors with zero API friction.
 
 ## Real-World Impact
 
@@ -346,7 +387,11 @@ Binary size: 944KB (vs thiserror 32KB, anyhow 566KB)
 
 - 📚 [Full Documentation](https://docs.rs/masterror)
 - 📊 [Benchmarks](BENCHMARKS.md)
-- 🔧 [Examples](examples/)
+- 🔧 **[Examples](examples/)** - See working code for:
+  - [Basic Usage](examples/basic_usage.rs) - Core error handling patterns
+  - [thiserror Compatibility](examples/derive_error.rs) - Drop-in replacement
+  - [Structured Metadata](examples/structured_metadata.rs) - Typed fields vs strings
+  - [Redaction](examples/redaction.rs) - GDPR-compliant privacy controls
 - 💬 [GitHub Issues](https://github.com/RAprogramm/masterror/issues)
 
 ---
