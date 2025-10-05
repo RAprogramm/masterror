@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+use alloc::sync::Arc;
 use core::error::Error as CoreError;
 
 use crate::app_error::{Context, Error};
@@ -84,10 +85,10 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
 
             match source.downcast::<Error>() {
                 Ok(app_err) => {
-                    let mut app_err = *app_err;
+                    let app_err = *app_err;
                     let mut enriched = Error::new_raw(app_err.kind, Some(msg.clone()));
 
-                    enriched.code = app_err.code;
+                    enriched.code = app_err.code.clone();
                     enriched.metadata = app_err.metadata.clone();
                     enriched.edit_policy = app_err.edit_policy;
                     enriched.retry = app_err.retry;
@@ -107,7 +108,7 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
 
                     enriched.with_context(app_err)
                 }
-                Err(source) => Error::internal(msg.clone()).with_context(source)
+                Err(source) => Error::internal(msg.clone()).with_source_arc(Arc::from(source))
             }
         })
     }
