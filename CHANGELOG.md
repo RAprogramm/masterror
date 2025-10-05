@@ -9,6 +9,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.17] - 2025-11-02
+
+### Fixed
+- Preserve captured backtraces when wrapping `AppError` instances through
+  `ResultExt::context` by sharing the snapshot instead of attempting to clone
+  `std::backtrace::Backtrace`.
+
 ## [0.24.16] - 2025-11-01
 
 ### Fixed

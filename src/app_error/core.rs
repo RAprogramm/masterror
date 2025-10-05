@@ -91,9 +91,9 @@ pub struct ErrorInner {
     pub details:            Option<String>,
     pub source:             Option<Arc<dyn CoreError + Send + Sync + 'static>>,
     #[cfg(feature = "backtrace")]
-    pub backtrace:          Option<Backtrace>,
+    pub backtrace:          Option<Arc<Backtrace>>,
     #[cfg(feature = "backtrace")]
-    pub captured_backtrace: OnceLock<Option<Backtrace>>,
+    pub captured_backtrace: OnceLock<Option<Arc<Backtrace>>>,
     telemetry_dirty:        AtomicBool,
     #[cfg(feature = "tracing")]
     tracing_dirty:          AtomicBool
@@ -110,9 +110,9 @@ const BACKTRACE_STATE_DISABLED: u8 = 2;
 static BACKTRACE_STATE: AtomicU8 = AtomicU8::new(BACKTRACE_STATE_UNSET);
 
 #[cfg(feature = "backtrace")]
-fn capture_backtrace_snapshot() -> Option<Backtrace> {
+fn capture_backtrace_snapshot() -> Option<Arc<Backtrace>> {
     if should_capture_backtrace() {
-        Some(Backtrace::capture())
+        Some(Arc::new(Backtrace::capture()))
     } else {
         None
     }
@@ -321,13 +321,13 @@ impl Error {
 
     #[cfg(feature = "backtrace")]
     fn capture_backtrace(&self) -> Option<&CapturedBacktrace> {
-        if let Some(backtrace) = self.backtrace.as_ref() {
+        if let Some(backtrace) = self.backtrace.as_deref() {
             return Some(backtrace);
         }
 
         self.captured_backtrace
             .get_or_init(capture_backtrace_snapshot)
-            .as_ref()
+            .as_deref()
     }
 
     #[cfg(not(feature = "backtrace"))]
@@ -336,7 +336,7 @@ impl Error {
     }
 
     #[cfg(feature = "backtrace")]
-    fn set_backtrace_slot(&mut self, backtrace: CapturedBacktrace) {
+    fn set_backtrace_slot(&mut self, backtrace: Arc<Backtrace>) {
         self.backtrace = Some(backtrace);
         self.captured_backtrace = OnceLock::new();
     }
@@ -574,6 +574,21 @@ impl Error {
     /// Attach a captured backtrace.
     #[must_use]
     pub fn with_backtrace(mut self, backtrace: CapturedBacktrace) -> Self {
+        #[cfg(feature = "backtrace")]
+        {
+            self.set_backtrace_slot(Arc::new(backtrace));
+        }
+
+        #[cfg(not(feature = "backtrace"))]
+        {
+            self.set_backtrace_slot(backtrace);
+        }
+        self.mark_dirty();
+        self
+    }
+
+    #[cfg(feature = "backtrace")]
+    pub(crate) fn with_shared_backtrace(mut self, backtrace: Arc<Backtrace>) -> Self {
         self.set_backtrace_slot(backtrace);
         self.mark_dirty();
         self
@@ -676,6 +691,18 @@ impl Error {
     #[must_use]
     pub fn backtrace(&self) -> Option<&CapturedBacktrace> {
         self.capture_backtrace()
+    }
+
+    #[cfg(feature = "backtrace")]
+    pub(crate) fn backtrace_shared(&self) -> Option<Arc<Backtrace>> {
+        if let Some(backtrace) = self.backtrace.as_ref() {
+            return Some(Arc::clone(backtrace));
+        }
+
+        self.captured_backtrace
+            .get_or_init(capture_backtrace_snapshot)
+            .as_ref()
+            .map(Arc::clone)
     }
 
     /// Borrow the source if present.
