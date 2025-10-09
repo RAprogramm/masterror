@@ -9,6 +9,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.18] - 2025-10-09
+
+### Fixed
+- Added missing `Box` import in `src/result_ext.rs` to fix compilation error when using `default-features = false`.
+
 ## [0.24.17] - 2025-11-02
 
 ### Fixed
