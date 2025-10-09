@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-use alloc::{borrow::Cow, sync::Arc};
+use alloc::{borrow::Cow, boxed::Box, sync::Arc};
 use core::error::Error as CoreError;
 
 use crate::app_error::{Context, Error};
