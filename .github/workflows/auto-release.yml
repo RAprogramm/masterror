@@ -35,7 +35,12 @@ jobs:
         id: local_version
         shell: bash
         run: |
-          VERSION=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')
+          CRATE_NAME="masterror"
+          VERSION=$(cargo metadata --no-deps --format-version=1 | jq -r --arg name "$CRATE_NAME" '.packages[] | select(.name == $name and .source == null) | .version' | head -n1)
+          if [ -z "${VERSION}" ]; then
+            echo "Cannot determine version for crate: ${CRATE_NAME}"
+            exit 1
+          fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Local version: ${VERSION}"
 
