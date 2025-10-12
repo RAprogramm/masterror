@@ -112,18 +112,79 @@ jobs:
 
           echo "crates.io version: ${CRATESIO_VER}"
 
-          # Compare versions using sort -V (version sort)
-          HIGHER=$(printf '%s\n%s\n' "${LOCAL_VER}" "${CRATESIO_VER}" | sort -V | tail -n1)
-
+          # Equal versions check
           if [ "${LOCAL_VER}" = "${CRATESIO_VER}" ]; then
             echo "Version ${LOCAL_VER} already published on crates.io"
             echo "should_publish=false" >> "$GITHUB_OUTPUT"
-          elif [ "${HIGHER}" = "${LOCAL_VER}" ]; then
+            exit 0
+          fi
+
+          # Semver comparison using inline Rust script
+          TMPDIR=$(mktemp -d)
+          mkdir -p "${TMPDIR}/src"
+          cat > "${TMPDIR}/src/main.rs" << 'RUST_EOF'
+          use std::env;
+
+          fn main() {
+              let args: Vec<String> = env::args().collect();
+              if args.len() != 3 {
+                  eprintln!("Usage: compare <version1> <version2>");
+                  std::process::exit(1);
+              }
+
+              let v1 = match semver::Version::parse(&args[1]) {
+                  Ok(v) => v,
+                  Err(e) => {
+                      eprintln!("Failed to parse version1: {}", e);
+                      std::process::exit(1);
+                  }
+              };
+
+              let v2 = match semver::Version::parse(&args[2]) {
+                  Ok(v) => v,
+                  Err(e) => {
+                      eprintln!("Failed to parse version2: {}", e);
+                      std::process::exit(1);
+                  }
+              };
+
+              if v1 > v2 {
+                  println!("greater");
+              } else if v1 < v2 {
+                  println!("less");
+              } else {
+                  println!("equal");
+              }
+          }
+          RUST_EOF
+
+          cat > "${TMPDIR}/Cargo.toml" << 'TOML_EOF'
+          [package]
+          name = "semver-compare"
+          version = "0.1.0"
+          edition = "2024"
+
+          [dependencies]
+          semver = "1.0"
+          TOML_EOF
+
+          # Build and run comparison
+          COMPARISON=$(cd "${TMPDIR}" && cargo run --quiet -- "${LOCAL_VER}" "${CRATESIO_VER}" 2>/dev/null || echo "unknown")
+          rm -rf "${TMPDIR}"
+
+          if [ "${COMPARISON}" = "greater" ]; then
             echo "Local version ${LOCAL_VER} > crates.io version ${CRATESIO_VER}, proceeding"
             echo "should_publish=true" >> "$GITHUB_OUTPUT"
-          else
+          elif [ "${COMPARISON}" = "less" ]; then
             echo "Local version ${LOCAL_VER} < crates.io version ${CRATESIO_VER}"
             echo "Cannot publish older version"
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          elif [ "${COMPARISON}" = "equal" ]; then
+            echo "Version ${LOCAL_VER} already published on crates.io"
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Could not determine version ordering, manual check required"
             echo "should_publish=false" >> "$GITHUB_OUTPUT"
             exit 1
           fi
