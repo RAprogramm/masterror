@@ -93,7 +93,7 @@ jobs:
               COMMIT="${{ github.event.release.target_commitish }}"
               ;;
             workflow_dispatch)
-              TAG="${{ inputs.tag }}"
+              TAG="${{ github.event.inputs.tag }}"
               COMMIT=$(git rev-parse "${TAG}^{commit}" 2>/dev/null || echo "")
               if [ -z "${COMMIT}" ]; then
                 echo "Error: Tag ${TAG} not found"
