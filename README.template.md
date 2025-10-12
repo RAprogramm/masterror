@@ -17,6 +17,7 @@ SPDX-License-Identifier: MIT
 [![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
 [![Security audit](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main&label=Security%20audit)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
 [![Cargo Deny](https://img.shields.io/github/actions/workflow/status/RAprogramm/masterror/ci.yml?branch=main&label=Cargo%20Deny)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
+[![codecov](https://codecov.io/gh/RAprogramm/masterror/graph/badge.svg?token=OD4F7LWWB8)](https://codecov.io/gh/RAprogramm/masterror)
 
 > 🇷🇺 Читайте README на [русском языке](README.ru.md).
 
@@ -109,6 +110,34 @@ The suite emits two groups:
 
 Adjust Criterion CLI flags (for example `--sample-size 200` or `--save-baseline local`) after `--` to trade
 throughput for tighter confidence intervals when investigating changes.
+
+---
+
+### Code Coverage
+
+[![codecov](https://codecov.io/gh/RAprogramm/masterror/graph/badge.svg?token=OD4F7LWWB8)](https://codecov.io/gh/RAprogramm/masterror)
+
+Coverage reports are automatically generated on every CI run and uploaded to [Codecov](https://codecov.io/gh/RAprogramm/masterror). The project maintains high test coverage across all modules to ensure reliability and catch regressions early.
+
+<details>
+  <summary><b>Coverage Visualizations</b></summary>
+
+#### Sunburst Graph
+The inner-most circle represents the entire project, moving outward through folders to individual files. Size and color indicate statement count and coverage percentage.
+
+[![Sunburst](https://codecov.io/gh/RAprogramm/masterror/graphs/sunburst.svg?token=OD4F7LWWB8)](https://codecov.io/gh/RAprogramm/masterror)
+
+#### Grid View
+Each block represents a single file. Block size and color correspond to statement count and coverage percentage.
+
+[![Grid](https://codecov.io/gh/RAprogramm/masterror/graphs/tree.svg?token=OD4F7LWWB8)](https://codecov.io/gh/RAprogramm/masterror)
+
+#### Icicle Chart
+Hierarchical view starting with the entire project at the top, drilling down through folders to individual files. Size and color reflect statement count and coverage.
+
+[![Icicle](https://codecov.io/gh/RAprogramm/masterror/graphs/icicle.svg?token=OD4F7LWWB8)](https://codecov.io/gh/RAprogramm/masterror)
+
+</details>
 
 ---
 
