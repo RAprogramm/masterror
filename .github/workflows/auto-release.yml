@@ -48,16 +48,25 @@ jobs:
         id: cratesio_version
         shell: bash
         run: |
+          set -euo pipefail
           CRATE_NAME="masterror"
-          CRATESIO_VER=$(curl -s "https://crates.io/api/v1/crates/${CRATE_NAME}" | jq -r '.crate.max_version // empty')
+          echo "Fetching crates.io version for ${CRATE_NAME}..."
 
-          if [ -z "${CRATESIO_VER}" ]; then
-            echo "Crate not found on crates.io"
+          CRATESIO_RESPONSE=$(curl -s -f "https://crates.io/api/v1/crates/${CRATE_NAME}" || echo "")
+
+          if [ -z "${CRATESIO_RESPONSE}" ]; then
+            echo "Failed to fetch crate info from crates.io (curl failed)"
             CRATESIO_VER="0.0.0"
+          else
+            CRATESIO_VER=$(echo "${CRATESIO_RESPONSE}" | jq -r '.crate.max_version // empty')
+            if [ -z "${CRATESIO_VER}" ]; then
+              echo "Crate not found on crates.io (no max_version in response)"
+              CRATESIO_VER="0.0.0"
+            fi
           fi
 
           echo "version=${CRATESIO_VER}" >> "$GITHUB_OUTPUT"
-          echo "crates.io version: ${CRATESIO_VER}"
+          echo "crates.io ${CRATE_NAME} version: ${CRATESIO_VER}"
 
       - name: Compare versions
         id: version_check
