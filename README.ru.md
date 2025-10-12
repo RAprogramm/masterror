@@ -16,6 +16,7 @@ SPDX-License-Identifier: MIT
 [![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
 [![Security audit](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main&label=Security%20audit)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
 [![Cargo Deny](https://img.shields.io/github/actions/workflow/status/RAprogramm/masterror/ci.yml?branch=main&label=Cargo%20Deny)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
+[![codecov](https://codecov.io/gh/RAprogramm/masterror/graph/badge.svg?token=OD4F7LWWB8)](https://codecov.io/gh/RAprogramm/masterror)
 
 `masterror` вырос из набора вспомогательных функций в полноценный workspace с
 модульными крейтами для построения наблюдаемых и последовательных ошибок в
@@ -359,6 +360,36 @@ assert_eq!(problem.status, 401);
 assert_eq!(problem.retry_after, Some(30));
 assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 ~~~
+
+---
+
+### Покрытие кода
+
+[![codecov](https://codecov.io/gh/RAprogramm/masterror/graph/badge.svg?token=OD4F7LWWB8)](https://codecov.io/gh/RAprogramm/masterror)
+
+Отчёты о покрытии кода автоматически генерируются при каждом запуске CI и загружаются в [Codecov](https://codecov.io/gh/RAprogramm/masterror). Проект поддерживает высокое покрытие тестами во всех модулях для обеспечения надёжности и раннего обнаружения регрессий.
+
+<details>
+  <summary><b>Визуализации покрытия</b></summary>
+
+#### Sunburst-диаграмма
+Внутренний круг представляет весь проект, далее идут папки и отдельные файлы. Размер и цвет отражают количество инструкций и процент покрытия.
+
+[![Sunburst](https://codecov.io/gh/RAprogramm/masterror/graphs/sunburst.svg?token=OD4F7LWWB8)](https://codecov.io/gh/RAprogramm/masterror)
+
+#### Сетка (Grid)
+Каждый блок представляет отдельный файл. Размер и цвет блока соответствуют количеству инструкций и проценту покрытия.
+
+[![Grid](https://codecov.io/gh/RAprogramm/masterror/graphs/tree.svg?token=OD4F7LWWB8)](https://codecov.io/gh/RAprogramm/masterror)
+
+#### Icicle-диаграмма
+Иерархическое представление, начинающееся с проекта в целом вверху, с детализацией до папок и отдельных файлов. Размер и цвет отражают количество инструкций и покрытие.
+
+[![Icicle](https://codecov.io/gh/RAprogramm/masterror/graphs/icicle.svg?token=OD4F7LWWB8)](https://codecov.io/gh/RAprogramm/masterror)
+
+</details>
+
+---
 
 ### Дополнительные материалы
 
