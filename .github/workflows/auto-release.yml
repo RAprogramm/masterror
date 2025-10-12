@@ -109,9 +109,37 @@ jobs:
             echo "should_release=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Check if tag and release exist
+        id: check_existing
+        if: steps.version_check.outputs.should_release == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.local_version.outputs.version }}"
+          TAG="v${VERSION}"
+
+          # Check if tag exists
+          if git rev-parse "${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists"
+            echo "tag_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Tag ${TAG} does not exist"
+            echo "tag_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Check if GitHub release exists
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "GitHub release ${TAG} already exists"
+            echo "release_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "GitHub release ${TAG} does not exist"
+            echo "release_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Get last release tag
         id: last_tag
-        if: steps.version_check.outputs.should_release == 'true'
+        if: steps.version_check.outputs.should_release == 'true' && steps.check_existing.outputs.tag_exists == 'false'
         shell: bash
         run: |
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
@@ -124,7 +152,7 @@ jobs:
 
       - name: Generate changelog
         id: changelog
-        if: steps.version_check.outputs.should_release == 'true'
+        if: steps.version_check.outputs.should_release == 'true' && steps.check_existing.outputs.release_exists == 'false'
         shell: bash
         run: |
           VERSION="${{ steps.local_version.outputs.version }}"
@@ -226,8 +254,12 @@ jobs:
 
           rm -f "${CHANGELOG_FILE}"
 
+      - name: Skip tag creation (already exists)
+        if: steps.version_check.outputs.should_release == 'true' && steps.check_existing.outputs.tag_exists == 'true'
+        run: echo "Tag v${{ steps.local_version.outputs.version }} already exists, skipping creation"
+
       - name: Create and push tag
-        if: steps.version_check.outputs.should_release == 'true'
+        if: steps.version_check.outputs.should_release == 'true' && steps.check_existing.outputs.tag_exists == 'false'
         shell: bash
         run: |
           VERSION="${{ steps.local_version.outputs.version }}"
@@ -237,8 +269,12 @@ jobs:
           git tag -a "v${VERSION}" -m "Release v${VERSION}"
           git push origin "v${VERSION}"
 
+      - name: Skip GitHub release creation (already exists)
+        if: steps.version_check.outputs.should_release == 'true' && steps.check_existing.outputs.release_exists == 'true'
+        run: echo "GitHub release v${{ steps.local_version.outputs.version }} already exists, skipping creation"
+
       - name: Create GitHub release
-        if: steps.version_check.outputs.should_release == 'true'
+        if: steps.version_check.outputs.should_release == 'true' && steps.check_existing.outputs.release_exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.local_version.outputs.version }}
