@@ -296,23 +296,34 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if cargo metadata --no-deps --format-version=1 | jq -e '.packages[] | select(.name=="masterror-template" and .source==null)' >/dev/null; then
-            echo "Publishing masterror-template..."
-            n=0
-            until [ $n -ge 5 ]; do
-              if cargo publish -p masterror-template --locked --token "$CARGO_REGISTRY_TOKEN"; then
-                echo "masterror-template published successfully"
-                exit 0
-              fi
-              n=$((n+1))
-              echo "Retry $n/5 for masterror-template..."
-              sleep $((5*n))
-            done
-            echo "Failed to publish masterror-template after 5 retries"
-            exit 1
-          else
+          if ! cargo metadata --no-deps --format-version=1 | jq -e '.packages[] | select(.name=="masterror-template" and .source==null)' >/dev/null; then
             echo "No local masterror-template found; skipping."
+            exit 0
           fi
+
+          TEMPLATE_VERSION=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[] | select(.name=="masterror-template" and .source==null) | .version')
+          echo "Local masterror-template version: ${TEMPLATE_VERSION}"
+
+          # Check if version already exists on crates.io
+          CRATESIO_VER=$(curl -s "https://crates.io/api/v1/crates/masterror-template" | jq -r '.crate.max_version // empty')
+          if [ -n "${CRATESIO_VER}" ] && [ "${TEMPLATE_VERSION}" = "${CRATESIO_VER}" ]; then
+            echo "masterror-template@${TEMPLATE_VERSION} already published on crates.io, skipping"
+            exit 0
+          fi
+
+          echo "Publishing masterror-template@${TEMPLATE_VERSION}..."
+          n=0
+          until [ $n -ge 5 ]; do
+            if cargo publish -p masterror-template --locked --token "$CARGO_REGISTRY_TOKEN"; then
+              echo "masterror-template published successfully"
+              exit 0
+            fi
+            n=$((n+1))
+            echo "Retry $n/5 for masterror-template..."
+            sleep $((5*n))
+          done
+          echo "Failed to publish masterror-template after 5 retries"
+          exit 1
 
       - name: Wait for crates.io index sync (after template)
         if: steps.version_check.outputs.should_release == 'true'
@@ -325,23 +336,34 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if cargo metadata --no-deps --format-version=1 | jq -e '.packages[] | select(.name=="masterror-derive" and .source==null)' >/dev/null; then
-            echo "Publishing masterror-derive..."
-            n=0
-            until [ $n -ge 5 ]; do
-              if cargo publish -p masterror-derive --locked --token "$CARGO_REGISTRY_TOKEN"; then
-                echo "masterror-derive published successfully"
-                exit 0
-              fi
-              n=$((n+1))
-              echo "Retry $n/5 for masterror-derive..."
-              sleep $((5*n))
-            done
-            echo "Failed to publish masterror-derive after 5 retries"
-            exit 1
-          else
+          if ! cargo metadata --no-deps --format-version=1 | jq -e '.packages[] | select(.name=="masterror-derive" and .source==null)' >/dev/null; then
             echo "No local masterror-derive found; skipping."
+            exit 0
           fi
+
+          DERIVE_VERSION=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[] | select(.name=="masterror-derive" and .source==null) | .version')
+          echo "Local masterror-derive version: ${DERIVE_VERSION}"
+
+          # Check if version already exists on crates.io
+          CRATESIO_VER=$(curl -s "https://crates.io/api/v1/crates/masterror-derive" | jq -r '.crate.max_version // empty')
+          if [ -n "${CRATESIO_VER}" ] && [ "${DERIVE_VERSION}" = "${CRATESIO_VER}" ]; then
+            echo "masterror-derive@${DERIVE_VERSION} already published on crates.io, skipping"
+            exit 0
+          fi
+
+          echo "Publishing masterror-derive@${DERIVE_VERSION}..."
+          n=0
+          until [ $n -ge 5 ]; do
+            if cargo publish -p masterror-derive --locked --token "$CARGO_REGISTRY_TOKEN"; then
+              echo "masterror-derive published successfully"
+              exit 0
+            fi
+            n=$((n+1))
+            echo "Retry $n/5 for masterror-derive..."
+            sleep $((5*n))
+          done
+          echo "Failed to publish masterror-derive after 5 retries"
+          exit 1
 
       - name: Wait for crates.io index sync (after derive)
         if: steps.version_check.outputs.should_release == 'true'
