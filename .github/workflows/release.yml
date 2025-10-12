@@ -90,12 +90,52 @@ jobs:
             exit 1
           fi
 
+      - name: Check version against crates.io
+        id: version_check
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/}"
+          LOCAL_VER="${TAG#v}"
+          CRATE_NAME="masterror"
+
+          echo "Local version: ${LOCAL_VER}"
+
+          # Fetch current version from crates.io
+          CRATESIO_VER=$(curl -s "https://crates.io/api/v1/crates/${CRATE_NAME}" | jq -r '.crate.max_version // empty')
+
+          if [ -z "${CRATESIO_VER}" ]; then
+            echo "Crate not found on crates.io, proceeding with first publish"
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "crates.io version: ${CRATESIO_VER}"
+
+          # Compare versions using sort -V (version sort)
+          HIGHER=$(printf '%s\n%s\n' "${LOCAL_VER}" "${CRATESIO_VER}" | sort -V | tail -n1)
+
+          if [ "${LOCAL_VER}" = "${CRATESIO_VER}" ]; then
+            echo "Version ${LOCAL_VER} already published on crates.io"
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          elif [ "${HIGHER}" = "${LOCAL_VER}" ]; then
+            echo "Local version ${LOCAL_VER} > crates.io version ${CRATESIO_VER}, proceeding"
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Local version ${LOCAL_VER} < crates.io version ${CRATESIO_VER}"
+            echo "Cannot publish older version"
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
       - name: Install Rust (${{ steps.msrv.outputs.msrv }})
+        if: steps.version_check.outputs.should_publish == 'true'
         uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: ${{ steps.msrv.outputs.msrv }}
 
       - name: Maybe publish masterror-template
+        if: steps.version_check.outputs.should_publish == 'true'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         shell: bash
@@ -120,9 +160,11 @@ jobs:
           fi
 
       - name: Wait for crates.io index sync (after template)
+        if: steps.version_check.outputs.should_publish == 'true'
         run: sleep 15
 
       - name: Maybe publish masterror-derive
+        if: steps.version_check.outputs.should_publish == 'true'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         shell: bash
@@ -147,9 +189,11 @@ jobs:
           fi
 
       - name: Wait for crates.io index sync
+        if: steps.version_check.outputs.should_publish == 'true'
         run: sleep 15
 
       - name: Publish masterror
+        if: steps.version_check.outputs.should_publish == 'true'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         shell: bash
