@@ -122,7 +122,7 @@ jobs:
           # Semver comparison using inline Rust script
           TMPDIR=$(mktemp -d)
           mkdir -p "${TMPDIR}/src"
-          cat > "${TMPDIR}/src/main.rs" << 'RUST_EOF'
+          cat > "${TMPDIR}/src/main.rs" << 'EOF'
           use std::env;
 
           fn main() {
@@ -156,9 +156,9 @@ jobs:
                   println!("equal");
               }
           }
-          RUST_EOF
+          EOF
 
-          cat > "${TMPDIR}/Cargo.toml" << 'TOML_EOF'
+          cat > "${TMPDIR}/Cargo.toml" << 'EOF'
           [package]
           name = "semver-compare"
           version = "0.1.0"
@@ -166,7 +166,7 @@ jobs:
 
           [dependencies]
           semver = "1.0"
-          TOML_EOF
+          EOF
 
           # Build and run comparison
           COMPARISON=$(cd "${TMPDIR}" && cargo run --quiet -- "${LOCAL_VER}" "${CRATESIO_VER}" 2>/dev/null || echo "unknown")
