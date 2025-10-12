@@ -52,15 +52,17 @@ jobs:
           CRATE_NAME="masterror"
           echo "Fetching crates.io version for ${CRATE_NAME}..."
 
-          CRATESIO_RESPONSE=$(curl -s -f "https://crates.io/api/v1/crates/${CRATE_NAME}" || echo "")
+          CRATESIO_RESPONSE=$(curl -s -A "masterror-ci/1.0" "https://crates.io/api/v1/crates/${CRATE_NAME}" || echo "")
 
           if [ -z "${CRATESIO_RESPONSE}" ]; then
-            echo "Failed to fetch crate info from crates.io (curl failed)"
+            echo "ERROR: Empty response from crates.io API (curl failed)"
             CRATESIO_VER="0.0.0"
           else
+            echo "API response received (first 200 chars): ${CRATESIO_RESPONSE:0:200}"
             CRATESIO_VER=$(echo "${CRATESIO_RESPONSE}" | jq -r '.crate.max_version // empty')
             if [ -z "${CRATESIO_VER}" ]; then
-              echo "Crate not found on crates.io (no max_version in response)"
+              echo "ERROR: No max_version in response"
+              echo "Full response: ${CRATESIO_RESPONSE}"
               CRATESIO_VER="0.0.0"
             fi
           fi
@@ -315,13 +317,20 @@ jobs:
 
           # Check if version already exists on crates.io
           echo "Checking crates.io for masterror-template..."
-          CRATESIO_RESPONSE=$(curl -s "https://crates.io/api/v1/crates/masterror-template")
-          CRATESIO_VER=$(echo "${CRATESIO_RESPONSE}" | jq -r '.crate.max_version // empty')
-          echo "crates.io masterror-template version: '${CRATESIO_VER}'"
+          CRATESIO_RESPONSE=$(curl -s -A "masterror-ci/1.0" "https://crates.io/api/v1/crates/masterror-template")
 
-          if [ -n "${CRATESIO_VER}" ] && [ "${TEMPLATE_VERSION}" = "${CRATESIO_VER}" ]; then
-            echo "masterror-template@${TEMPLATE_VERSION} already published on crates.io, skipping"
-            exit 0
+          if [ -z "${CRATESIO_RESPONSE}" ]; then
+            echo "ERROR: Empty response from crates.io API"
+            echo "Publishing anyway..."
+          else
+            echo "API response received (first 200 chars): ${CRATESIO_RESPONSE:0:200}"
+            CRATESIO_VER=$(echo "${CRATESIO_RESPONSE}" | jq -r '.crate.max_version // empty')
+            echo "crates.io masterror-template version: '${CRATESIO_VER}'"
+
+            if [ -n "${CRATESIO_VER}" ] && [ "${TEMPLATE_VERSION}" = "${CRATESIO_VER}" ]; then
+              echo "masterror-template@${TEMPLATE_VERSION} already published on crates.io, skipping"
+              exit 0
+            fi
           fi
 
           echo "Publishing masterror-template@${TEMPLATE_VERSION}..."
@@ -359,13 +368,20 @@ jobs:
 
           # Check if version already exists on crates.io
           echo "Checking crates.io for masterror-derive..."
-          CRATESIO_RESPONSE=$(curl -s "https://crates.io/api/v1/crates/masterror-derive")
-          CRATESIO_VER=$(echo "${CRATESIO_RESPONSE}" | jq -r '.crate.max_version // empty')
-          echo "crates.io masterror-derive version: '${CRATESIO_VER}'"
+          CRATESIO_RESPONSE=$(curl -s -A "masterror-ci/1.0" "https://crates.io/api/v1/crates/masterror-derive")
 
-          if [ -n "${CRATESIO_VER}" ] && [ "${DERIVE_VERSION}" = "${CRATESIO_VER}" ]; then
-            echo "masterror-derive@${DERIVE_VERSION} already published on crates.io, skipping"
-            exit 0
+          if [ -z "${CRATESIO_RESPONSE}" ]; then
+            echo "ERROR: Empty response from crates.io API"
+            echo "Publishing anyway..."
+          else
+            echo "API response received (first 200 chars): ${CRATESIO_RESPONSE:0:200}"
+            CRATESIO_VER=$(echo "${CRATESIO_RESPONSE}" | jq -r '.crate.max_version // empty')
+            echo "crates.io masterror-derive version: '${CRATESIO_VER}'"
+
+            if [ -n "${CRATESIO_VER}" ] && [ "${DERIVE_VERSION}" = "${CRATESIO_VER}" ]; then
+              echo "masterror-derive@${DERIVE_VERSION} already published on crates.io, skipping"
+              exit 0
+            fi
           fi
 
           echo "Publishing masterror-derive@${DERIVE_VERSION}..."
