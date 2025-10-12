@@ -30,7 +30,8 @@ jobs:
   checks:
     uses: ./.github/workflows/reusable-ci.yml
     permissions:
-      contents: read
+      contents: write
+      pull-requests: write
       id-token: write
     with:
       all-features: true
