@@ -40,6 +40,9 @@ jobs:
     needs: checks
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || '' }}
+          fetch-depth: 0
 
       - name: Install Rust (stable, minimal)
         uses: dtolnay/rust-toolchain@v1
@@ -83,15 +86,34 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "release" ]; then
-            TAG="${{ github.event.release.tag_name }}"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ inputs.tag }}"
-          else
-            TAG="${GITHUB_REF#refs/tags/}"
-          fi
+
+          case "${{ github.event_name }}" in
+            release)
+              TAG="${{ github.event.release.tag_name }}"
+              COMMIT="${{ github.event.release.target_commitish }}"
+              ;;
+            workflow_dispatch)
+              TAG="${{ inputs.tag }}"
+              COMMIT=$(git rev-parse "${TAG}^{commit}" 2>/dev/null || echo "")
+              if [ -z "${COMMIT}" ]; then
+                echo "Error: Tag ${TAG} not found"
+                exit 1
+              fi
+              ;;
+            push)
+              TAG="${GITHUB_REF#refs/tags/}"
+              COMMIT="${GITHUB_SHA}"
+              ;;
+            *)
+              echo "Error: Unsupported event type: ${{ github.event_name }}"
+              exit 1
+              ;;
+          esac
+
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "commit=${COMMIT}" >> "$GITHUB_OUTPUT"
           echo "Release tag: ${TAG}"
+          echo "Commit SHA: ${COMMIT}"
 
       - name: Ensure tag matches Cargo.toml version (crate = masterror)
         shell: bash
@@ -299,6 +321,27 @@ jobs:
           done
           echo "Failed to publish masterror after retries."
           exit 1
+
+      - name: Add release summary
+        if: success()
+        shell: bash
+        run: |
+          TAG="${{ steps.release_tag.outputs.tag }}"
+          COMMIT="${{ steps.release_tag.outputs.commit }}"
+
+          echo "## 🚀 Release Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** \`${TAG}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${COMMIT:0:7}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Published Packages" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ masterror-template (if exists)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ masterror-derive (if exists)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **masterror**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📦 [View on crates.io](https://crates.io/crates/masterror)" >> $GITHUB_STEP_SUMMARY
+          echo "📋 [View Release](https://github.com/${{ github.repository }}/releases/tag/${TAG})" >> $GITHUB_STEP_SUMMARY
 
   security:
     runs-on: ubuntu-latest
