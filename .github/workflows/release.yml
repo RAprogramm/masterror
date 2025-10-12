@@ -330,19 +330,19 @@ jobs:
           TAG="${{ steps.release_tag.outputs.tag }}"
           COMMIT="${{ steps.release_tag.outputs.commit }}"
 
-          echo "## 🚀 Release Published" >> $GITHUB_STEP_SUMMARY
+          echo "## Release Published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Tag:** \`${TAG}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** \`${COMMIT:0:7}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Published Packages" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ masterror-template (if exists)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ masterror-derive (if exists)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ **masterror**" >> $GITHUB_STEP_SUMMARY
+          echo "- masterror-template (if exists)" >> $GITHUB_STEP_SUMMARY
+          echo "- masterror-derive (if exists)" >> $GITHUB_STEP_SUMMARY
+          echo "- **masterror**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📦 [View on crates.io](https://crates.io/crates/masterror)" >> $GITHUB_STEP_SUMMARY
-          echo "📋 [View Release](https://github.com/${{ github.repository }}/releases/tag/${TAG})" >> $GITHUB_STEP_SUMMARY
+          echo "[View on crates.io](https://crates.io/crates/masterror)" >> $GITHUB_STEP_SUMMARY
+          echo "[View Release](https://github.com/${{ github.repository }}/releases/tag/${TAG})" >> $GITHUB_STEP_SUMMARY
 
   security:
     runs-on: ubuntu-latest

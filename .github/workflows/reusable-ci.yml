@@ -12,6 +12,38 @@ on:
         default: true
 
 jobs:
+  validate-codecov-yaml:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Validate codecov.yml
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f .github/codecov.yml ]; then
+            echo "codecov.yml not found, skipping validation"
+            exit 0
+          fi
+
+          echo "Validating codecov.yml..."
+          RESPONSE=$(cat .github/codecov.yml | curl -s --data-binary @- https://codecov.io/validate)
+
+          if echo "$RESPONSE" | grep -q "^Valid!"; then
+            echo "codecov.yml is valid"
+            exit 0
+          elif echo "$RESPONSE" | grep -q "^Error"; then
+            echo "codecov.yml validation failed:"
+            echo "$RESPONSE"
+            exit 1
+          else
+            echo "Unexpected response from Codecov validator:"
+            echo "$RESPONSE"
+            exit 1
+          fi
+
   msrv:
     runs-on: ubuntu-latest
     permissions:
@@ -347,7 +379,7 @@ jobs:
 
   coverage:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, validate-codecov-yaml]
     permissions:
       contents: read
       id-token: write
@@ -412,16 +444,16 @@ jobs:
 
       - name: Add Codecov summary
         run: |
-          echo "## 📊 Codecov Reports" >> $GITHUB_STEP_SUMMARY
+          echo "## Codecov Reports" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Code Coverage" >> $GITHUB_STEP_SUMMARY
           echo "- LCOV report: \`lcov.info\`" >> $GITHUB_STEP_SUMMARY
           echo "- HTML report: \`target/llvm-cov/html/\`" >> $GITHUB_STEP_SUMMARY
-          echo "- 📈 [View Coverage Dashboard](https://codecov.io/gh/RAprogramm/masterror)" >> $GITHUB_STEP_SUMMARY
+          echo "- [View Coverage Dashboard](https://codecov.io/gh/RAprogramm/masterror)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Test Analytics" >> $GITHUB_STEP_SUMMARY
           echo "- JUnit XML: \`target/nextest/ci/junit.xml\`" >> $GITHUB_STEP_SUMMARY
-          echo "- 🧪 [View Test Analytics](https://app.codecov.io/gh/RAprogramm/masterror/tests)" >> $GITHUB_STEP_SUMMARY
+          echo "- [View Test Analytics](https://app.codecov.io/gh/RAprogramm/masterror/tests)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All artifacts uploaded with 30-day retention." >> $GITHUB_STEP_SUMMARY
 
