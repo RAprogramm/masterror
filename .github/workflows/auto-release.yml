@@ -246,3 +246,41 @@ jobs:
           body: ${{ steps.changelog.outputs.changelog }}
           draft: false
           prerelease: false
+
+      - name: Install Rust toolchain for publish
+        if: steps.version_check.outputs.should_release == 'true'
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Publish to crates.io
+        if: steps.version_check.outputs.should_release == 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.local_version.outputs.version }}"
+
+          echo "Publishing masterror v${VERSION} to crates.io..."
+
+          # Publish masterror-template if exists
+          if cargo metadata --no-deps --format-version=1 | jq -e '.packages[] | select(.name=="masterror-template" and .source==null)' >/dev/null; then
+            echo "Publishing masterror-template..."
+            cargo publish -p masterror-template --locked --token "$CARGO_REGISTRY_TOKEN" || echo "masterror-template already published or skipped"
+            sleep 10
+          fi
+
+          # Publish masterror-derive if exists
+          if cargo metadata --no-deps --format-version=1 | jq -e '.packages[] | select(.name=="masterror-derive" and .source==null)' >/dev/null; then
+            echo "Publishing masterror-derive..."
+            cargo publish -p masterror-derive --locked --token "$CARGO_REGISTRY_TOKEN" || echo "masterror-derive already published or skipped"
+            sleep 10
+          fi
+
+          # Publish masterror (main package)
+          echo "Publishing masterror..."
+          cargo publish -p masterror --locked --token "$CARGO_REGISTRY_TOKEN"
+
+          echo "✅ Successfully published masterror v${VERSION} to crates.io"
+          echo "📦 https://crates.io/crates/masterror/${VERSION}"
