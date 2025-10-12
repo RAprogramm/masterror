@@ -619,26 +619,26 @@ fn telemetry_flushes_after_subscriber_install() {
     let _guard = TELEMETRY_GUARD.lock().expect("telemetry guard");
 
     use telemetry_support::new_recording_dispatch;
-    use tracing::dispatcher;
-
-    let err = AppError::internal("boom");
+    use tracing::{callsite::rebuild_interest_cache, dispatcher};
 
     let (dispatch, events) = new_recording_dispatch();
     let events = events.clone();
 
     dispatcher::with_default(&dispatch, || {
+        rebuild_interest_cache();
+        let err = AppError::internal("boom");
         err.log();
-    });
 
-    let events = events.lock().expect("events lock");
-    assert_eq!(
-        events.len(),
-        1,
-        "expected telemetry after subscriber install"
-    );
-    let event = &events[0];
-    assert_eq!(event.code.as_deref(), Some(AppCode::Internal.as_str()));
-    assert_eq!(event.category.as_deref(), Some("Internal"));
+        let events = events.lock().expect("events lock");
+        assert_eq!(
+            events.len(),
+            1,
+            "expected telemetry after subscriber install"
+        );
+        let event = &events[0];
+        assert_eq!(event.code.as_deref(), Some(AppCode::Internal.as_str()));
+        assert_eq!(event.category.as_deref(), Some("Internal"));
+    });
 }
 
 #[cfg(feature = "metrics")]

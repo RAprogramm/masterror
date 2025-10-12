@@ -9,6 +9,43 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.24.19] - 2025-10-12
+
+### Fixed
+- Updated macro code generation in `masterror-derive` to emit shorthand field
+  patterns (`field` instead of `field: field`) when the field name matches the
+  binding identifier, ensuring compatibility with Rust 2024 edition's
+  `non_shorthand_field_patterns` lint.
+- Modified pattern generation in `error_trait.rs` for `source`, `backtrace`,
+  and `provide` implementations to conditionally use shorthand syntax,
+  eliminating redundant field-to-binding mappings that trigger warnings under
+  the new edition.
+- Fixed race condition in `telemetry_flushes_after_subscriber_install` test by
+  moving error construction inside the dispatcher scope and calling
+  `rebuild_interest_cache()` before logging, ensuring the tracing subscriber
+  registers interest before event emission.
+
+### Added
+- Comprehensive `rust_2024_edition` integration test suite covering struct and
+  enum error types with `#[source]` attributes, validating that generated code
+  passes under `#![deny(non_shorthand_field_patterns)]`.
+- Deny directive `#![deny(non_shorthand_field_patterns)]` in existing
+  `error_derive` test to enforce compliance and prevent future regressions.
+
+### Changed
+- Pattern generation logic now checks if field identifiers match binding names
+  before deciding between shorthand (`field`) and explicit (`field: binding`)
+  syntax, maintaining backward compatibility while adhering to Rust 2024
+  edition requirements.
+
+### Why This Matters
+Rust 2024 edition introduced the `non_shorthand_field_patterns` lint to
+encourage cleaner, more idiomatic pattern matching. Without this fix, code
+using `#[derive(Error)]` with `#[source]` attributes would trigger compiler
+warnings (or errors with `-D warnings`) when upgrading to edition 2024,
+breaking existing projects that rely on strict lint enforcement. This release
+ensures seamless adoption of Rust 2024 edition for all `masterror` users.
+
 ## [0.24.18] - 2025-10-09
 
 ### Fixed

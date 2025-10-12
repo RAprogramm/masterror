@@ -115,14 +115,14 @@ fn variant_transparent_source(variant: &VariantData) -> TokenStream {
     match &variant.fields {
         Fields::Unit => quote! { Self::#variant_ident => None },
         Fields::Named(fields) => {
-            let binding = fields[0].ident.clone().expect("named field");
+            let field_ident = fields[0].ident.clone().expect("named field");
             let pattern = if fields.len() == 1 {
-                quote!(Self::#variant_ident { #binding })
+                quote!(Self::#variant_ident { #field_ident })
             } else {
-                quote!(Self::#variant_ident { #binding, .. })
+                quote!(Self::#variant_ident { #field_ident, .. })
             };
             quote! {
-                #pattern => std::error::Error::source(#binding)
+                #pattern => std::error::Error::source(#field_ident)
             }
         }
         Fields::Unnamed(fields) => {
@@ -162,7 +162,13 @@ fn variant_template_source(variant: &VariantData) -> TokenStream {
         (Fields::Named(fields), Some(field)) => {
             let field_ident = field.ident.clone().expect("named field");
             let binding = binding_ident(field);
-            let pattern = if fields.len() == 1 {
+            let pattern = if field_ident == binding {
+                if fields.len() == 1 {
+                    quote!(Self::#variant_ident { #field_ident })
+                } else {
+                    quote!(Self::#variant_ident { #field_ident, .. })
+                }
+            } else if fields.len() == 1 {
                 quote!(Self::#variant_ident { #field_ident: #binding })
             } else {
                 quote!(Self::#variant_ident { #field_ident: #binding, .. })
@@ -253,7 +259,13 @@ fn variant_backtrace_arm(variant: &VariantData) -> TokenStream {
             let field = backtrace.field();
             let field_ident = field.ident.clone().expect("named field");
             let binding = binding_ident(field);
-            let pattern = if fields.len() == 1 {
+            let pattern = if field_ident == binding {
+                if fields.len() == 1 {
+                    quote!(Self::#variant_ident { #field_ident })
+                } else {
+                    quote!(Self::#variant_ident { #field_ident, .. })
+                }
+            } else if fields.len() == 1 {
                 quote!(Self::#variant_ident { #field_ident: #binding })
             } else {
                 quote!(Self::#variant_ident { #field_ident: #binding, .. })
@@ -488,7 +500,11 @@ fn variant_provide_named_arm(
         if needs_binding {
             let binding = binding_ident(field);
             let pattern_binding = binding.clone();
-            entries.push(quote!(#ident: #pattern_binding));
+            if ident == pattern_binding {
+                entries.push(quote!(#ident));
+            } else {
+                entries.push(quote!(#ident: #pattern_binding));
+            }
 
             if backtrace.is_some_and(|candidate| candidate.index() == field.index) {
                 backtrace_binding = Some(binding.clone());
