@@ -29,6 +29,9 @@ permissions:
 jobs:
   checks:
     uses: ./.github/workflows/reusable-ci.yml
+    permissions:
+      contents: read
+      id-token: write
     with:
       all-features: true
 
