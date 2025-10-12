@@ -275,6 +275,28 @@ jobs:
           toolchain: ${{ matrix.rust }}
           all-features: ${{ inputs.all-features }}
 
+      - name: Generate test report (JSON format)
+        if: always()
+        continue-on-error: true
+        run: |
+          cargo +${{ matrix.rust }} test --all-features --workspace --no-fail-fast -- \
+            --format json -Z unstable-options --report-time > test-results-${{ matrix.rust }}.json || true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.rust }}
+          path: test-results-${{ matrix.rust }}.json
+          retention-days: 30
+
+      - name: Add test summary
+        if: always() && matrix.rust == needs.msrv.outputs.version
+        run: |
+          echo "## Test Results (${{ matrix.rust }})" >> $GITHUB_STEP_SUMMARY
+          echo "Test artifacts uploaded with 30-day retention" >> $GITHUB_STEP_SUMMARY
+          echo "- Test report: \`test-results-${{ matrix.rust }}.json\`" >> $GITHUB_STEP_SUMMARY
+
       - name: Auto-commit README changes (any branch)
         if: always() && matrix.rust == needs.msrv.outputs.version
         run: |
@@ -356,6 +378,27 @@ jobs:
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
+      - name: Generate HTML coverage report
+        run: cargo llvm-cov --all-features --workspace --html
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            lcov.info
+            target/llvm-cov/html/
+          retention-days: 30
+
+      - name: Add coverage summary
+        run: |
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "Coverage artifacts uploaded with 30-day retention:" >> $GITHUB_STEP_SUMMARY
+          echo "- LCOV report: \`lcov.info\`" >> $GITHUB_STEP_SUMMARY
+          echo "- HTML report: \`target/llvm-cov/html/\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 [View on Codecov](https://codecov.io/gh/RAprogramm/masterror)" >> $GITHUB_STEP_SUMMARY
+
   benchmarks:
     runs-on: ubuntu-latest
     needs: test
@@ -401,3 +444,10 @@ jobs:
           else
             echo "No previous benchmark found, skipping comparison"
           fi
+
+      - name: Add benchmark summary
+        run: |
+          echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
+          echo "Benchmark artifacts uploaded with 30-day retention:" >> $GITHUB_STEP_SUMMARY
+          echo "- Criterion reports: \`target/criterion/\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Baseline: \`ci-baseline\`" >> $GITHUB_STEP_SUMMARY
