@@ -1,0 +1,34 @@
+# SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+#
+# SPDX-License-Identifier: MIT
+
+# cargo-nextest configuration for masterror project
+# Documentation: https://nexte.st/book/configuration.html
+
+[profile.default]
+# Number of retries for failing tests
+retries = 0
+# Test threads (0 = number of logical CPUs)
+test-threads = 0
+# Slow test detection threshold
+slow-timeout = { period = "60s", terminate-after = 2 }
+
+# CI profile for continuous integration
+[profile.ci]
+# Inherit from default profile
+retries = { backoff = "exponential", count = 2, delay = "1s" }
+# Fail fast disabled to see all failures
+fail-fast = false
+# Enable JUnit XML output for Codecov Test Analytics
+[profile.ci.junit]
+path = "target/nextest/ci/junit.xml"
+# Store output for failed tests only
+store-success-output = false
+store-failure-output = true
+
+# Local profile for development
+[profile.local]
+retries = 0
+fail-fast = true
+# Show test output immediately
+test-threads = 1

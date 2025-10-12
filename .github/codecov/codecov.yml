@@ -1,0 +1,97 @@
+# SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+#
+# SPDX-License-Identifier: MIT
+
+# Codecov configuration for masterror project
+# Documentation: https://docs.codecov.com/docs/codecov-yaml
+
+codecov:
+  # Require CI to pass before processing coverage
+  require_ci_to_pass: yes
+  # Maximum age of report before expiration
+  max_report_age: 12h
+  # Default branch for coverage comparison
+  branch: main
+
+coverage:
+  # Precision for coverage percentage (0-5 decimal places)
+  precision: 2
+  # Round coverage to nearest value
+  round: down
+  # Coverage range (red to green)
+  range: "95...100"
+
+  status:
+    # Project-level coverage status check
+    project:
+      default:
+        # Target coverage percentage (auto = maintain current level)
+        target: 95%
+        # Allow coverage to drop by max 1% before failing
+        threshold: 1%
+        # Only post status if coverage changes
+        if_ci_failed: error
+        # Informational only, don't block PR
+        informational: false
+        # Compare against base commit
+        base: auto
+
+    # Patch-level coverage status check (new code only)
+    patch:
+      default:
+        # Target coverage for new code
+        target: 95%
+        # Allow some flexibility for new code
+        threshold: 5%
+        # Only check if patch has changes
+        if_not_found: success
+        # Only check new lines
+        only_pulls: false
+
+    # Changes status (diff between head and base)
+    changes:
+      default:
+        # Informational about coverage changes
+        informational: true
+
+  # Ignore these paths from coverage
+  ignore:
+    - "tests/**/*"
+    - "benches/**/*"
+    - "examples/**/*"
+    - "**/tests.rs"
+    - "**/benches.rs"
+
+# Pull request comment configuration
+comment:
+  # Layout for PR comments (modern condensed format)
+  layout: "condensed_header, condensed_files, condensed_footer"
+  # Update existing comment instead of creating new ones
+  behavior: default
+  # Post comment even if coverage doesn't change
+  require_changes: false
+  # Require base report for comparison
+  require_base: yes
+  # Require head report to post comment
+  require_head: yes
+  # Show project coverage in comment
+  hide_project_coverage: false
+
+# GitHub integration settings
+github_checks:
+  annotations: true
+
+# Test Analytics configuration
+# Tracks test performance, failure rates, and flaky tests
+test_analytics:
+  # Enable test analytics ingestion
+  enabled: true
+  # Notify on flaky tests detection
+  notify:
+    # Post comment on PR when flaky tests detected
+    pull_request: true
+  # Flaky test detection settings
+  flaky_test_detection:
+    enabled: true
+    # Consider test flaky if it fails intermittently
+    threshold: 2

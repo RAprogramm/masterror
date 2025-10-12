@@ -360,25 +360,42 @@ jobs:
           toolchain: stable
           components: llvm-tools-preview
 
-      - name: Install cargo-llvm-cov
+      - name: Install cargo-llvm-cov and cargo-nextest
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-llvm-cov
+          tool: cargo-llvm-cov,cargo-nextest
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Generate coverage
-        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+      - name: Generate coverage with nextest
+        run: |
+          cargo llvm-cov nextest --all-features --workspace --lcov --output-path lcov.info
 
-      - name: Upload coverage reports to Codecov
+      - name: Generate JUnit XML test results
+        if: success() || failure()
+        run: |
+          mkdir -p target/nextest/ci
+          cargo nextest run --all-features --workspace --profile ci --no-fail-fast || true
+
+      - name: "Codecov: Upload code coverage"
         uses: codecov/codecov-action@v5
         with:
           files: ./lcov.info
           fail_ci_if_error: false
           use_oidc: true
+          flags: unittests
+          name: codecov-coverage
+
+      - name: "Codecov: Upload test results"
+        if: success() || failure()
+        uses: codecov/test-results-action@v1
+        with:
+          files: ./target/nextest/ci/junit.xml
+          flags: unittests
+          name: codecov-test-results
 
       - name: Generate HTML coverage report
         run: cargo llvm-cov --all-features --workspace --html
@@ -392,14 +409,20 @@ jobs:
             target/llvm-cov/html/
           retention-days: 30
 
-      - name: Add coverage summary
+      - name: Add Codecov summary
         run: |
-          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
-          echo "Coverage artifacts uploaded with 30-day retention:" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Codecov Reports" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Code Coverage" >> $GITHUB_STEP_SUMMARY
           echo "- LCOV report: \`lcov.info\`" >> $GITHUB_STEP_SUMMARY
           echo "- HTML report: \`target/llvm-cov/html/\`" >> $GITHUB_STEP_SUMMARY
+          echo "- 📈 [View Coverage Dashboard](https://codecov.io/gh/RAprogramm/masterror)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📊 [View on Codecov](https://codecov.io/gh/RAprogramm/masterror)" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Analytics" >> $GITHUB_STEP_SUMMARY
+          echo "- JUnit XML: \`target/nextest/ci/junit.xml\`" >> $GITHUB_STEP_SUMMARY
+          echo "- 🧪 [View Test Analytics](https://app.codecov.io/gh/RAprogramm/masterror/tests)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All artifacts uploaded with 30-day retention." >> $GITHUB_STEP_SUMMARY
 
   benchmarks:
     runs-on: ubuntu-latest
