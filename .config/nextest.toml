@@ -8,8 +8,8 @@
 [profile.default]
 # Number of retries for failing tests
 retries = 0
-# Test threads (0 = number of logical CPUs)
-test-threads = 0
+# Test threads (use all available CPUs)
+test-threads = "num-cpus"
 # Slow test detection threshold
 slow-timeout = { period = "60s", terminate-after = 2 }
 
