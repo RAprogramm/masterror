@@ -80,18 +80,3 @@ comment:
 # GitHub integration settings
 github_checks:
   annotations: true
-
-# Test Analytics configuration
-# Tracks test performance, failure rates, and flaky tests
-test_analytics:
-  # Enable test analytics ingestion
-  enabled: true
-  # Notify on flaky tests detection
-  notify:
-    # Post comment on PR when flaky tests detected
-    pull_request: true
-  # Flaky test detection settings
-  flaky_test_detection:
-    enabled: true
-    # Consider test flaky if it fails intermittently
-    threshold: 2
