@@ -14,6 +14,8 @@ on:
 jobs:
   msrv:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       version: ${{ steps.msrv.outputs.msrv }}
     steps:
@@ -36,9 +38,100 @@ jobs:
           echo "msrv=${RV}" >> "$GITHUB_OUTPUT"
           echo "Using MSRV: $RV"
 
-  ci:
+  fmt:
     runs-on: ubuntu-latest
     needs: msrv
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust (${{ needs.msrv.outputs.version }})
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ needs.msrv.outputs.version }}
+
+      - name: Install nightly rustfmt
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: nightly
+          components: rustfmt
+
+      - name: Check formatting (nightly rustfmt)
+        uses: ./.github/actions/cargo-fmt
+        with:
+          toolchain: nightly
+
+  clippy:
+    runs-on: ubuntu-latest
+    needs: msrv
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        rust:
+          - ${{ needs.msrv.outputs.version }}
+          - stable
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust (${{ matrix.rust }})
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: clippy-${{ matrix.rust }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Clippy (${{ matrix.rust }})
+        uses: ./.github/actions/cargo-clippy
+        with:
+          toolchain: ${{ matrix.rust }}
+          all-features: ${{ inputs.all-features }}
+
+  deny:
+    runs-on: ubuntu-latest
+    needs: msrv
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust (${{ needs.msrv.outputs.version }})
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ needs.msrv.outputs.version }}
+
+      - name: Cargo deny
+        uses: ./.github/actions/cargo-deny
+
+  audit:
+    runs-on: ubuntu-latest
+    needs: msrv
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust (${{ needs.msrv.outputs.version }})
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ needs.msrv.outputs.version }}
+
+      - name: Security audit
+        uses: ./.github/actions/cargo-audit
+
+  test:
+    runs-on: ubuntu-latest
+    needs: [msrv, fmt, clippy]
+    permissions:
+      contents: write
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
@@ -47,31 +140,25 @@ jobs:
           - stable
     env:
       CARGO_LOCKED: "true"
-
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          persist-credentials: true  # оставляем токен в origin, чтобы git push работал
+          persist-credentials: true
 
       - name: Install Rust (${{ matrix.rust }})
         uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: ${{ matrix.rust }}
-          components: clippy
-
-      - name: Install nightly rustfmt
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: nightly
-          components: rustfmt
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
+          key: test-${{ matrix.rust }}
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Verify lockfile is committed
+        if: matrix.rust == needs.msrv.outputs.version
         shell: bash
         run: |
           set -euo pipefail
@@ -80,7 +167,6 @@ jobs:
             exit 1
           fi
 
-      # ---------- README handling ----------
       - name: Build (may regenerate README to temp)
         if: matrix.rust == needs.msrv.outputs.version
         shell: bash
@@ -158,7 +244,6 @@ jobs:
           if [ $rc -eq 0 ]; then
             echo "Push to main succeeded."
             echo "updated=true" >> "$GITHUB_OUTPUT"
-            # вычистим дерево, чтобы дальше всё было чисто
             git fetch origin main
             git reset --hard origin/main
             git clean -fdx
@@ -167,10 +252,8 @@ jobs:
 
           echo "Push to main denied (likely branch protection). Preparing PR..."
           echo "updated=true" >> "$GITHUB_OUTPUT"
-          # создаём ветку для PR
           BR="ci/readme-auto-refresh"
           git switch -c "$BR" || git checkout -b "$BR"
-          # коммит уже есть, просто запушим ветку
           git push -u origin "$BR"
 
       - name: Create pull request for README (fallback)
@@ -185,33 +268,12 @@ jobs:
           commit-message: "chore(readme): auto-refresh [skip ci]"
           labels: ci, chore
           delete-branch: true
-      # ---------- end README handling ----------
-
-      - name: Check formatting (nightly rustfmt)
-        if: matrix.rust == needs.msrv.outputs.version
-        uses: ./.github/actions/cargo-fmt
-        with:
-          toolchain: nightly
-
-      - name: Clippy (${{ matrix.rust }})
-        uses: ./.github/actions/cargo-clippy
-        with:
-          toolchain: ${{ matrix.rust }}
-          all-features: ${{ inputs.all-features }}
-
-      - name: Cargo deny
-        if: matrix.rust == needs.msrv.outputs.version
-        uses: ./.github/actions/cargo-deny
 
       - name: Tests (${{ matrix.rust }})
         uses: ./.github/actions/cargo-test
         with:
           toolchain: ${{ matrix.rust }}
           all-features: ${{ inputs.all-features }}
-
-      - name: Security audit
-        if: matrix.rust == needs.msrv.outputs.version
-        uses: ./.github/actions/cargo-audit
 
       - name: Auto-commit README changes (any branch)
         if: always() && matrix.rust == needs.msrv.outputs.version
@@ -229,8 +291,25 @@ jobs:
             echo "README already up to date."
           fi
 
+  package:
+    runs-on: ubuntu-latest
+    needs: [msrv, test]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust (${{ needs.msrv.outputs.version }})
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ needs.msrv.outputs.version }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
       - name: Ensure tree is clean before package
-        if: matrix.rust == needs.msrv.outputs.version
         shell: bash
         run: |
           set -euo pipefail
@@ -241,12 +320,13 @@ jobs:
           fi
 
       - name: Package (dry-run)
-        if: matrix.rust == needs.msrv.outputs.version
-        run: cargo +${{ matrix.rust }} package --locked
+        run: cargo +${{ needs.msrv.outputs.version }} package --locked
 
   coverage:
     runs-on: ubuntu-latest
-    needs: ci
+    needs: test
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
 
@@ -278,7 +358,9 @@ jobs:
 
   benchmarks:
     runs-on: ubuntu-latest
-    needs: ci
+    needs: test
+    permissions:
+      contents: read
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v5
@@ -319,4 +401,3 @@ jobs:
           else
             echo "No previous benchmark found, skipping comparison"
           fi
-
