@@ -5,9 +5,17 @@
 name: Release
 
 on:
+  release:
+    types: [published]
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v0.24.19)'
+        required: true
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -67,11 +75,26 @@ jobs:
           fi
           echo "msrv=${RV}" >> "$GITHUB_OUTPUT"
 
+      - name: Determine release tag
+        id: release_tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Release tag: ${TAG}"
+
       - name: Ensure tag matches Cargo.toml version (crate = masterror)
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${GITHUB_REF#refs/tags/}"
+          TAG="${{ steps.release_tag.outputs.tag }}"
           CRATE_NAME="masterror"
           FILE_VER="$(
             cargo metadata --no-deps --format-version=1 |
@@ -95,7 +118,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${GITHUB_REF#refs/tags/}"
+          TAG="${{ steps.release_tag.outputs.tag }}"
           LOCAL_VER="${TAG#v}"
           CRATE_NAME="masterror"
 
