@@ -622,14 +622,15 @@ fn telemetry_flushes_after_subscriber_install() {
     use tracing::{callsite::rebuild_interest_cache, dispatcher};
 
     let (dispatch, events) = new_recording_dispatch();
-    let events = events.clone();
+    let events_clone = events.clone();
 
     dispatcher::with_default(&dispatch, || {
         rebuild_interest_cache();
         let err = AppError::internal("boom");
         err.log();
+        drop(err);
 
-        let events = events.lock().expect("events lock");
+        let events = events_clone.lock().expect("events lock");
         assert_eq!(
             events.len(),
             1,
