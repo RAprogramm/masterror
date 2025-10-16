@@ -66,11 +66,6 @@ coverage:
         - tests/
       carryforward: true
 
-    doctests:
-      paths:
-        - src/
-      carryforward: true
-
   # Ignore these paths from coverage
   ignore:
     - "tests/**/*"

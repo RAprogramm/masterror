@@ -410,15 +410,11 @@ jobs:
         run: |
           cargo llvm-cov nextest --tests --all-features --workspace --lcov --output-path lcov-integration.info
 
-      - name: Generate doc test coverage
-        run: |
-          cargo llvm-cov --doc --all-features --workspace --lcov --output-path lcov-doc.info
-
       - name: Validate coverage files
         run: |
           set -euo pipefail
           echo "=== Validating LCOV files ==="
-          for f in lcov-unit.info lcov-integration.info lcov-doc.info; do
+          for f in lcov-unit.info lcov-integration.info; do
             if [ ! -f "$f" ]; then
               echo "ERROR: $f not found"
               exit 1
@@ -460,16 +456,6 @@ jobs:
           name: codecov-integration-coverage
           verbose: true
 
-      - name: "Codecov: Upload doc test coverage"
-        uses: codecov/codecov-action@v5
-        with:
-          files: ./lcov-doc.info
-          fail_ci_if_error: false
-          use_oidc: true
-          flags: doctests
-          name: codecov-doc-coverage
-          verbose: true
-
       - name: "Codecov: Upload test results"
         if: success() || failure()
         uses: codecov/test-results-action@v1
@@ -489,7 +475,6 @@ jobs:
           path: |
             lcov-unit.info
             lcov-integration.info
-            lcov-doc.info
             target/llvm-cov/html/
           retention-days: 30
 
@@ -500,8 +485,9 @@ jobs:
           echo "### Code Coverage (Multi-Flag)" >> $GITHUB_STEP_SUMMARY
           echo "- Unit tests: \`lcov-unit.info\` → flag: \`unittests\`" >> $GITHUB_STEP_SUMMARY
           echo "- Integration tests: \`lcov-integration.info\` → flag: \`integration\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Doc tests: \`lcov-doc.info\` → flag: \`doctests\`" >> $GITHUB_STEP_SUMMARY
           echo "- HTML report: \`target/llvm-cov/html/\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note**: Doc test coverage omitted (requires nightly toolchain)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Codecov Dashboard" >> $GITHUB_STEP_SUMMARY
           echo "- [Overall Coverage](https://app.codecov.io/gh/RAprogramm/masterror)" >> $GITHUB_STEP_SUMMARY
