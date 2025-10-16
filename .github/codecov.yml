@@ -32,7 +32,7 @@ coverage:
         # Only post status if coverage changes
         if_ci_failed: error
         # Informational only, don't block PR
-        informational: false
+        informational: true
         # Compare against base commit
         base: auto
 
@@ -45,8 +45,8 @@ coverage:
         threshold: 5%
         # Only check if patch has changes
         if_not_found: success
-        # Only check new lines
-        only_pulls: false
+        # Informational only, don't block PR
+        informational: true
 
     # Changes status (diff between head and base)
     changes:
@@ -64,7 +64,7 @@ coverage:
 
 # Pull request comment configuration
 comment:
-  # Layout for PR comments (modern condensed format)
+  # Layout for PR comments (Free tier compatible)
   layout: "condensed_header, condensed_files, condensed_footer"
   # Update existing comment instead of creating new ones
   behavior: default

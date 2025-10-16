@@ -402,9 +402,27 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Generate coverage with nextest
+      - name: Generate coverage for all tests
         run: |
           cargo llvm-cov nextest --all-features --workspace --lcov --output-path lcov.info
+
+      - name: Validate coverage file
+        run: |
+          set -euo pipefail
+          echo "=== Validating LCOV file ==="
+          if [ ! -f "lcov.info" ]; then
+            echo "ERROR: lcov.info not found"
+            exit 1
+          fi
+          size=$(wc -c < "lcov.info")
+          lines=$(wc -l < "lcov.info")
+          echo "✓ lcov.info: ${size} bytes, ${lines} lines"
+          if [ "$size" -eq 0 ]; then
+            echo "ERROR: lcov.info is empty"
+            exit 1
+          fi
+          echo "First 10 lines:"
+          head -10 "lcov.info"
 
       - name: Generate JUnit XML test results
         if: success() || failure()
@@ -412,14 +430,14 @@ jobs:
           mkdir -p target/nextest/ci
           cargo nextest run --all-features --workspace --profile ci --no-fail-fast || true
 
-      - name: "Codecov: Upload code coverage"
+      - name: "Codecov: Upload coverage"
         uses: codecov/codecov-action@v5
         with:
           files: ./lcov.info
           fail_ci_if_error: false
           use_oidc: true
-          flags: unittests
           name: codecov-coverage
+          verbose: true
 
       - name: "Codecov: Upload test results"
         if: success() || failure()
@@ -427,7 +445,6 @@ jobs:
         with:
           files: ./target/nextest/ci/junit.xml
           use_oidc: true
-          flags: unittests
           name: codecov-test-results
 
       - name: Generate HTML coverage report
@@ -449,7 +466,7 @@ jobs:
           echo "### Code Coverage" >> $GITHUB_STEP_SUMMARY
           echo "- LCOV report: \`lcov.info\`" >> $GITHUB_STEP_SUMMARY
           echo "- HTML report: \`target/llvm-cov/html/\`" >> $GITHUB_STEP_SUMMARY
-          echo "- [View Coverage Dashboard](https://codecov.io/gh/RAprogramm/masterror)" >> $GITHUB_STEP_SUMMARY
+          echo "- [View Coverage Dashboard](https://app.codecov.io/gh/RAprogramm/masterror)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Test Analytics" >> $GITHUB_STEP_SUMMARY
           echo "- JUnit XML: \`target/nextest/ci/junit.xml\`" >> $GITHUB_STEP_SUMMARY
