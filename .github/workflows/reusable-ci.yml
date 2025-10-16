@@ -402,33 +402,27 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Generate unit test coverage
+      - name: Generate coverage for all tests
         run: |
-          cargo llvm-cov nextest --lib --all-features --workspace --lcov --output-path lcov-unit.info
+          cargo llvm-cov nextest --all-features --workspace --lcov --output-path lcov.info
 
-      - name: Generate integration test coverage
-        run: |
-          cargo llvm-cov nextest --tests --all-features --workspace --lcov --output-path lcov-integration.info
-
-      - name: Validate coverage files
+      - name: Validate coverage file
         run: |
           set -euo pipefail
-          echo "=== Validating LCOV files ==="
-          for f in lcov-unit.info lcov-integration.info; do
-            if [ ! -f "$f" ]; then
-              echo "ERROR: $f not found"
-              exit 1
-            fi
-            size=$(wc -c < "$f")
-            lines=$(wc -l < "$f")
-            echo "✓ $f: ${size} bytes, ${lines} lines"
-            if [ "$size" -eq 0 ]; then
-              echo "WARNING: $f is empty"
-            fi
-            echo "First 10 lines of $f:"
-            head -10 "$f"
-            echo ""
-          done
+          echo "=== Validating LCOV file ==="
+          if [ ! -f "lcov.info" ]; then
+            echo "ERROR: lcov.info not found"
+            exit 1
+          fi
+          size=$(wc -c < "lcov.info")
+          lines=$(wc -l < "lcov.info")
+          echo "✓ lcov.info: ${size} bytes, ${lines} lines"
+          if [ "$size" -eq 0 ]; then
+            echo "ERROR: lcov.info is empty"
+            exit 1
+          fi
+          echo "First 10 lines:"
+          head -10 "lcov.info"
 
       - name: Generate JUnit XML test results
         if: success() || failure()
@@ -436,24 +430,24 @@ jobs:
           mkdir -p target/nextest/ci
           cargo nextest run --all-features --workspace --profile ci --no-fail-fast || true
 
-      - name: "Codecov: Upload unit test coverage"
+      - name: "Codecov: Upload coverage with unittests flag"
         uses: codecov/codecov-action@v5
         with:
-          files: ./lcov-unit.info
+          files: ./lcov.info
           fail_ci_if_error: false
           use_oidc: true
           flags: unittests
-          name: codecov-unit-coverage
+          name: codecov-unittests
           verbose: true
 
-      - name: "Codecov: Upload integration test coverage"
+      - name: "Codecov: Upload coverage with integration flag"
         uses: codecov/codecov-action@v5
         with:
-          files: ./lcov-integration.info
+          files: ./lcov.info
           fail_ci_if_error: false
           use_oidc: true
           flags: integration
-          name: codecov-integration-coverage
+          name: codecov-integration
           verbose: true
 
       - name: "Codecov: Upload test results"
@@ -473,8 +467,7 @@ jobs:
         with:
           name: coverage-report
           path: |
-            lcov-unit.info
-            lcov-integration.info
+            lcov.info
             target/llvm-cov/html/
           retention-days: 30
 
@@ -483,11 +476,12 @@ jobs:
           echo "## Codecov Reports" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Code Coverage (Multi-Flag)" >> $GITHUB_STEP_SUMMARY
-          echo "- Unit tests: \`lcov-unit.info\` → flag: \`unittests\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Integration tests: \`lcov-integration.info\` → flag: \`integration\`" >> $GITHUB_STEP_SUMMARY
+          echo "- LCOV report: \`lcov.info\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Uploaded with flags: \`unittests\`, \`integration\`" >> $GITHUB_STEP_SUMMARY
           echo "- HTML report: \`target/llvm-cov/html/\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Note**: Doc test coverage omitted (requires nightly toolchain)" >> $GITHUB_STEP_SUMMARY
+          echo "**How it works**: Single LCOV uploaded twice with different flags." >> $GITHUB_STEP_SUMMARY
+          echo "Codecov filters by paths (src/ vs tests/) per flag configuration." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Codecov Dashboard" >> $GITHUB_STEP_SUMMARY
           echo "- [Overall Coverage](https://app.codecov.io/gh/RAprogramm/masterror)" >> $GITHUB_STEP_SUMMARY
