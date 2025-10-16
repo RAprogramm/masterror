@@ -430,24 +430,13 @@ jobs:
           mkdir -p target/nextest/ci
           cargo nextest run --all-features --workspace --profile ci --no-fail-fast || true
 
-      - name: "Codecov: Upload coverage with unittests flag"
+      - name: "Codecov: Upload coverage"
         uses: codecov/codecov-action@v5
         with:
           files: ./lcov.info
           fail_ci_if_error: false
           use_oidc: true
-          flags: unittests
-          name: codecov-unittests
-          verbose: true
-
-      - name: "Codecov: Upload coverage with integration flag"
-        uses: codecov/codecov-action@v5
-        with:
-          files: ./lcov.info
-          fail_ci_if_error: false
-          use_oidc: true
-          flags: integration
-          name: codecov-integration
+          name: codecov-coverage
           verbose: true
 
       - name: "Codecov: Upload test results"
@@ -456,7 +445,6 @@ jobs:
         with:
           files: ./target/nextest/ci/junit.xml
           use_oidc: true
-          flags: unittests
           name: codecov-test-results
 
       - name: Generate HTML coverage report
@@ -475,17 +463,10 @@ jobs:
         run: |
           echo "## Codecov Reports" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Code Coverage (Multi-Flag)" >> $GITHUB_STEP_SUMMARY
+          echo "### Code Coverage" >> $GITHUB_STEP_SUMMARY
           echo "- LCOV report: \`lcov.info\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Uploaded with flags: \`unittests\`, \`integration\`" >> $GITHUB_STEP_SUMMARY
           echo "- HTML report: \`target/llvm-cov/html/\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**How it works**: Single LCOV uploaded twice with different flags." >> $GITHUB_STEP_SUMMARY
-          echo "Codecov filters by paths (src/ vs tests/) per flag configuration." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Codecov Dashboard" >> $GITHUB_STEP_SUMMARY
-          echo "- [Overall Coverage](https://app.codecov.io/gh/RAprogramm/masterror)" >> $GITHUB_STEP_SUMMARY
-          echo "- [Flags View](https://app.codecov.io/gh/RAprogramm/masterror/flags)" >> $GITHUB_STEP_SUMMARY
+          echo "- [View Coverage Dashboard](https://app.codecov.io/gh/RAprogramm/masterror)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Test Analytics" >> $GITHUB_STEP_SUMMARY
           echo "- JUnit XML: \`target/nextest/ci/junit.xml\`" >> $GITHUB_STEP_SUMMARY

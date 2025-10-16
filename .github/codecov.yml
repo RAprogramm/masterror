@@ -54,18 +54,6 @@ coverage:
         # Informational about coverage changes
         informational: true
 
-  # Flag-based tracking for different test types
-  flags:
-    unittests:
-      paths:
-        - src/
-      carryforward: true
-
-    integration:
-      paths:
-        - tests/
-      carryforward: true
-
   # Ignore these paths from coverage
   ignore:
     - "tests/**/*"
@@ -76,8 +64,8 @@ coverage:
 
 # Pull request comment configuration
 comment:
-  # Layout for PR comments (show flags breakdown)
-  layout: "condensed_header, condensed_files, flags, condensed_footer"
+  # Layout for PR comments (Free tier compatible)
+  layout: "condensed_header, condensed_files, condensed_footer"
   # Update existing comment instead of creating new ones
   behavior: default
   # Post comment even if coverage doesn't change
