@@ -7,7 +7,7 @@
 
 codecov:
   # Require CI to pass before processing coverage
-  require_ci_to_pass: yes
+  require_ci_to_pass: no
   # Maximum age of report before expiration
   max_report_age: 12h
   # Default branch for coverage comparison
