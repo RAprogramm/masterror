@@ -408,7 +408,7 @@ jobs:
 
       - name: Generate integration test coverage
         run: |
-          cargo llvm-cov nextest --test '*' --all-features --workspace --lcov --output-path lcov-integration.info
+          cargo llvm-cov nextest --tests --all-features --workspace --lcov --output-path lcov-integration.info
 
       - name: Generate doc test coverage
         run: |
