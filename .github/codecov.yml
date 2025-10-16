@@ -71,26 +71,6 @@ coverage:
         - src/
       carryforward: true
 
-  # Component-level coverage tracking
-  component_management:
-    individual_components:
-      - component_id: core
-        name: Core Library
-        paths:
-          - src/lib.rs
-          - src/app_error/**
-          - src/result_ext.rs
-
-      - component_id: derive
-        name: Derive Macros
-        paths:
-          - masterror-derive/src/**
-
-      - component_id: template
-        name: Template Engine
-        paths:
-          - masterror-template/src/**
-
   # Ignore these paths from coverage
   ignore:
     - "tests/**/*"
@@ -101,8 +81,8 @@ coverage:
 
 # Pull request comment configuration
 comment:
-  # Layout for PR comments (show flags and components)
-  layout: "condensed_header, condensed_files, flags, components, condensed_footer"
+  # Layout for PR comments (show flags breakdown)
+  layout: "condensed_header, condensed_files, flags, condensed_footer"
   # Update existing comment instead of creating new ones
   behavior: default
   # Post comment even if coverage doesn't change

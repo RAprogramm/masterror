@@ -506,7 +506,6 @@ jobs:
           echo "### Codecov Dashboard" >> $GITHUB_STEP_SUMMARY
           echo "- [Overall Coverage](https://app.codecov.io/gh/RAprogramm/masterror)" >> $GITHUB_STEP_SUMMARY
           echo "- [Flags View](https://app.codecov.io/gh/RAprogramm/masterror/flags)" >> $GITHUB_STEP_SUMMARY
-          echo "- [Components View](https://app.codecov.io/gh/RAprogramm/masterror/components)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Test Analytics" >> $GITHUB_STEP_SUMMARY
           echo "- JUnit XML: \`target/nextest/ci/junit.xml\`" >> $GITHUB_STEP_SUMMARY
