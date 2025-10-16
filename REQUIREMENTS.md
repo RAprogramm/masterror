@@ -6,6 +6,8 @@ SPDX-License-Identifier: MIT
 
 # Requirements Specification
 
+> This specification follows the [RustManifest](https://github.com/RAprogramm/RustManifest) development standards, which define professional guidelines for Rust project structure, code quality, testing, and documentation.
+
 ## 1. Problem Statement
 
 ### 1.1 Context

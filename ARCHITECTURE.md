@@ -21,6 +21,8 @@ SPDX-License-Identifier: MIT
 
 ### Design Philosophy
 
+This architecture adheres to the [RustManifest](https://github.com/RAprogramm/RustManifest) principles, emphasizing clean code, zero-cost abstractions, comprehensive testing, and professional documentation standards.
+
 masterror follows a **layered architecture** with clear separation between:
 
 1. **Core layer**: Framework-agnostic error types and metadata

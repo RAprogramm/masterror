@@ -78,9 +78,11 @@ Configure your editor to:
 
 ## Coding Standards
 
+This project adheres to the [RustManifest](https://github.com/RAprogramm/RustManifest) guidelines, which define comprehensive standards for professional Rust development.
+
 ### Style Guide
 
-We follow Rust standard formatting with project-specific overrides in `.rustfmt.toml`:
+We follow Rust standard formatting with project-specific overrides in `.rustfmt.toml` based on [RustManifest .rustfmt.toml reference](https://github.com/RAprogramm/RustManifest/blob/main/.rustfmt.toml):
 
 ```bash
 cargo +nightly fmt --all
