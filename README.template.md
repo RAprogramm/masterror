@@ -472,6 +472,7 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 - Browse the [crate documentation on docs.rs](https://docs.rs/masterror) for API
   details, feature-specific guides and transport tables.
 - Check [`CHANGELOG.md`](CHANGELOG.md) for release highlights and migration notes.
+- Review [RustManifest](https://github.com/RAprogramm/RustManifest) for the development standards and best practices this project follows.
 
 ---
 
