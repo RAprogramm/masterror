@@ -327,6 +327,7 @@ jobs:
         uses: codecov/test-results-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          slug: RAprogramm/masterror
 
       - name: Add test summary
         if: always() && matrix.rust == needs.msrv.outputs.version
@@ -417,6 +418,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./lcov.info
           fail_ci_if_error: false
+          slug: RAprogramm/masterror
 
       - name: Generate HTML coverage report
         run: cargo llvm-cov --all-features --workspace --html
