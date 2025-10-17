@@ -404,10 +404,10 @@ jobs:
       - name: Generate coverage
         run: |
           cargo llvm-cov nextest --profile ci --all-features --workspace --lcov --output-path lcov.info
-          cargo llvm-cov report --all-features --workspace --html
+          cargo llvm-cov report --html
 
           # Extract coverage percentage for summary
-          COVERAGE=$(cargo llvm-cov report --all-features --workspace | grep TOTAL | awk '{print $NF}')
+          COVERAGE=$(cargo llvm-cov report | grep TOTAL | awk '{print $NF}')
           echo "COVERAGE_PCT=${COVERAGE}" >> $GITHUB_ENV
 
       - name: Upload coverage to Codecov
