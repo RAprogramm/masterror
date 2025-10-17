@@ -372,7 +372,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: RAprogramm/masterror
-          files: ./junit.xml
+          files: ./target/nextest/ci/junit.xml
 
       - name: Add upload summary
         run: |
