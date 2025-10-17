@@ -6,12 +6,14 @@
 # Documentation: https://docs.codecov.com/docs/codecov-yaml
 
 codecov:
-  # Require CI to pass before processing coverage
-  require_ci_to_pass: no
-  # Maximum age of report before expiration
-  max_report_age: 12h
   # Default branch for coverage comparison
   branch: main
+  # Always use YAML from main branch
+  strict_yaml_branch: main
+  # Maximum age of report before expiration
+  max_report_age: 12h
+  # Require CI to pass before processing coverage
+  require_ci_to_pass: true
 
 coverage:
   # Precision for coverage percentage (0-5 decimal places)
@@ -19,7 +21,7 @@ coverage:
   # Round coverage to nearest value
   round: down
   # Coverage range (red to green)
-  range: "95...100"
+  range: 90..100
 
   status:
     # Project-level coverage status check
@@ -29,12 +31,11 @@ coverage:
         target: 95%
         # Allow coverage to drop by max 1% before failing
         threshold: 1%
-        # Only post status if coverage changes
-        if_ci_failed: error
-        # Informational only, don't block PR
-        informational: true
         # Compare against base commit
         base: auto
+        # Post status for all commits, not just PRs
+        if_ci_failed: error
+        only_pulls: false
 
     # Patch-level coverage status check (new code only)
     patch:
@@ -42,25 +43,22 @@ coverage:
         # Target coverage for new code
         target: 95%
         # Allow some flexibility for new code
-        threshold: 5%
-        # Only check if patch has changes
-        if_not_found: success
-        # Informational only, don't block PR
-        informational: true
+        threshold: 1%
+        base: auto
+        if_ci_failed: error
 
     # Changes status (diff between head and base)
     changes:
       default:
-        # Informational about coverage changes
-        informational: true
+        base: auto
+        if_ci_failed: error
 
   # Ignore these paths from coverage
   ignore:
     - "tests/**/*"
     - "benches/**/*"
     - "examples/**/*"
-    - "**/tests.rs"
-    - "**/benches.rs"
+    - "**/test_*.rs"
 
 # Pull request comment configuration
 comment:
@@ -74,6 +72,8 @@ comment:
   require_base: yes
   # Require head report to post comment
   require_head: yes
+  # Show carryforward flags in comment
+  show_carryforward_flags: true
   # Show project coverage in comment
   hide_project_coverage: false
 
