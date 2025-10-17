@@ -19,9 +19,10 @@ slow-timeout = { period = "60s", terminate-after = 2 }
 retries = { backoff = "exponential", count = 2, delay = "1s" }
 # Fail fast disabled to see all failures
 fail-fast = false
+
 # Enable JUnit XML output for Codecov Test Analytics
 [profile.ci.junit]
-path = "target/nextest/ci/junit.xml"
+path = "junit.xml"
 # Store output for failed tests only
 store-success-output = false
 store-failure-output = true
