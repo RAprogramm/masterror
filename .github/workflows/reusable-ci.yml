@@ -439,16 +439,11 @@ jobs:
         run: |
           cargo llvm-cov nextest --profile ci --all-features --workspace --lcov --output-path lcov.info
 
-      - name: Generate HTML coverage report
-        run: cargo llvm-cov --all-features --workspace --html
-
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: |
-            lcov.info
-            target/llvm-cov/html/
+          path: lcov.info
           retention-days: 30
 
       - name: Add generation summary
@@ -456,7 +451,6 @@ jobs:
           echo "## Coverage Generation" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- LCOV report: \`lcov.info\`" >> $GITHUB_STEP_SUMMARY
-          echo "- HTML report: \`target/llvm-cov/html/\`" >> $GITHUB_STEP_SUMMARY
           echo "- Saved as artifact for Codecov upload" >> $GITHUB_STEP_SUMMARY
 
   upload-coverage:
