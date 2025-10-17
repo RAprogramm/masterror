@@ -322,14 +322,6 @@ jobs:
           toolchain: ${{ matrix.rust }}
           all-features: ${{ inputs.all-features }}
 
-      - name: Upload JUnit XML as artifact
-        if: matrix.rust == needs.msrv.outputs.version && !cancelled()
-        uses: actions/upload-artifact@v4
-        with:
-          name: junit-test-results
-          path: target/nextest/ci/junit.xml
-          retention-days: 7
-
       - name: Add test summary
         if: always() && matrix.rust == needs.msrv.outputs.version
         run: |
@@ -353,32 +345,6 @@ jobs:
           else
             echo "README already up to date."
           fi
-
-  upload-test-results:
-    runs-on: ubuntu-latest
-    needs: [test, validate-codecov-yaml]
-    if: always()
-    permissions:
-      contents: read
-    steps:
-      - name: Download JUnit XML artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: junit-test-results
-          path: .
-
-      - name: Upload test results to Codecov
-        uses: codecov/test-results-action@v1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          slug: RAprogramm/masterror
-          files: ./target/nextest/ci/junit.xml
-
-      - name: Add upload summary
-        run: |
-          echo "## Test Results Upload" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- [View Test Analytics](https://app.codecov.io/gh/RAprogramm/masterror/tests)" >> $GITHUB_STEP_SUMMARY
 
   package:
     runs-on: ubuntu-latest
@@ -411,7 +377,7 @@ jobs:
       - name: Package (dry-run)
         run: cargo +${{ needs.msrv.outputs.version }} package --locked
 
-  generate-coverage:
+  coverage:
     runs-on: ubuntu-latest
     needs: [test, validate-codecov-yaml]
     permissions:
@@ -435,50 +401,40 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Generate coverage with nextest
+      - name: Generate coverage
         run: |
           cargo llvm-cov nextest --profile ci --all-features --workspace --lcov --output-path lcov.info
+          cargo llvm-cov report --all-features --workspace --html
 
-      - name: Upload coverage artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: lcov.info
-          retention-days: 30
-
-      - name: Add generation summary
-        run: |
-          echo "## Coverage Generation" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- LCOV report: \`lcov.info\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Saved as artifact for Codecov upload" >> $GITHUB_STEP_SUMMARY
-
-  upload-coverage:
-    runs-on: ubuntu-latest
-    needs: [generate-coverage]
-    if: always()
-    permissions:
-      contents: read
-    steps:
-      - name: Download coverage artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-report
-          path: .
+          # Extract coverage percentage for summary
+          COVERAGE=$(cargo llvm-cov report --all-features --workspace | grep TOTAL | awk '{print $NF}')
+          echo "COVERAGE_PCT=${COVERAGE}" >> $GITHUB_ENV
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./lcov.info
+          files: lcov.info
           fail_ci_if_error: false
-          slug: RAprogramm/masterror
 
-      - name: Add upload summary
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: target/llvm-cov/html/
+          retention-days: 30
+
+      - name: Add coverage summary
         run: |
-          echo "## Coverage Upload" >> $GITHUB_STEP_SUMMARY
+          echo "## :shield: Coverage Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- [View Coverage Dashboard](https://app.codecov.io/gh/RAprogramm/masterror)" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Total Coverage** | \`${COVERAGE_PCT}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target** | \`95%+\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> :information_source: Full HTML report available in workflow artifacts (30 day retention)" >> $GITHUB_STEP_SUMMARY
+          echo "> :chart_with_upwards_trend: [View on Codecov](https://app.codecov.io/gh/RAprogramm/masterror)" >> $GITHUB_STEP_SUMMARY
 
   benchmarks:
     runs-on: ubuntu-latest
