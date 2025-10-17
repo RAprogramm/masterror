@@ -409,7 +409,7 @@ jobs:
 
       - name: Generate coverage with nextest
         run: |
-          cargo llvm-cov nextest --all-features --workspace --lcov --output-path lcov.info
+          cargo llvm-cov nextest --profile ci --all-features --workspace --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
