@@ -20,6 +20,10 @@ inputs:
     description: "Additional arguments passed to cargo test"
     required: false
     default: ""
+  nextest-profile:
+    description: "Nextest profile to use (empty = use regular cargo test)"
+    required: false
+    default: ""
 runs:
   using: "composite"
   steps:
@@ -30,19 +34,33 @@ runs:
         ALL_FEATURES: ${{ inputs.all-features }}
         NO_FAIL_FAST: ${{ inputs.no-fail-fast }}
         EXTRA_ARGS: ${{ inputs.extra-args }}
+        NEXTEST_PROFILE: ${{ inputs.nextest-profile }}
       run: |
         set -euo pipefail
         args=("--workspace")
         if [ "${ALL_FEATURES}" = "true" ]; then
           args+=("--all-features")
         fi
-        if [ "${NO_FAIL_FAST}" = "true" ]; then
-          args+=("--no-fail-fast")
+
+        if [ -n "${NEXTEST_PROFILE}" ]; then
+          # Use cargo-nextest with specified profile
+          args+=("--profile" "${NEXTEST_PROFILE}")
+          if [ -n "${EXTRA_ARGS}" ]; then
+            # shellcheck disable=SC2206
+            extra_parts=(${EXTRA_ARGS})
+            args+=("${extra_parts[@]}")
+          fi
+          cargo +"${TOOLCHAIN}" nextest run "${args[@]}"
+        else
+          # Use regular cargo test
+          if [ "${NO_FAIL_FAST}" = "true" ]; then
+            args+=("--no-fail-fast")
+          fi
+          if [ -n "${EXTRA_ARGS}" ]; then
+            # shellcheck disable=SC2206
+            extra_parts=(${EXTRA_ARGS})
+            args+=("${extra_parts[@]}")
+          fi
+          cargo +"${TOOLCHAIN}" test "${args[@]}"
         fi
-        if [ -n "${EXTRA_ARGS}" ]; then
-          # shellcheck disable=SC2206
-          extra_parts=(${EXTRA_ARGS})
-          args+=("${extra_parts[@]}")
-        fi
-        cargo +"${TOOLCHAIN}" test "${args[@]}"
 

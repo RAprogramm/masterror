@@ -189,6 +189,12 @@ jobs:
           key: test-${{ matrix.rust }}
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
+      - name: Install cargo-nextest
+        if: matrix.rust == needs.msrv.outputs.version
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
       - name: Verify lockfile is committed
         if: matrix.rust == needs.msrv.outputs.version
         shell: bash
@@ -301,34 +307,34 @@ jobs:
           labels: ci, chore
           delete-branch: true
 
+      - name: Tests with nextest (${{ matrix.rust }})
+        if: matrix.rust == needs.msrv.outputs.version
+        uses: ./.github/actions/cargo-test
+        with:
+          toolchain: ${{ matrix.rust }}
+          all-features: ${{ inputs.all-features }}
+          nextest-profile: ci
+
       - name: Tests (${{ matrix.rust }})
+        if: matrix.rust != needs.msrv.outputs.version
         uses: ./.github/actions/cargo-test
         with:
           toolchain: ${{ matrix.rust }}
           all-features: ${{ inputs.all-features }}
 
-      - name: Generate test report (JSON format)
-        if: always()
-        continue-on-error: true
-        shell: bash
-        run: |
-          cargo +${{ matrix.rust }} test --all-features --workspace --no-fail-fast -- \
-            --format json -Z unstable-options --report-time > test-results-${{ matrix.rust }}.json || true
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Upload test results to Codecov
+        if: matrix.rust == needs.msrv.outputs.version && !cancelled()
+        uses: codecov/test-results-action@v1
         with:
-          name: test-results-${{ matrix.rust }}
-          path: test-results-${{ matrix.rust }}.json
-          retention-days: 30
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Add test summary
         if: always() && matrix.rust == needs.msrv.outputs.version
         run: |
-          echo "## Test Results (${{ matrix.rust }})" >> $GITHUB_STEP_SUMMARY
-          echo "Test artifacts uploaded with 30-day retention" >> $GITHUB_STEP_SUMMARY
-          echo "- Test report: \`test-results-${{ matrix.rust }}.json\`" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- JUnit XML: \`target/nextest/ci/junit.xml\`" >> $GITHUB_STEP_SUMMARY
+          echo "- [View Test Analytics](https://app.codecov.io/gh/RAprogramm/masterror/tests)" >> $GITHUB_STEP_SUMMARY
 
       - name: Auto-commit README changes (any branch)
         if: always() && matrix.rust == needs.msrv.outputs.version
@@ -382,7 +388,6 @@ jobs:
     needs: [test, validate-codecov-yaml]
     permissions:
       contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v5
 
@@ -402,50 +407,16 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Generate coverage for all tests
+      - name: Generate coverage with nextest
         run: |
           cargo llvm-cov nextest --all-features --workspace --lcov --output-path lcov.info
 
-      - name: Validate coverage file
-        run: |
-          set -euo pipefail
-          echo "=== Validating LCOV file ==="
-          if [ ! -f "lcov.info" ]; then
-            echo "ERROR: lcov.info not found"
-            exit 1
-          fi
-          size=$(wc -c < "lcov.info")
-          lines=$(wc -l < "lcov.info")
-          echo "✓ lcov.info: ${size} bytes, ${lines} lines"
-          if [ "$size" -eq 0 ]; then
-            echo "ERROR: lcov.info is empty"
-            exit 1
-          fi
-          echo "First 10 lines:"
-          head -10 "lcov.info"
-
-      - name: Generate JUnit XML test results
-        if: success() || failure()
-        run: |
-          mkdir -p target/nextest/ci
-          cargo nextest run --all-features --workspace --profile ci --no-fail-fast || true
-
-      - name: "Codecov: Upload coverage"
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./lcov.info
           fail_ci_if_error: false
-          use_oidc: true
-          name: codecov-coverage
-          verbose: true
-
-      - name: "Codecov: Upload test results"
-        if: success() || failure()
-        uses: codecov/test-results-action@v1
-        with:
-          files: ./target/nextest/ci/junit.xml
-          use_oidc: true
-          name: codecov-test-results
 
       - name: Generate HTML coverage report
         run: cargo llvm-cov --all-features --workspace --html
@@ -459,20 +430,15 @@ jobs:
             target/llvm-cov/html/
           retention-days: 30
 
-      - name: Add Codecov summary
+      - name: Add coverage summary
         run: |
-          echo "## Codecov Reports" >> $GITHUB_STEP_SUMMARY
+          echo "## Code Coverage Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Code Coverage" >> $GITHUB_STEP_SUMMARY
           echo "- LCOV report: \`lcov.info\`" >> $GITHUB_STEP_SUMMARY
           echo "- HTML report: \`target/llvm-cov/html/\`" >> $GITHUB_STEP_SUMMARY
           echo "- [View Coverage Dashboard](https://app.codecov.io/gh/RAprogramm/masterror)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Test Analytics" >> $GITHUB_STEP_SUMMARY
-          echo "- JUnit XML: \`target/nextest/ci/junit.xml\`" >> $GITHUB_STEP_SUMMARY
-          echo "- [View Test Analytics](https://app.codecov.io/gh/RAprogramm/masterror/tests)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "All artifacts uploaded with 30-day retention." >> $GITHUB_STEP_SUMMARY
+          echo "Coverage artifacts uploaded with 30-day retention." >> $GITHUB_STEP_SUMMARY
 
   benchmarks:
     runs-on: ubuntu-latest
