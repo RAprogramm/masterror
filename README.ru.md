@@ -13,10 +13,11 @@ SPDX-License-Identifier: MIT
 [![Downloads](https://img.shields.io/crates/d/masterror)](https://crates.io/crates/masterror)
 ![MSRV](https://img.shields.io/badge/MSRV-1.90-blue)
 ![License](https://img.shields.io/badge/License-MIT%20or%20Apache--2.0-informational)
+[![codecov](https://codecov.io/gh/RAprogramm/masterror/graph/badge.svg?token=V9JQDTZLXH)](https://codecov.io/gh/RAprogramm/masterror)
+
 [![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
 [![Security audit](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main&label=Security%20audit)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
 [![Cargo Deny](https://img.shields.io/github/actions/workflow/status/RAprogramm/masterror/ci.yml?branch=main&label=Cargo%20Deny)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
-[![codecov](https://codecov.io/gh/RAprogramm/masterror/graph/badge.svg?token=OD4F7LWWB8)](https://codecov.io/gh/RAprogramm/masterror)
 
 `masterror` вырос из набора вспомогательных функций в полноценный workspace с
 модульными крейтами для построения наблюдаемых и последовательных ошибок в
