@@ -59,6 +59,20 @@ coverage:
     - "benches/**/*"
     - "examples/**/*"
     - "**/test_*.rs"
+    - "**/*_test.rs"
+    - ".github/**/*"
+
+# Flags for separating test types
+flags:
+  unit:
+    paths:
+      - src/**/*.rs
+    carryforward: false
+
+  integration:
+    paths:
+      - tests/**/*.rs
+    carryforward: false
 
 # Pull request comment configuration
 comment:

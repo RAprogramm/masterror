@@ -403,7 +403,7 @@ jobs:
 
       - name: Generate coverage
         run: |
-          cargo llvm-cov nextest --profile ci --all-features --workspace --lcov --output-path lcov.info
+          cargo llvm-cov nextest --profile ci --all-features --lcov --output-path lcov.info
           cargo llvm-cov report --html
 
           # Extract coverage percentage for summary
