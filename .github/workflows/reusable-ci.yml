@@ -292,20 +292,20 @@ jobs:
           echo "updated=true" >> "$GITHUB_OUTPUT"
           BR="ci/readme-auto-refresh"
           git switch -c "$BR" || git checkout -b "$BR"
-          git push -u origin "$BR"
+          git push -u origin "$BR" --force
 
-      - name: Create pull request for README (fallback)
-        if: steps.readme_update.outputs.updated == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.rust == needs.msrv.outputs.version
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ci/readme-auto-refresh
-          title: "chore(readme): auto-refresh"
-          body: |
-            Автоматически сгенерированный апдейт README. Прямой пуш в `main` запрещён политикой, поэтому открыт PR.
-          commit-message: "chore(readme): auto-refresh [skip ci]"
-          labels: ci, chore
-          delete-branch: true
+          # Create or update PR using gh CLI
+          if gh pr view "$BR" --json number >/dev/null 2>&1; then
+            echo "PR already exists for $BR, updating..."
+          else
+            echo "Creating new PR for $BR..."
+            gh pr create \
+              --base main \
+              --head "$BR" \
+              --title "chore(readme): auto-refresh" \
+              --body "Автоматически сгенерированный апдейт README. Прямой пуш в \`main\` запрещён политикой, поэтому открыт PR." \
+              --label ci,chore || echo "Failed to create PR, it may already exist"
+          fi
 
       - name: Tests with nextest (${{ matrix.rust }})
         if: matrix.rust == needs.msrv.outputs.version
