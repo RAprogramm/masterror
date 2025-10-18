@@ -20,26 +20,6 @@ use itoa::Buffer as IntegerBuffer;
 
 use super::{ErrorResponse, ProblemJson};
 
-/// Converts a [`ProblemJson`] payload into an Actix [`HttpResponse`].
-///
-/// This function serializes the problem as RFC7807 `application/problem+json`,
-/// adds appropriate headers, and returns an HTTP response ready for the client.
-///
-/// # Headers
-///
-/// - `Content-Type`: Always set to `application/problem+json`
-/// - `Retry-After`: Added when `retry_after` is present (seconds)
-/// - `WWW-Authenticate`: Added when `www_authenticate` is present
-///
-/// # Examples
-///
-/// ```rust
-/// use masterror::{AppError, ProblemJson, response::actix_impl::respond_with_problem_json};
-///
-/// let problem = ProblemJson::from_app_error(AppError::not_found("resource missing"));
-/// let response = respond_with_problem_json(problem);
-/// assert_eq!(response.status(), 404);
-/// ```
 pub(crate) fn respond_with_problem_json(mut problem: ProblemJson) -> HttpResponse {
     let http_status = problem.status_code();
     let status = actix_web::http::StatusCode::from_u16(http_status.as_u16())
@@ -47,19 +27,26 @@ pub(crate) fn respond_with_problem_json(mut problem: ProblemJson) -> HttpRespons
     let retry_after = problem.retry_after;
     let www_authenticate = problem.www_authenticate.take();
 
-    let mut builder = HttpResponse::build(status);
-    builder.insert_header((CONTENT_TYPE, "application/problem+json"));
+    let mut response = HttpResponse::build(status).json(problem);
+
+    response
+        .headers_mut()
+        .insert(CONTENT_TYPE, "application/problem+json".parse().unwrap());
 
     if let Some(retry) = retry_after {
         let mut buffer = IntegerBuffer::new();
         let retry_str = buffer.format(retry);
-        builder.insert_header((RETRY_AFTER, retry_str));
+        if let Ok(hv) = retry_str.parse() {
+            response.headers_mut().insert(RETRY_AFTER, hv);
+        }
     }
-    if let Some(challenge) = www_authenticate {
-        builder.insert_header((WWW_AUTHENTICATE, challenge));
+    if let Some(challenge) = www_authenticate
+        && let Ok(hv) = challenge.parse()
+    {
+        response.headers_mut().insert(WWW_AUTHENTICATE, hv);
     }
 
-    builder.json(problem)
+    response
 }
 
 impl Responder for ProblemJson {
