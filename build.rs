@@ -166,3 +166,98 @@ pub fn probe(request: &mut Request<'_>, error: &(dyn Error + 'static)) {
     let _ = error;
 }
 "#;
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+
+    #[test]
+    fn is_packaged_manifest_detects_package_dir() {
+        let path = PathBuf::from("/home/user/project/target/package/masterror-0.1.0");
+        assert!(is_packaged_manifest(&path));
+    }
+
+    #[test]
+    fn is_packaged_manifest_rejects_normal_dir() {
+        let path = PathBuf::from("/home/user/project/src");
+        assert!(!is_packaged_manifest(&path));
+    }
+
+    #[test]
+    fn is_packaged_manifest_rejects_target_without_package() {
+        let path = PathBuf::from("/home/user/project/target/debug");
+        assert!(!is_packaged_manifest(&path));
+    }
+
+    #[test]
+    fn is_packaged_manifest_rejects_package_without_target() {
+        let path = PathBuf::from("/home/user/package/something");
+        assert!(!is_packaged_manifest(&path));
+    }
+
+    #[test]
+    fn has_env_returns_true_when_var_set() {
+        env::set_var("MASTERROR_TEST_VAR", "1");
+        assert!(has_env("MASTERROR_TEST_VAR"));
+        env::remove_var("MASTERROR_TEST_VAR");
+    }
+
+    #[test]
+    fn has_env_returns_false_when_var_not_set() {
+        env::remove_var("MASTERROR_TEST_VAR_NONEXISTENT");
+        assert!(!has_env("MASTERROR_TEST_VAR_NONEXISTENT"));
+    }
+
+    #[test]
+    fn has_env_returns_false_when_var_empty() {
+        env::set_var("MASTERROR_TEST_VAR_EMPTY", "");
+        assert!(!has_env("MASTERROR_TEST_VAR_EMPTY"));
+        env::remove_var("MASTERROR_TEST_VAR_EMPTY");
+    }
+
+    #[test]
+    fn allow_readme_drift_checks_both_vars() {
+        env::remove_var("MASTERROR_ALLOW_README_DRIFT");
+        env::remove_var("MASTERROR_SKIP_README_CHECK");
+        assert!(!allow_readme_drift());
+
+        env::set_var("MASTERROR_ALLOW_README_DRIFT", "1");
+        assert!(allow_readme_drift());
+        env::remove_var("MASTERROR_ALLOW_README_DRIFT");
+
+        env::set_var("MASTERROR_SKIP_README_CHECK", "1");
+        assert!(allow_readme_drift());
+        env::remove_var("MASTERROR_SKIP_README_CHECK");
+    }
+
+    #[test]
+    fn error_generic_support_struct_exists() {
+        let support = ErrorGenericSupport {
+            requires_feature_attr: true
+        };
+        assert!(support.requires_feature_attr);
+
+        let support = ErrorGenericSupport {
+            requires_feature_attr: false
+        };
+        assert!(!support.requires_feature_attr);
+    }
+
+    #[test]
+    fn stable_snippet_is_valid_rust() {
+        assert!(STABLE_SNIPPET.contains("use std::error::{Error, Request}"));
+        assert!(STABLE_SNIPPET.contains("pub fn probe"));
+        assert!(!STABLE_SNIPPET.contains("#![feature"));
+    }
+
+    #[test]
+    fn nightly_snippet_is_valid_rust_with_feature() {
+        assert!(NIGHTLY_SNIPPET.contains("use std::error::{Error, Request}"));
+        assert!(NIGHTLY_SNIPPET.contains("pub fn probe"));
+        assert!(NIGHTLY_SNIPPET.contains("#![feature(error_generic_member_access)]"));
+        assert!(NIGHTLY_SNIPPET.contains("provide_ref"));
+        assert!(NIGHTLY_SNIPPET.contains("provide_value"));
+    }
+}
