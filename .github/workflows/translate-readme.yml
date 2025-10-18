@@ -38,12 +38,12 @@ jobs:
           restore-keys: |
             continuous-translation-
 
-      - name: Translate to Russian and Chinese
+      - name: Translate to Russian and Korean
         uses: pelikhan/action-continuous-translation@v0
         continue-on-error: true
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          lang: ru,zh
+          lang: ru,ko
           files: README.md
           source: en
           max_translation_tokens: 8000
@@ -53,6 +53,6 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           file_pattern: '**.md* translations/**'
-          commit_message: '[cai] 🤖 auto-translate README to Russian and Chinese'
+          commit_message: '[cai] 🤖 auto-translate README to Russian and Korean'
           commit_user_name: 'genaiscript'
           commit_user_email: '41898282+github-actions[bot]@users.noreply.github.com'

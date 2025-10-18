@@ -23,7 +23,7 @@ SPDX-License-Identifier: MIT
   [![IMIR](https://raw.githubusercontent.com/RAprogramm/infra-metrics-insight-renderer/main/assets/badges/imir-badge-simple-public.svg)](https://github.com/RAprogramm/infra-metrics-insight-renderer)
 
   > 🇷🇺 [Читайте README на русском языке](README.ru.md)
-  > 🇨🇳 [中文版 README](README.zh-CN.md)
+  > 🇰🇷 [한국어 README](README.ko.md)
 
 </div>
 
