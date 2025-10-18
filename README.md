@@ -57,7 +57,7 @@ of redaction and metadata.
 <div align="right">
 
 <div align="right">
-  <a href="#-table-of-contents">
+  <a href="#table-of-contents">
     <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
   </a>
 </div>
@@ -94,7 +94,7 @@ of redaction and metadata.
 <div align="right">
 
 <div align="right">
-  <a href="#-table-of-contents">
+  <a href="#table-of-contents">
     <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
   </a>
 </div>
@@ -114,7 +114,7 @@ of redaction and metadata.
 <div align="right">
 
 <div align="right">
-  <a href="#-table-of-contents">
+  <a href="#table-of-contents">
     <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
   </a>
 </div>
@@ -142,7 +142,7 @@ The build script keeps the full feature snippet below in sync with
 <div align="right">
 
 <div align="right">
-  <a href="#-table-of-contents">
+  <a href="#table-of-contents">
     <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
   </a>
 </div>
@@ -170,7 +170,7 @@ masterror = { version = "0.24.19", default-features = false }
 <div align="right">
 
 <div align="right">
-  <a href="#-table-of-contents">
+  <a href="#table-of-contents">
     <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
   </a>
 </div>
@@ -203,7 +203,7 @@ throughput for tighter confidence intervals when investigating changes.
 <div align="right">
 
 <div align="right">
-  <a href="#-table-of-contents">
+  <a href="#table-of-contents">
     <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
   </a>
 </div>
@@ -241,7 +241,7 @@ Hierarchical view starting with the entire project at the top, drilling down thr
 <div align="right">
 
 <div align="right">
-  <a href="#-table-of-contents">
+  <a href="#table-of-contents">
     <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
   </a>
 </div>
@@ -289,7 +289,7 @@ fn do_work(flag: bool) -> AppResult<()> {
 <div align="right">
 
 <div align="right">
-  <a href="#-table-of-contents">
+  <a href="#table-of-contents">
     <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
   </a>
 </div>
@@ -593,7 +593,7 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 <div align="right">
 
 <div align="right">
-  <a href="#-table-of-contents">
+  <a href="#table-of-contents">
     <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
   </a>
 </div>
@@ -614,7 +614,7 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 <div align="right">
 
 <div align="right">
-  <a href="#-table-of-contents">
+  <a href="#table-of-contents">
     <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
   </a>
 </div>
@@ -630,7 +630,7 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 <div align="right">
 
 <div align="right">
-  <a href="#-table-of-contents">
+  <a href="#table-of-contents">
     <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
   </a>
 </div>
@@ -642,6 +642,5 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 ## License
 
 MSRV: **1.90** · License: **MIT OR Apache-2.0** · No `unsafe`
-
 
 
