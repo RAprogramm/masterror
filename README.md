@@ -20,6 +20,7 @@ SPDX-License-Identifier: MIT
 
   [![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
   [![Hits-of-Code](https://hitsofcode.com/github/RAprogramm/masterror?branch=main)](https://hitsofcode.com/github/RAprogramm/masterror/view?branch=main)
+  [![IMIR](https://raw.githubusercontent.com/RAprogramm/infra-metrics-insight-renderer/main/assets/badges/imir-badge-simple-public.svg)](https://github.com/RAprogramm/infra-metrics-insight-renderer)
 
   > 🇷🇺 [Читайте README на русском языке](README.ru.md)
   > 🇨🇳 [中文版 README](README.zh-CN.md)
@@ -625,7 +626,7 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 
 ## Metrics
 
-![Metrics](https://github.com/RAprogramm/infra-metrics-renderer/blob/main/metrics/masterror.svg)
+![Metrics](https://raw.githubusercontent.com/RAprogramm/infra-metrics-insight-renderer/main/metrics/masterror.svg)
 
 <div align="right">
 
