@@ -6,8 +6,6 @@ SPDX-License-Identifier: MIT
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/materror.png" alt="masterror" width="600"/>
-
-  <h1>masterror</h1>
   <p><strong>Framework-agnostic application error types</strong></p>
 
   <!-- ⚠️ GENERATED FILE: edit README.template.md and run `cargo build` to refresh README.md before publishing.
@@ -57,7 +55,11 @@ of redaction and metadata.
 
 <div align="right">
 
-[![Go to top](https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png)](#-table-of-contents)
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
 
 </div>
 
@@ -90,7 +92,11 @@ of redaction and metadata.
 
 <div align="right">
 
-[![Go to top](https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png)](#-table-of-contents)
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
 
 </div>
 
@@ -106,7 +112,11 @@ of redaction and metadata.
 
 <div align="right">
 
-[![Go to top](https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png)](#-table-of-contents)
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
 
 </div>
 
@@ -130,7 +140,11 @@ The build script keeps the full feature snippet below in sync with
 
 <div align="right">
 
-[![Go to top](https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png)](#-table-of-contents)
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
 
 </div>
 
@@ -149,7 +163,11 @@ masterror = { version = "{{CRATE_VERSION}}", default-features = false }
 
 <div align="right">
 
-[![Go to top](https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png)](#-table-of-contents)
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
 
 </div>
 
@@ -178,7 +196,11 @@ throughput for tighter confidence intervals when investigating changes.
 
 <div align="right">
 
-[![Go to top](https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png)](#-table-of-contents)
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
 
 </div>
 
@@ -212,7 +234,11 @@ Hierarchical view starting with the entire project at the top, drilling down thr
 
 <div align="right">
 
-[![Go to top](https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png)](#-table-of-contents)
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
 
 </div>
 
@@ -256,7 +282,11 @@ fn do_work(flag: bool) -> AppResult<()> {
 
 <div align="right">
 
-[![Go to top](https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png)](#-table-of-contents)
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
 
 </div>
 
@@ -556,7 +586,11 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 
 <div align="right">
 
-[![Go to top](https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png)](#-table-of-contents)
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
 
 </div>
 
@@ -573,7 +607,11 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 
 <div align="right">
 
-[![Go to top](https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png)](#-table-of-contents)
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
 
 </div>
 
@@ -585,7 +623,11 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 
 <div align="right">
 
-[![Go to top](https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png)](#-table-of-contents)
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
 
 </div>
 
