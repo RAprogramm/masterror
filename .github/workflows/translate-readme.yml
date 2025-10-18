@@ -8,261 +8,77 @@ on:
       - 'README.md'
       - 'README.template.md'
       - '.github/workflows/translate-readme.yml'
-      - '.github/scripts/translate_readme.py'
   workflow_dispatch:
 
 permissions:
   contents: write
+  models: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   translate:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        language:
-          - code: ru
-            name: Russian
-          - code: zh-CN
-            name: Chinese
-          # Uncomment to enable more languages:
-          # - code: es
-          #   name: Spanish
-          # - code: de
-          #   name: German
-          # - code: fr
-          #   name: French
-          # - code: ja
-          #   name: Japanese
+    # Skip if commit is from bot (prevent loops)
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && github.actor != 'github-actions[bot]'"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CLASSIC }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Cache GenAIScript translations
+        uses: actions/cache@v4
         with:
-          python-version: '3.11'
+          path: .genaiscript/cache/**
+          key: genaiscript-${{ github.run_id }}
+          restore-keys: |
+            genaiscript-
 
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install googletrans==4.0.0rc1
+      - name: Translate to Russian
+        uses: pelikhan/action-continuous-translation@v0
+        with:
+          github_token: ${{ secrets.CLASSIC }}
+          lang: ru
+          files: README.md
+          source: en
+          max_translation_tokens: 8000
+          max_validation_tokens: 2000
+          filename_template: "{{dirname}}/{{basename}}.{{lang}}{{extname}}"
 
-      - name: Create translation script
-        run: |
-          mkdir -p .github/scripts
-          cat > .github/scripts/translate_readme.py << 'EOF'
-          #!/usr/bin/env python3
-          """
-          Professional README translation script with format preservation.
+      - name: Translate to Chinese
+        uses: pelikhan/action-continuous-translation@v0
+        with:
+          github_token: ${{ secrets.CLASSIC }}
+          lang: zh-CN
+          files: README.md
+          source: en
+          max_translation_tokens: 8000
+          max_validation_tokens: 2000
+          filename_template: "{{dirname}}/{{basename}}.{{lang}}{{extname}}"
 
-          Preserves:
-          - Code blocks (```...```)
-          - Inline code (`...`)
-          - Links and URLs
-          - Badges and images
-          - HTML tags
-          - Technical terms (configurable)
-          - Markdown formatting
-          """
-
-          import re
-          import sys
-          import time
-          from typing import List, Tuple
-          from googletrans import Translator
-
-          # Technical terms that should NOT be translated
-          PRESERVED_TERMS = {
-              'masterror', 'AppError', 'AppErrorKind', 'AppCode', 'ErrorResponse',
-              'axum', 'actix', 'tonic', 'sqlx', 'tokio', 'reqwest', 'redis',
-              'serde', 'tracing', 'metrics', 'backtrace', 'MSRV', 'HTTP', 'gRPC',
-              'JSON', 'API', 'CLI', 'SDK', 'WASM', 'OpenAPI', 'RFC7807',
-              'GitHub', 'Cargo', 'Rust', 'workspace', 'derive', 'macro',
-              'ProblemJson', 'Metadata', 'Result', 'Option', 'Arc', 'Box',
-          }
-
-          class SmartTranslator:
-              def __init__(self, target_lang: str):
-                  self.translator = Translator()
-                  self.target_lang = target_lang
-                  self.placeholders = []
-
-              def preserve_element(self, text: str) -> str:
-                  """Store element and return placeholder."""
-                  idx = len(self.placeholders)
-                  self.placeholders.append(text)
-                  return f'___PRESERVE_{idx}___'
-
-              def restore_elements(self, text: str) -> str:
-                  """Restore all preserved elements."""
-                  for idx, element in enumerate(self.placeholders):
-                      text = text.replace(f'___PRESERVE_{idx}___', element)
-                  return text
-
-              def translate_text(self, text: str, retry=3) -> str:
-                  """Translate with retry logic."""
-                  for attempt in range(retry):
-                      try:
-                          result = self.translator.translate(
-                              text,
-                              src='en',
-                              dest=self.target_lang
-                          )
-                          return result.text
-                      except Exception as e:
-                          if attempt < retry - 1:
-                              time.sleep(1)
-                              continue
-                          print(f"Translation failed: {e}", file=sys.stderr)
-                          return text
-                  return text
-
-              def process_line(self, line: str) -> str:
-                  """Process a single line preserving formatting."""
-                  if not line.strip():
-                      return line
-
-                  # Preserve HTML tags
-                  line = re.sub(r'<[^>]+>', lambda m: self.preserve_element(m.group(0)), line)
-
-                  # Preserve badges and images
-                  line = re.sub(r'!\[([^\]]*)\]\([^\)]+\)', lambda m: self.preserve_element(m.group(0)), line)
-
-                  # Preserve links (but translate link text)
-                  def handle_link(match):
-                      text, url = match.groups()
-                      # Don't translate if it's a technical term
-                      if text.strip() in PRESERVED_TERMS or text.strip().startswith('`'):
-                          return self.preserve_element(match.group(0))
-                      # Translate link text but preserve URL
-                      url_placeholder = self.preserve_element(f']({url})')
-                      return f'[{text}' + url_placeholder
-
-                  line = re.sub(r'\[([^\]]+)\]\(([^\)]+)\)', handle_link, line)
-
-                  # Preserve inline code
-                  line = re.sub(r'`[^`\n]+`', lambda m: self.preserve_element(m.group(0)), line)
-
-                  # Preserve technical terms
-                  for term in PRESERVED_TERMS:
-                      pattern = r'\b' + re.escape(term) + r'\b'
-                      line = re.sub(pattern, lambda m: self.preserve_element(m.group(0)), line, flags=re.IGNORECASE)
-
-                  # Handle headers
-                  header_match = re.match(r'^(#{1,6})\s+(.+)$', line)
-                  if header_match:
-                      level, text = header_match.groups()
-                      translated = self.translate_text(text)
-                      return f'{level} {translated}'
-
-                  # Handle list items
-                  list_match = re.match(r'^(\s*[-*+]\s+)(.+)$', line)
-                  if list_match:
-                      prefix, text = list_match.groups()
-                      translated = self.translate_text(text)
-                      return f'{prefix}{translated}'
-
-                  # Translate regular text
-                  return self.translate_text(line)
-
-              def translate_file(self, source_path: str, target_path: str, lang_name: str):
-                  """Translate entire README file."""
-                  print(f"🌐 Translating README to {lang_name}...")
-
-                  with open(source_path, 'r', encoding='utf-8') as f:
-                      content = f.read()
-
-                  # Preserve code blocks
-                  code_blocks = []
-                  def save_code(match):
-                      code_blocks.append(match.group(0))
-                      return f'___CODE_BLOCK_{len(code_blocks)-1}___'
-
-                  content = re.sub(r'```[\s\S]*?```', save_code, content)
-
-                  # Process line by line
-                  lines = content.split('\n')
-                  translated_lines = []
-
-                  for i, line in enumerate(lines):
-                      if i % 10 == 0:
-                          print(f"Progress: {i}/{len(lines)} lines", end='\r', file=sys.stderr)
-
-                      processed = self.process_line(line)
-                      translated_lines.append(processed)
-
-                  result = '\n'.join(translated_lines)
-
-                  # Restore code blocks
-                  for i, block in enumerate(code_blocks):
-                      result = result.replace(f'___CODE_BLOCK_{i}___', block)
-
-                  # Restore all preserved elements
-                  result = self.restore_elements(result)
-
-                  # Add header notice
-                  notice = f"""<!--
-          SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
-
-          SPDX-License-Identifier: MIT
-
-          ⚠️  AUTO-TRANSLATED / АВТОМАТИЧЕСКИЙ ПЕРЕВОД
-          This file is automatically translated from README.md.
-          To make changes, edit README.template.md and rebuild README.md.
-
-          Этот файл автоматически переведен из README.md.
-          Для внесения изменений отредактируйте README.template.md и пересоберите README.md.
-          -->
-
-          """
-
-                  with open(target_path, 'w', encoding='utf-8') as f:
-                      f.write(notice + result)
-
-                  print(f"\n✅ Translation complete: {target_path}")
-
-          if __name__ == '__main__':
-              if len(sys.argv) != 4:
-                  print(f"Usage: {sys.argv[0]} <lang_code> <lang_name> <source_file>")
-                  sys.exit(1)
-
-              lang_code = sys.argv[1]
-              lang_name = sys.argv[2]
-              source = sys.argv[3]
-              target = f'README.{lang_code}.md'
-
-              translator = SmartTranslator(lang_code)
-              translator.translate_file(source, target, lang_name)
-          EOF
-
-          chmod +x .github/scripts/translate_readme.py
-
-      - name: Translate README
-        run: |
-          python3 .github/scripts/translate_readme.py \
-            "${{ matrix.language.code }}" \
-            "${{ matrix.language.name }}" \
-            "README.md"
-
-      - name: Check for changes
-        id: changes
-        run: |
-          if git diff --quiet "README.${{ matrix.language.code }}.md"; then
-            echo "changed=false" >> $GITHUB_OUTPUT
-          else
-            echo "changed=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Commit translation
-        if: steps.changes.outputs.changed == 'true'
+      - name: Commit translations
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "README.${{ matrix.language.code }}.md"
-          git commit -m "chore: auto-translate README to ${{ matrix.language.name }} [skip ci]"
+
+          if git diff --quiet README.ru.md README.zh-CN.md; then
+            echo "No translation changes detected"
+            exit 0
+          fi
+
+          git add README.ru.md README.zh-CN.md
+          git commit -m "chore: auto-translate README [skip ci]
+
+Automated AI translation via action-continuous-translation.
+
+Translations updated at $(date -u +'%Y-%m-%d %H:%M UTC')
+Source: README.md (English)
+Targets: Russian, Chinese (Simplified)"
+
           git pull --rebase origin main
           git push origin main
