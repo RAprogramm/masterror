@@ -306,6 +306,10 @@ jobs:
               --body "Автоматически сгенерированный апдейт README. Прямой пуш в \`main\` запрещён политикой, поэтому открыт PR."
           fi
 
+          # Enable auto-merge for README refresh PR
+          echo "Enabling auto-merge for $BR..."
+          gh pr merge --auto --squash --yes "$BR" || echo "Auto-merge already enabled or failed"
+
       - name: Tests with nextest (${{ matrix.rust }})
         if: matrix.rust == needs.msrv.outputs.version
         uses: ./.github/actions/cargo-test
