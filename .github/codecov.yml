@@ -4,83 +4,124 @@
 
 # Codecov configuration for masterror project
 # Documentation: https://docs.codecov.com/docs/codecov-yaml
+# Validate: curl -X POST --data-binary @.github/codecov.yml https://codecov.io/validate
 
 codecov:
   # Default branch for coverage comparison
   branch: main
-  # Always use YAML from main branch
+  # Always use YAML from main branch for consistency
   strict_yaml_branch: main
-  # Maximum age of report before expiration
+  # Maximum age of report before expiration (12 hours)
   max_report_age: 12h
   # Require CI to pass before processing coverage
   require_ci_to_pass: true
+  # Notify only on status changes to reduce noise
+  notify:
+    wait_for_ci: true
 
 coverage:
-  # Precision for coverage percentage (0-5 decimal places)
+  # Precision for coverage percentage (2 decimal places)
   precision: 2
-  # Round coverage to nearest value
+  # Round down to be conservative
   round: down
-  # Coverage range (red to green)
+  # Coverage range: 90-100% (red to green)
   range: 90..100
 
   status:
     # Project-level coverage status check
     project:
       default:
-        # Target coverage percentage (auto = maintain current level)
+        # Target: maintain 95% minimum coverage
         target: 95%
-        # Allow coverage to drop by max 1% before failing
+        # Threshold: allow max 1% drop before failing
         threshold: 1%
-        # Compare against base commit
+        # Compare against parent commit
         base: auto
-        # Post status for all commits, not just PRs
+        # Fail if CI fails
         if_ci_failed: error
+        # Check all commits, not just PRs
         only_pulls: false
+        # Include files with no coverage changes
+        if_no_uploads: error
+        # Include files not in diff
+        if_not_found: success
 
     # Patch-level coverage status check (new code only)
     patch:
       default:
-        # Target coverage for new code
+        # New code must be 95% covered minimum
         target: 95%
-        # Allow some flexibility for new code
+        # Allow 1% threshold for edge cases
         threshold: 1%
         base: auto
         if_ci_failed: error
+        # Only check patches in PRs
+        only_pulls: true
+        if_no_uploads: error
+        if_not_found: success
 
     # Changes status (diff between head and base)
     changes:
       default:
         base: auto
         if_ci_failed: error
+        if_no_uploads: error
+        if_not_found: success
 
-  # Ignore these paths from coverage
+  # Paths to ignore from coverage reports
   ignore:
+    # Integration tests directory
     - "tests/**/*"
+    # Benchmarks
     - "benches/**/*"
+    # Examples
     - "examples/**/*"
+    # Documentation
+    - "docs/**/*"
+    # Build scripts
+    - "build.rs"
+    - "build/**/*"
+    # Workspace member crates (proc macros and templates)
+    - "masterror-derive/**/*"
+    - "masterror-template/**/*"
+    # Test modules inside src/
+    - "**/tests.rs"
     - "**/test_*.rs"
     - "**/*_test.rs"
+    # CI/CD configuration
     - ".github/**/*"
+    - ".cargo/**/*"
+    # Scripts
+    - ".scripts/**/*"
+    - ".hooks/**/*"
+    # License files
+    - "LICENSES/**/*"
+    # Generated/temporary files
+    - "target/**/*"
 
-# Flags for separating test types
-flags:
-  unit:
-    paths:
-      - src/**/*.rs
+# Component isolation using flags
+# Note: Flags require separate uploads with -F flag in CI
+# Example: cargo llvm-cov --lcov --output-path lcov-main.info
+#          codecov -f lcov-main.info -F main
+flag_management:
+  # Default rules for all flags
+  default_rules:
+    # Don't carry forward missing flags by default
     carryforward: false
-
-  integration:
-    paths:
-      - tests/**/*.rs
-    carryforward: false
+    # Require manual flag specification
+    statuses:
+      - type: project
+        target: auto
+      - type: patch
+        target: auto
 
 # Pull request comment configuration
 comment:
-  # Layout for PR comments (Free tier compatible)
+  # Use condensed layout (free tier compatible)
   layout: "condensed_header, condensed_files, condensed_footer"
   # Update existing comment instead of creating new ones
   behavior: default
-  # Post comment even if coverage doesn't change
+  # Always post comment, even if no changes
   require_changes: false
   # Require base report for comparison
   require_base: yes
@@ -90,7 +131,22 @@ comment:
   show_carryforward_flags: true
   # Show project coverage in comment
   hide_project_coverage: false
+  # Show additional metrics
+  after_n_builds: 1
 
 # GitHub integration settings
 github_checks:
+  # Enable inline annotations for uncovered lines
   annotations: true
+
+# Ignore specific commits (e.g., README-only changes)
+ignore:
+  - "README.md"
+  - "README.ru.md"
+  - "README.template.md"
+  - "*.md"
+  - "LICENSE*"
+  - ".gitignore"
+  - ".rustfmt.toml"
+  - "deny.toml"
+  - "Makefile.toml"
