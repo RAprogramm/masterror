@@ -328,7 +328,7 @@ jobs:
           echo "## Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- JUnit XML: \`target/nextest/ci/junit.xml\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Saved as artifact for Codecov upload" >> $GITHUB_STEP_SUMMARY
+          echo "- Test results will be uploaded to Codecov Test Analytics in coverage job" >> $GITHUB_STEP_SUMMARY
 
       - name: Auto-commit README changes (any branch)
         if: always() && matrix.rust == needs.msrv.outputs.version
@@ -403,7 +403,7 @@ jobs:
 
       - name: Generate coverage
         run: |
-          cargo llvm-cov nextest --profile ci --all-features --lcov --output-path lcov.info
+          cargo llvm-cov nextest --workspace --profile ci --all-features --lcov --output-path lcov.info
           cargo llvm-cov report --html
 
           # Extract coverage percentage for summary
@@ -417,11 +417,40 @@ jobs:
           files: lcov.info
           fail_ci_if_error: false
 
+      - name: Check JUnit XML exists
+        id: check_junit
+        if: always()
+        shell: bash
+        run: |
+          if [ -f target/nextest/ci/junit.xml ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "JUnit XML found at target/nextest/ci/junit.xml"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Warning: JUnit XML not found at target/nextest/ci/junit.xml"
+          fi
+
+      - name: Upload test results to Codecov
+        if: always() && steps.check_junit.outputs.exists == 'true'
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: target/nextest/ci/junit.xml
+          fail_ci_if_error: false
+
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: target/llvm-cov/html/
+          retention-days: 30
+
+      - name: Upload test results artifact
+        if: always() && steps.check_junit.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: target/nextest/ci/junit.xml
           retention-days: 30
 
       - name: Add coverage summary
@@ -434,6 +463,7 @@ jobs:
           echo "| **Target** | \`95%+\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "> :information_source: Full HTML report available in workflow artifacts (30 day retention)" >> $GITHUB_STEP_SUMMARY
+          echo "> :test_tube: Test results (JUnit XML) uploaded to Codecov Test Analytics" >> $GITHUB_STEP_SUMMARY
           echo "> :chart_with_upwards_trend: [View on Codecov](https://app.codecov.io/gh/RAprogramm/masterror)" >> $GITHUB_STEP_SUMMARY
 
   benchmarks:

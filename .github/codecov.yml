@@ -81,10 +81,7 @@ coverage:
     # Build scripts
     - "build.rs"
     - "build/**/*"
-    # Workspace member crates (proc macros and templates)
-    - "masterror-derive/**/*"
-    - "masterror-template/**/*"
-    # Test modules inside src/
+    # Test modules inside src/ (all workspace members)
     - "**/tests.rs"
     - "**/test_*.rs"
     - "**/*_test.rs"
