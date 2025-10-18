@@ -303,8 +303,7 @@ jobs:
               --base main \
               --head "$BR" \
               --title "chore(readme): auto-refresh" \
-              --body "Автоматически сгенерированный апдейт README. Прямой пуш в \`main\` запрещён политикой, поэтому открыт PR." \
-              --label ci,chore || echo "Failed to create PR, it may already exist"
+              --body "Автоматически сгенерированный апдейт README. Прямой пуш в \`main\` запрещён политикой, поэтому открыт PR."
           fi
 
       - name: Tests with nextest (${{ matrix.rust }})
