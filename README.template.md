@@ -22,6 +22,7 @@ SPDX-License-Identifier: MIT
   [![Hits-of-Code](https://hitsofcode.com/github/RAprogramm/masterror?branch=main)](https://hitsofcode.com/github/RAprogramm/masterror/view?branch=main)
 
   > 🇷🇺 [Читайте README на русском языке](README.ru.md)
+  > 🇨🇳 [中文版 README](README.zh-CN.md)
 
 </div>
 
