@@ -1,6 +1,7 @@
 name: Translate README
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -8,7 +9,6 @@ on:
       - 'README.md'
       - 'README.template.md'
       - '.github/workflows/translate-readme.yml'
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -22,63 +22,40 @@ jobs:
   translate:
     runs-on: ubuntu-latest
     # Skip if commit is from bot (prevent loops)
-    if: "!contains(github.event.head_commit.message, '[skip ci]') && github.actor != 'github-actions[bot]'"
+    if: "!contains(github.event.head_commit.message, '[cai]') && github.actor != 'genaiscript'"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.CLASSIC }}
 
       - name: Cache GenAIScript translations
         uses: actions/cache@v4
         with:
           path: .genaiscript/cache/**
-          key: genaiscript-${{ github.run_id }}
+          key: continuous-translation-${{ github.run_id }}
           restore-keys: |
-            genaiscript-
+            continuous-translation-
 
-      - name: Translate to Russian
+      - name: Translate to Russian and Chinese
         uses: pelikhan/action-continuous-translation@v0
+        continue-on-error: true
         with:
-          github_token: ${{ secrets.CLASSIC }}
-          lang: ru
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          lang: ru,zh-CN
           files: README.md
           source: en
           max_translation_tokens: 8000
           max_validation_tokens: 2000
-          filename_template: "{{dirname}}/{{basename}}.{{lang}}{{extname}}"
 
-      - name: Translate to Chinese
-        uses: pelikhan/action-continuous-translation@v0
-        with:
-          github_token: ${{ secrets.CLASSIC }}
-          lang: zh-CN
-          files: README.md
-          source: en
-          max_translation_tokens: 8000
-          max_validation_tokens: 2000
-          filename_template: "{{dirname}}/{{basename}}.{{lang}}{{extname}}"
+      - name: Pull latest changes
+        run: git pull --ff-only
 
       - name: Commit translations
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          if git diff --quiet README.ru.md README.zh-CN.md; then
-            echo "No translation changes detected"
-            exit 0
-          fi
-
-          git add README.ru.md README.zh-CN.md
-          git commit -m "chore: auto-translate README [skip ci]
-
-Automated AI translation via action-continuous-translation.
-
-Translations updated at $(date -u +'%Y-%m-%d %H:%M UTC')
-Source: README.md (English)
-Targets: Russian, Chinese (Simplified)"
-
-          git pull --rebase origin main
-          git push origin main
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          file_pattern: '**.md* translations/**'
+          commit_message: '[cai] 🤖 auto-translate README to Russian and Chinese'
+          commit_user_name: 'genaiscript'
+          commit_user_email: '41898282+github-actions[bot]@users.noreply.github.com'
