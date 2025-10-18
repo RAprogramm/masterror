@@ -4,22 +4,47 @@ SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
 SPDX-License-Identifier: MIT
 -->
 
-# masterror · Framework-agnostic application error types
+<div align="center">
+  <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/materror.png" alt="masterror" width="600"/>
+  <p><strong>Framework-agnostic application error types</strong></p>
 
-<!-- ⚠️ GENERATED FILE: edit README.template.md and run `cargo build` to refresh README.md before publishing.
-     CI packaging will fail if README.md is stale. -->
+  <!-- ⚠️ GENERATED FILE: edit README.template.md and run `cargo build` to refresh README.md before publishing.
+       CI packaging will fail if README.md is stale. -->
 
-[![Crates.io](https://img.shields.io/crates/v/masterror)](https://crates.io/crates/masterror)
-[![docs.rs](https://img.shields.io/docsrs/masterror)](https://docs.rs/masterror)
-[![Downloads](https://img.shields.io/crates/d/masterror)](https://crates.io/crates/masterror)
-![MSRV](https://img.shields.io/badge/MSRV-1.90-blue)
-![License](https://img.shields.io/badge/License-MIT%20or%20Apache--2.0-informational)
-[![codecov](https://codecov.io/gh/RAprogramm/masterror/graph/badge.svg?token=V9JQDTZLXH)](https://codecov.io/gh/RAprogramm/masterror)
+  [![Crates.io](https://img.shields.io/crates/v/masterror)](https://crates.io/crates/masterror)
+  [![docs.rs](https://img.shields.io/docsrs/masterror)](https://docs.rs/masterror)
+  [![Downloads](https://img.shields.io/crates/d/masterror)](https://crates.io/crates/masterror)
+  ![MSRV](https://img.shields.io/badge/MSRV-1.90-blue)
+  ![License](https://img.shields.io/badge/License-MIT%20or%20Apache--2.0-informational)
+  [![codecov](https://codecov.io/gh/RAprogramm/masterror/graph/badge.svg?token=V9JQDTZLXH)](https://codecov.io/gh/RAprogramm/masterror)
 
-[![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
-[![Hits-of-Code](https://hitsofcode.com/github/RAprogramm/masterror?branch=main)](https://hitsofcode.com/github/RAprogramm/masterror/view?branch=main)
+  [![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
+  [![Hits-of-Code](https://hitsofcode.com/github/RAprogramm/masterror?branch=main)](https://hitsofcode.com/github/RAprogramm/masterror/view?branch=main)
 
-> 🇷🇺 Читайте README на [русском языке](README.ru.md).
+  > 🇷🇺 [Читайте README на русском языке](README.ru.md)
+
+</div>
+
+---
+
+## 📑 Table of Contents
+
+- [🚀 Overview](#-overview)
+- [✨ Highlights](#-highlights)
+- [📦 Workspace Crates](#-workspace-crates)
+- [🎯 Feature Flags](#-feature-flags)
+- [📥 Installation](#-installation)
+- [⚡ Benchmarks](#-benchmarks)
+- [📊 Code Coverage](#-code-coverage)
+- [🎮 Quick Start](#-quick-start)
+- [🔧 Advanced Usage](#-advanced-usage)
+- [📚 Resources](#-resources)
+- [📈 Metrics](#-metrics)
+- [📜 License](#-license)
+
+---
+
+## 🚀 Overview
 
 `masterror` grew from a handful of helpers into a workspace of composable crates for
 building consistent, observable error surfaces across Rust services. The core
@@ -28,7 +53,19 @@ integrations and telemetry without pulling in heavyweight defaults. No
 `unsafe`, MSRV is pinned, and the derive macros keep your domain types in charge
 of redaction and metadata.
 
-### Highlights
+<div align="right">
+
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
+
+</div>
+
+---
+
+## ✨ Highlights
 
 - **Unified taxonomy.** `AppError`, `AppErrorKind` and `AppCode` model domain and
   transport concerns with conservative HTTP/gRPC mappings, turnkey retry/auth
@@ -53,7 +90,19 @@ of redaction and metadata.
 - **Typed control-flow macros.** `ensure!` and `fail!` short-circuit functions
   with your domain errors without allocating or formatting on the happy path.
 
-### Workspace crates
+<div align="right">
+
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
+
+</div>
+
+---
+
+## 📦 Workspace Crates
 
 | Crate | What it provides | When to depend on it |
 | --- | --- | --- |
@@ -61,7 +110,19 @@ of redaction and metadata.
 | [`masterror-derive`](masterror-derive/README.md) | Proc-macros backing `#[derive(Error)]`, `#[derive(Masterror)]`, `#[app_error]` and `#[provide]`. | Brought in automatically via `masterror`; depend directly only for macro hacking. |
 | [`masterror-template`](masterror-template/README.md) | Shared template parser used by the derive macros for formatter analysis. | Internal dependency; reuse when you need the template parser elsewhere. |
 
-### Feature flags at a glance
+<div align="right">
+
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
+
+</div>
+
+---
+
+## 🎯 Feature Flags
 
 Pick only what you need; everything is off by default.
 
@@ -77,7 +138,19 @@ Pick only what you need; everything is off by default.
 The build script keeps the full feature snippet below in sync with
 `Cargo.toml`.
 
-### TL;DR
+<div align="right">
+
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
+
+</div>
+
+---
+
+## 📥 Installation
 
 ~~~toml
 [dependencies]
@@ -93,9 +166,19 @@ masterror = { version = "0.24.19", default-features = false }
 # ] }
 ~~~
 
+<div align="right">
+
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
+
+</div>
+
 ---
 
-### Benchmarks
+## ⚡ Benchmarks
 
 Criterion benchmarks cover the hottest conversion paths so regressions are
 visible before shipping. Run them locally with:
@@ -116,9 +199,19 @@ The suite emits two groups:
 Adjust Criterion CLI flags (for example `--sample-size 200` or `--save-baseline local`) after `--` to trade
 throughput for tighter confidence intervals when investigating changes.
 
+<div align="right">
+
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
+
+</div>
+
 ---
 
-### Code Coverage
+## 📊 Code Coverage
 
 [![codecov](https://codecov.io/gh/RAprogramm/masterror/branch/main/graph/badge.svg?token=V9JQDTZLXH)](https://app.codecov.io/gh/RAprogramm/masterror)
 
@@ -144,10 +237,22 @@ Hierarchical view starting with the entire project at the top, drilling down thr
 
 </details>
 
+<div align="right">
+
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
+
+</div>
+
 ---
 
+## 🎮 Quick Start
+
 <details>
-  <summary><b>Quick start</b></summary>
+  <summary><b>Create an error</b></summary>
 
 Create an error:
 
@@ -179,6 +284,20 @@ fn do_work(flag: bool) -> AppResult<()> {
 ~~~
 
 </details>
+
+<div align="right">
+
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
+
+</div>
+
+---
+
+## 🔧 Advanced Usage
 
 <details>
   <summary><b>Fail fast without sacrificing typing</b></summary>
@@ -470,7 +589,19 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 
 </details>
 
-### Further resources
+<div align="right">
+
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
+
+</div>
+
+---
+
+## 📚 Resources
 
 - Explore the [error-handling wiki](docs/wiki/index.md) for step-by-step guides,
   comparisons with `thiserror`/`anyhow`, and troubleshooting recipes.
@@ -479,13 +610,35 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 - Check [`CHANGELOG.md`](CHANGELOG.md) for release highlights and migration notes.
 - Review [RustManifest](https://github.com/RAprogramm/RustManifest) for the development standards and best practices this project follows.
 
+<div align="right">
+
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
+
+</div>
+
 ---
 
-## Metrics
+## 📈 Metrics
 
 ![Metrics](https://github.com/RAprogramm/infra-metrics-renderer/blob/main/metrics/masterror.svg)
 
+<div align="right">
+
+<div align="right">
+  <a href="#-table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
+
+</div>
+
 ---
+
+## 📜 License
 
 MSRV: **1.90** · License: **MIT OR Apache-2.0** · No `unsafe`
 
