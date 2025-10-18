@@ -308,7 +308,7 @@ jobs:
 
           # Enable auto-merge for README refresh PR
           echo "Enabling auto-merge for $BR..."
-          gh pr merge --auto --squash "$BR" || echo "Auto-merge already enabled or failed"
+          gh pr merge --auto --squash --yes "$BR" || echo "Auto-merge already enabled or failed"
 
       - name: Tests with nextest (${{ matrix.rust }})
         if: matrix.rust == needs.msrv.outputs.version
