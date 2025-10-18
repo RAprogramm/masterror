@@ -23,6 +23,7 @@ include = [
   "tests/**",
   "README.md",
   "README.ru.md",
+  "README.zh-CN.md",
   "README.template.md",
   "CHANGELOG.md",
   "LICENSE-APACHE",
