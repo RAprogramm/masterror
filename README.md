@@ -27,24 +27,24 @@ SPDX-License-Identifier: MIT
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 
-- [🚀 Overview](#-overview)
-- [✨ Highlights](#-highlights)
-- [📦 Workspace Crates](#-workspace-crates)
-- [🎯 Feature Flags](#-feature-flags)
-- [📥 Installation](#-installation)
-- [⚡ Benchmarks](#-benchmarks)
-- [📊 Code Coverage](#-code-coverage)
-- [🎮 Quick Start](#-quick-start)
-- [🔧 Advanced Usage](#-advanced-usage)
-- [📚 Resources](#-resources)
-- [📈 Metrics](#-metrics)
-- [📜 License](#-license)
+- [Overview](#overview)
+- [Highlights](#highlights)
+- [Workspace Crates](#workspace-crates)
+- [Feature Flags](#feature-flags)
+- [Installation](#installation)
+- [Benchmarks](#benchmarks)
+- [Code Coverage](#code-coverage)
+- [Quick Start](#quick-start)
+- [Advanced Usage](#advanced-usage)
+- [Resources](#resources)
+- [Metrics](#metrics)
+- [License](#license)
 
 ---
 
-## 🚀 Overview
+## Overview
 
 `masterror` grew from a handful of helpers into a workspace of composable crates for
 building consistent, observable error surfaces across Rust services. The core
@@ -65,7 +65,7 @@ of redaction and metadata.
 
 ---
 
-## ✨ Highlights
+## Highlights
 
 - **Unified taxonomy.** `AppError`, `AppErrorKind` and `AppCode` model domain and
   transport concerns with conservative HTTP/gRPC mappings, turnkey retry/auth
@@ -102,7 +102,7 @@ of redaction and metadata.
 
 ---
 
-## 📦 Workspace Crates
+## Workspace Crates
 
 | Crate | What it provides | When to depend on it |
 | --- | --- | --- |
@@ -122,7 +122,7 @@ of redaction and metadata.
 
 ---
 
-## 🎯 Feature Flags
+## Feature Flags
 
 Pick only what you need; everything is off by default.
 
@@ -150,7 +150,7 @@ The build script keeps the full feature snippet below in sync with
 
 ---
 
-## 📥 Installation
+## Installation
 
 ~~~toml
 [dependencies]
@@ -178,7 +178,7 @@ masterror = { version = "0.24.19", default-features = false }
 
 ---
 
-## ⚡ Benchmarks
+## Benchmarks
 
 Criterion benchmarks cover the hottest conversion paths so regressions are
 visible before shipping. Run them locally with:
@@ -211,7 +211,7 @@ throughput for tighter confidence intervals when investigating changes.
 
 ---
 
-## 📊 Code Coverage
+## Code Coverage
 
 [![codecov](https://codecov.io/gh/RAprogramm/masterror/branch/main/graph/badge.svg?token=V9JQDTZLXH)](https://app.codecov.io/gh/RAprogramm/masterror)
 
@@ -249,7 +249,7 @@ Hierarchical view starting with the entire project at the top, drilling down thr
 
 ---
 
-## 🎮 Quick Start
+## Quick Start
 
 <details>
   <summary><b>Create an error</b></summary>
@@ -297,7 +297,7 @@ fn do_work(flag: bool) -> AppResult<()> {
 
 ---
 
-## 🔧 Advanced Usage
+## Advanced Usage
 
 <details>
   <summary><b>Fail fast without sacrificing typing</b></summary>
@@ -601,7 +601,7 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 
 ---
 
-## 📚 Resources
+## Resources
 
 - Explore the [error-handling wiki](docs/wiki/index.md) for step-by-step guides,
   comparisons with `thiserror`/`anyhow`, and troubleshooting recipes.
@@ -622,7 +622,7 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 
 ---
 
-## 📈 Metrics
+## Metrics
 
 ![Metrics](https://github.com/RAprogramm/infra-metrics-renderer/blob/main/metrics/masterror.svg)
 
@@ -638,7 +638,7 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 
 ---
 
-## 📜 License
+## License
 
 MSRV: **1.90** · License: **MIT OR Apache-2.0** · No `unsafe`
 
