@@ -369,3 +369,189 @@ fn write_if_changed(path: &Path, contents: &str) -> Result<(), ReadmeError> {
     fs::write(path, contents)?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalize_converts_crlf_to_lf() {
+        let input = "line1\r\nline2\r\nline3";
+        let result = normalize(input);
+        assert_eq!(result, "line1\nline2\nline3");
+    }
+
+    #[test]
+    fn normalize_removes_single_trailing_newline() {
+        let input = "line1\nline2\n";
+        let result = normalize(input);
+        assert_eq!(result, "line1\nline2");
+    }
+
+    #[test]
+    fn normalize_handles_empty_string() {
+        let input = "";
+        let result = normalize(input);
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn normalize_handles_only_newline() {
+        let input = "\n";
+        let result = normalize(input);
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn find_placeholder_detects_placeholder() {
+        let text = "Some text {{PLACEHOLDER}} more text";
+        let result = find_placeholder(text);
+        assert_eq!(result, Some("PLACEHOLDER".to_string()));
+    }
+
+    #[test]
+    fn find_placeholder_returns_none_when_no_placeholder() {
+        let text = "No placeholders here";
+        let result = find_placeholder(text);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn find_placeholder_handles_unclosed_braces() {
+        let text = "{{INCOMPLETE";
+        let result = find_placeholder(text);
+        assert!(result.is_some());
+        assert!(result.unwrap().starts_with("INCOMPLETE"));
+    }
+
+    #[test]
+    fn render_feature_bullets_creates_list() {
+        let features = vec![
+            FeatureDoc {
+                name:        "actix".to_string(),
+                description: "Actix-web integration".to_string(),
+                extra:       vec![]
+            },
+            FeatureDoc {
+                name:        "axum".to_string(),
+                description: "Axum integration".to_string(),
+                extra:       vec!["Requires Tokio runtime".to_string()]
+            },
+        ];
+
+        let result = render_feature_bullets(&features);
+
+        assert!(result.contains("- `actix` — Actix-web integration"));
+        assert!(result.contains("- `axum` — Axum integration"));
+        assert!(result.contains("  - Requires Tokio runtime"));
+    }
+
+    #[test]
+    fn render_feature_bullets_handles_empty_list() {
+        let features = vec![];
+        let result = render_feature_bullets(&features);
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn render_conversion_bullets_creates_list() {
+        let conversions = vec![
+            "std::io::Error → AppError::Internal".to_string(),
+            "String → AppError::BadRequest".to_string(),
+        ];
+
+        let result = render_conversion_bullets(&conversions);
+
+        assert_eq!(
+            result,
+            "- std::io::Error → AppError::Internal\n- String → AppError::BadRequest"
+        );
+    }
+
+    #[test]
+    fn render_conversion_bullets_handles_empty_list() {
+        let conversions = vec![];
+        let result = render_conversion_bullets(&conversions);
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn render_feature_snippet_groups_features() {
+        let features = vec![
+            FeatureDoc {
+                name:        "feat1".to_string(),
+                description: "desc1".to_string(),
+                extra:       vec![]
+            },
+            FeatureDoc {
+                name:        "feat2".to_string(),
+                description: "desc2".to_string(),
+                extra:       vec![]
+            },
+            FeatureDoc {
+                name:        "feat3".to_string(),
+                description: "desc3".to_string(),
+                extra:       vec![]
+            },
+        ];
+
+        let result = render_feature_snippet(&features, 2);
+
+        assert!(result.contains("\"feat1\", \"feat2\","));
+        assert!(result.contains("\"feat3\""));
+    }
+
+    #[test]
+    fn render_feature_snippet_handles_empty_list() {
+        let features = vec![];
+        let result = render_feature_snippet(&features, 4);
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn readme_error_display_formats_io_error() {
+        let err = ReadmeError::Io(io::Error::new(io::ErrorKind::NotFound, "file not found"));
+        let formatted = format!("{}", err);
+        assert!(formatted.contains("IO error"));
+        assert!(formatted.contains("file not found"));
+    }
+
+    #[test]
+    fn readme_error_display_formats_missing_metadata() {
+        let err = ReadmeError::MissingMetadata("package.metadata.masterror");
+        let formatted = format!("{}", err);
+        assert!(formatted.contains("Missing metadata section"));
+        assert!(formatted.contains("package.metadata.masterror"));
+    }
+
+    #[test]
+    fn readme_error_display_formats_unknown_feature() {
+        let err = ReadmeError::UnknownFeatureInOrder("unknown_feat".to_string());
+        let formatted = format!("{}", err);
+        assert!(formatted.contains("Feature order references unknown feature"));
+        assert!(formatted.contains("unknown_feat"));
+    }
+
+    #[test]
+    fn readme_error_display_formats_duplicate_feature() {
+        let err = ReadmeError::DuplicateFeatureInOrder("duplicate_feat".to_string());
+        let formatted = format!("{}", err);
+        assert!(formatted.contains("listed multiple times"));
+        assert!(formatted.contains("duplicate_feat"));
+    }
+
+    #[test]
+    fn readme_error_display_formats_unresolved_placeholder() {
+        let err = ReadmeError::UnresolvedPlaceholder("PLACEHOLDER".to_string());
+        let formatted = format!("{}", err);
+        assert!(formatted.contains("{{PLACEHOLDER}}"));
+        assert!(formatted.contains("was not substituted"));
+    }
+
+    #[test]
+    fn readme_error_from_io_error_converts() {
+        let io_err = io::Error::new(io::ErrorKind::PermissionDenied, "access denied");
+        let err: ReadmeError = io_err.into();
+        assert!(matches!(err, ReadmeError::Io(_)));
+    }
+}
