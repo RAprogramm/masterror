@@ -20,6 +20,19 @@ use itoa::Buffer as IntegerBuffer;
 
 use super::{ErrorResponse, ProblemJson};
 
+/// Converts a [`ProblemJson`] into an Actix [`HttpResponse`].
+///
+/// # Examples
+///
+/// ```rust
+/// use masterror::{AppError, ProblemJson};
+///
+/// let error = AppError::not_found("resource not found");
+/// let problem = ProblemJson::from_app_error(error);
+///
+/// // In an Actix handler, ProblemJson implements Responder
+/// // and will automatically use this conversion
+/// ```
 pub(crate) fn respond_with_problem_json(mut problem: ProblemJson) -> HttpResponse {
     let http_status = problem.status_code();
     let status = actix_web::http::StatusCode::from_u16(http_status.as_u16())
