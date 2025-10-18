@@ -49,9 +49,6 @@ jobs:
           max_translation_tokens: 8000
           max_validation_tokens: 2000
 
-      - name: Pull latest changes
-        run: git pull --ff-only
-
       - name: Commit translations
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
