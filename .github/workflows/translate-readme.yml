@@ -43,7 +43,7 @@ jobs:
         continue-on-error: true
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          lang: ru,zh-CN
+          lang: ru,zh
           files: README.md
           source: en
           max_translation_tokens: 8000
