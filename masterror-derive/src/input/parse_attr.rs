@@ -752,4 +752,538 @@ mod tests {
         let result = parse_provide_attribute(&attr);
         assert!(result.is_err());
     }
+
+    #[test]
+    fn parse_app_error_attribute_basic() {
+        let attr: Attribute = parse_quote! { #[app_error(kind = ErrorKind::Internal)] };
+        let result = parse_app_error_attribute(&attr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_app_error_attribute_with_code() {
+        let attr: Attribute = parse_quote! { #[app_error(kind = K, code = C)] };
+        let result = parse_app_error_attribute(&attr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_app_error_attribute_with_message_flag() {
+        let attr: Attribute = parse_quote! { #[app_error(kind = K, message)] };
+        let result = parse_app_error_attribute(&attr);
+        assert!(result.is_ok());
+        assert!(result.unwrap().expose_message);
+    }
+
+    #[test]
+    fn parse_app_error_attribute_with_message_true() {
+        let attr: Attribute = parse_quote! { #[app_error(kind = K, message = true)] };
+        let result = parse_app_error_attribute(&attr);
+        assert!(result.is_ok());
+        assert!(result.unwrap().expose_message);
+    }
+
+    #[test]
+    fn parse_app_error_attribute_with_message_false() {
+        let attr: Attribute = parse_quote! { #[app_error(kind = K, message = false)] };
+        let result = parse_app_error_attribute(&attr);
+        assert!(result.is_ok());
+        assert!(!result.unwrap().expose_message);
+    }
+
+    #[test]
+    fn parse_app_error_attribute_duplicate_kind() {
+        let attr: Attribute = parse_quote! { #[app_error(kind = A, kind = B)] };
+        let result = parse_app_error_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_app_error_attribute_duplicate_code() {
+        let attr: Attribute = parse_quote! { #[app_error(kind = K, code = A, code = B)] };
+        let result = parse_app_error_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_app_error_attribute_duplicate_message() {
+        let attr: Attribute = parse_quote! { #[app_error(kind = K, message, message)] };
+        let result = parse_app_error_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_app_error_attribute_missing_kind() {
+        let attr: Attribute = parse_quote! { #[app_error(code = C)] };
+        let result = parse_app_error_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_app_error_attribute_unknown_option() {
+        let attr: Attribute = parse_quote! { #[app_error(kind = K, foo = bar)] };
+        let result = parse_app_error_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_app_error_attribute_missing_comma() {
+        let attr: Attribute = parse_quote! { #[app_error(kind = K code = C)] };
+        let result = parse_app_error_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_masterror_attribute_basic() {
+        let attr: Attribute = parse_quote! { #[masterror(code = 1, category = Cat::A)] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_masterror_attribute_with_message() {
+        let attr: Attribute = parse_quote! { #[masterror(code = 1, category = C, message)] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+        assert!(result.unwrap().expose_message);
+    }
+
+    #[test]
+    fn parse_masterror_attribute_with_message_false() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, message = false)] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+        assert!(!result.unwrap().expose_message);
+    }
+
+    #[test]
+    fn parse_masterror_attribute_with_redact() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, redact(message))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+        assert!(result.unwrap().redact.message);
+    }
+
+    #[test]
+    fn parse_masterror_attribute_with_telemetry() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, telemetry(x, y))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().telemetry.len(), 2);
+    }
+
+    #[test]
+    fn parse_masterror_attribute_with_map_grpc() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, map.grpc = Code::INTERNAL)] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+        assert!(result.unwrap().map_grpc.is_some());
+    }
+
+    #[test]
+    fn parse_masterror_attribute_with_map_problem() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, map.problem = "error")] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+        assert!(result.unwrap().map_problem.is_some());
+    }
+
+    #[test]
+    fn parse_masterror_attribute_duplicate_code() {
+        let attr: Attribute = parse_quote! { #[masterror(code = 1, code = 2, category = C)] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_masterror_attribute_duplicate_category() {
+        let attr: Attribute = parse_quote! { #[masterror(code = 1, category = A, category = B)] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_masterror_attribute_duplicate_message() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, message, message)] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_masterror_attribute_duplicate_redact() {
+        let attr: Attribute = parse_quote! { #[masterror(code = 1, category = C, redact(message), redact(message))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_masterror_attribute_duplicate_telemetry() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, telemetry(x), telemetry(y))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_masterror_attribute_duplicate_map_grpc() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, map.grpc = A, map.grpc = B)] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_masterror_attribute_duplicate_map_problem() {
+        let attr: Attribute = parse_quote! { #[masterror(code = 1, category = C, map.problem = A, map.problem = B)] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_masterror_attribute_unknown_map() {
+        let attr: Attribute = parse_quote! { #[masterror(code = 1, category = C, map.foo = bar)] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_masterror_attribute_unknown_option() {
+        let attr: Attribute = parse_quote! { #[masterror(code = 1, category = C, foo = bar)] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_masterror_attribute_missing_code() {
+        let attr: Attribute = parse_quote! { #[masterror(category = C)] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_masterror_attribute_missing_category() {
+        let attr: Attribute = parse_quote! { #[masterror(code = 1)] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_masterror_attribute_missing_comma() {
+        let attr: Attribute = parse_quote! { #[masterror(code = 1 category = C)] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_redact_block_empty() {
+        let attr: Attribute = parse_quote! { #[masterror(code = 1, category = C, redact())] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_redact_block_message_only() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, redact(message))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+        assert!(result.unwrap().redact.message);
+    }
+
+    #[test]
+    fn parse_redact_block_message_explicit_true() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, redact(message = true))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+        assert!(result.unwrap().redact.message);
+    }
+
+    #[test]
+    fn parse_redact_block_message_explicit_false() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, redact(message = false))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+        assert!(!result.unwrap().redact.message);
+    }
+
+    #[test]
+    fn parse_redact_block_duplicate_message() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, redact(message, message))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_redact_block_fields_single() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, redact(fields("password")))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().redact.fields.len(), 1);
+    }
+
+    #[test]
+    fn parse_redact_block_fields_multiple() {
+        let attr: Attribute = parse_quote! { #[masterror(code = 1, category = C, redact(fields("password", "token")))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().redact.fields.len(), 2);
+    }
+
+    #[test]
+    fn parse_redact_block_duplicate_fields() {
+        let attr: Attribute = parse_quote! { #[masterror(code = 1, category = C, redact(fields("a"), fields("b")))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_redact_block_unknown_option() {
+        let attr: Attribute = parse_quote! { #[masterror(code = 1, category = C, redact(foo))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_redact_block_missing_comma() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, redact(message fields("a")))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_redact_fields_empty() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, redact(fields()))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_redact_fields_policy_none() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, redact(fields("f" = none)))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_redact_fields_policy_redact() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, redact(fields("f" = redact)))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_redact_fields_policy_hash() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, redact(fields("f" = hash)))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_redact_fields_policy_last4() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, redact(fields("f" = last4)))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_redact_fields_policy_last_four() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, redact(fields("f" = last_four)))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_redact_fields_unknown_policy() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, redact(fields("f" = unknown)))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_redact_fields_missing_comma() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, redact(fields("a" "b")))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_telemetry_block_single() {
+        let attr: Attribute = parse_quote! { #[masterror(code = 1, category = C, telemetry(x))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().telemetry.len(), 1);
+    }
+
+    #[test]
+    fn parse_telemetry_block_multiple() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, telemetry(x, y, z))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().telemetry.len(), 3);
+    }
+
+    #[test]
+    fn parse_telemetry_block_trailing_comma_error() {
+        let attr: Attribute = parse_quote! { #[masterror(code = 1, category = C, telemetry(x,))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_telemetry_block_missing_comma() {
+        let attr: Attribute =
+            parse_quote! { #[masterror(code = 1, category = C, telemetry(x y))] };
+        let result = parse_masterror_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_error_attribute_template() {
+        let attr: Attribute = parse_quote! { #[error("error message")] };
+        let result = parse_error_attribute(&attr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_error_attribute_template_with_args() {
+        let attr: Attribute = parse_quote! { #[error("error: {}", msg)] };
+        let result = parse_error_attribute(&attr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_error_attribute_transparent() {
+        let attr: Attribute = parse_quote! { #[error(transparent)] };
+        let result = parse_error_attribute(&attr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_error_attribute_transparent_with_args() {
+        let attr: Attribute = parse_quote! { #[error(transparent, foo)] };
+        let result = parse_error_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_error_attribute_fmt() {
+        let attr: Attribute = parse_quote! { #[error(fmt = custom_formatter)] };
+        let result = parse_error_attribute(&attr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_error_attribute_fmt_with_args() {
+        let attr: Attribute = parse_quote! { #[error(fmt = formatter, arg)] };
+        let result = parse_error_attribute(&attr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_error_attribute_fmt_duplicate() {
+        let attr: Attribute = parse_quote! { #[error(fmt = f, fmt = g)] };
+        let result = parse_error_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_error_attribute_fmt_with_args_ok() {
+        let attr: Attribute = parse_quote! { #[error(fmt = f, arg, extra)] };
+        let result = parse_error_attribute(&attr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_error_attribute_with_args() {
+        let attr: Attribute = parse_quote! { #[error("msg", foo, bar, baz)] };
+        let result = parse_error_attribute(&attr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_error_attribute_invalid_start() {
+        let attr: Attribute = parse_quote! { #[error(123)] };
+        let result = parse_error_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn extract_masterror_spec_valid() {
+        let attrs: Vec<Attribute> =
+            vec![parse_quote! { #[masterror(code = 1, category = Cat::A)] }];
+        let mut errors = Vec::new();
+        let result = extract_masterror_spec(&attrs, &mut errors);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_some());
+    }
+
+    #[test]
+    fn extract_masterror_spec_error() {
+        let attrs: Vec<Attribute> = vec![parse_quote! { #[masterror(invalid)] }];
+        let mut errors = Vec::new();
+        let result = extract_masterror_spec(&attrs, &mut errors);
+        assert!(result.is_err());
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn extract_app_error_spec_valid() {
+        let attrs: Vec<Attribute> = vec![parse_quote! { #[app_error(kind = Kind::A)] }];
+        let mut errors = Vec::new();
+        let result = extract_app_error_spec(&attrs, &mut errors);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_some());
+    }
+
+    #[test]
+    fn extract_app_error_spec_error() {
+        let attrs: Vec<Attribute> = vec![parse_quote! { #[app_error(invalid)] }];
+        let mut errors = Vec::new();
+        let result = extract_app_error_spec(&attrs, &mut errors);
+        assert!(result.is_err());
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn extract_display_spec_valid() {
+        let attrs: Vec<Attribute> = vec![parse_quote! { #[error("message")] }];
+        let mut errors = Vec::new();
+        let result = extract_display_spec(&attrs, Span::call_site(), &mut errors);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn extract_display_spec_error() {
+        let attrs: Vec<Attribute> = vec![parse_quote! { #[error(invalid)] }];
+        let mut errors = Vec::new();
+        let result = extract_display_spec(&attrs, Span::call_site(), &mut errors);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_provide_attribute_missing_comma() {
+        let attr: Attribute = parse_quote! { #[provide(ref = A value = B)] };
+        let result = parse_provide_attribute(&attr);
+        assert!(result.is_err());
+    }
 }

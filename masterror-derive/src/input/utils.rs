@@ -633,4 +633,102 @@ mod tests {
         let err = placeholder_error(Span::call_site(), &ident);
         assert!(err.to_string().contains("field `1` is not available"));
     }
+
+    #[test]
+    fn validate_from_usage_source_companion_implicit_source_without_attr() {
+        let fields: syn::FieldsNamed = parse_quote! {
+            { #[from] x: io::Error, #[source] y: io::Error }
+        };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        errors.clear();
+
+        let display = make_template();
+        validate_from_usage(&parsed, &display, &mut errors);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn validate_backtrace_usage_single_with_extra_field() {
+        let fields: syn::FieldsNamed = parse_quote! {
+            { #[backtrace] bt1: Backtrace, other: String }
+        };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        errors.clear();
+
+        validate_backtrace_usage(&parsed, &mut errors);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn is_arc_type_non_path_type() {
+        let ty: syn::Type = parse_quote! { [u8; 32] };
+        assert!(!is_arc_type(&ty));
+    }
+
+    #[test]
+    fn is_arc_type_tuple() {
+        let ty: syn::Type = parse_quote! { (u8, u8) };
+        assert!(!is_arc_type(&ty));
+    }
+
+    #[test]
+    fn is_backtrace_type_non_path() {
+        let ty: syn::Type = parse_quote! { [u8; 32] };
+        assert!(!is_backtrace_type(&ty));
+    }
+
+    #[test]
+    fn is_backtrace_type_tuple() {
+        let ty: syn::Type = parse_quote! { (u8, u8) };
+        assert!(!is_backtrace_type(&ty));
+    }
+
+    #[test]
+    fn is_backtrace_type_empty_segments() {
+        let ty: syn::Type = parse_quote! { String };
+        assert!(!is_backtrace_type(&ty));
+    }
+
+    #[test]
+    fn option_inner_type_non_type_arg() {
+        let ty: syn::Type = parse_quote! { Option<'a> };
+        assert!(option_inner_type(&ty).is_none());
+    }
+
+    #[test]
+    fn option_inner_type_lifetime_arg() {
+        let ty: syn::Type = parse_quote! { std::option::Option<'static> };
+        assert!(option_inner_type(&ty).is_none());
+    }
+
+    #[test]
+    fn validate_from_usage_transparent_multiple_fields() {
+        let fields: syn::FieldsNamed = parse_quote! {
+            { #[from] x: io::Error, y: String }
+        };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        errors.clear();
+
+        let attr: syn::Attribute = parse_quote! { #[error(transparent)] };
+        let display = DisplaySpec::Transparent {
+            attribute: Box::new(attr)
+        };
+        validate_from_usage(&parsed, &display, &mut errors);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn is_arc_type_no_segments() {
+        let ty: syn::Type = parse_quote! { fn() };
+        assert!(!is_arc_type(&ty));
+    }
+
+    #[test]
+    fn is_option_type_empty_path() {
+        let ty: syn::Type = parse_quote! { Vec<i32> };
+        assert!(!is_option_type(&ty));
+    }
 }

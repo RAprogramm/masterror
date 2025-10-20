@@ -273,7 +273,7 @@ fn format_arg_value_span(value: &FormatArgValue) -> Span {
 
 #[cfg(test)]
 mod tests {
-    use syn::parse_quote;
+    use syn::{parse::ParseStream, parse_quote};
 
     use super::*;
 
@@ -299,5 +299,235 @@ mod tests {
         let span1 = Span::call_site();
         let span2 = Span::call_site();
         let _ = join_spans(span1, span2);
+    }
+
+    #[test]
+    fn parse_format_args_empty() {
+        let result = syn::parse2::<syn::Expr>(quote::quote! { "" })
+            .and_then(|_| syn::parse::Parser::parse2(parse_format_args, quote::quote! {}));
+        assert!(result.is_ok());
+        assert!(result.unwrap().args.is_empty());
+    }
+
+    #[test]
+    fn parse_format_args_leading_comma_only() {
+        let result = syn::parse::Parser::parse2(parse_format_args, quote::quote! { , });
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_format_args_positional() {
+        let result = syn::parse::Parser::parse2(parse_format_args, quote::quote! { , value });
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+        assert_eq!(spec.args.len(), 1);
+    }
+
+    #[test]
+    fn parse_format_args_named() {
+        let result =
+            syn::parse::Parser::parse2(parse_format_args, quote::quote! { , name = value });
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+        assert_eq!(spec.args.len(), 1);
+    }
+
+    #[test]
+    fn parse_format_args_duplicate_named() {
+        let result =
+            syn::parse::Parser::parse2(parse_format_args, quote::quote! { , x = a, x = b });
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_format_args_mixed() {
+        let result = syn::parse::Parser::parse2(
+            parse_format_args,
+            quote::quote! { , pos1, name = val, pos2 }
+        );
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+        assert_eq!(spec.args.len(), 3);
+    }
+
+    #[test]
+    fn raw_format_arg_named() {
+        let result: Result<RawFormatArg, _> = syn::parse2(quote::quote! { name = value });
+        assert!(result.is_ok());
+        match result.unwrap() {
+            RawFormatArg::Named {
+                ..
+            } => {}
+            _ => panic!("expected Named variant")
+        }
+    }
+
+    #[test]
+    fn raw_format_arg_positional() {
+        let result: Result<RawFormatArg, _> = syn::parse2(quote::quote! { value });
+        assert!(result.is_ok());
+        match result.unwrap() {
+            RawFormatArg::Positional {
+                ..
+            } => {}
+            _ => panic!("expected Positional variant")
+        }
+    }
+
+    #[test]
+    fn parse_format_arg_value_expr() {
+        let result = syn::parse::Parser::parse2(parse_format_arg_value, quote::quote! { value });
+        assert!(result.is_ok());
+        match result.unwrap() {
+            FormatArgValue::Expr(_) => {}
+            _ => panic!("expected Expr variant")
+        }
+    }
+
+    #[test]
+    fn parse_format_arg_value_projection() {
+        let result = syn::parse::Parser::parse2(parse_format_arg_value, quote::quote! { .field });
+        assert!(result.is_ok());
+        match result.unwrap() {
+            FormatArgValue::Shorthand(FormatArgShorthand::Projection(_)) => {}
+            _ => panic!("expected Projection variant")
+        }
+    }
+
+    #[test]
+    fn parse_projection_segments_single_field() {
+        let result = syn::parse::Parser::parse2(
+            |input: ParseStream| parse_projection_segments(input, Span::call_site()),
+            quote::quote! { field }
+        );
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().segments.len(), 1);
+    }
+
+    #[test]
+    fn parse_projection_segments_multiple() {
+        let result = syn::parse::Parser::parse2(
+            |input: ParseStream| parse_projection_segments(input, Span::call_site()),
+            quote::quote! { field.nested.value }
+        );
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().segments.len(), 3);
+    }
+
+    #[test]
+    fn parse_projection_segment_field() {
+        let result = syn::parse::Parser::parse2(
+            |input: ParseStream| parse_projection_segment(input, false),
+            quote::quote! { field }
+        );
+        assert!(result.is_ok());
+        match result.unwrap() {
+            FormatArgProjectionSegment::Field(_) => {}
+            _ => panic!("expected Field variant")
+        }
+    }
+
+    #[test]
+    fn parse_projection_segment_index() {
+        let result = syn::parse::Parser::parse2(
+            |input: ParseStream| parse_projection_segment(input, false),
+            quote::quote! { 0 }
+        );
+        assert!(result.is_ok());
+        match result.unwrap() {
+            FormatArgProjectionSegment::Index {
+                index, ..
+            } => assert_eq!(index, 0),
+            _ => panic!("expected Index variant")
+        }
+    }
+
+    #[test]
+    fn parse_projection_segment_method_call() {
+        let result = syn::parse::Parser::parse2(
+            |input: ParseStream| parse_projection_segment(input, false),
+            quote::quote! { method() }
+        );
+        assert!(result.is_ok());
+        match result.unwrap() {
+            FormatArgProjectionSegment::MethodCall(_) => {}
+            _ => panic!("expected MethodCall variant")
+        }
+    }
+
+    #[test]
+    fn parse_projection_segment_method_with_args() {
+        let result = syn::parse::Parser::parse2(
+            |input: ParseStream| parse_projection_segment(input, false),
+            quote::quote! { method(a, b) }
+        );
+        assert!(result.is_ok());
+        match result.unwrap() {
+            FormatArgProjectionSegment::MethodCall(call) => assert_eq!(call.args.len(), 2),
+            _ => panic!("expected MethodCall variant")
+        }
+    }
+
+    #[test]
+    fn parse_projection_segment_method_with_turbofish() {
+        let result = syn::parse::Parser::parse2(
+            |input: ParseStream| parse_projection_segment(input, false),
+            quote::quote! { method::<T>() }
+        );
+        assert!(result.is_ok());
+        match result.unwrap() {
+            FormatArgProjectionSegment::MethodCall(call) => assert!(call.turbofish.is_some()),
+            _ => panic!("expected MethodCall variant")
+        }
+    }
+
+    #[test]
+    fn parse_projection_segment_error_first() {
+        let result = syn::parse::Parser::parse2(
+            |input: ParseStream| parse_projection_segment(input, true),
+            quote::quote! {}
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_projection_segment_error_not_first() {
+        let result = syn::parse::Parser::parse2(
+            |input: ParseStream| parse_projection_segment(input, false),
+            quote::quote! {}
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_method_call_suffix_none() {
+        let result = syn::parse::Parser::parse2(parse_method_call_suffix, quote::quote! {});
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[test]
+    fn parse_method_call_suffix_parens() {
+        let result = syn::parse::Parser::parse2(parse_method_call_suffix, quote::quote! { () });
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_some());
+    }
+
+    #[test]
+    fn parse_method_call_suffix_with_turbofish() {
+        let result =
+            syn::parse::Parser::parse2(parse_method_call_suffix, quote::quote! { ::<T>() });
+        assert!(result.is_ok());
+        let suffix = result.unwrap().unwrap();
+        assert!(suffix.0.is_some());
+    }
+
+    #[test]
+    fn parse_method_call_suffix_with_args() {
+        let result =
+            syn::parse::Parser::parse2(parse_method_call_suffix, quote::quote! { (a, b) });
+        assert!(result.is_ok());
+        let suffix = result.unwrap().unwrap();
+        assert_eq!(suffix.2.len(), 2);
     }
 }
