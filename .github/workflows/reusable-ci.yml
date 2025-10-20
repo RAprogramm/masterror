@@ -94,6 +94,24 @@ jobs:
         with:
           toolchain: nightly
 
+  reuse:
+    runs-on: ubuntu-latest
+    needs: fmt
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install reuse tool
+        shell: bash
+        run: |
+          pip install --user reuse
+
+      - name: Check REUSE compliance
+        shell: bash
+        run: |
+          reuse lint
+
   clippy:
     runs-on: ubuntu-latest
     needs: msrv
@@ -160,7 +178,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    needs: [msrv, fmt, clippy]
+    needs: [msrv, fmt, reuse, clippy]
     permissions:
       contents: write
       pull-requests: write

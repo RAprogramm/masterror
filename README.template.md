@@ -16,6 +16,7 @@ SPDX-License-Identifier: MIT
   [![Downloads](https://img.shields.io/crates/d/masterror)](https://crates.io/crates/masterror)
   ![MSRV](https://img.shields.io/badge/MSRV-{{MSRV}}-blue)
   ![License](https://img.shields.io/badge/License-MIT%20or%20Apache--2.0-informational)
+  [![REUSE status](https://api.reuse.software/badge/github.com/RAprogramm/masterror)](https://api.reuse.software/info/github.com/RAprogramm/masterror)
   [![codecov](https://codecov.io/gh/RAprogramm/masterror/graph/badge.svg?token=V9JQDTZLXH)](https://codecov.io/gh/RAprogramm/masterror)
 
   [![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
