@@ -606,7 +606,7 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 
 ## Resources
 
-- Explore the [error-handling wiki](docs/wiki/index.md) for step-by-step guides,
+- Explore the [error-handling wiki](https://github.com/RAprogramm/masterror/wiki) for step-by-step guides,
   comparisons with `thiserror`/`anyhow`, and troubleshooting recipes.
 - Browse the [crate documentation on docs.rs](https://docs.rs/masterror) for API
   details, feature-specific guides and transport tables.

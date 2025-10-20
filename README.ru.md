@@ -538,7 +538,7 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 
 ## Ресурсы
 
-- Изучите [вики по обработке ошибок](docs/wiki/index.md) для пошаговых руководств, сравнений с `thiserror`/`anyhow` и рецептов решения проблем.
+- Изучите [вики по обработке ошибок](https://github.com/RAprogramm/masterror/wiki) для пошаговых руководств, сравнений с `thiserror`/`anyhow` и рецептов решения проблем.
 - Просмотрите [документацию крейта на docs.rs](https://docs.rs/masterror) для деталей API, руководств по конкретным функциям и таблиц транспортов.
 - Проверьте [`CHANGELOG.md`](CHANGELOG.md) для основных моментов релизов и примечаний по миграции.
 - Ознакомьтесь с [RustManifest](https://github.com/RAprogramm/RustManifest) для стандартов разработки и лучших практик, которым следует этот проект.

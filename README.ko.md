@@ -538,7 +538,7 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 
 ## 리소스
 
-- 단계별 가이드, `thiserror`/`anyhow`와의 비교 및 문제 해결 레시피는 [오류 처리 위키](docs/wiki/index.md)를 참조하세요.
+- 단계별 가이드, `thiserror`/`anyhow`와의 비교 및 문제 해결 레시피는 [오류 처리 위키](https://github.com/RAprogramm/masterror/wiki)를 참조하세요.
 - API 세부 정보, 기능별 가이드 및 전송 테이블은 [docs.rs의 크레이트 문서](https://docs.rs/masterror)를 찾아보세요.
 - 릴리스 하이라이트 및 마이그레이션 노트는 [`CHANGELOG.md`](CHANGELOG.md)를 확인하세요.
 - 이 프로젝트가 따르는 개발 표준 및 모범 사례는 [RustManifest](https://github.com/RAprogramm/RustManifest)를 검토하세요.

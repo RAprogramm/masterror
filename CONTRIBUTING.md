@@ -465,7 +465,7 @@ Add entries to CHANGELOG.md under "Unreleased" section:
 
 ### Wiki and Guides
 
-Extended documentation goes in `docs/wiki/`:
+Extended documentation goes in [wiki](https://github.com/RAprogramm/masterror/wiki):
 - Step-by-step tutorials
 - Migration guides
 - Comparison with alternatives
