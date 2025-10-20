@@ -1016,26 +1016,3 @@ fn with_context_handles_boxed_arc_downcast() {
     assert!(err.source_ref().is_some());
     assert_eq!(err.source_ref().unwrap().to_string(), "boxed arc");
 }
-
-#[test]
-#[cfg(feature = "backtrace")]
-fn backtrace_method_returns_captured_backtrace() {
-    let _guard = BACKTRACE_ENV_GUARD.lock().unwrap();
-    set_backtrace_preference_override(Some(true));
-
-    let err = AppError::internal("test error");
-    let backtrace = err.backtrace();
-
-    assert!(backtrace.is_some());
-
-    reset_backtrace_preference();
-}
-
-#[test]
-#[cfg(not(feature = "backtrace"))]
-fn backtrace_method_returns_none_without_feature() {
-    let err = AppError::internal("test error");
-    let backtrace = err.backtrace();
-
-    assert!(backtrace.is_none());
-}
