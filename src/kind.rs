@@ -186,9 +186,26 @@ pub enum AppErrorKind {
     Cache
 }
 
+#[cfg(not(feature = "colored"))]
 impl Display for AppErrorKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str(self.label())
+    }
+}
+
+#[cfg(feature = "colored")]
+impl Display for AppErrorKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        use crate::colored::style;
+
+        let label = self.label();
+        let styled = if self.is_critical() {
+            style::error_kind_critical(label)
+        } else {
+            style::error_kind_warning(label)
+        };
+
+        f.write_str(&styled)
     }
 }
 
@@ -267,6 +284,18 @@ impl AppErrorKind {
     #[cfg_attr(docsrs, doc(cfg(feature = "axum")))]
     pub fn status_code(&self) -> StatusCode {
         StatusCode::from_u16(self.http_status()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
+    }
+
+    /// Check if this error kind represents a critical server-side failure.
+    ///
+    /// Critical errors are those with HTTP status >= 500, indicating internal
+    /// server errors that require immediate attention.
+    ///
+    /// Used for color-coding in terminal output: critical errors are shown in
+    /// red, while client errors are shown in yellow.
+    #[cfg(feature = "colored")]
+    pub(crate) fn is_critical(&self) -> bool {
+        self.http_status() >= 500
     }
 }
 

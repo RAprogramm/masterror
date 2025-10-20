@@ -793,7 +793,15 @@ fn error_chain_iterates_through_sources() {
     let chain: Vec<_> = app_err.chain().collect();
     assert_eq!(chain.len(), 2);
 
-    assert_eq!(chain[0].to_string(), "Internal server error");
+    #[cfg(not(feature = "colored"))]
+    {
+        assert_eq!(chain[0].to_string(), "Internal server error");
+    }
+    #[cfg(feature = "colored")]
+    {
+        assert!(chain[0].to_string().contains("Internal server error"));
+        assert!(chain[0].to_string().contains("db down"));
+    }
     assert_eq!(chain[1].to_string(), "disk offline");
 }
 
@@ -804,7 +812,15 @@ fn error_chain_single_error() {
     let chain: Vec<_> = err.chain().collect();
 
     assert_eq!(chain.len(), 1);
-    assert_eq!(chain[0].to_string(), "Bad request");
+    #[cfg(not(feature = "colored"))]
+    {
+        assert_eq!(chain[0].to_string(), "Bad request");
+    }
+    #[cfg(feature = "colored")]
+    {
+        assert!(chain[0].to_string().contains("Bad request"));
+        assert!(chain[0].to_string().contains("missing field"));
+    }
 }
 
 #[test]
@@ -834,7 +850,15 @@ fn root_cause_returns_self_when_no_source() {
     let err = AppError::timeout("operation timed out");
     let root = err.root_cause();
 
-    assert_eq!(root.to_string(), "Operation timed out");
+    #[cfg(not(feature = "colored"))]
+    {
+        assert_eq!(root.to_string(), "Operation timed out");
+    }
+    #[cfg(feature = "colored")]
+    {
+        assert!(root.to_string().contains("Operation timed out"));
+        assert!(root.to_string().contains("operation timed out"));
+    }
 }
 
 #[test]
