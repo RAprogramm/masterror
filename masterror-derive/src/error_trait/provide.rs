@@ -590,4 +590,80 @@ mod tests {
         assert!(output.contains("provide_ref"));
         assert!(!output.contains("if let"));
     }
+
+    #[test]
+    fn test_provide_custom_tokens_reference() {
+        use crate::input::ProvideSpec;
+        let field = make_field(Some("trace_id"), 0);
+        let spec = ProvideSpec {
+            reference: Some(syn::parse_quote!(TraceId)),
+            value:     None
+        };
+        let request = quote!(req);
+        let expr = quote!(self.trace_id);
+
+        let result = provide_custom_tokens(expr, &field, &spec, &request);
+        assert_eq!(result.len(), 1);
+        let output = result[0].to_string();
+        assert!(output.contains("provide_ref"));
+        assert!(output.contains("TraceId"));
+    }
+
+    #[test]
+    fn test_provide_custom_tokens_value() {
+        use crate::input::ProvideSpec;
+        let field = make_field(Some("span_id"), 0);
+        let spec = ProvideSpec {
+            reference: None,
+            value:     Some(syn::parse_quote!(SpanId))
+        };
+        let request = quote!(req);
+        let expr = quote!(self.span_id);
+
+        let result = provide_custom_tokens(expr, &field, &spec, &request);
+        assert_eq!(result.len(), 1);
+        let output = result[0].to_string();
+        assert!(output.contains("provide_value"));
+        assert!(output.contains("SpanId"));
+    }
+
+    #[test]
+    fn test_provide_custom_tokens_both() {
+        use crate::input::ProvideSpec;
+        let field = make_field(Some("data"), 0);
+        let spec = ProvideSpec {
+            reference: Some(syn::parse_quote!(DataRef)),
+            value:     Some(syn::parse_quote!(DataVal))
+        };
+        let request = quote!(req);
+        let expr = quote!(self.data);
+
+        let result = provide_custom_tokens(expr, &field, &spec, &request);
+        assert_eq!(result.len(), 2);
+        let output0 = result[0].to_string();
+        let output1 = result[1].to_string();
+        assert!(output0.contains("provide_ref") || output1.contains("provide_ref"));
+        assert!(output0.contains("provide_value") || output1.contains("provide_value"));
+    }
+
+    #[test]
+    fn test_provide_custom_tokens_option_type() {
+        use crate::input::ProvideSpec;
+        let field = Field {
+            ty: syn::parse_quote!(Option<String>),
+            ..make_field(Some("data"), 0)
+        };
+        let spec = ProvideSpec {
+            reference: Some(syn::parse_quote!(Ref)),
+            value:     None
+        };
+        let request = quote!(req);
+        let expr = quote!(self.data);
+
+        let result = provide_custom_tokens(expr, &field, &spec, &request);
+        assert_eq!(result.len(), 1);
+        let output = result[0].to_string();
+        assert!(output.contains("if let Some"));
+        assert!(output.contains("provide_ref"));
+    }
 }
