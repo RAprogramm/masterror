@@ -6,6 +6,8 @@ SPDX-License-Identifier: MIT
 
 # masterror-derive
 
+[![REUSE status](https://api.reuse.software/badge/github.com/RAprogramm/masterror)](https://api.reuse.software/info/github.com/RAprogramm/masterror)
+
 Procedural macros that power [`masterror`](https://crates.io/crates/masterror)'s
 `#[derive(Error)]`. The derive generates ergonomic `std::error::Error` and
 `Display` implementations together with seamless integration into

@@ -6,6 +6,8 @@ SPDX-License-Identifier: MIT
 
 # masterror-template
 
+[![REUSE status](https://api.reuse.software/badge/github.com/RAprogramm/masterror)](https://api.reuse.software/info/github.com/RAprogramm/masterror)
+
 `masterror-template` packages the template parser shared by the [`masterror`][masterror] runtime crate and the [`masterror-derive`][derive] procedural macros. It understands the `#[error("...")]` formatting language popularised by `thiserror` v2, producing a structured representation that downstream code can inspect or render.
 
 The crate is intentionally small: it exposes just enough API for advanced applications that want to inspect derived error displays, implement custom derive helpers, or perform static analysis over formatting placeholders.

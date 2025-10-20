@@ -10,6 +10,16 @@ rustup component add rustfmt --toolchain nightly >/dev/null
 echo "🧹 Checking formatting with rustfmt..."
 cargo +nightly fmt --all -- --check
 
+echo "📜 Checking REUSE compliance..."
+if command -v reuse &> /dev/null; then
+    reuse lint
+else
+    echo "⚠️  Warning: reuse tool not installed, skipping license compliance check"
+    echo "   Install with:"
+    echo "   - Arch Linux: paru -S reuse (or sudo pacman -S reuse)"
+    echo "   - pip:        pip install reuse"
+fi
+
 echo "🔍 Running clippy (all features, all targets)..."
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 
