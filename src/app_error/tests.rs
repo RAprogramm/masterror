@@ -908,3 +908,134 @@ fn downcast_ref_returns_none_when_no_source() {
     let err = AppError::not_found("user not found");
     assert!(err.downcast_ref::<IoError>().is_none());
 }
+
+#[test]
+#[cfg(feature = "colored")]
+fn colored_display_bare_error_without_message() {
+    let err = AppError::bare(AppErrorKind::Internal);
+    let output = format!("{}", err);
+
+    assert!(output.contains("Internal server error"));
+    assert!(output.contains("Code:"));
+    assert!(output.contains("INTERNAL"));
+}
+
+#[test]
+#[cfg(feature = "colored")]
+fn colored_display_deep_error_chain() {
+    use crate::field;
+
+    #[derive(Debug)]
+    struct CustomError {
+        msg:    String,
+        source: Option<IoError>
+    }
+
+    impl Display for CustomError {
+        fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+            write!(f, "{}", self.msg)
+        }
+    }
+
+    impl StdError for CustomError {
+        fn source(&self) -> Option<&(dyn StdError + 'static)> {
+            self.source.as_ref().map(|e| e as &(dyn StdError + 'static))
+        }
+    }
+
+    let root = IoError::other("disk full");
+    let mid = CustomError {
+        msg:    "write failed".to_string(),
+        source: Some(root)
+    };
+    let top = AppError::internal("operation failed")
+        .with_context(mid)
+        .with_field(field::str("operation", "backup"));
+
+    let output = format!("{}", top);
+
+    assert!(output.contains("Internal server error"));
+    assert!(output.contains("INTERNAL"));
+    assert!(output.contains("operation failed"));
+    assert!(output.contains("Caused by"));
+    assert!(output.contains("write failed"));
+    assert!(output.contains("disk full"));
+    assert!(output.contains("Context:"));
+    assert!(output.contains("operation"));
+    assert!(output.contains("backup"));
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn with_metadata_replaces_all_metadata() {
+    use crate::{Metadata, field};
+
+    let err = AppError::internal("test")
+        .with_field(field::str("key1", "value1"))
+        .with_field(field::u64("key2", 42));
+
+    let new_metadata = Metadata::from_fields(vec![
+        field::str("new_key", "new_value"),
+        field::u64("count", 100),
+    ]);
+
+    let err = err.with_metadata(new_metadata);
+
+    let metadata = err.metadata();
+    assert!(metadata.get("new_key").is_some());
+    assert!(metadata.get("count").is_some());
+    assert!(metadata.get("key1").is_none());
+    assert!(metadata.get("key2").is_none());
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn with_context_handles_arc_source() {
+    let io_err = IoError::other("network down");
+    let arc_source: Arc<dyn StdError + Send + Sync + 'static> = Arc::new(io_err);
+
+    let err1 = AppError::internal("first")
+        .with_context(Arc::clone(&arc_source) as Arc<dyn StdError + Send + Sync>);
+    let err2 = AppError::internal("second").with_context(arc_source);
+
+    assert!(err1.source_ref().is_some());
+    assert!(err2.source_ref().is_some());
+    assert_eq!(err1.source_ref().unwrap().to_string(), "network down");
+    assert_eq!(err2.source_ref().unwrap().to_string(), "network down");
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn with_context_handles_boxed_arc_downcast() {
+    let io_err = IoError::other("boxed arc");
+    let arc_source: Arc<dyn StdError + Send + Sync + 'static> = Arc::new(io_err);
+    let boxed_arc: Box<Arc<dyn StdError + Send + Sync + 'static>> = Box::new(arc_source);
+
+    let err = AppError::internal("test").with_context(*boxed_arc);
+
+    assert!(err.source_ref().is_some());
+    assert_eq!(err.source_ref().unwrap().to_string(), "boxed arc");
+}
+
+#[test]
+#[cfg(feature = "backtrace")]
+fn backtrace_method_returns_captured_backtrace() {
+    let _guard = BACKTRACE_ENV_GUARD.lock().unwrap();
+    set_backtrace_preference_override(Some(true));
+
+    let err = AppError::internal("test error");
+    let backtrace = err.backtrace();
+
+    assert!(backtrace.is_some());
+
+    reset_backtrace_preference();
+}
+
+#[test]
+#[cfg(not(feature = "backtrace"))]
+fn backtrace_method_returns_none_without_feature() {
+    let err = AppError::internal("test error");
+    let backtrace = err.backtrace();
+
+    assert!(backtrace.is_none());
+}
