@@ -305,7 +305,6 @@ mod tests {
 
     #[test]
     fn http_status_is_stable() {
-        // Simple spot checks to guard against accidental remaps.
         assert_eq!(NotFound.http_status(), 404);
         assert_eq!(Validation.http_status(), 422);
         assert_eq!(Unauthorized.http_status(), 401);
@@ -316,5 +315,55 @@ mod tests {
         assert_eq!(Timeout.http_status(), 504);
         assert_eq!(DependencyUnavailable.http_status(), 503);
         assert_eq!(Internal.http_status(), 500);
+    }
+
+    #[test]
+    #[cfg(feature = "colored")]
+    fn is_critical_identifies_server_errors() {
+        assert!(Internal.is_critical());
+        assert!(Database.is_critical());
+        assert!(Service.is_critical());
+        assert!(Config.is_critical());
+        assert!(Timeout.is_critical());
+        assert!(Network.is_critical());
+        assert!(DependencyUnavailable.is_critical());
+        assert!(Serialization.is_critical());
+        assert!(Deserialization.is_critical());
+        assert!(ExternalApi.is_critical());
+        assert!(Queue.is_critical());
+        assert!(Cache.is_critical());
+        assert!(Turnkey.is_critical());
+        assert!(NotImplemented.is_critical());
+    }
+
+    #[test]
+    #[cfg(feature = "colored")]
+    fn is_critical_excludes_client_errors() {
+        assert!(!NotFound.is_critical());
+        assert!(!Validation.is_critical());
+        assert!(!Conflict.is_critical());
+        assert!(!Unauthorized.is_critical());
+        assert!(!Forbidden.is_critical());
+        assert!(!BadRequest.is_critical());
+        assert!(!TelegramAuth.is_critical());
+        assert!(!InvalidJwt.is_critical());
+        assert!(!RateLimited.is_critical());
+    }
+
+    #[test]
+    fn display_shows_label() {
+        assert_eq!(NotFound.to_string(), "Not found");
+        assert_eq!(Internal.to_string(), "Internal server error");
+        assert_eq!(BadRequest.to_string(), "Bad request");
+    }
+
+    #[test]
+    #[cfg(feature = "colored")]
+    fn display_colored_contains_label() {
+        let output = Internal.to_string();
+        assert!(output.contains("Internal server error"));
+
+        let output = BadRequest.to_string();
+        assert!(output.contains("Bad request"));
     }
 }

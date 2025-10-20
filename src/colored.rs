@@ -254,28 +254,69 @@ pub mod style {
 /// No-op styling for no-std builds.
 #[cfg(not(feature = "std"))]
 pub mod style {
+    /// Style critical error kind text in red.
     pub fn error_kind_critical(text: impl AsRef<str>) -> String {
         text.as_ref().to_string()
     }
 
+    /// Style warning-level error kind text in yellow.
     pub fn error_kind_warning(text: impl AsRef<str>) -> String {
         text.as_ref().to_string()
     }
 
+    /// Style error code text in cyan for easy visual scanning.
     pub fn error_code(text: impl AsRef<str>) -> String {
         text.as_ref().to_string()
     }
 
+    /// Style error message text in bright white for maximum readability.
     pub fn error_message(text: impl AsRef<str>) -> String {
         text.as_ref().to_string()
     }
 
+    /// Style source context text with dimmed appearance.
     pub fn source_context(text: impl AsRef<str>) -> String {
         text.as_ref().to_string()
     }
 
+    /// Style metadata key text in green.
     pub fn metadata_key(text: impl AsRef<str>) -> String {
         text.as_ref().to_string()
+    }
+}
+
+#[cfg(all(test, not(feature = "std")))]
+mod nostd_tests {
+    use super::style;
+
+    #[test]
+    fn error_kind_critical_returns_plain_text() {
+        assert_eq!(style::error_kind_critical("test"), "test");
+    }
+
+    #[test]
+    fn error_kind_warning_returns_plain_text() {
+        assert_eq!(style::error_kind_warning("test"), "test");
+    }
+
+    #[test]
+    fn error_code_returns_plain_text() {
+        assert_eq!(style::error_code("ERR_001"), "ERR_001");
+    }
+
+    #[test]
+    fn error_message_returns_plain_text() {
+        assert_eq!(style::error_message("message"), "message");
+    }
+
+    #[test]
+    fn source_context_returns_plain_text() {
+        assert_eq!(style::source_context("context"), "context");
+    }
+
+    #[test]
+    fn metadata_key_returns_plain_text() {
+        assert_eq!(style::metadata_key("key"), "key");
     }
 }
 
@@ -284,20 +325,55 @@ mod tests {
     use super::style;
 
     #[test]
-    fn test_style_functions_produce_output() {
-        assert!(!style::error_kind_critical("test").is_empty());
-        assert!(!style::error_kind_warning("test").is_empty());
-        assert!(!style::error_code("test").is_empty());
-        assert!(!style::error_message("test").is_empty());
-        assert!(!style::source_context("test").is_empty());
-        assert!(!style::metadata_key("test").is_empty());
+    fn error_kind_critical_produces_output() {
+        let result = style::error_kind_critical("ServiceUnavailable");
+        assert!(!result.is_empty());
+        assert!(result.contains("ServiceUnavailable"));
     }
 
     #[test]
-    fn test_style_preserves_text_content() {
-        let input = "test content";
+    fn error_kind_warning_produces_output() {
+        let result = style::error_kind_warning("BadRequest");
+        assert!(!result.is_empty());
+        assert!(result.contains("BadRequest"));
+    }
+
+    #[test]
+    fn error_code_produces_output() {
+        let result = style::error_code("ERR_001");
+        assert!(!result.is_empty());
+        assert!(result.contains("ERR_001"));
+    }
+
+    #[test]
+    fn error_message_produces_output() {
+        let result = style::error_message("Connection failed");
+        assert!(!result.is_empty());
+        assert!(result.contains("Connection failed"));
+    }
+
+    #[test]
+    fn source_context_produces_output() {
+        let result = style::source_context("Caused by: timeout");
+        assert!(!result.is_empty());
+        assert!(result.contains("Caused by: timeout"));
+    }
+
+    #[test]
+    fn metadata_key_produces_output() {
+        let result = style::metadata_key("request_id");
+        assert!(!result.is_empty());
+        assert!(result.contains("request_id"));
+    }
+
+    #[test]
+    fn style_functions_preserve_content() {
+        let input = "test content with special chars: äöü";
         assert!(style::error_kind_critical(input).contains(input));
+        assert!(style::error_kind_warning(input).contains(input));
         assert!(style::error_code(input).contains(input));
         assert!(style::error_message(input).contains(input));
+        assert!(style::source_context(input).contains(input));
+        assert!(style::metadata_key(input).contains(input));
     }
 }
