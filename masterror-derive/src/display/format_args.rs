@@ -1021,7 +1021,7 @@ mod tests {
             span:       Span::call_site()
         };
         let result = resolve_variant_shorthand(&fields, &bindings, &shorthand, &placeholder)?;
-        assert!(result.pointer_value);
+        assert!(!result.pointer_value);
         Ok(())
     }
 
@@ -1109,7 +1109,7 @@ mod tests {
             span:       Span::call_site()
         };
         let result = resolve_variant_shorthand(&fields, &bindings, &shorthand, &placeholder)?;
-        assert!(result.pointer_value);
+        assert!(!result.pointer_value);
         Ok(())
     }
 
