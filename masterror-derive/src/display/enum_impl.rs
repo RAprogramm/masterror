@@ -422,3 +422,558 @@ pub fn variant_named_placeholder(
         ))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use proc_macro2::Span;
+    use quote::format_ident;
+    use syn::{Member, parse_quote};
+
+    use super::*;
+    use crate::{
+        input::{ErrorData, Field, FieldAttrs, FormatArgsSpec},
+        template_support::{DisplayTemplate, TemplateSegmentSpec}
+    };
+
+    fn make_test_field(name: &str, ty: syn::Type, index: usize) -> Field {
+        Field {
+            ident: Some(format_ident!("{}", name)),
+            member: Member::Named(format_ident!("{}", name)),
+            ty,
+            index,
+            attrs: FieldAttrs::default(),
+            span: Span::call_site()
+        }
+    }
+
+    fn make_test_unnamed_field(ty: syn::Type, index: usize) -> Field {
+        Field {
+            ident: None,
+            member: Member::Unnamed(syn::Index {
+                index: index as u32,
+                span:  Span::call_site()
+            }),
+            ty,
+            index,
+            attrs: FieldAttrs::default(),
+            span: Span::call_site()
+        }
+    }
+
+    fn make_variant_data(ident: &str, fields: Fields, display: DisplaySpec) -> VariantData {
+        VariantData {
+            ident: format_ident!("{}", ident),
+            fields,
+            display,
+            format_args: FormatArgsSpec::default(),
+            app_error: None,
+            masterror: None,
+            span: Span::call_site()
+        }
+    }
+
+    fn make_error_input(ident: &str) -> ErrorInput {
+        ErrorInput {
+            ident:    format_ident!("{}", ident),
+            generics: Default::default(),
+            data:     ErrorData::Enum(vec![])
+        }
+    }
+
+    #[test]
+    fn test_expand_enum_empty_variants() {
+        let input = make_error_input("MyError");
+        let variants = vec![];
+        let result = expand_enum(&input, &variants);
+        assert!(result.is_ok());
+        let tokens = result.unwrap();
+        let output = tokens.to_string();
+        assert!(output.contains("impl"));
+        assert!(output.contains("core :: fmt :: Display"));
+        assert!(output.contains("MyError"));
+    }
+
+    #[test]
+    fn test_expand_enum_single_variant() {
+        let input = make_error_input("MyError");
+        let variant = make_variant_data(
+            "Variant1",
+            Fields::Unit,
+            DisplaySpec::Template(DisplayTemplate {
+                segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
+            })
+        );
+        let result = expand_enum(&input, &vec![variant]);
+        assert!(result.is_ok());
+        let tokens = result.unwrap();
+        let output = tokens.to_string();
+        assert!(output.contains("MyError"));
+        assert!(output.contains("match self"));
+    }
+
+    #[test]
+    fn test_expand_enum_multiple_variants() {
+        let input = make_error_input("MyError");
+        let variant1 = make_variant_data(
+            "Variant1",
+            Fields::Unit,
+            DisplaySpec::Template(DisplayTemplate {
+                segments: vec![TemplateSegmentSpec::Literal("error1".to_string())]
+            })
+        );
+        let variant2 = make_variant_data(
+            "Variant2",
+            Fields::Unit,
+            DisplaySpec::Template(DisplayTemplate {
+                segments: vec![TemplateSegmentSpec::Literal("error2".to_string())]
+            })
+        );
+        let result = expand_enum(&input, &vec![variant1, variant2]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_render_variant_transparent_unit() {
+        let variant = make_variant_data(
+            "MyVariant",
+            Fields::Unit,
+            DisplaySpec::Transparent {
+                attribute: Box::new(parse_quote!(#[error(transparent)]))
+            }
+        );
+        let result = render_variant_transparent(&variant);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_render_variant_transparent_single_unnamed_field() {
+        let field = make_test_unnamed_field(parse_quote!(String), 0);
+        let variant = make_variant_data(
+            "MyVariant",
+            Fields::Unnamed(vec![field]),
+            DisplaySpec::Transparent {
+                attribute: Box::new(parse_quote!(#[error(transparent)]))
+            }
+        );
+        let result = render_variant_transparent(&variant);
+        assert!(result.is_ok());
+        let tokens = result.unwrap();
+        let output = tokens.to_string();
+        assert!(output.contains("Self :: MyVariant"));
+        assert!(output.contains("core :: fmt :: Display :: fmt"));
+    }
+
+    #[test]
+    fn test_render_variant_transparent_single_named_field() {
+        let field = make_test_field("inner", parse_quote!(String), 0);
+        let variant = make_variant_data(
+            "MyVariant",
+            Fields::Named(vec![field]),
+            DisplaySpec::Transparent {
+                attribute: Box::new(parse_quote!(#[error(transparent)]))
+            }
+        );
+        let result = render_variant_transparent(&variant);
+        assert!(result.is_ok());
+        let tokens = result.unwrap();
+        let output = tokens.to_string();
+        assert!(output.contains("Self :: MyVariant"));
+        assert!(output.contains("inner"));
+    }
+
+    #[test]
+    fn test_render_variant_transparent_multiple_fields() {
+        let field1 = make_test_field("inner1", parse_quote!(String), 0);
+        let field2 = make_test_field("inner2", parse_quote!(i32), 1);
+        let variant = make_variant_data(
+            "MyVariant",
+            Fields::Named(vec![field1, field2]),
+            DisplaySpec::Transparent {
+                attribute: Box::new(parse_quote!(#[error(transparent)]))
+            }
+        );
+        let result = render_variant_transparent(&variant);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_render_variant_formatter_path_unit() {
+        let variant = make_variant_data(
+            "MyVariant",
+            Fields::Unit,
+            DisplaySpec::FormatterPath {
+                path: parse_quote!(my_formatter),
+                args: FormatArgsSpec::default()
+            }
+        );
+        let path: syn::ExprPath = parse_quote!(my_formatter);
+        let result = render_variant_formatter_path(&variant, &path);
+        assert!(result.is_ok());
+        let tokens = result.unwrap();
+        let output = tokens.to_string();
+        assert!(output.contains("Self :: MyVariant"));
+        assert!(output.contains("my_formatter"));
+    }
+
+    #[test]
+    fn test_render_variant_formatter_path_unnamed_fields() {
+        let field1 = make_test_unnamed_field(parse_quote!(String), 0);
+        let field2 = make_test_unnamed_field(parse_quote!(i32), 1);
+        let variant = make_variant_data(
+            "MyVariant",
+            Fields::Unnamed(vec![field1, field2]),
+            DisplaySpec::FormatterPath {
+                path: parse_quote!(my_formatter),
+                args: FormatArgsSpec::default()
+            }
+        );
+        let path: syn::ExprPath = parse_quote!(my_formatter);
+        let result = render_variant_formatter_path(&variant, &path);
+        assert!(result.is_ok());
+        let tokens = result.unwrap();
+        let output = tokens.to_string();
+        assert!(output.contains("Self :: MyVariant"));
+        assert!(output.contains("__field0"));
+        assert!(output.contains("__field1"));
+    }
+
+    #[test]
+    fn test_render_variant_formatter_path_named_fields() {
+        let field1 = make_test_field("name", parse_quote!(String), 0);
+        let field2 = make_test_field("value", parse_quote!(i32), 1);
+        let variant = make_variant_data(
+            "MyVariant",
+            Fields::Named(vec![field1, field2]),
+            DisplaySpec::FormatterPath {
+                path: parse_quote!(my_formatter),
+                args: FormatArgsSpec::default()
+            }
+        );
+        let path: syn::ExprPath = parse_quote!(my_formatter);
+        let result = render_variant_formatter_path(&variant, &path);
+        assert!(result.is_ok());
+        let tokens = result.unwrap();
+        let output = tokens.to_string();
+        assert!(output.contains("Self :: MyVariant"));
+        assert!(output.contains("name"));
+        assert!(output.contains("value"));
+    }
+
+    #[test]
+    fn test_variant_formatter_arguments_empty() {
+        let bindings = vec![];
+        let result = variant_formatter_arguments(&bindings);
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_variant_formatter_arguments_single() {
+        let bindings = vec![format_ident!("field0")];
+        let result = variant_formatter_arguments(&bindings);
+        assert_eq!(result.len(), 1);
+        assert!(result[0].to_string().contains("field0"));
+    }
+
+    #[test]
+    fn test_variant_formatter_arguments_multiple() {
+        let bindings = vec![format_ident!("field0"), format_ident!("field1")];
+        let result = variant_formatter_arguments(&bindings);
+        assert_eq!(result.len(), 2);
+        assert!(result[0].to_string().contains("field0"));
+        assert!(result[1].to_string().contains("field1"));
+    }
+
+    #[test]
+    fn test_render_variant_template_unit() {
+        let variant = make_variant_data(
+            "MyVariant",
+            Fields::Unit,
+            DisplaySpec::Template(DisplayTemplate {
+                segments: vec![TemplateSegmentSpec::Literal("unit variant".to_string())]
+            })
+        );
+        let template = DisplayTemplate {
+            segments: vec![TemplateSegmentSpec::Literal("unit variant".to_string())]
+        };
+        let result = render_variant_template(&variant, &template, None);
+        assert!(result.is_ok());
+        let tokens = result.unwrap();
+        let output = tokens.to_string();
+        assert!(output.contains("Self :: MyVariant"));
+        assert!(output.contains("unit variant"));
+    }
+
+    #[test]
+    fn test_render_variant_template_unnamed_fields() {
+        let field = make_test_unnamed_field(parse_quote!(String), 0);
+        let variant = make_variant_data(
+            "MyVariant",
+            Fields::Unnamed(vec![field]),
+            DisplaySpec::Template(DisplayTemplate {
+                segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
+            })
+        );
+        let template = DisplayTemplate {
+            segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
+        };
+        let result = render_variant_template(&variant, &template, None);
+        assert!(result.is_ok());
+        let tokens = result.unwrap();
+        let output = tokens.to_string();
+        assert!(output.contains("Self :: MyVariant"));
+        assert!(output.contains("__field0"));
+    }
+
+    #[test]
+    fn test_render_variant_template_named_fields() {
+        let field = make_test_field("message", parse_quote!(String), 0);
+        let variant = make_variant_data(
+            "MyVariant",
+            Fields::Named(vec![field]),
+            DisplaySpec::Template(DisplayTemplate {
+                segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
+            })
+        );
+        let template = DisplayTemplate {
+            segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
+        };
+        let result = render_variant_template(&variant, &template, None);
+        assert!(result.is_ok());
+        let tokens = result.unwrap();
+        let output = tokens.to_string();
+        assert!(output.contains("Self :: MyVariant"));
+        assert!(output.contains("message"));
+    }
+
+    #[test]
+    fn test_variant_tuple_placeholder_self() {
+        use masterror_template::template::TemplateFormatter;
+
+        use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
+
+        let bindings = vec![format_ident!("field0")];
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Named("self".to_string()),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = variant_tuple_placeholder(&bindings, &placeholder, None);
+        assert!(result.is_ok());
+        let resolved = result.unwrap();
+        assert!(resolved.expr.to_string().contains("self"));
+    }
+
+    #[test]
+    fn test_variant_tuple_placeholder_positional() {
+        use masterror_template::template::TemplateFormatter;
+
+        use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
+
+        let bindings = vec![format_ident!("field0"), format_ident!("field1")];
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Positional(1),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = variant_tuple_placeholder(&bindings, &placeholder, None);
+        assert!(result.is_ok());
+        let resolved = result.unwrap();
+        assert!(resolved.expr.to_string().contains("field1"));
+    }
+
+    #[test]
+    fn test_variant_tuple_placeholder_positional_out_of_bounds() {
+        use masterror_template::template::TemplateFormatter;
+
+        use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
+
+        let bindings = vec![format_ident!("field0")];
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Positional(5),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = variant_tuple_placeholder(&bindings, &placeholder, None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_variant_tuple_placeholder_implicit() {
+        use masterror_template::template::TemplateFormatter;
+
+        use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
+
+        let bindings = vec![format_ident!("field0")];
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Implicit(0),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = variant_tuple_placeholder(&bindings, &placeholder, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_variant_tuple_placeholder_named_error() {
+        use masterror_template::template::TemplateFormatter;
+
+        use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
+
+        let bindings = vec![format_ident!("field0")];
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Named("unknown".to_string()),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = variant_tuple_placeholder(&bindings, &placeholder, None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_variant_named_placeholder_self() {
+        use masterror_template::template::TemplateFormatter;
+
+        use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
+
+        let field = make_test_field("message", parse_quote!(String), 0);
+        let fields = vec![field];
+        let bindings = vec![format_ident!("message")];
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Named("self".to_string()),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = variant_named_placeholder(&fields, &bindings, &placeholder, None);
+        assert!(result.is_ok());
+        let resolved = result.unwrap();
+        assert!(resolved.expr.to_string().contains("self"));
+    }
+
+    #[test]
+    fn test_variant_named_placeholder_field_name() {
+        use masterror_template::template::TemplateFormatter;
+
+        use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
+
+        let field = make_test_field("message", parse_quote!(String), 0);
+        let fields = vec![field];
+        let bindings = vec![format_ident!("message")];
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Named("message".to_string()),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = variant_named_placeholder(&fields, &bindings, &placeholder, None);
+        assert!(result.is_ok());
+        let resolved = result.unwrap();
+        assert!(resolved.expr.to_string().contains("message"));
+    }
+
+    #[test]
+    fn test_variant_named_placeholder_unknown_field() {
+        use masterror_template::template::TemplateFormatter;
+
+        use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
+
+        let field = make_test_field("message", parse_quote!(String), 0);
+        let fields = vec![field];
+        let bindings = vec![format_ident!("message")];
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Named("unknown".to_string()),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = variant_named_placeholder(&fields, &bindings, &placeholder, None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_variant_named_placeholder_positional_error() {
+        use masterror_template::template::TemplateFormatter;
+
+        use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
+
+        let field = make_test_field("message", parse_quote!(String), 0);
+        let fields = vec![field];
+        let bindings = vec![format_ident!("message")];
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Positional(0),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = variant_named_placeholder(&fields, &bindings, &placeholder, None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_variant_named_placeholder_implicit_error() {
+        use masterror_template::template::TemplateFormatter;
+
+        use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
+
+        let field = make_test_field("message", parse_quote!(String), 0);
+        let fields = vec![field];
+        let bindings = vec![format_ident!("message")];
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Implicit(0),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = variant_named_placeholder(&fields, &bindings, &placeholder, None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_render_variant_with_all_display_specs() {
+        let variant_transparent = make_variant_data(
+            "Transparent",
+            Fields::Unnamed(vec![make_test_unnamed_field(parse_quote!(String), 0)]),
+            DisplaySpec::Transparent {
+                attribute: Box::new(parse_quote!(#[error(transparent)]))
+            }
+        );
+        let result = render_variant(&variant_transparent);
+        assert!(result.is_ok());
+
+        let variant_template = make_variant_data(
+            "Template",
+            Fields::Unit,
+            DisplaySpec::Template(DisplayTemplate {
+                segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
+            })
+        );
+        let result = render_variant(&variant_template);
+        assert!(result.is_ok());
+
+        let variant_formatter = make_variant_data(
+            "Formatter",
+            Fields::Unit,
+            DisplaySpec::FormatterPath {
+                path: parse_quote!(my_formatter),
+                args: FormatArgsSpec::default()
+            }
+        );
+        let result = render_variant(&variant_formatter);
+        assert!(result.is_ok());
+    }
+}

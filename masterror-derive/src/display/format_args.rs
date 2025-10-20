@@ -617,3 +617,817 @@ fn struct_field_expr(
         ResolvedPlaceholderExpr::new(quote!(&self.#member))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use masterror_template::template::TemplateFormatter;
+    use proc_macro2::Span;
+    use quote::format_ident;
+    use syn::{Member, parse_quote};
+
+    use super::*;
+    use crate::{
+        input::{Field, FieldAttrs, FormatArgProjection, FormatArgProjectionMethodCall},
+        template_support::TemplateIdentifierSpec
+    };
+
+    fn make_test_field(name: &str, ty: syn::Type, index: usize) -> Field {
+        Field {
+            ident: Some(format_ident!("{}", name)),
+            member: Member::Named(format_ident!("{}", name)),
+            ty,
+            index,
+            attrs: FieldAttrs::default(),
+            span: Span::call_site()
+        }
+    }
+
+    fn make_test_unnamed_field(ty: syn::Type, index: usize) -> Field {
+        Field {
+            ident: None,
+            member: Member::Unnamed(syn::Index {
+                index: index as u32,
+                span:  Span::call_site()
+            }),
+            ty,
+            index,
+            attrs: FieldAttrs::default(),
+            span: Span::call_site()
+        }
+    }
+
+    #[test]
+    fn test_format_arguments_env_new_struct() {
+        let spec = FormatArgsSpec {
+            args: vec![]
+        };
+        let fields = Fields::Unit;
+        let env = FormatArgumentsEnv::new_struct(&spec, &fields);
+        assert_eq!(env.args.len(), 0);
+    }
+
+    #[test]
+    fn test_format_arguments_env_new_variant() {
+        let spec = FormatArgsSpec {
+            args: vec![]
+        };
+        let fields = Fields::Unit;
+        let bindings = vec![];
+        let env = FormatArgumentsEnv::new_variant(&spec, &fields, &bindings);
+        assert_eq!(env.args.len(), 0);
+    }
+
+    #[test]
+    fn test_format_arguments_env_with_named_arg() {
+        let spec = FormatArgsSpec {
+            args: vec![FormatArg {
+                kind:  FormatBindingKind::Named(format_ident!("foo")),
+                value: FormatArgValue::Expr(parse_quote!(42)),
+                span:  Span::call_site()
+            }]
+        };
+        let fields = Fields::Unit;
+        let env = FormatArgumentsEnv::new_struct(&spec, &fields);
+        assert_eq!(env.args.len(), 1);
+        assert_eq!(env.named.len(), 1);
+        assert!(env.named.contains_key("foo"));
+    }
+
+    #[test]
+    fn test_format_arguments_env_with_positional_arg() {
+        let spec = FormatArgsSpec {
+            args: vec![FormatArg {
+                kind:  FormatBindingKind::Positional(0),
+                value: FormatArgValue::Expr(parse_quote!(42)),
+                span:  Span::call_site()
+            }]
+        };
+        let fields = Fields::Unit;
+        let env = FormatArgumentsEnv::new_struct(&spec, &fields);
+        assert_eq!(env.args.len(), 1);
+        assert_eq!(env.positional.len(), 1);
+        assert!(env.positional.contains_key(&0));
+        assert_eq!(env.implicit.len(), 1);
+    }
+
+    #[test]
+    fn test_format_arguments_env_with_implicit_arg() {
+        let spec = FormatArgsSpec {
+            args: vec![FormatArg {
+                kind:  FormatBindingKind::Implicit(0),
+                value: FormatArgValue::Expr(parse_quote!(42)),
+                span:  Span::call_site()
+            }]
+        };
+        let fields = Fields::Unit;
+        let env = FormatArgumentsEnv::new_struct(&spec, &fields);
+        assert_eq!(env.args.len(), 1);
+        assert_eq!(env.implicit.len(), 1);
+        assert!(env.implicit[0].is_some());
+    }
+
+    #[test]
+    fn test_format_arguments_env_with_shorthand_arg() {
+        let spec = FormatArgsSpec {
+            args: vec![FormatArg {
+                kind:  FormatBindingKind::Named(format_ident!("bar")),
+                value: FormatArgValue::Shorthand(FormatArgShorthand::Projection(
+                    FormatArgProjection {
+                        segments: vec![FormatArgProjectionSegment::Field(format_ident!("bar"))],
+                        span:     Span::call_site()
+                    }
+                )),
+                span:  Span::call_site()
+            }]
+        };
+        let fields = Fields::Unit;
+        let env = FormatArgumentsEnv::new_struct(&spec, &fields);
+        assert_eq!(env.args.len(), 1);
+        assert!(env.args[0].binding.is_none());
+    }
+
+    #[test]
+    fn test_format_arguments_env_prelude_tokens_with_expr() {
+        let spec = FormatArgsSpec {
+            args: vec![FormatArg {
+                kind:  FormatBindingKind::Named(format_ident!("x")),
+                value: FormatArgValue::Expr(parse_quote!(10 + 20)),
+                span:  Span::call_site()
+            }]
+        };
+        let fields = Fields::Unit;
+        let env = FormatArgumentsEnv::new_struct(&spec, &fields);
+        let preludes = env.prelude_tokens();
+        assert_eq!(preludes.len(), 1);
+        assert!(preludes[0].to_string().contains("let"));
+    }
+
+    #[test]
+    fn test_format_arguments_env_prelude_tokens_with_shorthand() {
+        let spec = FormatArgsSpec {
+            args: vec![FormatArg {
+                kind:  FormatBindingKind::Named(format_ident!("y")),
+                value: FormatArgValue::Shorthand(FormatArgShorthand::Projection(
+                    FormatArgProjection {
+                        segments: vec![FormatArgProjectionSegment::Field(format_ident!("y"))],
+                        span:     Span::call_site()
+                    }
+                )),
+                span:  Span::call_site()
+            }]
+        };
+        let fields = Fields::Unit;
+        let env = FormatArgumentsEnv::new_struct(&spec, &fields);
+        let preludes = env.prelude_tokens();
+        assert_eq!(preludes.len(), 1);
+        assert!(preludes[0].is_empty());
+    }
+
+    #[test]
+    fn test_format_arguments_env_resolve_placeholder_named() -> Result<(), Error> {
+        let spec = FormatArgsSpec {
+            args: vec![FormatArg {
+                kind:  FormatBindingKind::Named(format_ident!("test")),
+                value: FormatArgValue::Expr(parse_quote!(100)),
+                span:  Span::call_site()
+            }]
+        };
+        let fields = Fields::Unit;
+        let mut env = FormatArgumentsEnv::new_struct(&spec, &fields);
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Named("test".to_string()),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = env.resolve_placeholder(&placeholder)?;
+        assert!(result.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn test_format_arguments_env_resolve_placeholder_positional() -> Result<(), Error> {
+        let spec = FormatArgsSpec {
+            args: vec![FormatArg {
+                kind:  FormatBindingKind::Positional(0),
+                value: FormatArgValue::Expr(parse_quote!(200)),
+                span:  Span::call_site()
+            }]
+        };
+        let fields = Fields::Unit;
+        let mut env = FormatArgumentsEnv::new_struct(&spec, &fields);
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Positional(0),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = env.resolve_placeholder(&placeholder)?;
+        assert!(result.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn test_format_arguments_env_resolve_placeholder_implicit() -> Result<(), Error> {
+        let spec = FormatArgsSpec {
+            args: vec![FormatArg {
+                kind:  FormatBindingKind::Implicit(0),
+                value: FormatArgValue::Expr(parse_quote!(300)),
+                span:  Span::call_site()
+            }]
+        };
+        let fields = Fields::Unit;
+        let mut env = FormatArgumentsEnv::new_struct(&spec, &fields);
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Implicit(0),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = env.resolve_placeholder(&placeholder)?;
+        assert!(result.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn test_format_arguments_env_resolve_placeholder_not_found() -> Result<(), Error> {
+        let spec = FormatArgsSpec {
+            args: vec![]
+        };
+        let fields = Fields::Unit;
+        let mut env = FormatArgumentsEnv::new_struct(&spec, &fields);
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Named("nonexistent".to_string()),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = env.resolve_placeholder(&placeholder)?;
+        assert!(result.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn test_format_arguments_env_resolve_placeholder_with_pointer_formatter() -> Result<(), Error>
+    {
+        let spec = FormatArgsSpec {
+            args: vec![FormatArg {
+                kind:  FormatBindingKind::Named(format_ident!("ptr")),
+                value: FormatArgValue::Expr(parse_quote!(&value)),
+                span:  Span::call_site()
+            }]
+        };
+        let fields = Fields::Unit;
+        let mut env = FormatArgumentsEnv::new_struct(&spec, &fields);
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Named("ptr".to_string()),
+            formatter:  TemplateFormatter::Pointer {
+                alternate: false
+            },
+            span:       Span::call_site()
+        };
+        let result = env.resolve_placeholder(&placeholder)?;
+        assert!(result.is_some());
+        let resolved = result.unwrap();
+        assert!(resolved.pointer_value);
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_struct_shorthand_single_field() -> Result<(), Error> {
+        let field = make_test_field("value", parse_quote!(String), 0);
+        let fields = Fields::Named(vec![field]);
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![FormatArgProjectionSegment::Field(format_ident!("value"))],
+            span:     Span::call_site()
+        });
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Named("value".to_string()),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = resolve_struct_shorthand(&fields, &shorthand, &placeholder)?;
+        assert!(result.expr.to_string().contains("self"));
+        assert!(result.expr.to_string().contains("value"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_struct_shorthand_with_projection() -> Result<(), Error> {
+        let field = make_test_field("inner", parse_quote!(Inner), 0);
+        let fields = Fields::Named(vec![field]);
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![
+                FormatArgProjectionSegment::Field(format_ident!("inner")),
+                FormatArgProjectionSegment::Field(format_ident!("value")),
+            ],
+            span:     Span::call_site()
+        });
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Named("inner".to_string()),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = resolve_struct_shorthand(&fields, &shorthand, &placeholder)?;
+        assert!(result.expr.to_string().contains("inner"));
+        assert!(result.expr.to_string().contains("value"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_struct_shorthand_unknown_field() {
+        let fields = Fields::Named(vec![]);
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![FormatArgProjectionSegment::Field(format_ident!("unknown"))],
+            span:     Span::call_site()
+        });
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Named("unknown".to_string()),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = resolve_struct_shorthand(&fields, &shorthand, &placeholder);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_resolve_struct_shorthand_with_index() -> Result<(), Error> {
+        let field = make_test_unnamed_field(parse_quote!(i32), 0);
+        let fields = Fields::Unnamed(vec![field]);
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![FormatArgProjectionSegment::Index {
+                index: 0,
+                span:  Span::call_site()
+            }],
+            span:     Span::call_site()
+        });
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Positional(0),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = resolve_struct_shorthand(&fields, &shorthand, &placeholder)?;
+        assert!(result.expr.to_string().contains("self"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_struct_shorthand_with_invalid_index() {
+        let fields = Fields::Unnamed(vec![]);
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![FormatArgProjectionSegment::Index {
+                index: 0,
+                span:  Span::call_site()
+            }],
+            span:     Span::call_site()
+        });
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Positional(0),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = resolve_struct_shorthand(&fields, &shorthand, &placeholder);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_resolve_variant_shorthand_named_field() -> Result<(), Error> {
+        let field = make_test_field("message", parse_quote!(String), 0);
+        let fields = Fields::Named(vec![field]);
+        let bindings = vec![format_ident!("__field0")];
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![FormatArgProjectionSegment::Field(format_ident!("message"))],
+            span:     Span::call_site()
+        });
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Named("message".to_string()),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = resolve_variant_shorthand(&fields, &bindings, &shorthand, &placeholder)?;
+        assert!(result.pointer_value);
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_variant_shorthand_named_field_with_projection() -> Result<(), Error> {
+        let field = make_test_field("inner", parse_quote!(Inner), 0);
+        let fields = Fields::Named(vec![field]);
+        let bindings = vec![format_ident!("__field0")];
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![
+                FormatArgProjectionSegment::Field(format_ident!("inner")),
+                FormatArgProjectionSegment::Field(format_ident!("value")),
+            ],
+            span:     Span::call_site()
+        });
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Named("inner".to_string()),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = resolve_variant_shorthand(&fields, &bindings, &shorthand, &placeholder)?;
+        assert!(!result.pointer_value);
+        assert!(result.expr.to_string().contains("value"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_variant_shorthand_unknown_named_field() {
+        let fields = Fields::Named(vec![]);
+        let bindings = vec![];
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![FormatArgProjectionSegment::Field(format_ident!("unknown"))],
+            span:     Span::call_site()
+        });
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Named("unknown".to_string()),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = resolve_variant_shorthand(&fields, &bindings, &shorthand, &placeholder);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_resolve_variant_shorthand_named_field_on_tuple_variant() {
+        let field = make_test_unnamed_field(parse_quote!(String), 0);
+        let fields = Fields::Unnamed(vec![field]);
+        let bindings = vec![format_ident!("__field0")];
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![FormatArgProjectionSegment::Field(format_ident!("name"))],
+            span:     Span::call_site()
+        });
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Named("name".to_string()),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = resolve_variant_shorthand(&fields, &bindings, &shorthand, &placeholder);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_resolve_variant_shorthand_index() -> Result<(), Error> {
+        let field = make_test_unnamed_field(parse_quote!(i32), 0);
+        let fields = Fields::Unnamed(vec![field]);
+        let bindings = vec![format_ident!("__field0")];
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![FormatArgProjectionSegment::Index {
+                index: 0,
+                span:  Span::call_site()
+            }],
+            span:     Span::call_site()
+        });
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Positional(0),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = resolve_variant_shorthand(&fields, &bindings, &shorthand, &placeholder)?;
+        assert!(result.pointer_value);
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_variant_shorthand_index_with_projection() -> Result<(), Error> {
+        let field = make_test_unnamed_field(parse_quote!(Inner), 0);
+        let fields = Fields::Unnamed(vec![field]);
+        let bindings = vec![format_ident!("__field0")];
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![
+                FormatArgProjectionSegment::Index {
+                    index: 0,
+                    span:  Span::call_site()
+                },
+                FormatArgProjectionSegment::Field(format_ident!("value")),
+            ],
+            span:     Span::call_site()
+        });
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Positional(0),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = resolve_variant_shorthand(&fields, &bindings, &shorthand, &placeholder)?;
+        assert!(!result.pointer_value);
+        assert!(result.expr.to_string().contains("value"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_variant_shorthand_index_on_struct_variant() {
+        let field = make_test_field("value", parse_quote!(String), 0);
+        let fields = Fields::Named(vec![field]);
+        let bindings = vec![format_ident!("__field0")];
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![FormatArgProjectionSegment::Index {
+                index: 0,
+                span:  Span::call_site()
+            }],
+            span:     Span::call_site()
+        });
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Positional(0),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = resolve_variant_shorthand(&fields, &bindings, &shorthand, &placeholder);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_resolve_variant_shorthand_out_of_bounds_index() {
+        let field = make_test_unnamed_field(parse_quote!(i32), 0);
+        let fields = Fields::Unnamed(vec![field]);
+        let bindings = vec![format_ident!("__field0")];
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![FormatArgProjectionSegment::Index {
+                index: 5,
+                span:  Span::call_site()
+            }],
+            span:     Span::call_site()
+        });
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Positional(5),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = resolve_variant_shorthand(&fields, &bindings, &shorthand, &placeholder);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_resolve_variant_shorthand_method_call_error() {
+        let field = make_test_field("value", parse_quote!(String), 0);
+        let fields = Fields::Named(vec![field]);
+        let bindings = vec![format_ident!("__field0")];
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![FormatArgProjectionSegment::MethodCall(
+                FormatArgProjectionMethodCall {
+                    method:    format_ident!("to_string"),
+                    turbofish: None,
+                    args:      syn::punctuated::Punctuated::new(),
+                    span:      Span::call_site()
+                }
+            )],
+            span:     Span::call_site()
+        });
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Named("method".to_string()),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = resolve_variant_shorthand(&fields, &bindings, &shorthand, &placeholder);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_resolve_variant_shorthand_empty_projection() {
+        let field = make_test_field("value", parse_quote!(String), 0);
+        let fields = Fields::Named(vec![field]);
+        let bindings = vec![format_ident!("__field0")];
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![],
+            span:     Span::call_site()
+        });
+        let placeholder = TemplatePlaceholderSpec {
+            identifier: TemplateIdentifierSpec::Named("value".to_string()),
+            formatter:  TemplateFormatter::Display {
+                spec: None
+            },
+            span:       Span::call_site()
+        };
+        let result = resolve_variant_shorthand(&fields, &bindings, &shorthand, &placeholder);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_struct_projection_expr_single_field() -> Result<(), Error> {
+        let field = make_test_field("name", parse_quote!(String), 0);
+        let fields = Fields::Named(vec![field]);
+        let projection = FormatArgProjection {
+            segments: vec![FormatArgProjectionSegment::Field(format_ident!("name"))],
+            span:     Span::call_site()
+        };
+        let (expr, first_field, has_tail) = struct_projection_expr(&fields, &projection)?;
+        assert!(expr.to_string().contains("self"));
+        assert!(expr.to_string().contains("name"));
+        assert!(first_field.is_some());
+        assert!(!has_tail);
+        Ok(())
+    }
+
+    #[test]
+    fn test_struct_projection_expr_with_method_call() -> Result<(), Error> {
+        let fields = Fields::Unit;
+        let projection = FormatArgProjection {
+            segments: vec![FormatArgProjectionSegment::MethodCall(
+                FormatArgProjectionMethodCall {
+                    method:    format_ident!("to_string"),
+                    turbofish: None,
+                    args:      syn::punctuated::Punctuated::new(),
+                    span:      Span::call_site()
+                }
+            )],
+            span:     Span::call_site()
+        };
+        let (expr, first_field, has_tail) = struct_projection_expr(&fields, &projection)?;
+        assert!(expr.to_string().contains("self"));
+        assert!(expr.to_string().contains("to_string"));
+        assert!(first_field.is_none());
+        assert!(!has_tail);
+        Ok(())
+    }
+
+    #[test]
+    fn test_struct_projection_expr_empty_projection() {
+        let fields = Fields::Unit;
+        let projection = FormatArgProjection {
+            segments: vec![],
+            span:     Span::call_site()
+        };
+        let result = struct_projection_expr(&fields, &projection);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_struct_projection_expr_complex_chain() -> Result<(), Error> {
+        let field = make_test_field("inner", parse_quote!(Inner), 0);
+        let fields = Fields::Named(vec![field]);
+        let projection = FormatArgProjection {
+            segments: vec![
+                FormatArgProjectionSegment::Field(format_ident!("inner")),
+                FormatArgProjectionSegment::Field(format_ident!("value")),
+                FormatArgProjectionSegment::Index {
+                    index: 0,
+                    span:  Span::call_site()
+                },
+            ],
+            span:     Span::call_site()
+        };
+        let (expr, first_field, has_tail) = struct_projection_expr(&fields, &projection)?;
+        assert!(expr.to_string().contains("inner"));
+        assert!(expr.to_string().contains("value"));
+        assert!(first_field.is_some());
+        assert!(has_tail);
+        Ok(())
+    }
+
+    #[test]
+    fn test_struct_field_expr_with_pointer_formatter() {
+        let field = make_test_field("ptr", parse_quote!(*const i32), 0);
+        let formatter = TemplateFormatter::Pointer {
+            alternate: false
+        };
+        let result = struct_field_expr(&field, &formatter);
+        assert!(result.pointer_value);
+        assert!(result.expr.to_string().contains("self"));
+        assert!(result.expr.to_string().contains("ptr"));
+    }
+
+    #[test]
+    fn test_struct_field_expr_with_display_formatter() {
+        let field = make_test_field("value", parse_quote!(String), 0);
+        let formatter = TemplateFormatter::Display {
+            spec: None
+        };
+        let result = struct_field_expr(&field, &formatter);
+        assert!(!result.pointer_value);
+        assert!(result.expr.to_string().contains("self"));
+        assert!(result.expr.to_string().contains("value"));
+    }
+
+    #[test]
+    fn test_struct_field_expr_with_immutable_reference() {
+        let field = make_test_field("ref_val", parse_quote!(&i32), 0);
+        let formatter = TemplateFormatter::Pointer {
+            alternate: false
+        };
+        let result = struct_field_expr(&field, &formatter);
+        assert!(result.pointer_value);
+    }
+
+    #[test]
+    fn test_format_arguments_env_register_implicit_extends_vec() {
+        let spec = FormatArgsSpec {
+            args: vec![FormatArg {
+                kind:  FormatBindingKind::Implicit(5),
+                value: FormatArgValue::Expr(parse_quote!(42)),
+                span:  Span::call_site()
+            }]
+        };
+        let fields = Fields::Unit;
+        let env = FormatArgumentsEnv::new_struct(&spec, &fields);
+        assert_eq!(env.implicit.len(), 6);
+        assert!(env.implicit[5].is_some());
+    }
+
+    #[test]
+    fn test_resolve_struct_shorthand_argument() -> Result<(), Error> {
+        let field = make_test_field("value", parse_quote!(String), 0);
+        let fields = Fields::Named(vec![field]);
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![FormatArgProjectionSegment::Field(format_ident!("value"))],
+            span:     Span::call_site()
+        });
+        let result = resolve_struct_shorthand_argument(&fields, &shorthand)?;
+        assert!(result.to_string().contains("self"));
+        assert!(result.to_string().contains("value"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_variant_shorthand_argument_named_field() -> Result<(), Error> {
+        let field = make_test_field("message", parse_quote!(String), 0);
+        let fields = Fields::Named(vec![field]);
+        let bindings = vec![format_ident!("__field0")];
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![FormatArgProjectionSegment::Field(format_ident!("message"))],
+            span:     Span::call_site()
+        });
+        let result = resolve_variant_shorthand_argument(&fields, &bindings, &shorthand)?;
+        assert!(result.to_string().contains("__field0"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_variant_shorthand_argument_index() -> Result<(), Error> {
+        let field = make_test_unnamed_field(parse_quote!(i32), 0);
+        let fields = Fields::Unnamed(vec![field]);
+        let bindings = vec![format_ident!("__field0")];
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![FormatArgProjectionSegment::Index {
+                index: 0,
+                span:  Span::call_site()
+            }],
+            span:     Span::call_site()
+        });
+        let result = resolve_variant_shorthand_argument(&fields, &bindings, &shorthand)?;
+        assert!(result.to_string().contains("__field0"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_variant_shorthand_argument_method_call_error() {
+        let fields = Fields::Unit;
+        let bindings = vec![];
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![FormatArgProjectionSegment::MethodCall(
+                FormatArgProjectionMethodCall {
+                    method:    format_ident!("method"),
+                    turbofish: None,
+                    args:      syn::punctuated::Punctuated::new(),
+                    span:      Span::call_site()
+                }
+            )],
+            span:     Span::call_site()
+        });
+        let result = resolve_variant_shorthand_argument(&fields, &bindings, &shorthand);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_resolve_variant_shorthand_argument_empty_projection() {
+        let fields = Fields::Unit;
+        let bindings = vec![];
+        let shorthand = FormatArgShorthand::Projection(FormatArgProjection {
+            segments: vec![],
+            span:     Span::call_site()
+        });
+        let result = resolve_variant_shorthand_argument(&fields, &bindings, &shorthand);
+        assert!(result.is_err());
+    }
+}
