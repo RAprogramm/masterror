@@ -9,6 +9,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Colored terminal output** via optional `colored` feature flag
+  - Automatic TTY detection with `owo-colors` v4
+  - Professional color scheme: red (5xx errors), yellow (4xx errors), cyan (codes), bright white (messages), dimmed (source chains), green (metadata keys)
+  - Respects `NO_COLOR` and `TERM=dumb` environment variables
+  - Zero-cost abstraction when feature is disabled
+  - Comprehensive test coverage (90%+ for colored modules)
+  - New example: `examples/colored_cli.rs` demonstrating all features
+
 ## [0.24.19] - 2025-10-12
 
 ### Fixed
