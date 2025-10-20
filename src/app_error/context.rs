@@ -73,6 +73,16 @@ impl Context {
     }
 
     /// Override the public [`AppCode`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "std")] {
+    /// use masterror::{AppCode, AppErrorKind, Context};
+    ///
+    /// let ctx = Context::new(AppErrorKind::Service).code(AppCode::Internal);
+    /// # }
+    /// ```
     #[must_use]
     pub fn code(mut self, code: AppCode) -> Self {
         self.code = code;
@@ -84,6 +94,16 @@ impl Context {
     ///
     /// When the code has not been overridden explicitly, it is kept in sync
     /// with the new kind.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "std")] {
+    /// use masterror::{AppErrorKind, Context};
+    ///
+    /// let ctx = Context::new(AppErrorKind::BadRequest).category(AppErrorKind::Service);
+    /// # }
+    /// ```
     #[must_use]
     pub fn category(mut self, category: AppErrorKind) -> Self {
         self.category = category;
@@ -94,6 +114,18 @@ impl Context {
     }
 
     /// Attach a metadata [`Field`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "std")] {
+    /// use masterror::{AppErrorKind, Context, field};
+    ///
+    /// let ctx = Context::new(AppErrorKind::Service)
+    ///     .with(field::str("operation", "sync"))
+    ///     .with(field::u64("retry_count", 3));
+    /// # }
+    /// ```
     #[must_use]
     pub fn with(mut self, mut field: Field) -> Self {
         if let Some((_, policy)) = self
@@ -109,6 +141,18 @@ impl Context {
     }
 
     /// Override the redaction policy for a metadata field.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "std")] {
+    /// use masterror::{AppErrorKind, Context, FieldRedaction, field};
+    ///
+    /// let ctx = Context::new(AppErrorKind::Service)
+    ///     .with(field::str("password", "secret"))
+    ///     .redact_field("password", FieldRedaction::Redact);
+    /// # }
+    /// ```
     #[must_use]
     pub fn redact_field(mut self, name: &'static str, redaction: FieldRedaction) -> Self {
         self.set_field_policy(name, redaction);
@@ -127,6 +171,16 @@ impl Context {
     }
 
     /// Toggle message redaction policy.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "std")] {
+    /// use masterror::{AppErrorKind, Context};
+    ///
+    /// let ctx = Context::new(AppErrorKind::Service).redact(true);
+    /// # }
+    /// ```
     #[must_use]
     pub fn redact(mut self, redact: bool) -> Self {
         self.edit_policy = if redact {
@@ -221,5 +275,277 @@ impl Context {
                 field.set_redaction(redaction);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::field;
+
+    #[test]
+    fn context_new_creates_with_kind_and_default_code() {
+        let ctx = Context::new(AppErrorKind::BadRequest);
+        assert_eq!(ctx.category, AppErrorKind::BadRequest);
+        assert_eq!(ctx.code, AppCode::from(AppErrorKind::BadRequest));
+        assert!(!ctx.code_overridden);
+        assert!(ctx.fields.is_empty());
+        assert!(ctx.field_policies.is_empty());
+    }
+
+    #[test]
+    fn context_code_override_sets_custom_code() {
+        let ctx = Context::new(AppErrorKind::Service).code(AppCode::Internal);
+        assert_eq!(ctx.code, AppCode::Internal);
+        assert!(ctx.code_overridden);
+    }
+
+    #[test]
+    fn context_category_updates_kind_and_syncs_code_when_not_overridden() {
+        let ctx = Context::new(AppErrorKind::BadRequest).category(AppErrorKind::Service);
+        assert_eq!(ctx.category, AppErrorKind::Service);
+        assert_eq!(ctx.code, AppCode::from(AppErrorKind::Service));
+        assert!(!ctx.code_overridden);
+    }
+
+    #[test]
+    fn context_category_preserves_code_when_overridden() {
+        let ctx = Context::new(AppErrorKind::BadRequest)
+            .code(AppCode::Internal)
+            .category(AppErrorKind::Service);
+        assert_eq!(ctx.category, AppErrorKind::Service);
+        assert_eq!(ctx.code, AppCode::Internal);
+        assert!(ctx.code_overridden);
+    }
+
+    #[test]
+    fn context_with_adds_metadata_field() {
+        let ctx = Context::new(AppErrorKind::Service).with(field::str("operation", "sync"));
+        assert_eq!(ctx.fields.len(), 1);
+        assert_eq!(ctx.fields[0].name(), "operation");
+    }
+
+    #[test]
+    fn context_with_adds_multiple_fields() {
+        let ctx = Context::new(AppErrorKind::Service)
+            .with(field::str("operation", "sync"))
+            .with(field::u64("retry_count", 3))
+            .with(field::bool("is_critical", true));
+        assert_eq!(ctx.fields.len(), 3);
+        assert_eq!(ctx.fields[0].name(), "operation");
+        assert_eq!(ctx.fields[1].name(), "retry_count");
+        assert_eq!(ctx.fields[2].name(), "is_critical");
+    }
+
+    #[test]
+    fn context_redact_field_sets_policy() {
+        let ctx =
+            Context::new(AppErrorKind::Service).redact_field("secret", FieldRedaction::Redact);
+        assert_eq!(ctx.field_policies.len(), 1);
+        assert_eq!(ctx.field_policies[0].0, "secret");
+        assert_eq!(ctx.field_policies[0].1, FieldRedaction::Redact);
+    }
+
+    #[test]
+    fn context_redact_field_mut_sets_policy_in_place() {
+        let mut ctx = Context::new(AppErrorKind::Service);
+        let _ = ctx.redact_field_mut("secret", FieldRedaction::Redact);
+        assert_eq!(ctx.field_policies.len(), 1);
+        assert_eq!(ctx.field_policies[0].0, "secret");
+    }
+
+    #[test]
+    fn context_redact_field_updates_existing_policy() {
+        let ctx = Context::new(AppErrorKind::Service)
+            .redact_field("secret", FieldRedaction::Redact)
+            .redact_field("secret", FieldRedaction::Hash);
+        assert_eq!(ctx.field_policies.len(), 1);
+        assert_eq!(ctx.field_policies[0].1, FieldRedaction::Hash);
+    }
+
+    #[test]
+    fn context_redact_field_applies_to_existing_fields() {
+        let ctx = Context::new(AppErrorKind::Service)
+            .with(field::str("secret", "value"))
+            .redact_field("secret", FieldRedaction::Redact);
+        assert_eq!(ctx.fields[0].redaction(), FieldRedaction::Redact);
+    }
+
+    #[test]
+    fn context_with_applies_field_policy_when_added_after_policy() {
+        let ctx = Context::new(AppErrorKind::Service)
+            .redact_field("secret", FieldRedaction::Redact)
+            .with(field::str("secret", "value"));
+        assert_eq!(ctx.fields[0].redaction(), FieldRedaction::Redact);
+    }
+
+    #[test]
+    fn context_redact_sets_message_policy_to_redact() {
+        let ctx = Context::new(AppErrorKind::Service).redact(true);
+        assert!(matches!(ctx.edit_policy, MessageEditPolicy::Redact));
+    }
+
+    #[test]
+    fn context_redact_sets_message_policy_to_preserve() {
+        let ctx = Context::new(AppErrorKind::Service).redact(false);
+        assert!(matches!(ctx.edit_policy, MessageEditPolicy::Preserve));
+    }
+
+    #[test]
+    #[track_caller]
+    fn context_track_caller_captures_location() {
+        let ctx = Context::new(AppErrorKind::Service).track_caller();
+        assert!(ctx.caller_location.is_some());
+        let location = ctx.caller_location.unwrap();
+        assert!(location.file().contains("context.rs"));
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn context_into_error_creates_error_with_kind_and_code() {
+        use std::io::{Error as IoError, ErrorKind};
+
+        let io_err = IoError::from(ErrorKind::Other);
+        let ctx = Context::new(AppErrorKind::Service);
+        let err = ctx.into_error(io_err);
+        assert_eq!(err.kind, AppErrorKind::Service);
+        assert_eq!(err.code, AppCode::from(AppErrorKind::Service));
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn context_into_error_applies_metadata_fields() {
+        use std::io::{Error as IoError, ErrorKind};
+
+        let io_err = IoError::from(ErrorKind::Other);
+        let ctx = Context::new(AppErrorKind::Service)
+            .with(field::str("operation", "sync"))
+            .with(field::u64("retry_count", 3));
+        let err = ctx.into_error(io_err);
+        let metadata = err.metadata();
+        assert_eq!(
+            metadata.get("operation"),
+            Some(&FieldValue::Str("sync".into()))
+        );
+        assert_eq!(metadata.get("retry_count"), Some(&FieldValue::U64(3)));
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn context_into_error_applies_field_redactions() {
+        use std::io::{Error as IoError, ErrorKind};
+
+        let io_err = IoError::from(ErrorKind::Other);
+        let ctx = Context::new(AppErrorKind::Service)
+            .with(field::str("secret", "password"))
+            .redact_field("secret", FieldRedaction::Redact);
+        let err = ctx.into_error(io_err);
+        assert_eq!(
+            err.metadata().redaction("secret"),
+            Some(FieldRedaction::Redact)
+        );
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn context_into_error_applies_message_redaction() {
+        use std::io::{Error as IoError, ErrorKind};
+
+        let io_err = IoError::from(ErrorKind::Other);
+        let ctx = Context::new(AppErrorKind::Service).redact(true);
+        let err = ctx.into_error(io_err);
+        assert!(matches!(err.edit_policy, MessageEditPolicy::Redact));
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    #[track_caller]
+    fn context_into_error_captures_caller_location() {
+        use std::io::{Error as IoError, ErrorKind};
+
+        let io_err = IoError::from(ErrorKind::Other);
+        let ctx = Context::new(AppErrorKind::Service).track_caller();
+        let err = ctx.into_error(io_err);
+        let metadata = err.metadata();
+        assert!(metadata.get("caller.file").is_some());
+        assert!(metadata.get("caller.line").is_some());
+        assert!(metadata.get("caller.column").is_some());
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn context_into_error_with_custom_code() {
+        use std::io::{Error as IoError, ErrorKind};
+
+        let io_err = IoError::from(ErrorKind::Other);
+        let ctx = Context::new(AppErrorKind::Service).code(AppCode::Validation);
+        let err = ctx.into_error(io_err);
+        assert_eq!(err.code, AppCode::Validation);
+        assert_eq!(err.kind, AppErrorKind::Service);
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn context_apply_field_redactions_updates_all_matching_fields() {
+        let mut fields = vec![
+            field::str("secret", "value1"),
+            field::str("public", "value2"),
+            field::str("secret", "value3"),
+        ];
+        let policies = vec![("secret", FieldRedaction::Redact)];
+        Context::apply_field_redactions(&mut fields, &policies);
+        assert_eq!(fields[0].redaction(), FieldRedaction::Redact);
+        assert_eq!(fields[1].redaction(), FieldRedaction::None);
+        assert_eq!(fields[2].redaction(), FieldRedaction::Redact);
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn context_apply_field_redactions_with_empty_policies() {
+        let mut fields = vec![field::str("key", "value")];
+        let original_redaction = fields[0].redaction();
+        Context::apply_field_redactions(&mut fields, &[]);
+        assert_eq!(fields[0].redaction(), original_redaction);
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn context_apply_field_redactions_uses_last_policy() {
+        let mut fields = vec![field::str("secret", "value")];
+        let policies = vec![
+            ("secret", FieldRedaction::Redact),
+            ("secret", FieldRedaction::Hash),
+        ];
+        Context::apply_field_redactions(&mut fields, &policies);
+        assert_eq!(fields[0].redaction(), FieldRedaction::Hash);
+    }
+
+    #[test]
+    fn context_set_field_policy_removes_duplicate_policies() {
+        let mut ctx = Context::new(AppErrorKind::Service);
+        ctx.set_field_policy("secret", FieldRedaction::Redact);
+        ctx.set_field_policy("secret", FieldRedaction::Hash);
+        assert_eq!(ctx.field_policies.len(), 1);
+        assert_eq!(ctx.field_policies[0].1, FieldRedaction::Hash);
+    }
+
+    #[test]
+    fn context_builder_chain_preserves_all_settings() {
+        let ctx = Context::new(AppErrorKind::BadRequest)
+            .code(AppCode::Validation)
+            .category(AppErrorKind::Service)
+            .with(field::str("operation", "sync"))
+            .with(field::u64("retry", 3))
+            .redact_field("secret", FieldRedaction::Redact)
+            .redact(true)
+            .track_caller();
+
+        assert_eq!(ctx.category, AppErrorKind::Service);
+        assert_eq!(ctx.code, AppCode::Validation);
+        assert!(ctx.code_overridden);
+        assert_eq!(ctx.fields.len(), 2);
+        assert_eq!(ctx.field_policies.len(), 1);
+        assert!(matches!(ctx.edit_policy, MessageEditPolicy::Redact));
+        assert!(ctx.caller_location.is_some());
     }
 }
