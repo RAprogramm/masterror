@@ -270,3 +270,34 @@ fn format_arg_value_span(value: &FormatArgValue) -> Span {
         FormatArgValue::Shorthand(FormatArgShorthand::Projection(projection)) => projection.span
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use syn::parse_quote;
+
+    use super::*;
+
+    #[test]
+    fn format_arg_value_span_expr() {
+        let expr: Expr = parse_quote! { 42 };
+        let value = FormatArgValue::Expr(expr);
+        let _ = format_arg_value_span(&value);
+    }
+
+    #[test]
+    fn format_arg_value_span_projection() {
+        let projection = FormatArgProjection {
+            segments: vec![],
+            span:     Span::call_site()
+        };
+        let value = FormatArgValue::Shorthand(FormatArgShorthand::Projection(projection));
+        let _ = format_arg_value_span(&value);
+    }
+
+    #[test]
+    fn join_spans_works() {
+        let span1 = Span::call_site();
+        let span2 = Span::call_site();
+        let _ = join_spans(span1, span2);
+    }
+}

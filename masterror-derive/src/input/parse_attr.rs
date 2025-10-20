@@ -625,3 +625,131 @@ pub(crate) fn parse_provide_attribute(attr: &Attribute) -> Result<ProvideSpec, E
         })
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use syn::parse_quote;
+
+    use super::*;
+
+    #[test]
+    fn extract_masterror_spec_none() {
+        let attrs: Vec<Attribute> = vec![];
+        let mut errors = Vec::new();
+        let result = extract_masterror_spec(&attrs, &mut errors);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[test]
+    fn extract_masterror_spec_duplicate() {
+        let attrs: Vec<Attribute> = vec![
+            parse_quote! { #[masterror(code = 1, category = Cat::A)] },
+            parse_quote! { #[masterror(code = 2, category = Cat::B)] },
+        ];
+        let mut errors = Vec::new();
+        let result = extract_masterror_spec(&attrs, &mut errors);
+        assert!(result.is_err());
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn extract_app_error_spec_none() {
+        let attrs: Vec<Attribute> = vec![];
+        let mut errors = Vec::new();
+        let result = extract_app_error_spec(&attrs, &mut errors);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[test]
+    fn extract_app_error_spec_duplicate() {
+        let attrs: Vec<Attribute> = vec![
+            parse_quote! { #[app_error(kind = Kind::A)] },
+            parse_quote! { #[app_error(kind = Kind::B)] },
+        ];
+        let mut errors = Vec::new();
+        let result = extract_app_error_spec(&attrs, &mut errors);
+        assert!(result.is_err());
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn extract_display_spec_missing() {
+        let attrs: Vec<Attribute> = vec![];
+        let mut errors = Vec::new();
+        let result = extract_display_spec(&attrs, Span::call_site(), &mut errors);
+        assert!(result.is_err());
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn extract_display_spec_duplicate() {
+        let attrs: Vec<Attribute> = vec![
+            parse_quote! { #[error("error 1")] },
+            parse_quote! { #[error("error 2")] },
+        ];
+        let mut errors = Vec::new();
+        let result = extract_display_spec(&attrs, Span::call_site(), &mut errors);
+        assert!(result.is_ok());
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn parse_provide_attribute_ref_only() {
+        let attr: Attribute = parse_quote! { #[provide(ref = ErrorCode)] };
+        let result = parse_provide_attribute(&attr);
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+        assert!(spec.reference.is_some());
+        assert!(spec.value.is_none());
+    }
+
+    #[test]
+    fn parse_provide_attribute_value_only() {
+        let attr: Attribute = parse_quote! { #[provide(value = ErrorCode)] };
+        let result = parse_provide_attribute(&attr);
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+        assert!(spec.reference.is_none());
+        assert!(spec.value.is_some());
+    }
+
+    #[test]
+    fn parse_provide_attribute_both() {
+        let attr: Attribute = parse_quote! { #[provide(ref = Code, value = Code)] };
+        let result = parse_provide_attribute(&attr);
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+        assert!(spec.reference.is_some());
+        assert!(spec.value.is_some());
+    }
+
+    #[test]
+    fn parse_provide_attribute_empty() {
+        let attr: Attribute = parse_quote! { #[provide()] };
+        let result = parse_provide_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_provide_attribute_duplicate_ref() {
+        let attr: Attribute = parse_quote! { #[provide(ref = A, ref = B)] };
+        let result = parse_provide_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_provide_attribute_duplicate_value() {
+        let attr: Attribute = parse_quote! { #[provide(value = A, value = B)] };
+        let result = parse_provide_attribute(&attr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_provide_attribute_unknown_option() {
+        let attr: Attribute = parse_quote! { #[provide(foo = Bar)] };
+        let result = parse_provide_attribute(&attr);
+        assert!(result.is_err());
+    }
+}

@@ -274,3 +274,363 @@ pub fn placeholder_error(span: Span, identifier: &TemplateIdentifierSpec) -> Err
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use syn::parse_quote;
+
+    use super::*;
+
+    fn make_template() -> DisplaySpec {
+        let lit: syn::LitStr = parse_quote! { "error message" };
+        let template = crate::template_support::parse_display_template(lit).unwrap();
+        DisplaySpec::Template(template)
+    }
+
+    #[test]
+    fn validate_from_usage_multiple_from_fields() {
+        let fields: syn::FieldsNamed = parse_quote! {
+            { #[from] x: io::Error, #[from] y: io::Error }
+        };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        errors.clear();
+
+        let display = make_template();
+        validate_from_usage(&parsed, &display, &mut errors);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn validate_from_usage_unexpected_companions() {
+        let fields: syn::FieldsNamed = parse_quote! {
+            { #[from] x: io::Error, y: String }
+        };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        errors.clear();
+
+        let display = make_template();
+        validate_from_usage(&parsed, &display, &mut errors);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn validate_from_usage_source_companion_non_option() {
+        let fields: syn::FieldsNamed = parse_quote! {
+            { #[from] x: io::Error, source: io::Error }
+        };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        errors.clear();
+
+        let display = make_template();
+        validate_from_usage(&parsed, &display, &mut errors);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn validate_from_usage_source_companion_option_ok() {
+        let fields: syn::FieldsNamed = parse_quote! {
+            { #[from] x: io::Error, source: Option<io::Error> }
+        };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        errors.clear();
+
+        let display = make_template();
+        validate_from_usage(&parsed, &display, &mut errors);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn validate_from_usage_backtrace_companion_ok() {
+        let fields: syn::FieldsNamed = parse_quote! {
+            { #[from] x: io::Error, #[backtrace] bt: Backtrace }
+        };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        errors.clear();
+
+        let display = make_template();
+        validate_from_usage(&parsed, &display, &mut errors);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn validate_from_usage_transparent_not_single() {
+        let fields: syn::FieldsNamed = parse_quote! {
+            { #[from] x: io::Error }
+        };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        errors.clear();
+
+        let attr: syn::Attribute = parse_quote! { #[error(transparent)] };
+        let display = DisplaySpec::Transparent {
+            attribute: Box::new(attr)
+        };
+        validate_from_usage(&parsed, &display, &mut errors);
+        assert!(errors.is_empty()); // Single field is OK
+    }
+
+    #[test]
+    fn validate_backtrace_usage_single() {
+        let fields: syn::FieldsNamed = parse_quote! {
+            { #[backtrace] bt: Backtrace }
+        };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        errors.clear();
+
+        validate_backtrace_usage(&parsed, &mut errors);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn validate_backtrace_usage_multiple() {
+        let fields: syn::FieldsNamed = parse_quote! {
+            { #[backtrace] bt1: Backtrace, #[backtrace] bt2: Backtrace }
+        };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        errors.clear();
+
+        validate_backtrace_usage(&parsed, &mut errors);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn validate_backtrace_usage_invalid_type() {
+        let fields: syn::FieldsNamed = parse_quote! {
+            { #[backtrace] bt: String }
+        };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        errors.clear();
+
+        validate_backtrace_usage(&parsed, &mut errors);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn validate_backtrace_usage_source_ok() {
+        let fields: syn::FieldsNamed = parse_quote! {
+            { #[backtrace] #[source] e: io::Error }
+        };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        errors.clear();
+
+        validate_backtrace_usage(&parsed, &mut errors);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn validate_transparent_single_field() {
+        let fields: syn::FieldsUnnamed = parse_quote! { (io::Error) };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Unnamed(fields), &mut errors);
+
+        let attr: syn::Attribute = parse_quote! { #[error(transparent)] };
+        let display = DisplaySpec::Transparent {
+            attribute: Box::new(attr)
+        };
+        validate_transparent(&parsed, &display, &mut errors, None);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn validate_transparent_multiple_fields_struct() {
+        let fields: syn::FieldsUnnamed = parse_quote! { (io::Error, String) };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Unnamed(fields), &mut errors);
+        errors.clear();
+
+        let attr: syn::Attribute = parse_quote! { #[error(transparent)] };
+        let display = DisplaySpec::Transparent {
+            attribute: Box::new(attr)
+        };
+        validate_transparent(&parsed, &display, &mut errors, None);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn validate_transparent_multiple_fields_variant() {
+        let fields: syn::FieldsUnnamed = parse_quote! { (io::Error, String) };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Unnamed(fields), &mut errors);
+        errors.clear();
+
+        let attr: syn::Attribute = parse_quote! { #[error(transparent)] };
+        let display = DisplaySpec::Transparent {
+            attribute: Box::new(attr)
+        };
+        let variant: syn::Variant = parse_quote! { Foo(io::Error, String) };
+        validate_transparent(&parsed, &display, &mut errors, Some(&variant));
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn path_is_match() {
+        let attr: syn::Attribute = parse_quote! { #[from] };
+        assert!(path_is(&attr, "from"));
+    }
+
+    #[test]
+    fn path_is_no_match() {
+        let attr: syn::Attribute = parse_quote! { #[source] };
+        assert!(!path_is(&attr, "from"));
+    }
+
+    #[test]
+    fn collect_errors_single() {
+        let err = Error::new(Span::call_site(), "test error");
+        let result = collect_errors(vec![err]);
+        assert!(result.to_string().contains("test error"));
+    }
+
+    #[test]
+    fn collect_errors_multiple() {
+        let err1 = Error::new(Span::call_site(), "error 1");
+        let err2 = Error::new(Span::call_site(), "error 2");
+        let result = collect_errors(vec![err1, err2]);
+        let s = result.to_string();
+        assert!(s.contains("error 1") || s.contains("error 2"));
+    }
+
+    #[test]
+    fn collect_errors_empty() {
+        let result = collect_errors(vec![]);
+        assert!(result.to_string().contains("unexpected error"));
+    }
+
+    #[test]
+    fn is_option_type_true() {
+        let ty: syn::Type = parse_quote! { Option<i32> };
+        assert!(is_option_type(&ty));
+    }
+
+    #[test]
+    fn is_option_type_false() {
+        let ty: syn::Type = parse_quote! { i32 };
+        assert!(!is_option_type(&ty));
+    }
+
+    #[test]
+    fn is_option_type_with_qself() {
+        let ty: syn::Type = parse_quote! { <Self as Foo>::Option };
+        assert!(!is_option_type(&ty));
+    }
+
+    #[test]
+    fn option_inner_type_some() {
+        let ty: syn::Type = parse_quote! { Option<i32> };
+        assert!(option_inner_type(&ty).is_some());
+    }
+
+    #[test]
+    fn option_inner_type_none() {
+        let ty: syn::Type = parse_quote! { i32 };
+        assert!(option_inner_type(&ty).is_none());
+    }
+
+    #[test]
+    fn option_inner_type_with_qself() {
+        let ty: syn::Type = parse_quote! { <Self as Foo>::Option };
+        assert!(option_inner_type(&ty).is_none());
+    }
+
+    #[test]
+    fn option_inner_type_no_angle_brackets() {
+        let ty: syn::Type = parse_quote! { Option };
+        assert!(option_inner_type(&ty).is_none());
+    }
+
+    #[test]
+    fn is_arc_type_true() {
+        let ty: syn::Type = parse_quote! { Arc<String> };
+        assert!(is_arc_type(&ty));
+    }
+
+    #[test]
+    fn is_arc_type_false() {
+        let ty: syn::Type = parse_quote! { Box<String> };
+        assert!(!is_arc_type(&ty));
+    }
+
+    #[test]
+    fn is_arc_type_with_qself() {
+        let ty: syn::Type = parse_quote! { <Self as Foo>::Arc };
+        assert!(!is_arc_type(&ty));
+    }
+
+    #[test]
+    fn is_backtrace_type_true() {
+        let ty: syn::Type = parse_quote! { Backtrace };
+        assert!(is_backtrace_type(&ty));
+    }
+
+    #[test]
+    fn is_backtrace_type_false() {
+        let ty: syn::Type = parse_quote! { String };
+        assert!(!is_backtrace_type(&ty));
+    }
+
+    #[test]
+    fn is_backtrace_type_with_qself() {
+        let ty: syn::Type = parse_quote! { <Self as Foo>::Backtrace };
+        assert!(!is_backtrace_type(&ty));
+    }
+
+    #[test]
+    fn is_backtrace_type_with_args() {
+        let ty: syn::Type = parse_quote! { Backtrace<'a> };
+        assert!(!is_backtrace_type(&ty));
+    }
+
+    #[test]
+    fn is_backtrace_storage_backtrace() {
+        let ty: syn::Type = parse_quote! { Backtrace };
+        assert!(is_backtrace_storage(&ty));
+    }
+
+    #[test]
+    fn is_backtrace_storage_option_backtrace() {
+        let ty: syn::Type = parse_quote! { Option<Backtrace> };
+        assert!(is_backtrace_storage(&ty));
+    }
+
+    #[test]
+    fn is_backtrace_storage_false() {
+        let ty: syn::Type = parse_quote! { String };
+        assert!(!is_backtrace_storage(&ty));
+    }
+
+    #[test]
+    fn is_backtrace_storage_option_string() {
+        let ty: syn::Type = parse_quote! { Option<String> };
+        assert!(!is_backtrace_storage(&ty));
+    }
+
+    #[test]
+    fn placeholder_error_named() {
+        let ident = TemplateIdentifierSpec::Named("foo".to_string());
+        let err = placeholder_error(Span::call_site(), &ident);
+        assert!(err.to_string().contains("unknown field `foo`"));
+    }
+
+    #[test]
+    fn placeholder_error_positional() {
+        let ident = TemplateIdentifierSpec::Positional(0);
+        let err = placeholder_error(Span::call_site(), &ident);
+        assert!(err.to_string().contains("field `0` is not available"));
+    }
+
+    #[test]
+    fn placeholder_error_implicit() {
+        let ident = TemplateIdentifierSpec::Implicit(1);
+        let err = placeholder_error(Span::call_site(), &ident);
+        assert!(err.to_string().contains("field `1` is not available"));
+    }
+}

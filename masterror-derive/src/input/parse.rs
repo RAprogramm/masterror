@@ -136,3 +136,73 @@ fn parse_variant(variant: syn::Variant, errors: &mut Vec<Error>) -> Result<Varia
         span
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use syn::parse_quote;
+
+    use super::*;
+
+    #[test]
+    fn parse_input_struct() {
+        let input: DeriveInput = parse_quote! {
+            #[error("test error")]
+            struct TestError {
+                msg: String
+            }
+        };
+        let result = parse_input(input);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_input_enum() {
+        let input: DeriveInput = parse_quote! {
+            enum TestError {
+                #[error("variant a")]
+                A,
+                #[error("variant b")]
+                B
+            }
+        };
+        let result = parse_input(input);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_input_union_error() {
+        let input: DeriveInput = parse_quote! {
+            union TestError {
+                x: i32
+            }
+        };
+        let result = parse_input(input);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_enum_type_level_error_attr() {
+        let input: DeriveInput = parse_quote! {
+            #[error("not allowed")]
+            enum TestError {
+                #[error("variant")]
+                A
+            }
+        };
+        let result = parse_input(input);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_variant_from_attr() {
+        let input: DeriveInput = parse_quote! {
+            enum TestError {
+                #[from]
+                #[error("variant")]
+                A(io::Error)
+            }
+        };
+        let result = parse_input(input);
+        assert!(result.is_err());
+    }
+}

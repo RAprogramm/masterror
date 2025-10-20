@@ -518,3 +518,302 @@ pub enum FormatBindingKind {
     Positional(usize),
     Implicit(usize)
 }
+
+#[cfg(test)]
+mod tests {
+    use syn::parse_quote;
+
+    use super::*;
+
+    #[test]
+    fn fields_len_unit() {
+        let fields = Fields::Unit;
+        assert_eq!(fields.len(), 0);
+    }
+
+    #[test]
+    fn fields_len_named() {
+        let fields: syn::FieldsNamed = parse_quote! { { x: i32, y: String } };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        assert_eq!(parsed.len(), 2);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn fields_len_unnamed() {
+        let fields: syn::FieldsUnnamed = parse_quote! { (i32, String) };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Unnamed(fields), &mut errors);
+        assert_eq!(parsed.len(), 2);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn fields_iter_empty() {
+        let fields = Fields::Unit;
+        let mut iter = fields.iter();
+        assert!(iter.next().is_none());
+    }
+
+    #[test]
+    fn fields_iter_named() {
+        let fields: syn::FieldsNamed = parse_quote! { { x: i32 } };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        let count = parsed.iter().count();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn fields_get_named_found() {
+        let fields: syn::FieldsNamed = parse_quote! { { x: i32, y: String } };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        assert!(parsed.get_named("x").is_some());
+        assert!(parsed.get_named("y").is_some());
+    }
+
+    #[test]
+    fn fields_get_named_not_found() {
+        let fields: syn::FieldsNamed = parse_quote! { { x: i32 } };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        assert!(parsed.get_named("z").is_none());
+    }
+
+    #[test]
+    fn fields_get_named_on_unit() {
+        let fields = Fields::Unit;
+        assert!(fields.get_named("x").is_none());
+    }
+
+    #[test]
+    fn fields_get_named_on_unnamed() {
+        let fields: syn::FieldsUnnamed = parse_quote! { (i32) };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Unnamed(fields), &mut errors);
+        assert!(parsed.get_named("x").is_none());
+    }
+
+    #[test]
+    fn fields_get_positional_found() {
+        let fields: syn::FieldsUnnamed = parse_quote! { (i32, String) };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Unnamed(fields), &mut errors);
+        assert!(parsed.get_positional(0).is_some());
+        assert!(parsed.get_positional(1).is_some());
+    }
+
+    #[test]
+    fn fields_get_positional_not_found() {
+        let fields: syn::FieldsUnnamed = parse_quote! { (i32) };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Unnamed(fields), &mut errors);
+        assert!(parsed.get_positional(5).is_none());
+    }
+
+    #[test]
+    fn fields_get_positional_on_unit() {
+        let fields = Fields::Unit;
+        assert!(fields.get_positional(0).is_none());
+    }
+
+    #[test]
+    fn fields_get_positional_on_named() {
+        let fields: syn::FieldsNamed = parse_quote! { { x: i32 } };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        assert!(parsed.get_positional(0).is_none());
+    }
+
+    #[test]
+    fn fields_first_from_field_found() {
+        let fields: syn::FieldsNamed = parse_quote! {
+            { #[from] x: io::Error, y: String }
+        };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        assert!(parsed.first_from_field().is_some());
+    }
+
+    #[test]
+    fn fields_first_from_field_not_found() {
+        let fields: syn::FieldsNamed = parse_quote! { { x: i32, y: String } };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        assert!(parsed.first_from_field().is_none());
+    }
+
+    #[test]
+    fn fields_backtrace_field_explicit() {
+        let fields: syn::FieldsNamed = parse_quote! {
+            { #[backtrace] bt: std::backtrace::Backtrace }
+        };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        let bt_field = parsed.backtrace_field();
+        assert!(bt_field.is_some());
+        assert_eq!(bt_field.unwrap().kind(), BacktraceFieldKind::Explicit);
+    }
+
+    #[test]
+    fn fields_backtrace_field_inferred() {
+        let fields: syn::FieldsUnnamed = parse_quote! { (std::backtrace::Backtrace) };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Unnamed(fields), &mut errors);
+        let bt_field = parsed.backtrace_field();
+        assert!(bt_field.is_some());
+        assert_eq!(bt_field.unwrap().kind(), BacktraceFieldKind::Inferred);
+    }
+
+    #[test]
+    fn fields_backtrace_field_not_found() {
+        let fields: syn::FieldsNamed = parse_quote! { { x: i32 } };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        assert!(parsed.backtrace_field().is_none());
+    }
+
+    #[test]
+    fn backtrace_field_methods() {
+        let field: SynField = parse_quote! { #[backtrace] bt: std::backtrace::Backtrace };
+        let mut errors = Vec::new();
+        let parsed = Field::from_syn(&field, 0, &mut errors);
+        let bt = BacktraceField::new(&parsed, BacktraceFieldKind::Explicit);
+
+        assert_eq!(bt.field().index, 0);
+        assert_eq!(bt.kind(), BacktraceFieldKind::Explicit);
+        assert!(bt.stores_backtrace());
+        assert_eq!(bt.index(), 0);
+    }
+
+    #[test]
+    fn backtrace_field_stores_option_backtrace() {
+        let field: SynField = parse_quote! { bt: Option<std::backtrace::Backtrace> };
+        let mut errors = Vec::new();
+        let parsed = Field::from_syn(&field, 0, &mut errors);
+        let bt = BacktraceField::new(&parsed, BacktraceFieldKind::Inferred);
+
+        assert!(bt.stores_backtrace());
+    }
+
+    #[test]
+    fn field_attrs_has_source_explicit() {
+        let field: SynField = parse_quote! { #[source] e: io::Error };
+        let mut errors = Vec::new();
+        let parsed = Field::from_syn(&field, 0, &mut errors);
+        assert!(parsed.attrs.has_source());
+        assert!(parsed.attrs.source_attribute().is_some());
+    }
+
+    #[test]
+    fn field_attrs_has_source_inferred() {
+        let field: SynField = parse_quote! { source: io::Error };
+        let mut errors = Vec::new();
+        let parsed = Field::from_syn(&field, 0, &mut errors);
+        assert!(parsed.attrs.has_source());
+    }
+
+    #[test]
+    fn field_attrs_has_source_from() {
+        let field: SynField = parse_quote! { #[from] e: io::Error };
+        let mut errors = Vec::new();
+        let parsed = Field::from_syn(&field, 0, &mut errors);
+        assert!(parsed.attrs.has_source());
+    }
+
+    #[test]
+    fn field_attrs_has_backtrace_explicit() {
+        let field: SynField = parse_quote! { #[backtrace] bt: Backtrace };
+        let mut errors = Vec::new();
+        let parsed = Field::from_syn(&field, 0, &mut errors);
+        assert!(parsed.attrs.has_backtrace());
+        assert!(parsed.attrs.backtrace_attribute().is_some());
+    }
+
+    #[test]
+    fn field_attrs_has_backtrace_inferred() {
+        let field: SynField = parse_quote! { bt: std::backtrace::Backtrace };
+        let mut errors = Vec::new();
+        let parsed = Field::from_syn(&field, 0, &mut errors);
+        assert!(parsed.attrs.has_backtrace());
+    }
+
+    #[test]
+    fn field_attrs_has_backtrace_option() {
+        let field: SynField = parse_quote! { bt: Option<Backtrace> };
+        let mut errors = Vec::new();
+        let parsed = Field::from_syn(&field, 0, &mut errors);
+        assert!(parsed.attrs.has_backtrace());
+    }
+
+    #[test]
+    fn field_attrs_backtrace_kind_none() {
+        let field: SynField = parse_quote! { x: i32 };
+        let mut errors = Vec::new();
+        let parsed = Field::from_syn(&field, 0, &mut errors);
+        assert!(parsed.attrs.backtrace_kind().is_none());
+    }
+
+    #[test]
+    fn field_attrs_duplicate_from() {
+        let field: SynField = parse_quote! { #[from] #[from] e: io::Error };
+        let mut errors = Vec::new();
+        let _ = Field::from_syn(&field, 0, &mut errors);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn field_attrs_duplicate_source() {
+        let field: SynField = parse_quote! { #[source] #[source] e: io::Error };
+        let mut errors = Vec::new();
+        let _ = Field::from_syn(&field, 0, &mut errors);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn field_attrs_duplicate_backtrace() {
+        let field: SynField = parse_quote! { #[backtrace] #[backtrace] bt: Backtrace };
+        let mut errors = Vec::new();
+        let _ = Field::from_syn(&field, 0, &mut errors);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn field_attrs_provide() {
+        let field: SynField = parse_quote! { #[provide(ref = ErrorCode)] e: io::Error };
+        let mut errors = Vec::new();
+        let parsed = Field::from_syn(&field, 0, &mut errors);
+        assert_eq!(parsed.attrs.provides.len(), 1);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn format_arg_projection_segment_span_field() {
+        let ident: Ident = parse_quote! { foo };
+        let segment = FormatArgProjectionSegment::Field(ident);
+        let _ = segment.span();
+    }
+
+    #[test]
+    fn format_arg_projection_segment_span_index() {
+        let segment = FormatArgProjectionSegment::Index {
+            index: 0,
+            span:  Span::call_site()
+        };
+        let _ = segment.span();
+    }
+
+    #[test]
+    fn format_arg_projection_segment_span_method_call() {
+        let call = FormatArgProjectionMethodCall {
+            method:    parse_quote! { to_string },
+            turbofish: None,
+            args:      Punctuated::new(),
+            span:      Span::call_site()
+        };
+        let segment = FormatArgProjectionSegment::MethodCall(call);
+        let _ = segment.span();
+    }
+}
