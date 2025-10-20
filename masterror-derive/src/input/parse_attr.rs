@@ -1,0 +1,627 @@
+// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
+//! Attribute parsing for error definitions.
+//!
+//! Handles parsing of `#[error(...)]`, `#[app_error(...)]`, and
+//! `#[masterror(...)]` attributes from derive macro input.
+
+use proc_macro2::Span;
+use syn::{
+    Attribute, Error, Expr, ExprPath, Ident, LitBool, LitStr, Token, TypePath,
+    ext::IdentExt,
+    parse::{ParseBuffer, ParseStream},
+    spanned::Spanned
+};
+
+use super::{
+    parse_format::parse_format_args,
+    types::{
+        AppErrorSpec, DisplaySpec, FieldRedactionKind, FieldRedactionSpec, FormatBindingKind,
+        MasterrorSpec, ProvideSpec, RedactSpec
+    },
+    utils::path_is
+};
+use crate::template_support::parse_display_template;
+
+/// Extracts masterror specification from attributes.
+pub(crate) fn extract_masterror_spec(
+    attrs: &[Attribute],
+    errors: &mut Vec<Error>
+) -> Result<Option<MasterrorSpec>, ()> {
+    let mut spec = None;
+    let mut had_error = false;
+
+    for attr in attrs {
+        if !path_is(attr, "masterror") {
+            continue;
+        }
+
+        if spec.is_some() {
+            errors.push(Error::new_spanned(
+                attr,
+                "duplicate #[masterror(...)] attribute"
+            ));
+            had_error = true;
+            continue;
+        }
+
+        match parse_masterror_attribute(attr) {
+            Ok(parsed) => spec = Some(parsed),
+            Err(err) => {
+                errors.push(err);
+                had_error = true;
+            }
+        }
+    }
+
+    if had_error { Err(()) } else { Ok(spec) }
+}
+
+/// Extracts app_error specification from attributes.
+pub(crate) fn extract_app_error_spec(
+    attrs: &[Attribute],
+    errors: &mut Vec<Error>
+) -> Result<Option<AppErrorSpec>, ()> {
+    let mut spec = None;
+    let mut had_error = false;
+
+    for attr in attrs {
+        if !path_is(attr, "app_error") {
+            continue;
+        }
+
+        if spec.is_some() {
+            errors.push(Error::new_spanned(
+                attr,
+                "duplicate #[app_error(...)] attribute"
+            ));
+            had_error = true;
+            continue;
+        }
+
+        match parse_app_error_attribute(attr) {
+            Ok(parsed) => spec = Some(parsed),
+            Err(err) => {
+                errors.push(err);
+                had_error = true;
+            }
+        }
+    }
+
+    if had_error { Err(()) } else { Ok(spec) }
+}
+
+/// Extracts display specification from error attributes.
+pub(crate) fn extract_display_spec(
+    attrs: &[Attribute],
+    missing_span: Span,
+    errors: &mut Vec<Error>
+) -> Result<DisplaySpec, ()> {
+    let mut display = None;
+    let mut saw_error_attribute = false;
+
+    for attr in attrs {
+        if !path_is(attr, "error") {
+            continue;
+        }
+
+        saw_error_attribute = true;
+
+        if display.is_some() {
+            errors.push(Error::new_spanned(attr, "duplicate #[error] attribute"));
+            continue;
+        }
+
+        match parse_error_attribute(attr) {
+            Ok(spec) => display = Some(spec),
+            Err(err) => errors.push(err)
+        }
+    }
+
+    match display {
+        Some(spec) => Ok(spec),
+        None => {
+            if !saw_error_attribute {
+                errors.push(Error::new(missing_span, "missing #[error(...)] attribute"));
+            }
+            Err(())
+        }
+    }
+}
+
+/// Parses #[app_error(...)] attribute contents.
+fn parse_app_error_attribute(attr: &Attribute) -> Result<AppErrorSpec, Error> {
+    attr.parse_args_with(|input: ParseStream| {
+        let mut kind = None;
+        let mut code = None;
+        let mut expose_message = false;
+
+        while !input.is_empty() {
+            let ident: Ident = input.parse()?;
+            let name = ident.to_string();
+            match name.as_str() {
+                "kind" => {
+                    if kind.is_some() {
+                        return Err(Error::new(ident.span(), "duplicate kind specification"));
+                    }
+                    input.parse::<Token![=]>()?;
+                    let value: ExprPath = input.parse()?;
+                    kind = Some(value);
+                }
+                "code" => {
+                    if code.is_some() {
+                        return Err(Error::new(ident.span(), "duplicate code specification"));
+                    }
+                    input.parse::<Token![=]>()?;
+                    let value: ExprPath = input.parse()?;
+                    code = Some(value);
+                }
+                "message" => {
+                    if expose_message {
+                        return Err(Error::new(ident.span(), "duplicate message flag"));
+                    }
+                    if input.peek(Token![=]) {
+                        input.parse::<Token![=]>()?;
+                        let value: LitBool = input.parse()?;
+                        expose_message = value.value;
+                    } else {
+                        expose_message = true;
+                    }
+                }
+                other => {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!("unknown #[app_error] option `{}`", other)
+                    ));
+                }
+            }
+
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            } else if !input.is_empty() {
+                return Err(Error::new(
+                    input.span(),
+                    "expected `,` or end of input in #[app_error(...)]"
+                ));
+            }
+        }
+
+        let kind = match kind {
+            Some(kind) => kind,
+            None => {
+                return Err(Error::new(
+                    attr.span(),
+                    "missing `kind = ...` in #[app_error(...)]"
+                ));
+            }
+        };
+
+        Ok(AppErrorSpec {
+            kind,
+            code,
+            expose_message,
+            attribute_span: attr.span()
+        })
+    })
+}
+
+/// Parses #[masterror(...)] attribute contents.
+fn parse_masterror_attribute(attr: &Attribute) -> Result<MasterrorSpec, Error> {
+    attr.parse_args_with(|input: ParseStream| {
+        let mut code = None;
+        let mut category = None;
+        let mut expose_message = false;
+        let mut redact = RedactSpec::default();
+        let mut seen_redact = false;
+        let mut telemetry = None;
+        let mut map_grpc = None;
+        let mut map_problem = None;
+
+        while !input.is_empty() {
+            let ident: Ident = input.call(Ident::parse_any)?;
+            match ident.to_string().as_str() {
+                "code" => {
+                    if code.is_some() {
+                        return Err(Error::new(ident.span(), "duplicate code specification"));
+                    }
+                    input.parse::<Token![=]>()?;
+                    let value: Expr = input.parse()?;
+                    code = Some(value);
+                }
+                "category" => {
+                    if category.is_some() {
+                        return Err(Error::new(ident.span(), "duplicate category specification"));
+                    }
+                    input.parse::<Token![=]>()?;
+                    let value: ExprPath = input.parse()?;
+                    category = Some(value);
+                }
+                "message" => {
+                    if expose_message {
+                        return Err(Error::new(ident.span(), "duplicate message flag"));
+                    }
+                    expose_message = parse_flag_value(input)?;
+                }
+                "redact" => {
+                    if seen_redact {
+                        return Err(Error::new(ident.span(), "duplicate redact(...) block"));
+                    }
+                    redact = parse_redact_block(input, ident.span())?;
+                    seen_redact = true;
+                }
+                "telemetry" => {
+                    if telemetry.is_some() {
+                        return Err(Error::new(ident.span(), "duplicate telemetry(...) block"));
+                    }
+                    telemetry = Some(parse_telemetry_block(input, ident.span())?);
+                }
+                "map" => {
+                    input.parse::<Token![.]>()?;
+                    let sub: Ident = input.call(Ident::parse_any)?;
+                    match sub.to_string().as_str() {
+                        "grpc" => {
+                            if map_grpc.is_some() {
+                                return Err(Error::new(
+                                    sub.span(),
+                                    "duplicate map.grpc specification"
+                                ));
+                            }
+                            input.parse::<Token![=]>()?;
+                            let value: Expr = input.parse()?;
+                            map_grpc = Some(value);
+                        }
+                        "problem" => {
+                            if map_problem.is_some() {
+                                return Err(Error::new(
+                                    sub.span(),
+                                    "duplicate map.problem specification"
+                                ));
+                            }
+                            input.parse::<Token![=]>()?;
+                            let value: Expr = input.parse()?;
+                            map_problem = Some(value);
+                        }
+                        other => {
+                            return Err(Error::new(
+                                sub.span(),
+                                format!("unknown #[masterror] mapping `map.{other}`")
+                            ));
+                        }
+                    }
+                }
+                other => {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!("unknown #[masterror] option `{other}`")
+                    ));
+                }
+            }
+
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            } else if !input.is_empty() {
+                return Err(Error::new(
+                    input.span(),
+                    "expected `,` or end of input in #[masterror(...)]"
+                ));
+            }
+        }
+
+        let code = match code {
+            Some(value) => value,
+            None => {
+                return Err(Error::new(
+                    attr.span(),
+                    "missing `code = ...` in #[masterror(...)]"
+                ));
+            }
+        };
+
+        let category = match category {
+            Some(value) => value,
+            None => {
+                return Err(Error::new(
+                    attr.span(),
+                    "missing `category = ...` in #[masterror(...)]"
+                ));
+            }
+        };
+
+        Ok(MasterrorSpec {
+            code,
+            category,
+            expose_message,
+            redact,
+            telemetry: telemetry.unwrap_or_default(),
+            map_grpc,
+            map_problem,
+            attribute_span: attr.span()
+        })
+    })
+}
+
+/// Parses boolean flag value (either explicit or implicit true).
+fn parse_flag_value(input: ParseStream) -> Result<bool, Error> {
+    if input.peek(Token![=]) {
+        input.parse::<Token![=]>()?;
+        let value: LitBool = input.parse()?;
+        Ok(value.value)
+    } else {
+        Ok(true)
+    }
+}
+
+/// Parses redact(...) block contents.
+fn parse_redact_block(input: ParseStream, span: Span) -> Result<RedactSpec, Error> {
+    let content;
+    syn::parenthesized!(content in input);
+
+    if content.is_empty() {
+        return Err(Error::new(span, "redact(...) requires at least one option"));
+    }
+
+    let mut spec = RedactSpec::default();
+
+    while !content.is_empty() {
+        let ident: Ident = content.call(Ident::parse_any)?;
+        match ident.to_string().as_str() {
+            "message" => {
+                if spec.message {
+                    return Err(Error::new(ident.span(), "duplicate redact(message) option"));
+                }
+                if content.peek(Token![=]) {
+                    content.parse::<Token![=]>()?;
+                    let value: LitBool = content.parse()?;
+                    spec.message = value.value;
+                } else {
+                    spec.message = true;
+                }
+            }
+            "fields" => {
+                if !spec.fields.is_empty() {
+                    return Err(Error::new(
+                        ident.span(),
+                        "duplicate redact(fields(...)) option"
+                    ));
+                }
+                spec.fields = parse_redact_fields(&content, ident.span())?;
+            }
+            other => {
+                return Err(Error::new(
+                    ident.span(),
+                    format!("unknown redact option `{other}`")
+                ));
+            }
+        }
+
+        if content.peek(Token![,]) {
+            content.parse::<Token![,]>()?;
+        } else if !content.is_empty() {
+            return Err(Error::new(
+                content.span(),
+                "expected `,` or end of input in redact(...)"
+            ));
+        }
+    }
+
+    Ok(spec)
+}
+
+/// Parses redact(fields(...)) contents.
+fn parse_redact_fields(
+    content: &ParseBuffer<'_>,
+    span: Span
+) -> Result<Vec<FieldRedactionSpec>, Error> {
+    let inner;
+    syn::parenthesized!(inner in *content);
+
+    if inner.is_empty() {
+        return Err(Error::new(
+            span,
+            "redact(fields(...)) requires at least one field"
+        ));
+    }
+
+    let mut fields = Vec::new();
+    while !inner.is_empty() {
+        let name: LitStr = inner.parse()?;
+        let policy = if inner.peek(Token![=]) {
+            inner.parse::<Token![=]>()?;
+            let ident: Ident = inner.call(Ident::parse_any)?;
+            match ident.to_string().to_ascii_lowercase().as_str() {
+                "none" => FieldRedactionKind::None,
+                "redact" => FieldRedactionKind::Redact,
+                "hash" => FieldRedactionKind::Hash,
+                "last4" | "last_four" => FieldRedactionKind::Last4,
+                other => {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!("unknown redact policy `{other}` in fields(...)")
+                    ));
+                }
+            }
+        } else {
+            FieldRedactionKind::Redact
+        };
+        fields.push(FieldRedactionSpec {
+            name,
+            policy
+        });
+
+        if inner.peek(Token![,]) {
+            inner.parse::<Token![,]>()?;
+        } else if !inner.is_empty() {
+            return Err(Error::new(
+                inner.span(),
+                "expected `,` or end of input in redact(fields(...))"
+            ));
+        }
+    }
+
+    Ok(fields)
+}
+
+/// Parses telemetry(...) block contents.
+fn parse_telemetry_block(input: ParseStream, span: Span) -> Result<Vec<Expr>, Error> {
+    let content;
+    syn::parenthesized!(content in input);
+
+    let mut entries = Vec::new();
+
+    while !content.is_empty() {
+        let expr: Expr = content.parse()?;
+        entries.push(expr);
+
+        if content.peek(Token![,]) {
+            content.parse::<Token![,]>()?;
+            if content.is_empty() {
+                return Err(Error::new(
+                    span,
+                    "expected expression after comma in telemetry(...)"
+                ));
+            }
+        } else if !content.is_empty() {
+            return Err(Error::new(
+                content.span(),
+                "expected `,` or end of input in telemetry(...)"
+            ));
+        }
+    }
+
+    Ok(entries)
+}
+
+/// Parses #[error(...)] attribute contents.
+fn parse_error_attribute(attr: &Attribute) -> Result<DisplaySpec, Error> {
+    mod kw {
+        syn::custom_keyword!(transparent);
+        syn::custom_keyword!(fmt);
+    }
+
+    attr.parse_args_with(|input: ParseStream| {
+        if input.peek(LitStr) {
+            let lit: LitStr = input.parse()?;
+            let template = parse_display_template(lit)?;
+            let args = parse_format_args(input)?;
+
+            if !input.is_empty() {
+                return Err(Error::new(
+                    input.span(),
+                    "unexpected tokens after format arguments"
+                ));
+            }
+
+            if args.args.is_empty() {
+                Ok(DisplaySpec::Template(template))
+            } else {
+                Ok(DisplaySpec::TemplateWithArgs {
+                    template,
+                    args
+                })
+            }
+        } else if input.peek(kw::transparent) {
+            let _: kw::transparent = input.parse()?;
+
+            if !input.is_empty() {
+                return Err(Error::new(
+                    input.span(),
+                    "format arguments are not supported with #[error(transparent)]"
+                ));
+            }
+
+            Ok(DisplaySpec::Transparent {
+                attribute: Box::new(attr.clone())
+            })
+        } else if input.peek(kw::fmt) {
+            input.parse::<kw::fmt>()?;
+            input.parse::<Token![=]>()?;
+            let path: ExprPath = input.parse()?;
+            let args = parse_format_args(input)?;
+
+            for arg in &args.args {
+                if let FormatBindingKind::Named(ident) = &arg.kind
+                    && ident == "fmt"
+                {
+                    return Err(Error::new(arg.span, "duplicate `fmt` handler specified"));
+                }
+            }
+
+            if !input.is_empty() {
+                return Err(Error::new(
+                    input.span(),
+                    "`fmt = ...` cannot be combined with additional arguments"
+                ));
+            }
+
+            Ok(DisplaySpec::FormatterPath {
+                path,
+                args
+            })
+        } else {
+            Err(Error::new(
+                input.span(),
+                "expected string literal, `transparent`, or `fmt = ...`"
+            ))
+        }
+    })
+}
+
+/// Parses #[provide(...)] attribute contents.
+pub(crate) fn parse_provide_attribute(attr: &Attribute) -> Result<ProvideSpec, Error> {
+    attr.parse_args_with(|input: ParseStream| {
+        let mut reference = None;
+        let mut value = None;
+
+        while !input.is_empty() {
+            let ident: Ident = input.call(Ident::parse_any)?;
+            let name = ident.to_string();
+            match name.as_str() {
+                "ref" => {
+                    if reference.is_some() {
+                        return Err(Error::new(ident.span(), "duplicate `ref` specification"));
+                    }
+                    input.parse::<Token![=]>()?;
+                    let ty: TypePath = input.parse()?;
+                    reference = Some(ty);
+                }
+                "value" => {
+                    if value.is_some() {
+                        return Err(Error::new(ident.span(), "duplicate `value` specification"));
+                    }
+                    input.parse::<Token![=]>()?;
+                    let ty: TypePath = input.parse()?;
+                    value = Some(ty);
+                }
+                other => {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!("unknown #[provide] option `{}`", other)
+                    ));
+                }
+            }
+
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            } else if !input.is_empty() {
+                return Err(Error::new(
+                    input.span(),
+                    "expected `,` or end of input in #[provide(...)]"
+                ));
+            }
+        }
+
+        if reference.is_none() && value.is_none() {
+            return Err(Error::new(
+                attr.span(),
+                "`#[provide]` requires at least one of `ref = ...` or `value = ...`"
+            ));
+        }
+
+        Ok(ProvideSpec {
+            reference,
+            value
+        })
+    })
+}
