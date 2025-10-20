@@ -2,15 +2,73 @@
 //
 // SPDX-License-Identifier: MIT
 
-use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote};
-use syn::{Error, Expr, ExprPath, Index};
+//! Masterror derive macro implementation.
+//!
+//! This module provides the core implementation for the `#[derive(Masterror)]`
+//! macro, which generates `From` trait implementations converting error types
+//! into `masterror::Error` along with protocol mappings (HTTP, gRPC, Problem
+//! JSON).
+//!
+//! # Architecture
+//!
+//! The implementation is split into specialized modules:
+//!
+//! - [`conversion`] - Core `From` trait implementation generation
+//! - [`mapping`] - Protocol mapping constant generation
+//! - [`binding`] - Field destructuring and binding logic
+//! - [`attachment`] - Error context attachment (source, backtrace, metadata)
+//!
+//! # Example
+//!
+//! ```ignore
+//! use masterror::Masterror;
+//!
+//! #[derive(Masterror)]
+//! #[masterror(
+//!     code = "AUTH_001",
+//!     category = ErrorCategory::Authentication,
+//!     map_grpc = "tonic::Code::Unauthenticated"
+//! )]
+//! struct AuthError {
+//!     message: String,
+//! }
+//! ```
 
-use crate::input::{
-    ErrorData, ErrorInput, Field, FieldRedactionKind, Fields, MasterrorSpec, RedactSpec,
-    StructData, VariantData, is_arc_type, is_option_type, option_inner_type
+use proc_macro2::TokenStream;
+use syn::Error;
+
+use crate::input::{ErrorData, ErrorInput, StructData, VariantData};
+
+pub mod attachment;
+pub mod binding;
+pub mod conversion;
+pub mod mapping;
+
+use conversion::{
+    ensure_all_variants_have_masterror, enum_conversion_impl, struct_conversion_impl
 };
+use mapping::{enum_mapping_impl, struct_mapping_impl};
 
+/// Main entry point for Masterror derive macro expansion.
+///
+/// Dispatches to struct or enum-specific implementations based on the input
+/// type structure.
+///
+/// # Arguments
+///
+/// * `input` - The parsed error type definition
+///
+/// # Returns
+///
+/// A `TokenStream` containing generated `From` trait implementation and
+/// mapping constants, or a compile error if validation fails.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - A struct is missing the required `#[masterror(...)]` attribute
+/// - An enum variant is missing the required `#[masterror(...)]` attribute
+/// - Code or category values are invalid
 pub fn expand(input: &ErrorInput) -> Result<TokenStream, Error> {
     match &input.data {
         ErrorData::Struct(data) => expand_struct(input, data),
@@ -18,6 +76,18 @@ pub fn expand(input: &ErrorInput) -> Result<TokenStream, Error> {
     }
 }
 
+/// Expands derive macro for struct error types.
+///
+/// Generates both conversion and mapping implementations for struct types.
+///
+/// # Arguments
+///
+/// * `input` - The parsed error type definition
+/// * `data` - Struct-specific data and fields
+///
+/// # Returns
+///
+/// Combined conversion and mapping implementations.
 fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, Error> {
     let spec = data.masterror.as_ref().ok_or_else(|| {
         Error::new(
@@ -29,521 +99,42 @@ fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, E
     let conversion = struct_conversion_impl(input, data, spec);
     let mappings = struct_mapping_impl(input, spec);
 
+    use quote::quote;
     Ok(quote! {
         #conversion
         #mappings
     })
 }
 
+/// Expands derive macro for enum error types.
+///
+/// Validates that all variants have masterror attributes, then generates
+/// conversion and mapping implementations.
+///
+/// # Arguments
+///
+/// * `input` - The parsed error type definition
+/// * `variants` - List of enum variants with their specifications
+///
+/// # Returns
+///
+/// Combined conversion and mapping implementations.
 fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> Result<TokenStream, Error> {
     ensure_all_variants_have_masterror(variants)?;
 
     let conversion = enum_conversion_impl(input, variants);
     let mappings = enum_mapping_impl(input, variants);
 
+    use quote::quote;
     Ok(quote! {
         #conversion
         #mappings
     })
 }
 
-fn ensure_all_variants_have_masterror(variants: &[VariantData]) -> Result<(), Error> {
-    for variant in variants {
-        if variant.masterror.is_none() {
-            return Err(Error::new(
-                variant.span,
-                "all variants must use #[masterror(...)] to derive masterror::Error conversion"
-            ));
-        }
-    }
-    Ok(())
-}
-
-struct BoundField<'a> {
-    field:   &'a Field,
-    binding: Ident
-}
-
-fn struct_conversion_impl(
-    input: &ErrorInput,
-    data: &StructData,
-    spec: &MasterrorSpec
-) -> TokenStream {
-    let ident = &input.ident;
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-    let code = &spec.code;
-    let category = &spec.category;
-
-    let message_init = message_initialization(spec.expose_message, quote!(&value));
-    let (destructure, bound_fields) = bind_struct_fields(ident, &data.fields);
-    let field_usage = field_usage_tokens(&bound_fields);
-    let telemetry_init = telemetry_initialization(&spec.telemetry);
-    let metadata_attach = metadata_attach_tokens();
-    let redact_tokens = redact_tokens(&spec.redact);
-    let source_tokens = source_attachment_tokens(&bound_fields);
-    let backtrace_tokens = backtrace_attachment_tokens(&data.fields, &bound_fields);
-
-    quote! {
-        impl #impl_generics core::convert::From<#ident #ty_generics> for masterror::Error #where_clause {
-            fn from(value: #ident #ty_generics) -> Self {
-                #message_init
-                #destructure
-                #field_usage
-                #telemetry_init
-                let mut __masterror_error = match __masterror_message {
-                    Some(message) => masterror::Error::with((#category), message),
-                    None => masterror::Error::bare((#category))
-                };
-                __masterror_error = __masterror_error.with_code((#code));
-                #metadata_attach
-                #redact_tokens
-                #source_tokens
-                #backtrace_tokens
-                __masterror_error
-            }
-        }
-    }
-}
-
-fn enum_conversion_impl(input: &ErrorInput, variants: &[VariantData]) -> TokenStream {
-    let ident = &input.ident;
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
-    let mut arms = Vec::new();
-
-    let mut message_arms = Vec::new();
-
-    for variant in variants {
-        let spec = variant.masterror.as_ref().expect("presence checked");
-        let code = &spec.code;
-        let category = &spec.category;
-        let (pattern, bound_fields) = bind_variant_fields(ident, variant);
-        let field_usage = field_usage_tokens(&bound_fields);
-        let telemetry_init = telemetry_initialization(&spec.telemetry);
-        let metadata_attach = metadata_attach_tokens();
-        let redact_tokens = redact_tokens(&spec.redact);
-        let source_tokens = source_attachment_tokens(&bound_fields);
-        let backtrace_tokens = backtrace_attachment_tokens(&variant.fields, &bound_fields);
-        message_arms.push(enum_message_arm(ident, variant, spec.expose_message));
-
-        arms.push(quote! {
-            #pattern => {
-                #field_usage
-                #telemetry_init
-                let mut __masterror_error = match __masterror_message {
-                    Some(message) => masterror::Error::with((#category), message),
-                    None => masterror::Error::bare((#category))
-                };
-                __masterror_error = __masterror_error.with_code((#code));
-                #metadata_attach
-                #redact_tokens
-                #source_tokens
-                #backtrace_tokens
-                __masterror_error
-            }
-        });
-    }
-
-    let message_match = quote! {
-        let __masterror_message: Option<String> = match &value {
-            #(#message_arms)*
-        };
-    };
-
-    quote! {
-        impl #impl_generics core::convert::From<#ident #ty_generics> for masterror::Error #where_clause {
-            fn from(value: #ident #ty_generics) -> Self {
-                #message_match
-                match value {
-                    #(#arms),*
-                }
-            }
-        }
-    }
-}
-
-fn enum_message_arm(
-    enum_ident: &Ident,
-    variant: &VariantData,
-    expose_message: bool
-) -> TokenStream {
-    if expose_message {
-        let binding = format_ident!("__masterror_variant_ref");
-        let pattern = enum_message_pattern(enum_ident, variant, Some(&binding));
-        quote! {
-            #pattern => Some(std::string::ToString::to_string(#binding)),
-        }
-    } else {
-        let pattern = enum_message_pattern(enum_ident, variant, None);
-        quote! {
-            #pattern => None,
-        }
-    }
-}
-
-fn enum_message_pattern(
-    enum_ident: &Ident,
-    variant: &VariantData,
-    binding: Option<&Ident>
-) -> TokenStream {
-    let variant_ident = &variant.ident;
-    match (&variant.fields, binding) {
-        (Fields::Unit, Some(binding)) => quote!(#binding @ #enum_ident::#variant_ident),
-        (Fields::Unit, None) => quote!(#enum_ident::#variant_ident),
-        (Fields::Named(_), Some(binding)) => quote!(#binding @ #enum_ident::#variant_ident { .. }),
-        (Fields::Named(_), None) => quote!(#enum_ident::#variant_ident { .. }),
-        (Fields::Unnamed(_), Some(binding)) => quote!(#binding @ #enum_ident::#variant_ident(..)),
-        (Fields::Unnamed(_), None) => quote!(#enum_ident::#variant_ident(..))
-    }
-}
-
-fn field_usage_tokens(bound_fields: &[BoundField<'_>]) -> TokenStream {
-    if bound_fields.is_empty() {
-        return TokenStream::new();
-    }
-
-    let names = bound_fields.iter().map(|field| &field.binding);
-    quote! {
-        let _ = (#(&#names),*);
-    }
-}
-
-fn struct_mapping_impl(input: &ErrorInput, spec: &MasterrorSpec) -> TokenStream {
-    let ident = &input.ident;
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-    let code = &spec.code;
-    let category = &spec.category;
-    let grpc_mapping =
-        mapping_option_tokens(spec.map_grpc.as_ref(), code, category, MappingKind::Grpc);
-    let problem_mapping = mapping_option_tokens(
-        spec.map_problem.as_ref(),
-        code,
-        category,
-        MappingKind::Problem
-    );
-
-    quote! {
-        impl #impl_generics #ident #ty_generics #where_clause {
-            /// HTTP mapping for this error type.
-            pub const HTTP_MAPPING: masterror::mapping::HttpMapping =
-                masterror::mapping::HttpMapping::new((#code), (#category));
-
-            /// gRPC mapping for this error type.
-            pub const GRPC_MAPPING: Option<masterror::mapping::GrpcMapping> = #grpc_mapping;
-
-            /// Problem JSON mapping for this error type.
-            pub const PROBLEM_MAPPING: Option<masterror::mapping::ProblemMapping> = #problem_mapping;
-        }
-    }
-}
-
-fn enum_mapping_impl(input: &ErrorInput, variants: &[VariantData]) -> TokenStream {
-    let ident = &input.ident;
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
-    let http_entries: Vec<_> = variants
-        .iter()
-        .map(|variant| {
-            let spec = variant.masterror.as_ref().expect("presence checked");
-            let code = &spec.code;
-            let category = &spec.category;
-            quote!(masterror::mapping::HttpMapping::new((#code), (#category)))
-        })
-        .collect();
-
-    let grpc_entries: Vec<_> = variants
-        .iter()
-        .filter_map(|variant| {
-            let spec = variant.masterror.as_ref().expect("presence checked");
-            let code = &spec.code;
-            let category = &spec.category;
-            spec.map_grpc.as_ref().map(
-                |expr| quote!(masterror::mapping::GrpcMapping::new((#code), (#category), (#expr)))
-            )
-        })
-        .collect();
-
-    let problem_entries: Vec<_> = variants
-        .iter()
-        .filter_map(|variant| {
-            let spec = variant.masterror.as_ref().expect("presence checked");
-            let code = &spec.code;
-            let category = &spec.category;
-            spec.map_problem.as_ref().map(|expr| {
-                quote!(masterror::mapping::ProblemMapping::new((#code), (#category), (#expr)))
-            })
-        })
-        .collect();
-
-    let http_len = Index::from(http_entries.len());
-
-    let grpc_slice = if grpc_entries.is_empty() {
-        quote!(&[] as &[masterror::mapping::GrpcMapping])
-    } else {
-        quote!(&[#(#grpc_entries),*])
-    };
-
-    let problem_slice = if problem_entries.is_empty() {
-        quote!(&[] as &[masterror::mapping::ProblemMapping])
-    } else {
-        quote!(&[#(#problem_entries),*])
-    };
-
-    quote! {
-        impl #impl_generics #ident #ty_generics #where_clause {
-            /// HTTP mappings for enum variants.
-            pub const HTTP_MAPPINGS: [masterror::mapping::HttpMapping; #http_len] = [#(#http_entries),*];
-
-            /// gRPC mappings for enum variants.
-            pub const GRPC_MAPPINGS: &'static [masterror::mapping::GrpcMapping] = #grpc_slice;
-
-            /// Problem JSON mappings for enum variants.
-            pub const PROBLEM_MAPPINGS: &'static [masterror::mapping::ProblemMapping] = #problem_slice;
-        }
-    }
-}
-
-fn message_initialization(enabled: bool, value: TokenStream) -> TokenStream {
-    if enabled {
-        quote! {
-            let __masterror_message = Some(std::string::ToString::to_string(#value));
-        }
-    } else {
-        quote! {
-            let __masterror_message: Option<String> = None;
-        }
-    }
-}
-
-fn bind_struct_fields<'a>(
-    ident: &Ident,
-    fields: &'a Fields
-) -> (TokenStream, Vec<BoundField<'a>>) {
-    match fields {
-        Fields::Unit => (quote!(let _ = value;), Vec::new()),
-        Fields::Named(list) => {
-            let mut pattern = Vec::new();
-            let mut bound = Vec::new();
-            for field in list {
-                let binding = binding_ident(field);
-                let pattern_binding = binding.clone();
-                pattern.push(quote!(#pattern_binding));
-                bound.push(BoundField {
-                    field,
-                    binding
-                });
-            }
-            let pattern_tokens = quote!(let #ident { #(#pattern),* } = value;);
-            (pattern_tokens, bound)
-        }
-        Fields::Unnamed(list) => {
-            let mut pattern = Vec::new();
-            let mut bound = Vec::new();
-            for field in list {
-                let binding = binding_ident(field);
-                let pattern_binding = binding.clone();
-                pattern.push(quote!(#pattern_binding));
-                bound.push(BoundField {
-                    field,
-                    binding
-                });
-            }
-            let pattern_tokens = quote!(let #ident(#(#pattern),*) = value;);
-            (pattern_tokens, bound)
-        }
-    }
-}
-
-fn bind_variant_fields<'a>(
-    enum_ident: &Ident,
-    variant: &'a VariantData
-) -> (TokenStream, Vec<BoundField<'a>>) {
-    let variant_ident = &variant.ident;
-
-    match &variant.fields {
-        Fields::Unit => (quote!(#enum_ident::#variant_ident), Vec::new()),
-        Fields::Named(list) => {
-            let mut pattern = Vec::new();
-            let mut bound = Vec::new();
-            for field in list {
-                let binding = binding_ident(field);
-                let pattern_binding = binding.clone();
-                pattern.push(quote!(#pattern_binding));
-                bound.push(BoundField {
-                    field,
-                    binding
-                });
-            }
-            (quote!(#enum_ident::#variant_ident { #(#pattern),* }), bound)
-        }
-        Fields::Unnamed(list) => {
-            let mut pattern = Vec::new();
-            let mut bound = Vec::new();
-            for field in list {
-                let binding = binding_ident(field);
-                let pattern_binding = binding.clone();
-                pattern.push(quote!(#pattern_binding));
-                bound.push(BoundField {
-                    field,
-                    binding
-                });
-            }
-            (quote!(#enum_ident::#variant_ident(#(#pattern),*)), bound)
-        }
-    }
-}
-
-fn telemetry_initialization(entries: &[Expr]) -> TokenStream {
-    if entries.is_empty() {
-        quote!(let __masterror_metadata: Option<masterror::Metadata> = None;)
-    } else {
-        let inserts = entries.iter().map(|expr| {
-            quote! {
-                if let Some(field) = (#expr) {
-                    __masterror_metadata_inner.insert(field);
-                }
-            }
-        });
-        quote! {
-            let mut __masterror_metadata_inner = masterror::Metadata::new();
-            #(#inserts)*
-            let __masterror_metadata = if __masterror_metadata_inner.is_empty() {
-                None
-            } else {
-                Some(__masterror_metadata_inner)
-            };
-        }
-    }
-}
-
-fn metadata_attach_tokens() -> TokenStream {
-    quote! {
-        if let Some(metadata) = __masterror_metadata {
-            __masterror_error = __masterror_error.with_metadata(metadata);
-        }
-    }
-}
-
-fn redact_tokens(spec: &RedactSpec) -> TokenStream {
-    let message = if spec.message {
-        quote!(
-            __masterror_error = __masterror_error.redactable();
-        )
-    } else {
-        TokenStream::new()
-    };
-
-    let field_updates = spec.fields.iter().map(|field| {
-        let name = &field.name;
-        let policy = field_redaction_tokens(field.policy);
-        quote!(
-            __masterror_error = __masterror_error.redact_field(#name, #policy);
-        )
-    });
-
-    quote! {
-        #message
-        #( #field_updates )*
-    }
-}
-
-fn field_redaction_tokens(kind: FieldRedactionKind) -> TokenStream {
-    match kind {
-        FieldRedactionKind::None => quote!(masterror::FieldRedaction::None),
-        FieldRedactionKind::Redact => quote!(masterror::FieldRedaction::Redact),
-        FieldRedactionKind::Hash => quote!(masterror::FieldRedaction::Hash),
-        FieldRedactionKind::Last4 => quote!(masterror::FieldRedaction::Last4)
-    }
-}
-
-fn source_attachment_tokens(bound_fields: &[BoundField<'_>]) -> TokenStream {
-    for bound in bound_fields {
-        if bound.field.attrs.has_source() {
-            let binding = &bound.binding;
-            let ty = &bound.field.ty;
-            if is_option_type(ty) {
-                let arc_inner = option_inner_type(ty).is_some_and(is_arc_type);
-                if arc_inner {
-                    return quote! {
-                        if let Some(source) = #binding {
-                            __masterror_error = __masterror_error.with_source_arc(source);
-                        }
-                    };
-                }
-                return quote! {
-                    if let Some(source) = #binding {
-                        __masterror_error = __masterror_error.with_source(source);
-                    }
-                };
-            } else {
-                if is_arc_type(ty) {
-                    return quote! {
-                        __masterror_error = __masterror_error.with_source_arc(#binding);
-                    };
-                }
-                return quote! {
-                    __masterror_error = __masterror_error.with_source(#binding);
-                };
-            }
-        }
-    }
-    TokenStream::new()
-}
-
-fn backtrace_attachment_tokens(fields: &Fields, bound_fields: &[BoundField<'_>]) -> TokenStream {
-    let Some(backtrace_field) = fields.backtrace_field() else {
-        return TokenStream::new();
-    };
-    let index = backtrace_field.index();
-    let Some(binding) = bound_fields
-        .iter()
-        .find(|bound| bound.field.index == index)
-        .map(|bound| &bound.binding)
-    else {
-        return TokenStream::new();
-    };
-
-    if is_option_type(&backtrace_field.field().ty) {
-        quote! {
-            if let Some(trace) = #binding {
-                __masterror_error = __masterror_error.with_backtrace(trace);
-            }
-        }
-    } else {
-        quote! {
-            __masterror_error = __masterror_error.with_backtrace(#binding);
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-enum MappingKind {
-    Grpc,
-    Problem
-}
-
-fn mapping_option_tokens(
-    expr: Option<&Expr>,
-    code: &Expr,
-    category: &ExprPath,
-    kind: MappingKind
-) -> TokenStream {
-    match expr {
-        Some(value) => match kind {
-            MappingKind::Grpc => {
-                quote!(Some(masterror::mapping::GrpcMapping::new((#code), (#category), (#value))))
-            }
-            MappingKind::Problem => {
-                quote!(Some(masterror::mapping::ProblemMapping::new((#code), (#category), (#value))))
-            }
-        },
-        None => quote!(None)
-    }
-}
-
-fn binding_ident(field: &Field) -> Ident {
-    field
-        .ident
-        .clone()
-        .unwrap_or_else(|| format_ident!("__field{}", field.index, span = field.span))
+#[cfg(test)]
+mod tests {
+    // Unit tests for individual functions are located in their respective
+    // submodules (conversion, mapping, binding, attachment).
+    // Integration tests are in the tests/ directory.
 }
