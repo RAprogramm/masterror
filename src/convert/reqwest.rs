@@ -30,21 +30,25 @@
 //!
 //! ## Example
 //!
-//! ```rust,ignore
+//! ```rust
 //! use masterror::{AppErrorKind, Error};
-//! use reqwest::Error as ReqwestError;
+//! use reqwest::Client;
 //!
-//! fn handle_http_error(e: ReqwestError) -> Error {
-//!     e.into()
-//! }
+//! #[tokio::main]
+//! async fn main() {
+//!     let client = Client::new();
+//!     let err = client
+//!         .get("http://127.0.0.1:1")
+//!         .send()
+//!         .await
+//!         .expect_err("connection refused");
 //!
-//! // Simulate: in reality, you'd get the error from a `reqwest` request.
-//! let err = reqwest::get("http://invalid-domain").await.unwrap_err();
-//! let app_err = handle_http_error(err);
+//!     let app_err: Error = err.into();
 //!
-//! match app_err.kind {
-//!     AppErrorKind::Network | AppErrorKind::Timeout | AppErrorKind::ExternalApi => {}
-//!     _ => panic!("unexpected kind"),
+//!     match app_err.kind {
+//!         AppErrorKind::Network | AppErrorKind::Timeout | AppErrorKind::ExternalApi => {}
+//!         _ => panic!("unexpected kind")
+//!     }
 //! }
 //! ```
 
@@ -60,6 +64,26 @@ use crate::{AppErrorKind, Context, Error, FieldRedaction, field};
 /// - Connect or request build error → `Network`
 /// - Upstream returned HTTP error status → `ExternalApi`
 /// - Fallback for other cases → `ExternalApi`
+///
+/// # Example
+///
+/// ```rust
+/// use masterror::{AppErrorKind, Error};
+/// use reqwest::Client;
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let client = Client::new();
+///     let err = client
+///         .get("http://127.0.0.1:1")
+///         .send()
+///         .await
+///         .expect_err("connection refused");
+///
+///     let app_err: Error = err.into();
+///     assert_eq!(app_err.kind, AppErrorKind::Network);
+/// }
+/// ```
 #[cfg(feature = "reqwest")]
 #[cfg_attr(docsrs, doc(cfg(feature = "reqwest")))]
 impl From<ReqwestError> for Error {
@@ -216,6 +240,246 @@ mod tests {
             metadata.get("http.port"),
             Some(&FieldValue::U64(u64::from(addr.port())))
         );
+
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn server_error_maps_to_dependency_unavailable() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.expect("accept");
+            let mut buf = [0_u8; 1024];
+            let _ = socket.read(&mut buf).await;
+            let response = b"HTTP/1.1 500 Internal Server Error\r\ncontent-length: 0\r\n\r\n";
+            let _ = socket.write_all(response).await;
+        });
+
+        let client = Client::new();
+        let response = client
+            .get(format!("http://{addr}"))
+            .send()
+            .await
+            .expect("send");
+        let err = response.error_for_status().expect_err("status error");
+
+        let app_err: Error = err.into();
+        assert_eq!(app_err.kind, AppErrorKind::DependencyUnavailable);
+        let metadata = app_err.metadata();
+        assert_eq!(metadata.get("http.status"), Some(&FieldValue::U64(500)));
+
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn request_timeout_status_maps_to_timeout() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.expect("accept");
+            let mut buf = [0_u8; 1024];
+            let _ = socket.read(&mut buf).await;
+            let response = b"HTTP/1.1 408 Request Timeout\r\ncontent-length: 0\r\n\r\n";
+            let _ = socket.write_all(response).await;
+        });
+
+        let client = Client::new();
+        let response = client
+            .get(format!("http://{addr}"))
+            .send()
+            .await
+            .expect("send");
+        let err = response.error_for_status().expect_err("status error");
+
+        let app_err: Error = err.into();
+        assert_eq!(app_err.kind, AppErrorKind::Timeout);
+        let metadata = app_err.metadata();
+        assert_eq!(metadata.get("http.status"), Some(&FieldValue::U64(408)));
+
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn client_error_maps_to_external_api() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.expect("accept");
+            let mut buf = [0_u8; 1024];
+            let _ = socket.read(&mut buf).await;
+            let response = b"HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n";
+            let _ = socket.write_all(response).await;
+        });
+
+        let client = Client::new();
+        let response = client
+            .get(format!("http://{addr}"))
+            .send()
+            .await
+            .expect("send");
+        let err = response.error_for_status().expect_err("status error");
+
+        let app_err: Error = err.into();
+        assert_eq!(app_err.kind, AppErrorKind::ExternalApi);
+        let metadata = app_err.metadata();
+        assert_eq!(metadata.get("http.status"), Some(&FieldValue::U64(400)));
+
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn connect_error_maps_to_network() {
+        let client = Client::new();
+        let err = client
+            .get("http://127.0.0.1:1")
+            .send()
+            .await
+            .expect_err("connection refused");
+
+        let app_err: Error = err.into();
+        assert_eq!(app_err.kind, AppErrorKind::Network);
+        let metadata = app_err.metadata();
+        assert_eq!(
+            metadata.get("reqwest.is_connect"),
+            Some(&FieldValue::Bool(true))
+        );
+    }
+
+    #[tokio::test]
+    async fn url_metadata_is_captured() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.expect("accept");
+            let mut buf = [0_u8; 1024];
+            let _ = socket.read(&mut buf).await;
+            let response = b"HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\n\r\n";
+            let _ = socket.write_all(response).await;
+        });
+
+        let client = Client::new();
+        let response = client
+            .get(format!("http://{addr}/api/v1/test"))
+            .send()
+            .await
+            .expect("send");
+        let err = response.error_for_status().expect_err("status error");
+
+        let app_err: Error = err.into();
+        let metadata = app_err.metadata();
+        assert_eq!(
+            metadata.get("http.host"),
+            Some(&FieldValue::Str("127.0.0.1".into()))
+        );
+        assert_eq!(
+            metadata.get("http.port"),
+            Some(&FieldValue::U64(u64::from(addr.port())))
+        );
+        assert_eq!(
+            metadata.get("http.path"),
+            Some(&FieldValue::Str("/api/v1/test".into()))
+        );
+        assert_eq!(
+            metadata.get("http.scheme"),
+            Some(&FieldValue::Str("http".into()))
+        );
+        assert_eq!(metadata.redaction("http.url"), Some(FieldRedaction::Hash));
+
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn status_reason_is_captured() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.expect("accept");
+            let mut buf = [0_u8; 1024];
+            let _ = socket.read(&mut buf).await;
+            let response = b"HTTP/1.1 403 Forbidden\r\ncontent-length: 0\r\n\r\n";
+            let _ = socket.write_all(response).await;
+        });
+
+        let client = Client::new();
+        let response = client
+            .get(format!("http://{addr}"))
+            .send()
+            .await
+            .expect("send");
+        let err = response.error_for_status().expect_err("status error");
+
+        let app_err: Error = err.into();
+        let metadata = app_err.metadata();
+        assert_eq!(
+            metadata.get("http.status_reason"),
+            Some(&FieldValue::Str("Forbidden".into()))
+        );
+
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn all_reqwest_flags_are_captured() {
+        let client = Client::new();
+        let err = client
+            .get("http://127.0.0.1:1")
+            .send()
+            .await
+            .expect_err("connection refused");
+
+        let app_err: Error = err.into();
+        let metadata = app_err.metadata();
+
+        assert!(metadata.get("reqwest.is_timeout").is_some());
+        assert!(metadata.get("reqwest.is_connect").is_some());
+        assert!(metadata.get("reqwest.is_request").is_some());
+        assert!(metadata.get("reqwest.is_status").is_some());
+        assert!(metadata.get("reqwest.is_body").is_some());
+        assert!(metadata.get("reqwest.is_decode").is_some());
+        assert!(metadata.get("reqwest.is_redirect").is_some());
+    }
+
+    #[tokio::test]
+    async fn service_unavailable_maps_correctly() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.expect("accept");
+            let mut buf = [0_u8; 1024];
+            let _ = socket.read(&mut buf).await;
+            let response = b"HTTP/1.1 503 Service Unavailable\r\ncontent-length: 0\r\n\r\n";
+            let _ = socket.write_all(response).await;
+        });
+
+        let client = Client::new();
+        let response = client
+            .get(format!("http://{addr}"))
+            .send()
+            .await
+            .expect("send");
+        let err = response.error_for_status().expect_err("status error");
+
+        let app_err: Error = err.into();
+        assert_eq!(app_err.kind, AppErrorKind::DependencyUnavailable);
 
         server.abort();
     }
