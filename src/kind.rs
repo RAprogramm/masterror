@@ -186,9 +186,26 @@ pub enum AppErrorKind {
     Cache
 }
 
+#[cfg(not(feature = "colored"))]
 impl Display for AppErrorKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str(self.label())
+    }
+}
+
+#[cfg(feature = "colored")]
+impl Display for AppErrorKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        use crate::colored::style;
+
+        let label = self.label();
+        let styled = if self.is_critical() {
+            style::error_kind_critical(label)
+        } else {
+            style::error_kind_warning(label)
+        };
+
+        f.write_str(&styled)
     }
 }
 
@@ -268,6 +285,18 @@ impl AppErrorKind {
     pub fn status_code(&self) -> StatusCode {
         StatusCode::from_u16(self.http_status()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
     }
+
+    /// Check if this error kind represents a critical server-side failure.
+    ///
+    /// Critical errors are those with HTTP status >= 500, indicating internal
+    /// server errors that require immediate attention.
+    ///
+    /// Used for color-coding in terminal output: critical errors are shown in
+    /// red, while client errors are shown in yellow.
+    #[cfg(feature = "colored")]
+    pub(crate) fn is_critical(&self) -> bool {
+        self.http_status() >= 500
+    }
 }
 
 #[cfg(test)]
@@ -276,7 +305,6 @@ mod tests {
 
     #[test]
     fn http_status_is_stable() {
-        // Simple spot checks to guard against accidental remaps.
         assert_eq!(NotFound.http_status(), 404);
         assert_eq!(Validation.http_status(), 422);
         assert_eq!(Unauthorized.http_status(), 401);
@@ -287,5 +315,55 @@ mod tests {
         assert_eq!(Timeout.http_status(), 504);
         assert_eq!(DependencyUnavailable.http_status(), 503);
         assert_eq!(Internal.http_status(), 500);
+    }
+
+    #[test]
+    #[cfg(feature = "colored")]
+    fn is_critical_identifies_server_errors() {
+        assert!(Internal.is_critical());
+        assert!(Database.is_critical());
+        assert!(Service.is_critical());
+        assert!(Config.is_critical());
+        assert!(Timeout.is_critical());
+        assert!(Network.is_critical());
+        assert!(DependencyUnavailable.is_critical());
+        assert!(Serialization.is_critical());
+        assert!(Deserialization.is_critical());
+        assert!(ExternalApi.is_critical());
+        assert!(Queue.is_critical());
+        assert!(Cache.is_critical());
+        assert!(Turnkey.is_critical());
+        assert!(NotImplemented.is_critical());
+    }
+
+    #[test]
+    #[cfg(feature = "colored")]
+    fn is_critical_excludes_client_errors() {
+        assert!(!NotFound.is_critical());
+        assert!(!Validation.is_critical());
+        assert!(!Conflict.is_critical());
+        assert!(!Unauthorized.is_critical());
+        assert!(!Forbidden.is_critical());
+        assert!(!BadRequest.is_critical());
+        assert!(!TelegramAuth.is_critical());
+        assert!(!InvalidJwt.is_critical());
+        assert!(!RateLimited.is_critical());
+    }
+
+    #[test]
+    fn display_shows_label() {
+        assert_eq!(NotFound.to_string(), "Not found");
+        assert_eq!(Internal.to_string(), "Internal server error");
+        assert_eq!(BadRequest.to_string(), "Bad request");
+    }
+
+    #[test]
+    #[cfg(feature = "colored")]
+    fn display_colored_contains_label() {
+        let output = Internal.to_string();
+        assert!(output.contains("Internal server error"));
+
+        let output = BadRequest.to_string();
+        assert!(output.contains("Bad request"));
     }
 }

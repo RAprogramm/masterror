@@ -59,6 +59,7 @@ std = ["uuid/std", "serde/std"]
 tracing = ["dep:tracing", "dep:log", "dep:log-mdc", "std"]
 metrics = ["dep:metrics", "std"]
 backtrace = ["std"]
+colored = ["dep:owo-colors", "std"]
 axum = ["dep:axum", "dep:serde_json", "std"]
 actix = ["dep:actix-web", "dep:serde_json", "std"]
 
@@ -137,6 +138,9 @@ js-sys = { version = "0.3", optional = true }
 serde-wasm-bindgen = { version = "0.6", optional = true }
 uuid = { version = "1", default-features = false }
 tonic = { version = "0.14", optional = true }
+owo-colors = { version = "4", optional = true, default-features = false, features = [
+  "supports-colors",
+] }
 
 [dev-dependencies]
 anyhow = { version = "1", default-features = false, features = ["std"] }
@@ -176,6 +180,7 @@ feature_order = [
   "tracing",
   "metrics",
   "backtrace",
+  "colored",
   "sqlx",
   "sqlx-migrate",
   "reqwest",
@@ -229,6 +234,9 @@ description = "Increment `error_total{code,category}` counter for each AppError"
 
 [package.metadata.masterror.readme.features.backtrace]
 description = "Capture lazy `Backtrace` snapshots when telemetry is flushed"
+
+[package.metadata.masterror.readme.features.colored]
+description = "Optional colored terminal output with automatic TTY detection"
 
 [package.metadata.masterror.readme.features.sqlx]
 description = "Classify sqlx_core::Error variants into AppError kinds"
