@@ -295,4 +295,96 @@ mod tests {
         assert!(output.contains("Self :: WithBacktrace"));
         assert!(output.contains("bt"));
     }
+
+    #[test]
+    fn test_variant_backtrace_arm_unnamed_with_backtrace() {
+        let field = make_field_with_backtrace(None, 0);
+        let variant = VariantData {
+            ident:       syn::Ident::new("Error", Span::call_site()),
+            fields:      Fields::Unnamed(vec![field]),
+            display:     DisplaySpec::Template(DisplayTemplate {
+                segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
+            }),
+            format_args: Default::default(),
+            app_error:   None,
+            masterror:   None,
+            span:        Span::call_site()
+        };
+
+        let result = variant_backtrace_arm(&variant);
+        let output = result.to_string();
+        assert!(output.contains("Self :: Error"));
+        assert!(output.contains("__field0"));
+    }
+
+    #[test]
+    fn test_variant_backtrace_arm_named_no_backtrace() {
+        use proc_macro2::Span;
+        use syn::parse_quote;
+
+        use crate::input::{Field, FieldAttrs};
+
+        let field = Field {
+            ident:  Some(syn::Ident::new("value", Span::call_site())),
+            member: syn::Member::Named(syn::Ident::new("value", Span::call_site())),
+            ty:     parse_quote!(String),
+            index:  0,
+            attrs:  FieldAttrs::default(),
+            span:   Span::call_site()
+        };
+        let variant = VariantData {
+            ident:       syn::Ident::new("Error", Span::call_site()),
+            fields:      Fields::Named(vec![field]),
+            display:     DisplaySpec::Template(DisplayTemplate {
+                segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
+            }),
+            format_args: Default::default(),
+            app_error:   None,
+            masterror:   None,
+            span:        Span::call_site()
+        };
+
+        let result = variant_backtrace_arm(&variant);
+        let output = result.to_string();
+        assert!(output.contains("Self :: Error"));
+        assert!(output.contains(".."));
+        assert!(output.contains("None"));
+    }
+
+    #[test]
+    fn test_variant_backtrace_arm_unnamed_no_backtrace() {
+        use proc_macro2::Span;
+        use syn::parse_quote;
+
+        use crate::input::{Field, FieldAttrs};
+
+        let field = Field {
+            ident:  None,
+            member: syn::Member::Unnamed(syn::Index {
+                index: 0,
+                span:  Span::call_site()
+            }),
+            ty:     parse_quote!(String),
+            index:  0,
+            attrs:  FieldAttrs::default(),
+            span:   Span::call_site()
+        };
+        let variant = VariantData {
+            ident:       syn::Ident::new("Error", Span::call_site()),
+            fields:      Fields::Unnamed(vec![field]),
+            display:     DisplaySpec::Template(DisplayTemplate {
+                segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
+            }),
+            format_args: Default::default(),
+            app_error:   None,
+            masterror:   None,
+            span:        Span::call_site()
+        };
+
+        let result = variant_backtrace_arm(&variant);
+        let output = result.to_string();
+        assert!(output.contains("Self :: Error"));
+        assert!(output.contains("_"));
+        assert!(output.contains("None"));
+    }
 }

@@ -306,4 +306,134 @@ mod tests {
         assert!(output.contains("Self :: Wrapped"));
         assert!(output.contains("inner"));
     }
+
+    #[test]
+    fn test_variant_source_arm_transparent_unnamed() {
+        let field = make_field(None, 0, false);
+        let variant = VariantData {
+            ident:       syn::Ident::new("Wrapped", Span::call_site()),
+            fields:      Fields::Unnamed(vec![field]),
+            display:     DisplaySpec::Transparent {
+                attribute: Box::new(syn::parse_quote!(#[error(transparent)]))
+            },
+            format_args: Default::default(),
+            app_error:   None,
+            masterror:   None,
+            span:        Span::call_site()
+        };
+
+        let result = variant_source_arm(&variant);
+        let output = result.to_string();
+        assert!(output.contains("Self :: Wrapped"));
+        assert!(output.contains("__field0"));
+    }
+
+    #[test]
+    fn test_variant_source_arm_transparent_named_multiple() {
+        let field1 = make_field(Some("inner"), 0, false);
+        let field2 = make_field(Some("other"), 1, false);
+        let variant = VariantData {
+            ident:       syn::Ident::new("Multi", Span::call_site()),
+            fields:      Fields::Named(vec![field1, field2]),
+            display:     DisplaySpec::Transparent {
+                attribute: Box::new(syn::parse_quote!(#[error(transparent)]))
+            },
+            format_args: Default::default(),
+            app_error:   None,
+            masterror:   None,
+            span:        Span::call_site()
+        };
+
+        let result = variant_source_arm(&variant);
+        let output = result.to_string();
+        assert!(output.contains("Self :: Multi"));
+        assert!(output.contains("inner"));
+        assert!(output.contains(".."));
+    }
+
+    #[test]
+    fn test_variant_source_arm_template_unnamed_no_source() {
+        let field = make_field(None, 0, false);
+        let variant = VariantData {
+            ident:       syn::Ident::new("Error", Span::call_site()),
+            fields:      Fields::Unnamed(vec![field]),
+            display:     DisplaySpec::Template(DisplayTemplate {
+                segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
+            }),
+            format_args: Default::default(),
+            app_error:   None,
+            masterror:   None,
+            span:        Span::call_site()
+        };
+
+        let result = variant_source_arm(&variant);
+        let output = result.to_string();
+        assert!(output.contains("Self :: Error"));
+        assert!(output.contains("None"));
+    }
+
+    #[test]
+    fn test_variant_source_arm_template_unnamed_with_source() {
+        let field = make_field(None, 0, true);
+        let variant = VariantData {
+            ident:       syn::Ident::new("Error", Span::call_site()),
+            fields:      Fields::Unnamed(vec![field]),
+            display:     DisplaySpec::Template(DisplayTemplate {
+                segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
+            }),
+            format_args: Default::default(),
+            app_error:   None,
+            masterror:   None,
+            span:        Span::call_site()
+        };
+
+        let result = variant_source_arm(&variant);
+        let output = result.to_string();
+        assert!(output.contains("Self :: Error"));
+        assert!(output.contains("__field0"));
+        assert!(output.contains("dyn std :: error :: Error"));
+    }
+
+    #[test]
+    fn test_variant_source_arm_template_named_with_source() {
+        let field = make_field(Some("cause"), 0, true);
+        let variant = VariantData {
+            ident:       syn::Ident::new("Error", Span::call_site()),
+            fields:      Fields::Named(vec![field]),
+            display:     DisplaySpec::Template(DisplayTemplate {
+                segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
+            }),
+            format_args: Default::default(),
+            app_error:   None,
+            masterror:   None,
+            span:        Span::call_site()
+        };
+
+        let result = variant_source_arm(&variant);
+        let output = result.to_string();
+        assert!(output.contains("Self :: Error"));
+        assert!(output.contains("cause"));
+    }
+
+    #[test]
+    fn test_variant_source_arm_template_named_no_source() {
+        let field = make_field(Some("value"), 0, false);
+        let variant = VariantData {
+            ident:       syn::Ident::new("Error", Span::call_site()),
+            fields:      Fields::Named(vec![field]),
+            display:     DisplaySpec::Template(DisplayTemplate {
+                segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
+            }),
+            format_args: Default::default(),
+            app_error:   None,
+            masterror:   None,
+            span:        Span::call_site()
+        };
+
+        let result = variant_source_arm(&variant);
+        let output = result.to_string();
+        assert!(output.contains("Self :: Error"));
+        assert!(output.contains(".."));
+        assert!(output.contains("None"));
+    }
 }
