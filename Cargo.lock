@@ -1758,6 +1758,7 @@ dependencies = [
  "masterror-derive",
  "masterror-template",
  "metrics",
+ "owo-colors",
  "redis",
  "reqwest",
  "ryu",
@@ -1990,6 +1991,12 @@ dependencies = [
  "dlv-list",
  "hashbrown 0.14.5",
 ]
+
+[[package]]
+name = "owo-colors"
+version = "4.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c6901729fa79e91a0913333229e9ca5dc725089d1c363b2f4b4760709dc4a52"
 
 [[package]]
 name = "parking"
