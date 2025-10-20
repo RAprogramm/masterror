@@ -162,10 +162,10 @@ masterror = { version = "0.24.19", default-features = false }
 # masterror = { version = "0.24.19", features = [
 #   "std", "axum", "actix", "openapi",
 #   "serde_json", "tracing", "metrics", "backtrace",
-#   "sqlx", "sqlx-migrate", "reqwest", "redis",
-#   "validator", "config", "tokio", "multipart",
-#   "teloxide", "telegram-webapp-sdk", "tonic", "frontend",
-#   "turnkey", "benchmarks"
+#   "colored", "sqlx", "sqlx-migrate", "reqwest",
+#   "redis", "validator", "config", "tokio",
+#   "multipart", "teloxide", "telegram-webapp-sdk", "tonic",
+#   "frontend", "turnkey", "benchmarks"
 # ] }
 ~~~
 
