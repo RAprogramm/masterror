@@ -138,7 +138,9 @@ js-sys = { version = "0.3", optional = true }
 serde-wasm-bindgen = { version = "0.6", optional = true }
 uuid = { version = "1", default-features = false }
 tonic = { version = "0.14", optional = true }
-owo-colors = { version = "4", optional = true, default-features = false }
+owo-colors = { version = "4", optional = true, default-features = false, features = [
+  "supports-colors",
+] }
 
 [dev-dependencies]
 anyhow = { version = "1", default-features = false, features = ["std"] }

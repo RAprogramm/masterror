@@ -367,6 +367,10 @@ pub mod frontend;
 #[cfg_attr(docsrs, doc(cfg(feature = "turnkey")))]
 pub mod turnkey;
 
+#[cfg(feature = "colored")]
+#[cfg_attr(docsrs, doc(cfg(feature = "colored")))]
+pub mod colored;
+
 /// Minimal prelude re-exporting core types for handler signatures.
 pub mod prelude;
 
