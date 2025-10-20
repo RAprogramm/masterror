@@ -350,4 +350,65 @@ mod tests {
         let variants = vec![];
         assert!(ensure_all_variants_have_masterror(&variants).is_ok());
     }
+
+    #[test]
+    fn test_enum_message_pattern_unit() {
+        use proc_macro2::Span;
+        use quote::format_ident;
+
+        use crate::input::{DisplaySpec, Fields};
+
+        let variant = VariantData {
+            ident:       format_ident!("NotFound"),
+            fields:      Fields::Unit,
+            display:     DisplaySpec::Template(crate::template_support::DisplayTemplate {
+                segments: vec![]
+            }),
+            format_args: Default::default(),
+            app_error:   None,
+            masterror:   None,
+            span:        Span::call_site()
+        };
+
+        let enum_ident = format_ident!("MyError");
+        let result = enum_message_pattern(&enum_ident, &variant, None);
+        let result_str = result.to_string();
+        assert!(result_str.contains("MyError :: NotFound"));
+    }
+
+    #[test]
+    fn test_enum_message_pattern_named() {
+        use proc_macro2::Span;
+        use quote::format_ident;
+        use syn::parse_quote;
+
+        use crate::input::{DisplaySpec, Field, FieldAttrs, Fields};
+
+        let field = Field {
+            ident:  Some(format_ident!("message")),
+            member: syn::Member::Named(format_ident!("message")),
+            ty:     parse_quote!(String),
+            index:  0,
+            attrs:  FieldAttrs::default(),
+            span:   Span::call_site()
+        };
+
+        let variant = VariantData {
+            ident:       format_ident!("Custom"),
+            fields:      Fields::Named(vec![field]),
+            display:     DisplaySpec::Template(crate::template_support::DisplayTemplate {
+                segments: vec![]
+            }),
+            format_args: Default::default(),
+            app_error:   None,
+            masterror:   None,
+            span:        Span::call_site()
+        };
+
+        let enum_ident = format_ident!("MyError");
+        let result = enum_message_pattern(&enum_ident, &variant, None);
+        let result_str = result.to_string();
+        assert!(result_str.contains("MyError :: Custom"));
+        assert!(result_str.contains(".."));
+    }
 }

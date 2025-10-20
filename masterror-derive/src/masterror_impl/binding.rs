@@ -336,4 +336,100 @@ mod tests {
         assert_eq!(bound.len(), 1);
         assert_eq!(bound[0].binding.to_string(), "__field0");
     }
+
+    #[test]
+    fn test_bind_variant_fields_unit() {
+        use crate::input::DisplaySpec;
+        let enum_ident = format_ident!("MyError");
+        let variant = VariantData {
+            ident:       format_ident!("NotFound"),
+            fields:      Fields::Unit,
+            display:     DisplaySpec::Template(crate::template_support::DisplayTemplate {
+                segments: vec![]
+            }),
+            format_args: Default::default(),
+            app_error:   None,
+            masterror:   None,
+            span:        Span::call_site()
+        };
+
+        let (pattern, bound) = bind_variant_fields(&enum_ident, &variant);
+        assert_eq!(pattern.to_string(), "MyError :: NotFound");
+        assert!(bound.is_empty());
+    }
+
+    #[test]
+    fn test_bind_variant_fields_named() {
+        use crate::input::DisplaySpec;
+        let enum_ident = format_ident!("MyError");
+        let field = create_test_field(Some(format_ident!("code")), 0);
+        let variant = VariantData {
+            ident:       format_ident!("Auth"),
+            fields:      Fields::Named(vec![field]),
+            display:     DisplaySpec::Template(crate::template_support::DisplayTemplate {
+                segments: vec![]
+            }),
+            format_args: Default::default(),
+            app_error:   None,
+            masterror:   None,
+            span:        Span::call_site()
+        };
+
+        let (pattern, bound) = bind_variant_fields(&enum_ident, &variant);
+        let pattern_str = pattern.to_string();
+
+        assert!(pattern_str.contains("MyError :: Auth"));
+        assert!(pattern_str.contains("code"));
+        assert_eq!(bound.len(), 1);
+        assert_eq!(bound[0].binding.to_string(), "code");
+    }
+
+    #[test]
+    fn test_bind_variant_fields_unnamed() {
+        use crate::input::DisplaySpec;
+        let enum_ident = format_ident!("MyError");
+        let field = create_test_field(None, 0);
+        let variant = VariantData {
+            ident:       format_ident!("Io"),
+            fields:      Fields::Unnamed(vec![field]),
+            display:     DisplaySpec::Template(crate::template_support::DisplayTemplate {
+                segments: vec![]
+            }),
+            format_args: Default::default(),
+            app_error:   None,
+            masterror:   None,
+            span:        Span::call_site()
+        };
+
+        let (pattern, bound) = bind_variant_fields(&enum_ident, &variant);
+        let pattern_str = pattern.to_string();
+
+        assert!(pattern_str.contains("MyError :: Io"));
+        assert!(pattern_str.contains("__field0"));
+        assert_eq!(bound.len(), 1);
+        assert_eq!(bound[0].binding.to_string(), "__field0");
+    }
+
+    #[test]
+    fn test_field_usage_tokens_multiple() {
+        let field1 = create_test_field(Some(format_ident!("field1")), 0);
+        let field2 = create_test_field(Some(format_ident!("field2")), 1);
+        let binding1 = binding_ident(&field1);
+        let binding2 = binding_ident(&field2);
+        let bound = vec![
+            BoundField {
+                field:   &field1,
+                binding: binding1
+            },
+            BoundField {
+                field:   &field2,
+                binding: binding2
+            },
+        ];
+
+        let result = field_usage_tokens(&bound);
+        let result_str = result.to_string();
+        assert!(result_str.contains("field1"));
+        assert!(result_str.contains("field2"));
+    }
 }

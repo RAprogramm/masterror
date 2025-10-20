@@ -280,4 +280,13 @@ mod tests {
         let result = mapping_option_tokens(None, &code, &category, MappingKind::Grpc);
         assert_eq!(result.to_string(), "None");
     }
+
+    #[test]
+    fn test_mapping_option_tokens_problem_none() {
+        let code: Expr = parse_quote!("E002");
+        let category: ExprPath = parse_quote!(ErrorCategory::NotFound);
+
+        let result = mapping_option_tokens(None, &code, &category, MappingKind::Problem);
+        assert_eq!(result.to_string(), "None");
+    }
 }

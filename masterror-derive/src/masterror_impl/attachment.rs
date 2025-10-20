@@ -418,4 +418,78 @@ mod tests {
         let result = backtrace_attachment_tokens(&fields, &bound_fields);
         assert!(result.is_empty());
     }
+
+    #[test]
+    fn test_source_attachment_arc() {
+        use proc_macro2::Span;
+        use quote::format_ident;
+        use syn::parse_quote;
+
+        use crate::input::{Field, FieldAttrs};
+
+        let mut attrs = FieldAttrs::default();
+        attrs.source = Some(parse_quote!(#[source]));
+        let field = Field {
+            ident: Some(format_ident!("inner")),
+            member: syn::Member::Named(format_ident!("inner")),
+            ty: parse_quote!(std::sync::Arc<dyn std::error::Error>),
+            index: 0,
+            attrs,
+            span: Span::call_site()
+        };
+        let binding = format_ident!("inner");
+        let bound = vec![BoundField {
+            field: &field,
+            binding
+        }];
+
+        let result = source_attachment_tokens(&bound);
+        let result_str = result.to_string();
+        assert!(result_str.contains("with_source_arc"));
+    }
+
+    #[test]
+    fn test_source_attachment_option_arc() {
+        use proc_macro2::Span;
+        use quote::format_ident;
+        use syn::parse_quote;
+
+        use crate::input::{Field, FieldAttrs};
+
+        let mut attrs = FieldAttrs::default();
+        attrs.source = Some(parse_quote!(#[source]));
+        let field = Field {
+            ident: Some(format_ident!("inner")),
+            member: syn::Member::Named(format_ident!("inner")),
+            ty: parse_quote!(Option<std::sync::Arc<dyn std::error::Error>>),
+            index: 0,
+            attrs,
+            span: Span::call_site()
+        };
+        let binding = format_ident!("inner");
+        let bound = vec![BoundField {
+            field: &field,
+            binding
+        }];
+
+        let result = source_attachment_tokens(&bound);
+        let result_str = result.to_string();
+        assert!(result_str.contains("with_source_arc"));
+        assert!(result_str.contains("if let Some"));
+    }
+
+    #[test]
+    fn test_field_redaction_tokens_all_kinds() {
+        let result_none = field_redaction_tokens(FieldRedactionKind::None);
+        assert!(result_none.to_string().contains("None"));
+
+        let result_redact = field_redaction_tokens(FieldRedactionKind::Redact);
+        assert!(result_redact.to_string().contains("Redact"));
+
+        let result_hash = field_redaction_tokens(FieldRedactionKind::Hash);
+        assert!(result_hash.to_string().contains("Hash"));
+
+        let result_last4 = field_redaction_tokens(FieldRedactionKind::Last4);
+        assert!(result_last4.to_string().contains("Last4"));
+    }
 }
