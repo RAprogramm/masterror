@@ -301,4 +301,42 @@ mod tests {
             .expect("should serialize");
         assert!(err.details.is_some());
     }
+
+    #[cfg(all(feature = "std", feature = "backtrace"))]
+    #[test]
+    fn error_with_backtrace_attaches_backtrace() {
+        use std::backtrace::Backtrace;
+
+        let bt = Backtrace::capture();
+        let err = Error::new(AppErrorKind::Internal, "test").with_backtrace(bt);
+        assert!(err.backtrace.is_some());
+    }
+
+    #[cfg(all(feature = "std", feature = "backtrace"))]
+    #[test]
+    fn error_with_shared_backtrace_reuses_arc() {
+        use std::{backtrace::Backtrace, sync::Arc};
+
+        let bt = Arc::new(Backtrace::capture());
+        let bt_clone = Arc::clone(&bt);
+        let err = Error::new(AppErrorKind::Internal, "test").with_shared_backtrace(bt);
+
+        assert!(err.backtrace.is_some());
+        assert_eq!(Arc::strong_count(&bt_clone), 2);
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn error_with_context_shared_attachment() {
+        use std::{io::Error as IoError, sync::Arc};
+
+        use crate::app_error::core::types::ContextAttachment;
+
+        let io_err = Arc::new(IoError::other("shared error"));
+        let err = Error::new(AppErrorKind::Internal, "test")
+            .with_context(ContextAttachment::Shared(io_err.clone()));
+
+        assert!(err.source_ref().is_some());
+        assert_eq!(Arc::strong_count(&io_err), 2);
+    }
 }

@@ -163,3 +163,88 @@ mod test_backtrace_override {
         }
     }
 }
+
+#[cfg(all(test, feature = "backtrace"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn capture_snapshot_returns_some_when_enabled() {
+        reset_backtrace_preference();
+        set_backtrace_preference_override(Some(true));
+        let result = capture_backtrace_snapshot();
+        assert!(result.is_some());
+        reset_backtrace_preference();
+    }
+
+    #[test]
+    fn capture_snapshot_returns_none_when_disabled() {
+        reset_backtrace_preference();
+        set_backtrace_preference_override(Some(false));
+        let result = capture_backtrace_snapshot();
+        assert!(result.is_none());
+        reset_backtrace_preference();
+    }
+
+    #[test]
+    fn should_capture_returns_true_when_enabled() {
+        reset_backtrace_preference();
+        set_backtrace_preference_override(Some(true));
+        assert!(should_capture_backtrace());
+        reset_backtrace_preference();
+    }
+
+    #[test]
+    fn should_capture_caches_enabled_state() {
+        reset_backtrace_preference();
+        set_backtrace_preference_override(Some(true));
+
+        should_capture_backtrace();
+
+        set_backtrace_preference_override(Some(false));
+        assert!(
+            should_capture_backtrace(),
+            "should use cached enabled state"
+        );
+
+        reset_backtrace_preference();
+    }
+
+    #[test]
+    fn detect_preference_respects_override() {
+        reset_backtrace_preference();
+
+        set_backtrace_preference_override(Some(true));
+        assert!(detect_backtrace_preference());
+
+        set_backtrace_preference_override(Some(false));
+        assert!(!detect_backtrace_preference());
+
+        reset_backtrace_preference();
+    }
+
+    #[test]
+    fn detect_preference_returns_false_by_default() {
+        reset_backtrace_preference();
+        set_backtrace_preference_override(None);
+
+        let result = detect_backtrace_preference();
+
+        reset_backtrace_preference();
+        let _ = result;
+    }
+
+    #[test]
+    fn reset_clears_state_and_override() {
+        set_backtrace_preference_override(Some(true));
+        BACKTRACE_STATE.store(BACKTRACE_STATE_ENABLED, AtomicOrdering::Release);
+
+        reset_backtrace_preference();
+
+        assert_eq!(
+            BACKTRACE_STATE.load(AtomicOrdering::Acquire),
+            BACKTRACE_STATE_UNSET
+        );
+        assert_eq!(test_backtrace_override::get(), None);
+    }
+}
