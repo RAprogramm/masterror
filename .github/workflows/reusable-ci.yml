@@ -135,7 +135,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          key: clippy-${{ matrix.rust }}
+          shared-key: stable
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Clippy (${{ matrix.rust }})
@@ -204,7 +204,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          key: test-${{ matrix.rust }}
+          shared-key: stable
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install cargo-nextest
@@ -383,6 +383,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
+          shared-key: stable
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Ensure tree is clean before package
@@ -420,6 +421,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
+          shared-key: stable
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Generate coverage
@@ -504,6 +506,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
+          shared-key: stable
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run benchmarks
