@@ -24,6 +24,95 @@ fn context_returns_optional_message() {
     assert_eq!(BrowserConsoleError::UnsupportedTarget.context(), None);
 }
 
+#[test]
+fn context_returns_message_for_console_unavailable() {
+    let err = BrowserConsoleError::ConsoleUnavailable {
+        message: "missing console".to_owned()
+    };
+    assert_eq!(err.context(), Some("missing console"));
+}
+
+#[test]
+fn context_returns_message_for_console_error_unavailable() {
+    let err = BrowserConsoleError::ConsoleErrorUnavailable {
+        message: "error method missing".to_owned()
+    };
+    assert_eq!(err.context(), Some("error method missing"));
+}
+
+#[test]
+fn display_formats_serialization_error() {
+    let err = BrowserConsoleError::Serialization {
+        message: "json fail".to_owned()
+    };
+    let display = format!("{}", err);
+    assert!(display.contains("failed to serialize"));
+    assert!(display.contains("json fail"));
+}
+
+#[test]
+fn display_formats_console_unavailable() {
+    let err = BrowserConsoleError::ConsoleUnavailable {
+        message: "no console".to_owned()
+    };
+    let display = format!("{}", err);
+    assert!(display.contains("not available"));
+    assert!(display.contains("no console"));
+}
+
+#[test]
+fn display_formats_console_error_unavailable() {
+    let err = BrowserConsoleError::ConsoleErrorUnavailable {
+        message: "no error fn".to_owned()
+    };
+    let display = format!("{}", err);
+    assert!(display.contains("failed to access"));
+    assert!(display.contains("no error fn"));
+}
+
+#[test]
+fn display_formats_console_method_not_callable() {
+    let err = BrowserConsoleError::ConsoleMethodNotCallable;
+    let display = format!("{}", err);
+    assert!(display.contains("not callable"));
+}
+
+#[test]
+fn display_formats_console_invocation_error() {
+    let err = BrowserConsoleError::ConsoleInvocation {
+        message: "call failed".to_owned()
+    };
+    let display = format!("{}", err);
+    assert!(display.contains("failed to invoke"));
+    assert!(display.contains("call failed"));
+}
+
+#[test]
+fn display_formats_unsupported_target() {
+    let err = BrowserConsoleError::UnsupportedTarget;
+    let display = format!("{}", err);
+    assert!(display.contains("not supported"));
+}
+
+#[test]
+fn debug_trait_works() {
+    let err = BrowserConsoleError::Serialization {
+        message: "test".to_owned()
+    };
+    let debug = format!("{:?}", err);
+    assert!(debug.contains("Serialization"));
+}
+
+#[test]
+fn partial_eq_works() {
+    let err1 = BrowserConsoleError::UnsupportedTarget;
+    let err2 = BrowserConsoleError::UnsupportedTarget;
+    assert_eq!(err1, err2);
+
+    let err3 = BrowserConsoleError::ConsoleMethodNotCallable;
+    assert_ne!(err1, err3);
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 mod native {
     use super::*;
@@ -47,6 +136,16 @@ mod native {
     fn console_logging_returns_unsupported_on_native_targets() {
         let err = AppError::internal("boom");
         let result = err.log_to_browser_console();
+        assert!(matches!(
+            result,
+            Err(BrowserConsoleError::UnsupportedTarget)
+        ));
+    }
+
+    #[test]
+    fn error_response_log_to_browser_console_unsupported() {
+        let response = ErrorResponse::new(500, AppCode::Internal, "crash").expect("status");
+        let result = response.log_to_browser_console();
         assert!(matches!(
             result,
             Err(BrowserConsoleError::UnsupportedTarget)
