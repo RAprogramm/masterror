@@ -131,3 +131,91 @@ impl ProblemMapping {
         self.r#type
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn http_mapping_new_creates_mapping() {
+        let mapping = HttpMapping::new(AppCode::NotFound, AppErrorKind::NotFound);
+        assert_eq!(mapping.code(), &AppCode::NotFound);
+        assert_eq!(mapping.kind(), AppErrorKind::NotFound);
+    }
+
+    #[test]
+    fn http_mapping_status_derives_from_kind() {
+        let mapping = HttpMapping::new(AppCode::BadRequest, AppErrorKind::BadRequest);
+        assert_eq!(mapping.status(), 400);
+    }
+
+    #[test]
+    fn http_mapping_clone_works() {
+        let mapping = HttpMapping::new(AppCode::Internal, AppErrorKind::Internal);
+        let cloned = mapping.clone();
+        assert_eq!(mapping, cloned);
+    }
+
+    #[test]
+    fn http_mapping_debug_works() {
+        let mapping = HttpMapping::new(AppCode::NotFound, AppErrorKind::NotFound);
+        let debug = format!("{:?}", mapping);
+        assert!(debug.contains("HttpMapping"));
+    }
+
+    #[test]
+    fn grpc_mapping_new_creates_mapping() {
+        let mapping = GrpcMapping::new(AppCode::NotFound, AppErrorKind::NotFound, 5);
+        assert_eq!(mapping.code(), &AppCode::NotFound);
+        assert_eq!(mapping.kind(), AppErrorKind::NotFound);
+        assert_eq!(mapping.status(), 5);
+    }
+
+    #[test]
+    fn grpc_mapping_clone_works() {
+        let mapping = GrpcMapping::new(AppCode::Internal, AppErrorKind::Internal, 13);
+        let cloned = mapping.clone();
+        assert_eq!(mapping, cloned);
+    }
+
+    #[test]
+    fn grpc_mapping_debug_works() {
+        let mapping = GrpcMapping::new(AppCode::BadRequest, AppErrorKind::BadRequest, 3);
+        let debug = format!("{:?}", mapping);
+        assert!(debug.contains("GrpcMapping"));
+    }
+
+    #[test]
+    fn problem_mapping_new_creates_mapping() {
+        let mapping = ProblemMapping::new(
+            AppCode::NotFound,
+            AppErrorKind::NotFound,
+            "https://example.com/errors/not-found"
+        );
+        assert_eq!(mapping.code(), &AppCode::NotFound);
+        assert_eq!(mapping.kind(), AppErrorKind::NotFound);
+        assert_eq!(mapping.type_uri(), "https://example.com/errors/not-found");
+    }
+
+    #[test]
+    fn problem_mapping_clone_works() {
+        let mapping = ProblemMapping::new(
+            AppCode::Internal,
+            AppErrorKind::Internal,
+            "https://example.com/errors/internal"
+        );
+        let cloned = mapping.clone();
+        assert_eq!(mapping, cloned);
+    }
+
+    #[test]
+    fn problem_mapping_debug_works() {
+        let mapping = ProblemMapping::new(
+            AppCode::BadRequest,
+            AppErrorKind::BadRequest,
+            "https://example.com/errors/bad-request"
+        );
+        let debug = format!("{:?}", mapping);
+        assert!(debug.contains("ProblemMapping"));
+    }
+}
