@@ -2,6 +2,30 @@
 //
 // SPDX-License-Identifier: MIT
 
+//! Browser console logging extensions for errors.
+//!
+//! This module provides the [`BrowserConsoleExt`] trait for serializing errors
+//! to JavaScript values and logging them to the browser console.
+//!
+//! # Platform Support
+//!
+//! - **WASM target** (`target_arch = "wasm32"`): Full functionality available
+//! - **Native targets**: Returns [`BrowserConsoleError::UnsupportedTarget`]
+//!
+//! # Examples
+//!
+//! ```rust,ignore
+//! use masterror::{AppError, frontend::BrowserConsoleExt};
+//!
+//! let err = AppError::not_found("user not found");
+//!
+//! // Serialize to JsValue (WASM only)
+//! let js_value = err.to_js_value()?;
+//!
+//! // Log to browser console (WASM only)
+//! err.log_to_browser_console()?;
+//! ```
+
 #[cfg(target_arch = "wasm32")]
 use js_sys::{Function, Reflect};
 #[cfg(target_arch = "wasm32")]
@@ -15,15 +39,71 @@ use crate::{AppError, AppResult, ErrorResponse};
 
 /// Extensions for serializing errors to JavaScript and logging to the browser
 /// console.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use masterror::{AppError, frontend::BrowserConsoleExt};
+///
+/// let err = AppError::not_found("resource missing");
+/// let js_value = err.to_js_value()?;
+/// ```
 #[cfg_attr(docsrs, doc(cfg(feature = "frontend")))]
 pub trait BrowserConsoleExt {
     /// Convert the error into a [`JsValue`] suitable for passing to JavaScript.
+    ///
+    /// On WASM targets, serializes the error to a JavaScript object.
+    /// On non-WASM targets, returns [`BrowserConsoleError::UnsupportedTarget`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use masterror::{
+    ///     AppError,
+    ///     frontend::{BrowserConsoleError, BrowserConsoleExt}
+    /// };
+    ///
+    /// let err = AppError::not_found("user not found");
+    ///
+    /// #[cfg(target_arch = "wasm32")]
+    /// {
+    ///     let js_value = err.to_js_value().expect("serialize");
+    ///     assert!(!js_value.is_undefined());
+    /// }
+    ///
+    /// #[cfg(not(target_arch = "wasm32"))]
+    /// {
+    ///     assert!(matches!(
+    ///         err.to_js_value(),
+    ///         Err(BrowserConsoleError::UnsupportedTarget)
+    ///     ));
+    /// }
+    /// ```
     fn to_js_value(&self) -> AppResult<JsValue, BrowserConsoleError>;
 
     /// Emit the error as a structured payload via `console.error`.
     ///
-    /// On non-WASM targets this returns
-    /// [`BrowserConsoleError::UnsupportedTarget`].
+    /// On WASM targets, logs the error to the browser's developer console.
+    /// On non-WASM targets, returns [`BrowserConsoleError::UnsupportedTarget`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use masterror::{
+    ///     AppError,
+    ///     frontend::{BrowserConsoleError, BrowserConsoleExt}
+    /// };
+    ///
+    /// let err = AppError::internal("server error");
+    ///
+    /// #[cfg(not(target_arch = "wasm32"))]
+    /// {
+    ///     assert!(matches!(
+    ///         err.log_to_browser_console(),
+    ///         Err(BrowserConsoleError::UnsupportedTarget)
+    ///     ));
+    /// }
+    /// ```
     fn log_to_browser_console(&self) -> AppResult<(), BrowserConsoleError> {
         let payload = self.to_js_value()?;
         log_js_value(&payload)
