@@ -124,6 +124,112 @@ fn from_turnkey_error_into_app_error() {
 }
 
 #[test]
+fn from_turnkey_error_kind_to_app_error_kind_unique_label() {
+    let kind: AppErrorKind = TurnkeyErrorKind::UniqueLabel.into();
+    assert_eq!(kind, AppErrorKind::Conflict);
+}
+
+#[test]
+fn from_turnkey_error_kind_to_app_error_kind_rate_limited() {
+    let kind: AppErrorKind = TurnkeyErrorKind::RateLimited.into();
+    assert_eq!(kind, AppErrorKind::RateLimited);
+}
+
+#[test]
+fn from_turnkey_error_kind_to_app_error_kind_timeout() {
+    let kind: AppErrorKind = TurnkeyErrorKind::Timeout.into();
+    assert_eq!(kind, AppErrorKind::Timeout);
+}
+
+#[test]
+fn from_turnkey_error_kind_to_app_error_kind_auth() {
+    let kind: AppErrorKind = TurnkeyErrorKind::Auth.into();
+    assert_eq!(kind, AppErrorKind::Unauthorized);
+}
+
+#[test]
+fn from_turnkey_error_kind_to_app_error_kind_network() {
+    let kind: AppErrorKind = TurnkeyErrorKind::Network.into();
+    assert_eq!(kind, AppErrorKind::Network);
+}
+
+#[test]
+fn from_turnkey_error_kind_to_app_error_kind_service() {
+    let kind: AppErrorKind = TurnkeyErrorKind::Service.into();
+    assert_eq!(kind, AppErrorKind::Turnkey);
+}
+
+#[test]
+fn from_turnkey_error_to_app_error_unique_label() {
+    let err = TurnkeyError::new(TurnkeyErrorKind::UniqueLabel, "label exists");
+    let app_err: AppError = err.into();
+    assert_eq!(app_err.kind, AppErrorKind::Conflict);
+    assert_eq!(app_err.message.as_deref(), Some("label exists"));
+}
+
+#[test]
+fn from_turnkey_error_to_app_error_rate_limited() {
+    let err = TurnkeyError::new(TurnkeyErrorKind::RateLimited, "quota exceeded");
+    let app_err: AppError = err.into();
+    assert_eq!(app_err.kind, AppErrorKind::RateLimited);
+    assert_eq!(app_err.message.as_deref(), Some("quota exceeded"));
+}
+
+#[test]
+fn from_turnkey_error_to_app_error_timeout() {
+    let err = TurnkeyError::new(TurnkeyErrorKind::Timeout, "deadline exceeded");
+    let app_err: AppError = err.into();
+    assert_eq!(app_err.kind, AppErrorKind::Timeout);
+    assert_eq!(app_err.message.as_deref(), Some("deadline exceeded"));
+}
+
+#[test]
+fn from_turnkey_error_to_app_error_auth() {
+    let err = TurnkeyError::new(TurnkeyErrorKind::Auth, "invalid credentials");
+    let app_err: AppError = err.into();
+    assert_eq!(app_err.kind, AppErrorKind::Unauthorized);
+    assert_eq!(app_err.message.as_deref(), Some("invalid credentials"));
+}
+
+#[test]
+fn from_turnkey_error_to_app_error_network() {
+    let err = TurnkeyError::new(TurnkeyErrorKind::Network, "connection refused");
+    let app_err: AppError = err.into();
+    assert_eq!(app_err.kind, AppErrorKind::Network);
+    assert_eq!(app_err.message.as_deref(), Some("connection refused"));
+}
+
+#[test]
+fn from_turnkey_error_to_app_error_service() {
+    let err = TurnkeyError::new(TurnkeyErrorKind::Service, "service error");
+    let app_err: AppError = err.into();
+    assert_eq!(app_err.kind, AppErrorKind::Turnkey);
+    assert_eq!(app_err.message.as_deref(), Some("service error"));
+}
+
+#[test]
+fn from_turnkey_error_preserves_empty_message() {
+    let err = TurnkeyError::new(TurnkeyErrorKind::Timeout, "");
+    let app_err: AppError = err.into();
+    assert_eq!(app_err.message.as_deref(), Some(""));
+}
+
+#[test]
+fn from_turnkey_error_preserves_unicode_message() {
+    let err = TurnkeyError::new(TurnkeyErrorKind::Network, "接続エラー");
+    let app_err: AppError = err.into();
+    assert_eq!(app_err.message.as_deref(), Some("接続エラー"));
+}
+
+#[test]
+fn from_turnkey_error_preserves_long_message() {
+    let long_msg = "x".repeat(5000);
+    let err = TurnkeyError::new(TurnkeyErrorKind::Service, long_msg.clone());
+    let app_err: AppError = err.into();
+    assert_eq!(app_err.message.as_deref(), Some(long_msg.as_str()));
+}
+
+#[test]
 fn turnkey_error_kind_display_unique_label() {
     let kind = TurnkeyErrorKind::UniqueLabel;
     assert_eq!(kind.to_string(), "label already exists");
