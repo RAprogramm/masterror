@@ -47,6 +47,115 @@ fn with_retry_after_duration_attaches_advice() {
 }
 
 #[test]
+fn with_retry_after_secs_zero() {
+    let e = ErrorResponse::new(503, AppCode::Internal, "unavailable")
+        .expect("status")
+        .with_retry_after_secs(0);
+    assert_eq!(e.retry.unwrap().after_seconds, 0);
+}
+
+#[test]
+fn with_retry_after_secs_large_value() {
+    let e = ErrorResponse::new(503, AppCode::Internal, "unavailable")
+        .expect("status")
+        .with_retry_after_secs(u64::MAX);
+    assert_eq!(e.retry.unwrap().after_seconds, u64::MAX);
+}
+
+#[test]
+fn with_retry_after_duration_zero() {
+    use std::time::Duration;
+
+    let e = ErrorResponse::new(503, AppCode::Internal, "unavailable")
+        .expect("status")
+        .with_retry_after_duration(Duration::from_secs(0));
+    assert_eq!(e.retry.unwrap().after_seconds, 0);
+}
+
+#[test]
+fn with_retry_after_duration_subsecond_rounds_down() {
+    use std::time::Duration;
+
+    let e = ErrorResponse::new(503, AppCode::Internal, "unavailable")
+        .expect("status")
+        .with_retry_after_duration(Duration::from_millis(999));
+    assert_eq!(e.retry.unwrap().after_seconds, 0);
+}
+
+#[test]
+fn with_www_authenticate_accepts_string() {
+    let e = ErrorResponse::new(401, AppCode::Unauthorized, "auth required")
+        .expect("status")
+        .with_www_authenticate("Basic realm=\"test\"".to_string());
+    assert_eq!(e.www_authenticate.as_deref(), Some("Basic realm=\"test\""));
+}
+
+#[test]
+fn with_www_authenticate_accepts_str() {
+    let e = ErrorResponse::new(401, AppCode::Unauthorized, "auth required")
+        .expect("status")
+        .with_www_authenticate("Bearer");
+    assert_eq!(e.www_authenticate.as_deref(), Some("Bearer"));
+}
+
+#[test]
+fn with_www_authenticate_empty_string() {
+    let e = ErrorResponse::new(401, AppCode::Unauthorized, "auth required")
+        .expect("status")
+        .with_www_authenticate("");
+    assert_eq!(e.www_authenticate.as_deref(), Some(""));
+}
+
+#[test]
+fn with_www_authenticate_unicode() {
+    let e = ErrorResponse::new(401, AppCode::Unauthorized, "auth required")
+        .expect("status")
+        .with_www_authenticate("Bearer realm=\"認証\"");
+    assert_eq!(e.www_authenticate.as_deref(), Some("Bearer realm=\"認証\""));
+}
+
+#[test]
+fn with_www_authenticate_special_characters() {
+    let challenge = r#"Bearer realm="api", error="invalid_token", error_description="<>&\""#;
+    let e = ErrorResponse::new(401, AppCode::Unauthorized, "auth required")
+        .expect("status")
+        .with_www_authenticate(challenge);
+    assert_eq!(e.www_authenticate.as_deref(), Some(challenge));
+}
+
+#[test]
+fn metadata_methods_are_chainable() {
+    use std::time::Duration;
+
+    let e = ErrorResponse::new(503, AppCode::Internal, "unavailable")
+        .expect("status")
+        .with_retry_after_duration(Duration::from_secs(30))
+        .with_www_authenticate("Bearer")
+        .with_retry_after_secs(60);
+
+    assert_eq!(e.retry.unwrap().after_seconds, 60);
+    assert_eq!(e.www_authenticate.as_deref(), Some("Bearer"));
+}
+
+#[test]
+fn with_retry_after_secs_overwrites_previous() {
+    let e = ErrorResponse::new(503, AppCode::Internal, "unavailable")
+        .expect("status")
+        .with_retry_after_secs(10)
+        .with_retry_after_secs(20);
+    assert_eq!(e.retry.unwrap().after_seconds, 20);
+}
+
+#[test]
+fn with_www_authenticate_overwrites_previous() {
+    let e = ErrorResponse::new(401, AppCode::Unauthorized, "auth required")
+        .expect("status")
+        .with_www_authenticate("Basic")
+        .with_www_authenticate("Bearer");
+    assert_eq!(e.www_authenticate.as_deref(), Some("Bearer"));
+}
+
+#[test]
 fn status_code_maps_invalid_to_internal_server_error() {
     use http::StatusCode;
 
