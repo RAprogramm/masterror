@@ -148,18 +148,11 @@ jobs:
             echo "release_exists=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Get last release tag
-        id: last_tag
-        if: steps.version_check.outputs.should_release == 'true' && steps.check_existing.outputs.tag_exists == 'false'
-        shell: bash
-        run: |
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [ -z "${LAST_TAG}" ]; then
-            # No tags, use first commit
-            LAST_TAG=$(git rev-list --max-parents=0 HEAD)
-          fi
-          echo "tag=${LAST_TAG}" >> "$GITHUB_OUTPUT"
-          echo "Last tag: ${LAST_TAG}"
+      - name: Install git-cliff
+        if: steps.version_check.outputs.should_release == 'true' && steps.check_existing.outputs.release_exists == 'false'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
 
       - name: Generate changelog
         id: changelog
@@ -167,103 +160,19 @@ jobs:
         shell: bash
         run: |
           VERSION="${{ steps.local_version.outputs.version }}"
-          LAST_TAG="${{ steps.last_tag.outputs.tag }}"
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
-          CHANGELOG_FILE=$(mktemp)
-
-          echo "## Changes" >> "${CHANGELOG_FILE}"
-          echo "" >> "${CHANGELOG_FILE}"
-
-          # Get commits since last tag, excluding [skip ci] and readme auto-refresh
-          COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%H|%s|%an" --no-merges | \
-            grep -v "\[skip ci\]" | \
-            grep -v "chore(readme): auto-refresh" || true)
-
-          # Group commits by type
-          declare -A SECTIONS
-          SECTIONS=(
-            ["feat"]="### Features"
-            ["fix"]="### Bug Fixes"
-            ["perf"]="### Performance"
-            ["refactor"]="### Refactoring"
-            ["docs"]="### Documentation"
-            ["test"]="### Tests"
-            ["ci"]="### CI/CD"
-            ["chore"]="### Chore"
-          )
-
-          # Track which commits were categorized
-          CATEGORIZED_HASHES=""
-
-          # Parse commits by type
-          for TYPE in feat fix perf refactor docs test ci chore; do
-            TYPED_COMMITS=$(echo "${COMMITS}" | grep -E "^\w+\|#?[0-9]* ${TYPE}:" || true)
-
-            if [ -n "${TYPED_COMMITS}" ]; then
-              echo "" >> "${CHANGELOG_FILE}"
-              echo "${SECTIONS[$TYPE]}" >> "${CHANGELOG_FILE}"
-              echo "" >> "${CHANGELOG_FILE}"
-
-              while IFS='|' read -r HASH SUBJECT AUTHOR; do
-                # Skip empty lines
-                [ -z "${HASH}" ] && continue
-
-                # Mark as categorized
-                CATEGORIZED_HASHES="${CATEGORIZED_HASHES}${HASH}"$'\n'
-
-                # Extract issue number if present
-                ISSUE=$(echo "${SUBJECT}" | grep -oE '#[0-9]+' | head -1 || echo "")
-                # Remove issue number and type prefix from subject
-                CLEAN_SUBJECT=$(echo "${SUBJECT}" | sed -E 's/^#?[0-9]* [a-z]+: //')
-
-                SHORT_HASH=$(echo "${HASH}" | cut -c1-7)
-                COMMIT_LINK="[\`${SHORT_HASH}\`](https://github.com/${{ github.repository }}/commit/${HASH})"
-
-                if [ -n "${ISSUE}" ]; then
-                  ISSUE_LINK="([${ISSUE}](https://github.com/${{ github.repository }}/issues/${ISSUE#\#}))"
-                  echo "- ${CLEAN_SUBJECT} ${ISSUE_LINK} ${COMMIT_LINK}" >> "${CHANGELOG_FILE}"
-                else
-                  echo "- ${CLEAN_SUBJECT} ${COMMIT_LINK}" >> "${CHANGELOG_FILE}"
-                fi
-              done <<< "${TYPED_COMMITS}"
-            fi
-          done
-
-          # Add uncategorized commits as "Other Changes"
-          UNCATEGORIZED=""
-          while IFS='|' read -r HASH SUBJECT AUTHOR; do
-            [ -z "${HASH}" ] && continue
-            if ! echo "${CATEGORIZED_HASHES}" | grep -q "${HASH}"; then
-              UNCATEGORIZED="${UNCATEGORIZED}${HASH}|${SUBJECT}|${AUTHOR}"$'\n'
-            fi
-          done <<< "${COMMITS}"
-
-          if [ -n "${UNCATEGORIZED}" ]; then
-            echo "" >> "${CHANGELOG_FILE}"
-            echo "### Other Changes" >> "${CHANGELOG_FILE}"
-            echo "" >> "${CHANGELOG_FILE}"
-
-            while IFS='|' read -r HASH SUBJECT AUTHOR; do
-              [ -z "${HASH}" ] && continue
-              SHORT_HASH=$(echo "${HASH}" | cut -c1-7)
-              COMMIT_LINK="[\`${SHORT_HASH}\`](https://github.com/${{ github.repository }}/commit/${HASH})"
-              echo "- ${SUBJECT} ${COMMIT_LINK}" >> "${CHANGELOG_FILE}"
-            done <<< "${UNCATEGORIZED}"
+          if [ -z "${LAST_TAG}" ]; then
+            RANGE=""
+          else
+            RANGE="${LAST_TAG}..HEAD"
           fi
 
-          # Add comparison link
-          echo "" >> "${CHANGELOG_FILE}"
-          echo "---" >> "${CHANGELOG_FILE}"
-          echo "" >> "${CHANGELOG_FILE}"
-          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...v${VERSION}" >> "${CHANGELOG_FILE}"
+          CHANGELOG_CONTENT=$(git cliff --config cliff.toml ${RANGE} --strip all)
 
-          # Output changelog
-          CHANGELOG_CONTENT=$(cat "${CHANGELOG_FILE}")
           echo "changelog<<EOF" >> "$GITHUB_OUTPUT"
           echo "${CHANGELOG_CONTENT}" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
-
-          rm -f "${CHANGELOG_FILE}"
 
       - name: Skip tag creation (already exists)
         if: steps.version_check.outputs.should_release == 'true' && steps.check_existing.outputs.tag_exists == 'true'

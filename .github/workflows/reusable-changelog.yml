@@ -5,23 +5,16 @@
 name: Update Changelog
 
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - 'CHANGELOG.md'
-      - '.github/**'
-      - 'README*.md'
-      - 'docs/**'
+  workflow_call:
 
 permissions:
   contents: write
 
 jobs:
   update-changelog:
-    name: Update CHANGELOG.md with unreleased changes
+    name: Update CHANGELOG.md
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
