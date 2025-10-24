@@ -41,6 +41,7 @@ SPDX-License-Identifier: MIT
 - [Code Coverage](#code-coverage)
 - [Quick Start](#quick-start)
 - [Advanced Usage](#advanced-usage)
+- [Examples](#examples)
 - [Resources](#resources)
 - [Metrics](#metrics)
 - [License](#license)
@@ -586,6 +587,31 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 ~~~
 
 </details>
+
+<div align="right">
+
+<div align="right">
+  <a href="#table-of-contents">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
+
+</div>
+
+---
+
+## Examples
+
+Comprehensive real-world examples demonstrating masterror integration with popular frameworks:
+
+| Example | Description | Features |
+|---------|-------------|----------|
+| [**axum-rest-api**](examples/axum-rest-api/) | REST API with RFC 7807 Problem Details | HTTP endpoints, domain errors, integration tests |
+| [**sqlx-database**](examples/sqlx-database/) | Database error handling with SQLx | Connection errors, constraint violations, transactions |
+| [**custom-domain-errors**](examples/custom-domain-errors/) | Payment processing domain errors | Derive macro, error conversion, structured errors |
+| [**basic-async**](examples/basic-async/) | Async error handling with tokio | Error propagation, timeout handling, Result types |
+
+All examples are runnable and include comprehensive tests. See the [`examples/`](examples/) directory for complete source code and documentation.
 
 <div align="right">
 

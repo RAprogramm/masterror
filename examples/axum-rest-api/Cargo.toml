@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+#
+# SPDX-License-Identifier: MIT
+
+[package]
+name = "axum-rest-api"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+masterror = { path = "../..", features = ["axum", "serde_json", "tracing"] }
+axum = "0.8"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tower = "0.5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+
+[dev-dependencies]
+axum-test = "18.1"
