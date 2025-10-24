@@ -672,3 +672,4 @@ All examples are runnable and include comprehensive tests. See the [`examples/`]
 MSRV: **1.90** · License: **MIT** · No `unsafe`
 
 
+
