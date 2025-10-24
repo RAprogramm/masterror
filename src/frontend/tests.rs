@@ -151,6 +151,94 @@ mod native {
             Err(BrowserConsoleError::UnsupportedTarget)
         ));
     }
+
+    #[test]
+    fn to_js_value_error_response_with_various_error_kinds() {
+        let errors = vec![
+            (404, AppCode::NotFound, "not found"),
+            (409, AppCode::Conflict, "conflict"),
+            (500, AppCode::Internal, "internal"),
+            (401, AppCode::Unauthorized, "unauthorized"),
+        ];
+
+        for (status, code, message) in errors {
+            let response = ErrorResponse::new(status, code, message).expect("status");
+            assert!(matches!(
+                response.to_js_value(),
+                Err(BrowserConsoleError::UnsupportedTarget)
+            ));
+        }
+    }
+
+    #[test]
+    fn to_js_value_app_error_with_all_error_kinds() {
+        let errors = vec![
+            AppError::not_found("not found"),
+            AppError::validation("invalid"),
+            AppError::unauthorized("no auth"),
+            AppError::forbidden("forbidden"),
+            AppError::conflict("exists"),
+            AppError::bad_request("bad"),
+            AppError::rate_limited("limited"),
+            AppError::internal("internal"),
+            AppError::timeout("timeout"),
+            AppError::network("network"),
+        ];
+
+        for err in errors {
+            assert!(matches!(
+                err.to_js_value(),
+                Err(BrowserConsoleError::UnsupportedTarget)
+            ));
+        }
+    }
+
+    #[test]
+    fn log_to_browser_console_propagates_to_js_value_error() {
+        let err = AppError::not_found("missing");
+        let result = err.log_to_browser_console();
+        assert!(matches!(
+            result,
+            Err(BrowserConsoleError::UnsupportedTarget)
+        ));
+    }
+
+    #[test]
+    fn error_response_to_js_value_with_empty_message() {
+        let response = ErrorResponse::new(500, AppCode::Internal, "").expect("status");
+        assert!(matches!(
+            response.to_js_value(),
+            Err(BrowserConsoleError::UnsupportedTarget)
+        ));
+    }
+
+    #[test]
+    fn app_error_to_js_value_with_empty_message() {
+        let err = AppError::internal("");
+        assert!(matches!(
+            err.to_js_value(),
+            Err(BrowserConsoleError::UnsupportedTarget)
+        ));
+    }
+
+    #[test]
+    fn error_response_to_js_value_with_unicode_message() {
+        let response =
+            ErrorResponse::new(404, AppCode::NotFound, "見つかりません").expect("status");
+        assert!(matches!(
+            response.to_js_value(),
+            Err(BrowserConsoleError::UnsupportedTarget)
+        ));
+    }
+
+    #[test]
+    fn app_error_to_js_value_with_unicode_message() {
+        let err = AppError::not_found("Ошибка поиска");
+        assert!(matches!(
+            err.to_js_value(),
+            Err(BrowserConsoleError::UnsupportedTarget)
+        ));
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
