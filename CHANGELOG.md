@@ -5,1251 +5,473 @@ SPDX-License-Identifier: MIT
 -->
 
 # Changelog
+
 All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
 ### Added
-- **Colored terminal output** via optional `colored` feature flag
-  - Automatic TTY detection with `owo-colors` v4
-  - Professional color scheme: red (5xx errors), yellow (4xx errors), cyan (codes), bright white (messages), dimmed (source chains), green (metadata keys)
-  - Respects `NO_COLOR` and `TERM=dumb` environment variables
-  - Zero-cost abstraction when feature is disabled
-  - Comprehensive test coverage (90%+ for colored modules)
-  - New example: `examples/colored_cli.rs` demonstrating all features
+
+- Integrate crates.io publishing into Auto Release
+- Enforce dependency publish order in Auto Release
+- Make Auto Release workflow idempotent
+- Add license symlink
+
+### Fixed
+
+- Remove emojis from Auto Release workflow
+- Grant write permissions to reusable CI in Release workflow
+- Check crates.io version before publishing each package
+- Move codecov.yml to correct location
+- Update Codecov badge URLs to new format
+- Match infra repo codecov configuration exactly
+- Remove pip cache requirement from translation workflow
+
+### Testing
+
+- Test path
+- Test path 2
+- Trigger AI translation workflow
+
+### Miscellaneous
+
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci] (#262) (#262)
 
 ## [0.24.19] - 2025-10-12
 
-### Fixed
-- Updated macro code generation in `masterror-derive` to emit shorthand field
-  patterns (`field` instead of `field: field`) when the field name matches the
-  binding identifier, ensuring compatibility with Rust 2024 edition's
-  `non_shorthand_field_patterns` lint.
-- Modified pattern generation in `error_trait.rs` for `source`, `backtrace`,
-  and `provide` implementations to conditionally use shorthand syntax,
-  eliminating redundant field-to-binding mappings that trigger warnings under
-  the new edition.
-- Fixed race condition in `telemetry_flushes_after_subscriber_install` test by
-  moving error construction inside the dispatcher scope and calling
-  `rebuild_interest_cache()` before logging, ensuring the tracing subscriber
-  registers interest before event emission.
-
 ### Added
-- Comprehensive `rust_2024_edition` integration test suite covering struct and
-  enum error types with `#[source]` attributes, validating that generated code
-  passes under `#![deny(non_shorthand_field_patterns)]`.
-- Deny directive `#![deny(non_shorthand_field_patterns)]` in existing
-  `error_derive` test to enforce compliance and prevent future regressions.
 
-### Changed
-- Pattern generation logic now checks if field identifiers match binding names
-  before deciding between shorthand (`field`) and explicit (`field: binding`)
-  syntax, maintaining backward compatibility while adhering to Rust 2024
-  edition requirements.
+- Add explicit permissions to workflow jobs
+- Add Codecov Test Analytics with organized structure
 
-### Why This Matters
-Rust 2024 edition introduced the `non_shorthand_field_patterns` lint to
-encourage cleaner, more idiomatic pattern matching. Without this fix, code
-using `#[derive(Error)]` with `#[source]` attributes would trigger compiler
-warnings (or errors with `-D warnings`) when upgrading to edition 2024,
-breaking existing projects that rely on strict lint enforcement. This release
-ensures seamless adoption of Rust 2024 edition for all `masterror` users.
+### Fixed
+
+- Enable OIDC tokenless upload for Codecov v5
+- Add id-token permission for Codecov OIDC in CI workflow
+- Auto Release now tracks masterror package version
+- Release workflow triggers on GitHub release creation
+- Add permissions to checks job in Release workflow
+- Professional Release workflow with robust event handling
+- Use correct inputs reference in checkout
+- Use github.event.inputs consistently
+- Use num-cpus for nextest test-threads
+
+### Documentation
+
+- Add Codecov badge and coverage visualizations
+- Add Codecov badge and coverage visualizations
+
+### Miscellaneous
+
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+
+### CI
+
+- Upgrade codecov action to v5
+- Upgrade codecov action to v5
+- Trigger CI run
 
 ## [0.24.18] - 2025-10-09
 
-### Fixed
-- Added missing `Box` import in `src/result_ext.rs` to fix compilation error when using `default-features = false`.
+## [0.24.16] - 2025-10-05
 
-## [0.24.17] - 2025-11-02
+### Miscellaneous
 
-### Fixed
-- Preserve captured backtraces when wrapping `AppError` instances through
-  `ResultExt::context` by sharing the snapshot instead of attempting to clone
-  `std::backtrace::Backtrace`.
+- **readme**: Auto-refresh [skip ci]
 
-## [0.24.16] - 2025-11-01
-
-### Fixed
-- Refresh tracing callsite interest while flushing telemetry so late subscriber
-  installs still emit a single `masterror::error` event when logging existing
-  errors.
-
-## [0.24.15] - 2025-10-31
-
-### Fixed
-- Reworked telemetry flushing so tracing events retry emission when the
-  subscriber enables interest after an error is constructed, preserving the
-  expected single event in concurrent test runs.
-
-## [0.24.14] - 2025-10-30
-
-### Fixed
-- Declared a dedicated `benchmarks` Cargo feature and disabled the default
-  library benchmark harness so automation can enable Criterion with custom CLI
-  flags, restoring support for `--save-baseline` and other passthrough options
-  in CI.
-- Documented the required feature flag in the README and template to keep local
-  runs aligned with the CI workflow.
-
-## [0.24.13] - 2025-10-29
-
-### Fixed
-- Rebuilt the tracing telemetry test to refresh callsite interest so
-  `cargo test --all-features` remains stable under parallel CI execution.
-
-## [0.24.12] - 2025-10-28
-
-### Fixed
-- Gated documentation examples that rely on the standard library and switched
-  the `ErrorResponse` retry example to `core::time::Duration` so docs compile
-  without the `std` feature.
-
-## [0.24.11] - 2025-10-27
-
-### Fixed
-- Detect `std::error::Request` support at build time and gate the internal
-  `provide` shim accordingly so `cargo +msrv package --locked` succeeds on the
-  documented MSRV toolchain.
-
-## [0.24.10] - 2025-10-26
-
-### Fixed
-- Regenerated the README from its template so the \`readme_is_in_sync\` check
-  passes after refreshing the crate version metadata.
-- Removed the deprecated `doc_auto_cfg` rustdoc feature gate so documentation
-  builds succeed on the docs.rs nightly toolchain again.
-
-## [0.24.9] - 2025-10-25
-
-### Fixed
-- Treat compile-time and runtime custom `AppCode` values as equal by comparing
-  their canonical string representation, restoring successful JSON roundtrips
-  for `AppCode::new("…")` literals.
-
-### Changed
-- Equality for `AppCode` is now string-based; prefer `==` checks instead of
-  pattern matching on `AppCode::Variant` constants.
-
-## [0.24.8] - 2025-10-24
-
-### Changed
-- Raised the documented and enforced MSRV to Rust 1.90 across the workspace to
-  satisfy dependencies that no longer compile on Rust 1.89.
-
-## [0.24.7] - 2025-10-23
-
-### Fixed
-- Restored the documented MSRV of Rust 1.89 across the workspace so crates
-  compile on stable 1.89 again, updating metadata, READMEs and regression tests
-  to match.
-
-## [0.24.6] - 2025-10-22
-
-### Fixed
-- Restored `no_std` builds by importing `alloc::String` for response helpers and
-  the legacy constructor, keeping textual detail setters available without the
-  `std` feature.
-- Ensured `AppCode::from_str` remains available in `no_std` mode by explicitly
-  bringing `ToOwned` into scope and gated the `std::io::Error` conversion example
-  so doctests compile without the standard library.
-
-## [0.24.5] - 2025-10-21
-
-### Fixed
-- Replaced deprecated `criterion::black_box` usage in the error path benchmarks
-  with `std::hint::black_box` so benches compile cleanly under `-D warnings`.
-
-## [0.24.4] - 2025-10-20
-
-### Fixed
-- Implemented a manual OpenAPI schema for `AppCode`, restoring `utoipa`
-  compatibility and documenting the SCREAMING_SNAKE_CASE contract in generated
-  specs.
-- Emitted owned label values when incrementing `error_total` telemetry metrics
-  so the updated `metrics` crate no longer requires `'static` lifetimes.
-- Relaxed gRPC metadata serialization to avoid `'static` lifetime requirements
-  introduced by recent compiler changes, preserving zero-copy formatting where
-  possible.
-
-## [0.24.3] - 2025-10-19
-
-### Fixed
-- Reused stack-allocated format buffers when emitting gRPC metadata for HTTP
-  status codes and retry hints, and added regression coverage to ensure metadata
-  strings remain ASCII encoded.
-
-## [0.24.2] - 2025-10-18
+## [0.24.17] - 2025-10-05
 
 ### Added
-- Introduced a Criterion benchmark (`benches/error_paths.rs`) covering
-  `Context::into_error` redaction scenarios and `ProblemJson::from_app_error`
-  conversions to track serialization hot paths.
-- Documented the benchmarking workflow in the README and exposed the suite via
-  `cargo bench --bench error_paths` with the default harness disabled.
 
-## [0.24.1] - 2025-10-17
-
-### Fixed
-- Updated `Context::into_error` to move dynamic `AppCode` values into the
-  resulting `AppError`, reworking field redaction plumbing to avoid clones and
-  preserve custom code ownership. Added a regression test covering pointer
-  identity for context-promoted errors.
-
-## [0.24.0] - 2025-10-16
-
-### Added
-- Introduced `AppCode::new` and `AppCode::try_new` constructors with strict
-  SCREAMING_SNAKE_CASE validation, plus regression tests covering custom codes
-  flowing through `AppError` and `ErrorResponse` JSON serialization.
-- Documented runtime-defined codes across the wiki pages to highlight
-  `AppCode::try_new` usage.
-
-### Changed
-- Replaced the closed `AppCode` enum with a string-backed newtype supporting
-  caller-defined codes while preserving built-in constants.
-- Updated mapping helpers and generated tables to work with the new representation
-  by returning references instead of copying codes.
-- Adjusted serde parsing to validate custom codes and report
-  `ParseAppCodeError` on invalid payloads.
-
-## [0.23.3] - 2025-10-15
-
-### Changed
-- Replaced temporary `String` allocations in RFC7807 metadata hashing and masking
-  with stack buffers to keep the textual representations and digests stable
-  while avoiding heap usage.
-
-### Added
-- Regression tests covering hashed and last-four redaction paths for numeric,
-  UUID, and IP metadata to guarantee the legacy formatting remains unchanged.
-
-## [0.23.2] - 2025-10-14
+- Rultor
+- Add reuse
+- Add env to dependbot
+- Add reuse
+- Add anyhow-compatible error chain API
+- Add comparative benchmarks vs thiserror/anyhow
+- Add basic_usage example
+- Add derive_error example
+- Add structured_metadata example
+- Add downcast API for anyhow parity
+- Add simple .context() method for anyhow parity
+- Add simple .context() method for anyhow parity
+- Add redaction example
 
 ### Fixed
-- Removed an unused `String` import from the response details module to keep
-  builds warning-free under `-D warnings`.
 
-## [0.23.1] - 2025-10-13
-
-### Fixed
-- Restored the `AppError::with_context` helper as an alias for `with_source`,
-  preserving the `Arc` fast-path, updating documentation and README templates,
-  and adding regression tests for plain and `anyhow::Error` diagnostics.
-
-## [0.23.0] - 2025-10-12
-
-### Added
-- Added feature-gated detail payload storage to `AppError` with new
-  `with_details`, `with_details_json`, and `with_details_text` helpers plus unit
-  tests covering both serde-json configurations.
-- Exposed the stored details through `ProblemJson` and legacy `ErrorResponse`
-  conversions so RFC7807 and historical payloads emit the supplied data.
-
-### Changed
-- Updated the documentation set to highlight the new helpers and clarify
-  feature requirements for attaching structured details.
-
-## [0.22.0] - 2025-10-11
-
-### Added
-- Introduced an explicit `std` feature (enabled by default) and made the core
-  crate compile in `no_std + alloc` environments, including metadata builders
-  and error helpers.
-
-### Changed
-- Reworked `AppError` internals to rely on `core`/`alloc` primitives and
-  `core::error::Error`, providing `std::error::Error` only when the `std`
-  feature is active.
-- Replaced `thiserror` derives on `AppErrorKind` with manual `Display`/error
-  implementations so the taxonomy remains available without the standard
-  library.
-
-## [0.21.2] - 2025-10-10
-
-### Added
-- Expanded `Metadata` field coverage with float, duration, IP address and optional JSON values, complete with typed builders, doctests
-  and unit tests covering the new cases.
-
-### Changed
-- Enriched RFC7807 and gRPC adapters to propagate the new metadata types, hashing/masking them consistently across redaction policies.
-- Documented the broader telemetry surface in the README so adopters discover the additional structured field builders.
-
-## [0.21.1] - 2025-10-09
-
-### Fixed
-- Packed rarely used `AppError` context (source and backtrace slots) inside the
-  boxed inner payload so the `AppResult` alias no longer triggers Clippy's
-  `result_large_err` lint under `-D warnings`.
-
-## [0.21.0] - 2025-10-08
-
-### Added
-- Introduced typed `ensure!` and `fail!` macros as allocation-free alternatives
-  to `anyhow::ensure!`/`anyhow::bail!`, complete with documentation and tests.
-
-### Changed
-- Highlighted the new control-flow macros across the English and Russian
-  READMEs and module documentation so adopters discover them alongside the
-  derive tooling.
-## [0.20.8] - 2025-10-08
-
-### Fixed
-- Classified Redis `BusyLoadingError` responses as `DependencyUnavailable` and
-  preserved their retry advice in metadata so downstreams can distinguish cache
-  warmup from client mistakes when the `redis` feature is enabled.
-- Serialized the serde_json syntax error position using the location reported
-  by `serde_json::Error` to stay aligned with the upstream parser changes.
-- Guarded the tracing telemetry test with a process-wide mutex to prevent
-  spurious race failures when the full feature suite runs the test harness in
-  parallel.
-
-## [0.20.7] - 2025-10-07
-
-### Fixed
-- Replaced the remaining fallible `Status::try_from` conversions in the Tonic
-  adapter tests with the infallible `Status::from` API so Clippy's
-  `unnecessary_fallible_conversions` lint passes under `-D warnings`.
-
-## [0.20.6] - 2025-10-06
-
-### Fixed
-- Restored compilation on Rust 1.90+ by aliasing the infallible gRPC
-  conversion error to `core::convert::Infallible` and re-exporting it without
-  exposing the private `convert::tonic` module.
-
-## [0.20.5] - 2025-10-05
-
-### Changed
-- Rewrote the English and Russian READMEs to reflect the matured workspace, feature flags, telemetry flows and transport integrations introduced across the 0.20 releases.
-### Fixed
-- Promoted the gRPC converter to an infallible `From<Error>` implementation
-  while retaining the `TryFrom` API via the new documented
-  `StatusConversionError`, satisfying Clippy's infallible conversion lint.
-- Collapsed nested metadata guards in the Tonic adapter and reused borrowed
-  booleans to silence Clippy without regressing runtime behaviour.
-- Simplified the `AppResult` alias test to avoid large `Err` variant warnings
-  from Clippy's `result_large_err` lint.
-
-## [0.20.4] - 2025-10-04
-
-### Added
-- Implemented `FromStr` support for `AppCode` together with a lightweight
-  `ParseAppCodeError` so RFC7807 responses and documentation examples can parse
-  machine codes without bespoke helpers.
-
-### Fixed
-- Removed the redundant `#![cfg(feature = "axum")]` attribute and tightened
-  Axum, SQLx and Tonic integration tests to satisfy `-D warnings` builds.
-- Allowed attaching JSON details via `ErrorResponse::with_details` without
-  tripping Clippy's `result_large_err` lint by documenting the intentional
-  `AppError` return shape.
-
-## [0.20.3] - 2025-10-03
-
-### Fixed
-- Restored the Axum transport adapter in builds by wiring the `convert::axum`
-  module into the crate graph and relaxing the tests to validate responses via
-  `serde_json::Value` instead of requiring `ProblemJson` deserialization.
-- Hardened converter telemetry for Redis, Reqwest, SQLx, Tonic and multipart
-  integrations by owning metadata strings where necessary and covering
-  non-exhaustive enums so the crate compiles cleanly on Rust 1.90.
-- Reworked `ProblemJson` metadata internals to use `Cow<'static, str>` keys and
-  values, preserving zero-copy behaviour for borrowed data while allowing owned
-  fallbacks required by the updated converters.
-
-## [0.20.2] - 2025-10-02
-
-### Fixed
-- Restored compatibility with Rust 1.89 by updating gRPC, Redis, SQLx and
-  serde_json integrations to avoid deprecated APIs, unsafe environment
-  mutations and Debug requirements that no longer hold.
-- Added deterministic backtrace preference overrides for unit tests so
-  telemetry behavior remains covered without mutating global environment
-  variables.
-- Ensured config error mapping gracefully handles new non-exhaustive variants
-  by falling back to a generic context that captures the formatted error.
-
-## [0.20.1] - 2025-10-01
-
-### Changed
-- Enriched converter metadata across `multipart`, `redis`, `reqwest`,
-  `serde_json` and `sqlx` integrations to surface HTTP status details,
-  retry-after hints and structured failure positions while keeping existing
-  error categories intact.
-- Updated the Teloxide mapping to classify `ApiError::InvalidToken` as
-  `Unauthorized` and hash potentially sensitive network error details before
-  emitting telemetry.
-
-### Tests
-- Extended integration tests to assert the new metadata fields, retry hints,
-  and redaction policies covering the updated converters.
-
-## [0.20.0] - 2025-09-30
-
-### Added
-- Added a `Context::redact_field_mut` builder method to tweak metadata
-  redaction policies in place before attaching additional fields.
-- Extended response tests to cover JSON serialization of redacted payloads and
-  hashed metadata along with checks for the opt-in internal formatters.
-
-### Changed
-- Verified `ErrorResponse` and `ProblemJson` serialization respects message and
-  metadata redaction policies, ensuring secrets stay out of wire payloads while
-  keeping diagnostic logging intact.
-
-## [0.19.0] - 2025-09-29
-
-### Changed
-- Reworked `AppError` storage to keep sources behind shared `Arc` handles and
-  lazily capture optional `Backtrace` snapshots without allocating when
-  `RUST_BACKTRACE` disables them.
-- Updated the `masterror::Error` derive and `ResultExt` conversions to forward
-  sources/backtraces automatically under the new storage layout.
-
-### Tests
-- Added regression coverage for chained error sources and conditional
-  backtrace capture driven by the `RUST_BACKTRACE` environment variable.
-
-## [0.18.0] - 2025-09-28
-
-### Added
-- Added the `AppCode::UserAlreadyExists` classification and mapped it to RFC7807
-  responses with the appropriate retry hint.
-
-### Changed
-- Switched all integration converters in `src/convert/*` to build structured
-  `Context` metadata before producing `Error` values, including HTTP status,
-  operation, endpoint, duration and retry/edit flags.
-- Extended integration tests to validate the enriched metadata, retry behavior
-  and error code/category mappings across the updated converters.
-
-## [0.17.0] - 2025-09-27
-
-### Added
-- Per-field redaction metadata via a new [`FieldRedaction`] enum, default
-  heuristics for common secret keys (passwords, tokens, card numbers) and the
-  `Context::redact_field` / `AppError::redact_field` helpers.
-- `#[masterror(redact(fields(...)))]` support in the derive macro to configure
-  metadata policies alongside message redaction.
-- Opt-in internal formatters for [`ErrorResponse`] and [`ProblemJson`] that are
-  safe to use in diagnostic logs without additional serialization boilerplate.
-
-### Changed
-- Problem JSON and legacy `ErrorResponse` serialization now hash, mask or drop
-  metadata according to per-field policies while honoring the global redaction
-  flag.
-- Redaction-aware conversions ensure redactable messages fall back to the error
-  kind across HTTP and gRPC mappings.
-
-## [0.16.0] - 2025-09-26
-
-### Changed
-- Switched the internal `AppError` source storage to `Arc<dyn Error>` and added a
-  shared `with_source_arc` helper so conversions can reuse existing `Arc`
-  handles without extra allocations.
-- Replaced the backtrace slot with an `Option<Backtrace>` managed through an
-  environment-aware lazy capture that respects `RUST_BACKTRACE` and avoids
-  snapshot allocation when disabled.
-- Updated the `masterror::Error` derive and `ResultExt` conversions to forward
-  sources using the new shared storage while preserving error chains.
-
-### Tests
-- Added regression coverage for the `std::error::Error` chain, `Arc` source
-  preservation in the derives, and conditional backtrace capture driven by the
-  `RUST_BACKTRACE` environment variable.
-
-## [0.15.0] - 2025-09-25
-
-### Added
-- Introduced a `response::problem_json` module with an RFC7807 `ProblemJson`
-  payload that serializes metadata, gRPC mappings and retry/authentication
-  hints while respecting the message redaction policy.
-- Added an optional `tonic` feature exposing `TryFrom<Error> for tonic::Status`
-  with sanitized metadata and canonical gRPC code mapping.
-- Published a compile-time `CODE_MAPPINGS` table mapping each `AppCode` to
-  HTTP, gRPC and problem type information for reuse across transports.
-
-### Changed
-- Updated Axum and Actix integrations to emit `application/problem+json`
-  bodies, attach `Retry-After`/`WWW-Authenticate` headers automatically and
-  avoid leaking redactable messages or metadata.
-- Re-exported `ProblemJson` from the crate root alongside `ErrorResponse` for
-  direct construction in custom handlers.
-
-### Tests
-- Added unit coverage for the problem+json metadata sanitizer, header
-  propagation in Axum, and gRPC code mapping under the new `tonic` feature.
-
-
-## [0.14.1] - 2025-09-25
-
-### Changed
-- Boxed the internal `AppError` payload inside a new `ErrorInner` allocation,
-  keeping public field access via `Deref` while shrinking the error to a
-  pointer-sized handle that shares metadata, retry hints, and backtrace state.
-
-### Removed
-- Dropped `clippy::result_large_err` allowances in response helpers and tests
-  now that `AppError` is pointer-sized and lint-clean without suppressions.
-
-### Fixed
-- Removed the unused `BacktraceSlot::get` helper to restore builds with `-D warnings`.
-- Simplified the metrics recorder test harness with dedicated types to satisfy
-  `clippy::type_complexity` without sacrificing coverage.
-
-## [0.14.0] - 2025-09-24
-
-### Added
-- Introduced optional `tracing`, `metrics` and `backtrace` features. When
-  enabled they emit structured `tracing` events, increment the
-  `error_total{code,category}` counter and capture lazy [`Backtrace`] snapshots
-  from a new `AppError::emit_telemetry` hook.
-
-### Changed
-- Reworked the `AppError` core to emit telemetry exactly once, track dirty
-  mutations and expose a crate-private `new_raw` constructor for contexts that
-  enrich errors before flushing instrumentation.
-- Updated Axum and Actix integrations to rely on the telemetry hook instead of
-  manually logging errors while preserving backward-compatible APIs.
-
-### Tests
-- Added tracing dispatcher coverage to assert a single telemetry event with MDC
-  propagated `trace_id` values.
-- Installed a deterministic metrics recorder in unit tests to confirm
-  `error_total` increments once per error.
-
-## [0.13.1] - 2025-09-23
-
-### Fixed
-- Documented allowances for `clippy::result_large_err` on APIs that intentionally
-  expose the rich `AppError` payload, restoring lint-clean builds.
-
-## [0.13.0] - 2025-09-23
-
-### Added
-- Introduced `#[derive(Masterror)]` and the `#[masterror(...)]` attribute to
-  convert domain errors directly into [`masterror::Error`] while capturing
-  metadata, message redaction policy and optional transport mappings.
-- Added transport mapping descriptors in `mapping::{HttpMapping, GrpcMapping,
-  ProblemMapping}` generated by the new derive for HTTP/gRPC/problem-json
-  integrations.
-
-### Changed
-- Re-exported the `Masterror` derive from the crate root alongside the existing
-  `Error` derive.
+- **ci**: Declare benchmarks feature for benches
 
 ### Documentation
-- Expanded crate docs and both READMEs with `Masterror` examples, telemetry
-  guidance and redaction policy notes.
 
-### Tests
-- Added integration tests and trybuild coverage exercising the
-  `#[masterror(...)]` attribute and generated mapping tables.
+- Add binary size and compilation time metrics
+- Update WHY_MIGRATE.md with new anyhow parity features
 
-## [0.12.1] - 2025-10-30
+### Miscellaneous
+
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+
+### Merge
+
+- Resolve README.md conflict from upstream
+
+## [0.24.12] - 2025-09-30
+
+### Testing
+
+- Test 1
+
+### Miscellaneous
+
+- **readme**: Auto-refresh [skip ci]
+
+## [0.24.11] - 2025-09-30
+
+### Fixed
+
+- Gate provide shim based on error request support
+- **ci**: Correct reusable workflow indentation
+
+### Miscellaneous
+
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **ci**: Extract cargo steps into composite actions
+
+## [0.24.10] - 2025-09-30
+
+### Miscellaneous
+
+- Prepare 0.24.10 release
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+
+## [0.24.8] - 2025-09-28
+
+### Miscellaneous
+
+- **readme**: Auto-refresh [skip ci]
+
+## [0.24.9] - 2025-09-28
 
 ### Added
-- Introduced the `Context` builder for enriching error conversions with
-  metadata, caller tracking, and redaction hints via `ResultExt::ctx`.
-- Implemented the `ResultExt` trait to wrap fallible operations into
-  `masterror::Error` without extra allocations while merging context fields.
 
-### Documentation
-- Added rustdoc examples showcasing `Context` chaining and the new
-  `ResultExt` helper.
+- Restore AppError::with_context helper
 
-### Tests
-- Added unit coverage for `ResultExt::ctx`, ensuring happy-path results pass
-  through and error branches preserve metadata and sources.
+### Miscellaneous
 
-## [0.12.0] - 2025-10-29
+- **readme**: Auto-refresh [skip ci]
+- Fix lint warning
+
+## [0.21.1] - 2025-09-24
+
+## [0.21.0] - 2025-09-24
 
 ### Added
-- Introduced typed `Metadata` storage with `Field`/`FieldValue` builders and helper functions in `field::*`.
-- Captured error sources and backtraces inside the new `app_error::Error` container, exposing `MessageEditPolicy` to control redaction.
 
-### Changed
-- Replaced the legacy `AppError` struct with the richer `Error` model carrying `AppCode`, metadata, retry/auth hints and transport policy.
-- Updated response mapping and constructors to preserve machine-readable codes without extra allocations.
+- Add metadata container and richer app error
+- Store shared sources and lazy backtraces
+- 2 tips
 
 ### Documentation
-- Refreshed crate docs, README (EN/RU) and examples to highlight metadata helpers and the new error contract.
 
-### Tests
-- Added regression coverage ensuring codes, metadata and sources survive conversions without unnecessary cloning.
+- Add error-handling wiki
+- Refresh readmes for expanded scope
+- Rewrite README for 0.20 workspace
 
-## [0.11.2] - 2025-10-28
+### Refactored
 
-### Changed
-- Surfaced the [`AppErrorKind`] display text as the fallback `ErrorResponse`
-  message so clients receive semantic descriptions without providing a custom
-  message.
+- Enrich converter errors with context metadata
 
-### Tests
-- Added regression coverage ensuring bare `AppError` kinds map to their
-  corresponding default message.
+### Miscellaneous
 
-## [0.11.1] - 2025-10-27
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
 
-### Documentation
-- Added a multi-page error-handling wiki (`docs/wiki`) with beginner-friendly
-  walkthroughs, framework patterns, and comparisons against `thiserror` and
-  `anyhow`.
-- Linked the wiki from the README template so crate consumers can discover it
-  directly on crates.io and docs.rs.
-- Highlighted the native derive macros, typed telemetry, browser logging, and
-  Turnkey taxonomy across the README template and regenerated README.
-- Refreshed the Russian README with the same capability summary and updated the
-  installation snippets to `0.11.1`.
-- Expanded the crate-level documentation to cover `#[app_error]`/`#[provide]`
-  usage and link to `std::error::Request` telemetry extraction.
+## [0.10.9] - 2025-09-21
 
-## [0.11.0] - 2025-10-26
+### Miscellaneous
 
-### Changed
-- Updated `AppError::database` to accept `Option<Cow<'static, str>>`, allowing
-  bare `None` calls without type annotations, and added the helper
-  `AppError::database_with_message` for the common message-bearing path.
+- **readme**: Auto-refresh [skip ci]
 
-### Documentation
-- Refreshed the `AppError::database` docs to illustrate the new constructor
-  behavior and helper usage.
+## [0.11.0] - 2025-09-21
 
-### Tests
-- Expanded database constructor tests to cover both the helper and bare `None`
-  scenario.
+### Refactored
 
-## [0.10.9] - 2025-10-26
+- Improve database constructor ergonomics
 
-### Fixed
-- Tightened Turnkey rate-limit heuristics to require explicit phrases while
-  preserving stack-backed searches for short ASCII patterns, preventing matches
-  on unrelated words such as "corporate".
+### Miscellaneous
 
-### Tests
-- Added regression coverage to ensure corporate network outages and operational
-  failure rates classify as network/service issues rather than rate limits.
-  
-### Changed
-- Raised the documented MSRV to Rust 1.90 to match the `rust-version`
-  requirement.
+- **readme**: Auto-refresh [skip ci]
 
-### Documentation
-- Regenerated the README from the template so installation snippets reflect the
-  new crate version and MSRV statement.
+## [0.10.8] - 2025-09-21
 
-## [0.10.8] - 2025-10-25
+### Miscellaneous
 
-### Fixed
-- Updated the release workflow to publish `masterror-template` before
-  `masterror-derive`, ensuring crates.io recognises the shared dependency during
-  release automation.
+- **readme**: Auto-refresh [skip ci]
 
-## [0.10.7] - 2025-10-24
+## [0.10.7] - 2025-09-20
 
-### Fixed
-- Published the shared template parser crate so `masterror-derive` no longer
-  depends on a workspace-only package when uploaded to crates.io.
+### Miscellaneous
 
-### Documentation
-- Added a dedicated README for `masterror-template` describing installation,
-  parsing examples and formatter metadata for crates.io readers.
-### Tests
-- Added regression coverage for long classifier needles to exercise the
-  heap-allocation fallback.
+- **readme**: Auto-refresh [skip ci]
 
-### Changed
-- Added an owning `From<AppError>` conversion for `ErrorResponse` and updated the
-  Axum adapter to use it, eliminating redundant clones when building HTTP error
-  bodies.
- - Precomputed lowercase Turnkey classifier needles with a stack-backed buffer
-  to remove repeated transformations while keeping the common zero-allocation
-  path for short patterns.
-- Bumped `masterror-derive` to `0.6.6` and `masterror-template` to `0.3.6` so
-  downstream users rely on the newly published parser crate.
+## [0.10.6] - 2025-09-20
 
+### Testing
 
-## [0.10.6] - 2025-09-21
+- Test 2
 
-### Fixed
-- Added a crate-local README for `masterror-derive` so `cargo publish` passes
-  when crates.io validates the `readme` manifest key.
+### Miscellaneous
 
-### Changed
-- Bumped `masterror-derive` to `0.6.2` to capture the packaging fix.
-
-### Documentation
-- Documented the derive macros and supported attributes in
-  `masterror-derive/README.md` for crates.io readers.
+- **readme**: Auto-refresh [skip ci]
 
 ## [0.10.5] - 2025-09-20
 
-### Added
-- Re-exported `masterror-derive` macros from `masterror` so consumers only depend on a single crate while deriving application errors.
+### Testing
 
-### Changed
-- Published `masterror-derive` as a standalone crate (`0.6.1`) and configured the release workflow to publish it before `masterror` with retries and tag/MSRV validation.
+- Test 1
 
-### Documentation
-- Described `#[provide]` telemetry providers and `#[app_error]` conversions with
-  end-to-end examples in the derive guide ([README](README.md#structured-telemetry-providers-and-apperror-mappings),
-  [README.ru](README.ru.md#%D0%B0%D1%82%D1%80%D0%B8%D0%B1%D1%83%D1%82%D1%8B-provide-%D0%B8-apperror)).
+### Miscellaneous
+
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
 
 ## [0.10.4] - 2025-09-20
 
 ### Fixed
-- Ensured `cargo package --locked` passes by switching workspace dependencies on
-  `masterror-derive` / `masterror-template` to registry entries and overriding
-  them locally through `.cargo/config`, keeping CI dry runs green without
-  breaking local development.
 
-## [0.10.2] - 2025-10-23
+- Release action
+- Release action
 
-### Added
-- Forward dynamic width and precision specifiers by emitting every declared
-  format argument into the generated `write!` call, so placeholders like
-  `{value:>width$}` and `{value:.precision$}` remain valid when deriving
-  `Display`.
+### Miscellaneous
 
-### Changed
-- `FormatArgumentsEnv` now surfaces tokens for all named, positional and
-  implicit bindings—even when they are only referenced from format specs—so
-  width/precision values reach the formatting engine.
-- `render_template`/`build_template_arguments` combine the resolved
-  placeholders with the full format argument list, ensuring the macro invocation
-  always receives the required bindings.
+- **readme**: Auto-refresh [skip ci]
 
-### Tests
-- Added UI fixtures and integration assertions covering dynamic width and
-  precision formatting to guard against regressions.
-
-### Documentation
-- Documented the dynamic width/precision support alongside the formatting
-  guidance (including the Russian translation).
-
-## [0.10.1] - 2025-10-22
-
-### Changed
-- Relaxed template formatter parsing so only typed formatters treat `#` as the
-  alternate flag, allowing display placeholders such as `{value:#>4}` to round-
-  trip without spurious `TemplateError::InvalidFormatter` errors.
-
-### Tests
-- Extended formatter unit tests and UI derive coverage to exercise hash-filled
-  display specs and ensure they parse correctly.
-
-### Documentation
-- Documented the broader display formatter support (including `#` as a fill
-  character) in the templating README section.
-
-## [0.10.0] - 2025-10-21
+## [0.9.0] - 2025-09-20
 
 ### Added
-- Preserved the raw format fragment for display-only placeholders, exposing it
-  through `TemplateFormatter::display_spec()`/`format_fragment()` so derived
-  implementations can forward `:>8`, `:.3`, and similar specifiers to
-  `write!`.
 
-### Changed
-- `TemplateFormatter` now owns display specs and `TemplatePlaceholder::formatter`
-  returns a reference to reflect the richer formatter representation.
-
-### Tests
-- Added a trybuild pass case and runtime assertions covering display alignment,
-  precision, and fill specifiers to prevent regressions.
-
-### Documentation
-- Documented the new display formatter support in the README (including the
-  Russian translation) with examples showing how to recover preserved specs.
-
-## [0.9.0] - 2025-10-20
-
-### Added
-- Parsed dot-prefixed display shorthands into a projection AST so `.limits.lo`,
-  `.0.data`, and chained method calls like `.suggestion.as_ref().map_or_else(...)`
-  resolve against struct fields and variant bindings.
-- Extended the `error_derive` integration suite and trybuild fixtures with
-  regressions covering nested projections for named and tuple variants.
-
-### Changed
-- Shorthand resolution now builds expressions from the projection AST, preserving
-  raw identifiers, tuple indices, and method invocations when generating code.
-
-### Documentation
-- Documented the richer shorthand projection support in the README and template
-  so downstream users know complex field/method chains are available.
-
-## [0.8.0] - 2025-10-14
-
-### Added
-- Recognised `#[provide(ref = ..., value = ...)]` on struct and enum fields,
-  allowing derived errors to surface domain telemetry through
-  `std::error::Request` alongside backtraces.
-
-### Changed
-- `masterror-derive` now generates `provide` implementations whenever custom
-  telemetry is requested, forwarding `Request` values to sources and invoking
-  `provide_ref`/`provide_value` with proper `Option` handling.
-
-### Tests
-- Extended the `error_derive` integration suite with regressions covering
-  telemetry provided by structs, tuple variants and optional fields, including
-  both reference and owned payloads.
-
-### Documentation
-- Documented the `#[provide(...)]` attribute in the README with examples showing
-  reference and owned telemetry as well as optional fields.
-
-## [0.7.0] - 2025-10-13
-
-### Added
-- Recognised `#[app_error(...)]` on derived structs and enum variants, capturing
-  the mapped `AppErrorKind`, optional `AppCode` and whether the formatted
-  `Display` output should become the public message.
-- Generated `From<Error>` implementations that construct `masterror::AppError`
-  (and, when requested, `AppCode`) by matching on enum variants and invoking
-  `AppError::with`/`AppError::bare`.
-
-### Tests
-- Introduced trybuild fixtures covering successful struct/enum conversions and
-  compile failures for missing metadata, including message propagation checks in
-  the passing cases.
-
-### Documentation
-- Documented the `#[app_error(...)]` attribute in the README, outlining the
-  struct and enum mapping patterns and the `message` flag behaviour.
-
-## [0.6.6] - 2025-10-24
+- Rust version
+- **template**: Support implicit placeholders
+- Target.md
+- Derive AppError conversions
+- Target.md
+- Idea.md
+- Expose telemetry via provide attribute
 
 ### Fixed
-- Pointed the derive crate at the published `masterror-template` dependency so
-  `cargo publish` succeeds without private workspace patches.
 
-## [0.6.5] - 2025-10-12
+- Manifest
+- **ci**: Allow cargo package dry run
 
-### Added
-- Accepted `.field` and `.0` shorthand expressions in `#[error("...")]` format
-  argument lists, resolving them against struct and variant fields without
-  moving the original values.
+### Miscellaneous
 
-### Changed
-- The format argument resolver now tracks whether it operates on a struct or a
-  destructured enum variant, allowing field shorthands to reuse local bindings
-  and honour pointer formatting requirements.
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- Harden sqlx integration and add audit checks
+- **ci**: Add cargo deny checks
+- **readme**: Auto-refresh [skip ci]
 
-### Tests
-- Added trybuild pass cases covering named, positional and implicit arguments,
-  formatter path handlers and the new field shorthand expressions.
-- Introduced compile-fail fixtures for duplicate argument names, mixing
-  implicit placeholders after explicitly indexed ones and combining
-  `transparent` with `fmt` handlers.
-- Extended the runtime `error_derive` suite with assertions exercising the
-  shorthand field accessors.
-
-## [0.6.4] - 2025-10-11
+## [0.5.0] - 2025-09-18
 
 ### Added
-- Exposed an internal `provide` shim that mirrors `thiserror`'s
-  `ThiserrorProvide`, enabling derived errors to forward
-  `core::error::Request` values to their sources.
 
-### Changed
-- Allow `#[backtrace]` to be paired with `#[source]`/`#[from]` fields when the
-  field type implements `Error`, while retaining diagnostics for incompatible
-  non-source fields.
-- Track whether backtrace detection is explicit or inferred so generated
-  implementations avoid providing the same backtrace twice when delegating to
-  sources.
-- Update the generated `provide` methods to call `thiserror_provide` on source
-  fields before exposing the stored backtrace, ensuring delegated traces reach
-  callers.
-
-### Tests
-- Added regression tests covering direct and optional sources annotated with
-  `#[backtrace]`, validating delegated backtrace propagation and `None`
-  handling.
-
-## [0.6.3] - 2025-10-10
-
-### Added
-- Invoke custom `#[error(fmt = <path>)]` handlers for structs and enum variants,
-  borrowing fields and forwarding the formatter reference just like `thiserror`.
-
-### Changed
-- Ensure duplicate `fmt` attributes report a single diagnostic without
-  suppressing the derived display implementation.
-
-### Tests
-- Extend the formatter trybuild suite with success cases covering struct and
-  enum formatter paths.
-
-## [0.6.2] - 2025-10-09
-
-### Added
-- Resolve `#[error("...")]` format arguments when generating `Display`
-  implementations, supporting named bindings, explicit indices and implicit
-  placeholders via a shared argument environment.
-
-### Changed
-- Detect additional format arguments, implicit placeholders and non-`Display`
-  formatters in `render_template`, delegating complex cases to a single
-  `write!` invocation while retaining the lightweight `f.write_str` path for
-  literal-only templates. The helper that assembles format arguments now keeps
-  positional/implicit bindings ahead of named ones to satisfy the formatting
-  macro contract.
-
-### Tests
-- Cover named format argument expressions, implicit placeholder ordering and
-  enum variants using format arguments.
-
-## [0.6.0] - 2025-10-08
-
-### Added
-- Recognised empty placeholder bodies (`{}` / `{:?}`) as implicit positional
-  identifiers, numbering them by appearance and exposing the new
-  `TemplateIdentifier::Implicit` variant in the template API.
-- Propagated the implicit identifier metadata through
-  `template_support::TemplateIdentifierSpec`, ensuring derive-generated display
-  implementations resolve tuple fields in placeholder order.
+- **derive**: Support #[from] conversions
+- **derive**: Add transparent error support
 
 ### Fixed
-- Preserved `TemplateError::EmptyPlaceholder` diagnostics for whitespace-only
-  placeholders, matching previous error reporting for invalid bodies.
 
-### Tests
-- Added parser regressions covering implicit placeholder sequencing and the
-  whitespace-only error path.
-
-## [0.5.15] - 2025-10-07
-
-### Added
-- Parse `#[error("...")]` attribute arguments into structured `FormatArg`
-  entries, tracking named bindings and positional indices for future
-  `format_args!` integration.
-- Recognise `#[error(fmt = <path>)]` handlers, capturing the formatter path and
-  associated arguments while guarding against duplicate `fmt` specifications.
-
-### Fixed
-- Produce dedicated diagnostics when unsupported combinations are used, such as
-  providing format arguments alongside `#[error(transparent)]`.
-
-### Tests
-- Extend the `trybuild` suite with regression cases covering duplicate `fmt`
-  handlers and transparent attributes that erroneously include arguments.
-
-## [0.5.14] - 2025-10-06
-
-### Added
-- Prepared the derive input structures for future `format_args!` support by
-  introducing display specification variants for templates with arguments and
-  `fmt = <path>` handlers, along with `FormatArgsSpec`/`FormatArg` metadata
-  scaffolding.
-
-## [0.5.13] - 2025-10-05
+- **ci**: Grant permissions to reusable workflow
 
 ### Documentation
-- Documented the formatter trait helpers (`TemplateFormatter::is_alternate`,
-  `TemplateFormatter::from_kind`, and `TemplateFormatterKind::specifier`/`supports_alternate`)
-  across README variants and crate docs, including guidance on the extended
-  formatter table and compatibility with `thiserror` v2.
 
-## [0.5.12] - 2025-10-04
+- Add release checklist to readme
+- Regenerate readme comment
+- Capture post-0.4 updates
+- Emphasize readme sync requirement
+- Prepare 0.5.0 release notes
 
-### Tests
-- Added runtime assertions covering every derive formatter variant and
-  validating lowercase versus uppercase rendering differences during error
-  formatting.
-- Expanded the formatter `trybuild` suite with per-formatter success cases and
-  new compile-fail fixtures for unsupported uppercase specifiers to guarantee
-  diagnostics remain descriptive.
+### Testing
 
-## [0.5.11] - 2025-10-03
+- Test readme
+- Enforce AppResult alias usage
+- Test readme 2
+- Test ci 1
 
-### Changed
-- Aligned the derive display generator with `TemplateFormatterKind`, invoking the
-  appropriate `core::fmt` trait for every placeholder variant and preserving the
-  default `Display` path when no formatter is provided, mirroring `thiserror`'s
-  behaviour.
+### Miscellaneous
 
-## [0.5.10] - 2025-10-02
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
+- **readme**: Auto-refresh [skip ci]
 
-### Changed
-- Template parser now recognises formatter traits even when alignment, sign or
-  width flags precede the type specifier, constructing the matching
-  `TemplateFormatter` variant and keeping alternate (`#`) detection aligned with
-  `thiserror`.
+### Build
 
-### Tests
-- Extended parser unit tests to cover complex formatter specifiers and
-  additional malformed cases to guard diagnostic accuracy.
+- Align readme generator toml version
 
-## [0.5.9] - 2025-10-01
+## [0.4.0] - 2025-09-16
 
 ### Added
-- `TemplateFormatterKind` enumerating the formatter traits supported by
-  `#[error("...")]`, plus `TemplateFormatter::from_kind`/`kind()` helpers for
-  constructing and inspecting placeholders programmatically.
 
-### Changed
-- Formatter parsing now routes through `TemplateFormatterKind`, ensuring lookup
-  tables, `is_alternate` handling and downstream derives share the same
-  canonical representation.
-
-### Documentation
-- Documented `TemplateFormatterKind` usage and the new inspection helpers
-  across README variants.
-
-## [0.5.8] - 2025-09-30
-
-### Changed
-- `masterror::Error` now infers sources named `source` and backtrace fields of
-  type `std::backtrace::Backtrace`/`Option<std::backtrace::Backtrace>` even
-  without explicit attributes, matching `thiserror`'s ergonomics.
-
-### Tests
-- Expanded derive tests to cover implicit `source`/`backtrace` detection across
-  structs and enums.
-
-## [0.5.7] - 2025-09-29
-
-### Added
-- `masterror::error::template` module providing a parsed representation of
-  `#[error("...")]` strings and a formatter hook for future custom derives.
-- Internal `masterror-derive` crate powering the native `masterror::Error`
-  derive macro.
-- Template placeholders now accept the same formatter traits as `thiserror`
-  (`:?`, `:x`, `:X`, `:p`, `:b`, `:o`, `:e`, `:E`) so existing derives keep
-  compiling when hexadecimal, binary, pointer or exponential formatting is
-  requested.
-
-### Changed
-- `masterror::Error` now uses the in-tree derive, removing the dependency on
-  `thiserror` while keeping the same runtime behaviour and diagnostics.
-
-### Documentation
-- Documented formatter trait usage across README.md, README.ru.md and the
-  `masterror::error` module, noting compatibility with `thiserror` v2 and
-  demonstrating programmatic `TemplateFormatter` inspection.
-
-## [0.5.6] - 2025-09-28
-
-### Tests
-- Added runtime coverage exercising every derive formatter variant (including
-  case-sensitive formatters) and asserted the rendered output.
-- Added `trybuild` suites that compile successful formatter usage and verify the
-  emitted diagnostics for unsupported specifiers.
-
-## [0.5.5] - 2025-09-27
-
-### Fixed
-- Derive formatter generation now matches on every `TemplateFormatter`
-  variant and calls the corresponding `::core::fmt` trait (including the
-  default `Display` path), mirroring `thiserror`'s placeholder handling.
-
-## [0.5.4] - 2025-09-26
-
-### Fixed
-- Template parser mirrors `thiserror`'s formatter trait detection, ensuring
-  `:?`, `:x`, `:X`, `:p`, `:b`, `:o`, `:e` and `:E` specifiers resolve to the
-  appropriate `TemplateFormatter` variant while still flagging unsupported
-  flags precisely.
-
-### Tests
-- Added parser-level unit tests that cover every supported formatter specifier
-  and assert graceful failures for malformed format strings.
-
-## [0.5.2] - 2025-09-25
-
-### Fixed
-- Added a workspace `deny.toml` allow-list for MIT, Apache-2.0 and Unicode-3.0
-  licenses so `cargo deny` accepts existing dependencies.
-- Declared SPDX license expressions for the internal `masterror-derive` and
-  `masterror-template` crates to avoid unlicensed warnings.
-
-## [0.5.1] - 2025-09-24
-
-### Changed
-- Replaced the optional `sqlx` dependency with `sqlx-core` so enabling the
-  feature no longer pulls in `rsa` via the MySQL driver, fixing the
-  `RUSTSEC-2023-0071` advisory reported by `cargo audit`.
-
-### Security
-- Added `cargo audit` to the pre-commit hook and CI workflow; published a
-  README badge to surface the audit status.
-
-### Added
-- Composite GitHub Action (`.github/actions/cargo-deny`) that installs and runs
-  `cargo-deny` checks for reuse across workflows.
-- `cargo deny` step in the reusable CI pipeline to catch advisories, bans,
-  license and source issues automatically.
-- README badges surfacing the Cargo Deny status so consumers can quickly verify
-  supply-chain checks.
-
-## [0.5.0] - 2025-09-23
-
-### Added
-- Re-exported `thiserror::Error` as `masterror::Error`, making it possible to
-  derive domain errors without an extra dependency. The derive supports
-  `#[from]` conversions, validates `#[error(transparent)]` wrappers, and mirrors
-  `thiserror`'s ergonomics.
-- Added `BrowserConsoleError::context()` for retrieving browser-provided
-  diagnostics when console logging fails.
-
-### Changed
-- README generation now pulls from crate metadata via the build script while
-  staying inert during `cargo package`, preventing dirty worktrees in release
-  workflows.
-
-### Documentation
-- Documented deriving custom errors via `masterror::Error` and expanded the
-  browser console section with context-handling guidance.
-- Added a release checklist and described the automated README sync process.
-
-### Tests
-- Added regression tests covering derive behaviour (including `#[from]` and
-  transparent wrappers) and ensuring the README stays in sync with its
-  template.
-- Added a guard test that enforces the `AppResult<_>` alias over raw
-  `Result<_, AppError>` usages within the crate.
-
-## [0.4.0] - 2025-09-15
-### Added
-- Optional `frontend` feature:
-  - Converts [`AppError`] and [`ErrorResponse`] into `wasm_bindgen::JsValue` for browser contexts.
-  - Logs structured errors to the browser console via `console.error`.
-- `BrowserConsoleError` and `BrowserConsoleExt` API for WASM front-ends.
-
-### Documentation
-- Documented browser/WASM support and console logging workflow in the README and crate docs.
-
-## [0.3.6] - 2025-10-24
-
-### Added
-- Wrote a README for crates.io explaining installation and parser usage.
-
-### Fixed
-- Removed the `publish = false` flag so the shared template parser can be
-  released alongside the derive crate.
+- Add frontend console logging support
 
 ## [0.3.5] - 2025-09-12
+
 ### Added
-- Conversion from `teloxide_core::RequestError` into `AppError` (feature `teloxide`).
 
-## [0.3.4] - 2025-09-12
-### Added
-- `ErrorResponse::with_retry_after_duration` helper for specifying retry advice via `Duration`.
-- Conversion from `telegram_webapp_sdk::utils::validate_init_data::ValidationError` into `AppError` (feature `telegram-webapp-sdk`).
-
-### Changed
-- `AppError::log` now includes the stable `code` field alongside `kind`.
-- `AppError` stores messages as `Cow<'static, str>` to avoid unnecessary allocations.
-
-### Documentation
-- Clarified how `config::ConfigError` converts into `AppErrorKind::Config`.
-- Documented that `MultipartError` maps to `AppErrorKind::BadRequest` in the Axum adapter.
-
-### Tests
-- Added unit test verifying `config::ConfigError` mapping.
-- Added Axum test asserting `MultipartError` becomes `AppErrorKind::BadRequest` and preserves the message.
-- Expanded Actix test to check JSON body and `Retry-After`/`WWW-Authenticate` headers.
-- Covered fallback classification of unknown messages as `TurnkeyErrorKind::Service`.
-- Expanded coverage of `telegram_webapp_sdk` mapping across all `ValidationError` variants.
+- **telegram**: Expand validation error coverage
+- Convert telegram init validation errors
+- Add teloxide error mapping
 
 ## [0.3.3] - 2025-09-11
+
 ### Added
-- `ErrorResponse::status_code()` exposing validated `StatusCode`.
-- `ErrorResponse::new` now checks the supplied status code.
 
-### Changed
-- Preserve original `reqwest` timeout error text.
-- Redis errors map to `AppErrorKind::Cache`.
-- Dependencies updated.
-
-### Fixed
-- Axum and Actix adapters reuse `status_code()` to avoid type mismatches.
+- Classify serde_json errors
+- Add generic details helper
+- Add duration-based retry helper
+- Log error code
 
 ### Documentation
-- Clarified `contains_nocase` and `ascii_lower` comments.
+
+- Clarify case-insensitive helpers
+- Add 0.3.3 release notes
+- Record recent changes
+- Explain config error mapping
+- Sync changelog with recent mappings
+
+### Refactored
+
+- Streamline status code conversion
+
+### Testing
+
+- Add integration conversion tests
+- Check service fallback for unknown turnkey message
+- **actix**: Validate headers for AppError
 
 ## [0.3.2] - 2025-09-08
-### Added
-- New feature flag `turnkey`:
-  - Provides `TurnkeyErrorKind` (stable taxonomy of Turnkey-specific failures).
-  - Provides `TurnkeyError` (kind + public message).
-  - Adds `classify_turnkey_error` helper for mapping raw SDK/provider messages.
-  - Includes conversions into `AppError` / `AppErrorKind`.
 
-### Notes
-- Feature is framework-agnostic; no extra dependencies are pulled.
+### Added
+
+- Turnkey
+- Turnkey
 
 ## [0.3.1] - 2025-08-25
-### Added
-- Implemented `axum::response::IntoResponse` for `AppError` (behind the `axum` feature).
-  This allows using `AppError` directly as a rejection type in Axum extractors and handlers.
 
-### Notes
-- The implementation delegates to `ErrorResponse` to ensure a single, stable wire contract.
+### Added
+
+- Release script
+
+### Documentation
+
+- Update changelog for 0.3.1 (IntoResponse for AppError)
+- Update changelog for 0.3.1 (IntoResponse for AppError)
+
+### Masterror
+
+- Add IntoResponse for AppError under axum feature
 
 ## [0.3.0] - 2025-08-24
+
 ### Added
-- `AppCode` — stable machine-readable error code (part of the wire contract).
-- `ErrorResponse.code`, `ErrorResponse.retry`, `ErrorResponse.www_authenticate` fields.
-- Axum/Actix integrations now set `Retry-After` and `WWW-Authenticate` headers when applicable.
 
-### Changed (breaking)
-- `ErrorResponse::new` now requires `(status: u16, code: AppCode, message: impl Into<String>)`.
+- Introduce AppCode and new ErrorResponse fields
 
-### Migration
-- Replace `ErrorResponse::new(status, "msg")` with  
-  `ErrorResponse::new(status, AppCode::<Variant>, "msg")`.
-- Optionally use `.with_retry_after_secs(...)` and/or `.with_www_authenticate(...)`
-  to populate the new fields.
+### Fixed
+
+- Convert test
 
 ## [0.2.1] - 2025-08-20
-### Changed
-- Cleaned up feature flags: clarified `openapi` vs `openapi-*`.
-- Simplified error DTOs (`ErrorResponse`) with proper `ToSchema` support.
-- Minor code cleanup in Actix and SQLx integration.
 
-### Notes
-- **MSRV:** 1.89
-- **No unsafe**
+### Miscellaneous
+
+- **release**: Prepare v0.2.0
 
 ## [0.2.0] - 2025-08-20
+
 ### Added
-- Actix integration:
-  - `AppError` implements `actix_web::ResponseError`.
-  - `ErrorResponse` implements `actix_web::Responder`.
 
-### Changed
-- Expanded documentation:
-  - Complete `README.md` with installation, usage examples, and feature flags.
-  - Improved module-level doc comments and design notes.
-- Error conversions: feature-gated submodules (`sqlx`, `reqwest`, `redis`, `tokio`, `validator`, etc.).
+- Add help task in makefile
+- Opencollective link
+- **actix**: AppError as ResponseError; ErrorResponse as Responder; docs/readme
+- **actix**: AppError as ResponseError; ErrorResponse as Responder; docs/readme
 
-### Notes
-- **MSRV:** 1.89
-- **No unsafe:** the crate forbids `unsafe`.
+## [0.1.1] - 2025-08-12
 
-[0.10.7]: https://github.com/RAprogramm/masterror/releases/tag/v0.10.7
-[0.10.6]: https://github.com/RAprogramm/masterror/releases/tag/v0.10.6
-[0.6.6]: https://github.com/RAprogramm/masterror/releases/tag/v0.6.6
-[0.6.5]: https://github.com/RAprogramm/masterror/releases/tag/v0.6.5
-[0.6.4]: https://github.com/RAprogramm/masterror/releases/tag/v0.6.4
-[0.6.3]: https://github.com/RAprogramm/masterror/releases/tag/v0.6.3
-[0.6.2]: https://github.com/RAprogramm/masterror/releases/tag/v0.6.2
-[0.6.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.6.0
-[0.5.2]: https://github.com/RAprogramm/masterror/releases/tag/v0.5.2
-[0.5.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.5.1
-[0.5.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.5.0
-[0.4.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.4.0
-[0.3.6]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.6
-[0.3.5]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.5
-[0.3.4]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.4
-[0.3.3]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.3
-[0.3.2]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.2
-[0.3.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.1
-[0.3.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.3.0
-[0.2.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.2.1
-[0.2.0]: https://github.com/RAprogramm/masterror/releases/tag/v0.2.0
+### Added
+
+- README.md
+- License
+- Makefile
+- Add pre commit
+
+### Fixed
+
+- Fix
+- License name
+- Repo link
+- Fix pre commit
+- Fix pre commit
+- Fix ci 1
+- Fix ci 2
+- Fix ci 3
+- Funding
+
+### Testing
+
+- Auto publish
+
+[Unreleased]: https://github.com/RAprogramm/masterror/compare/...HEAD
+[0.24.19]: https://github.com/RAprogramm/masterror/compare/v0.24.18...v0.24.19
+[0.24.18]: https://github.com/RAprogramm/masterror/compare/v0.24.16...v0.24.18
+[0.24.16]: https://github.com/RAprogramm/masterror/compare/v0.24.17...v0.24.16
+[0.24.17]: https://github.com/RAprogramm/masterror/compare/v0.24.12...v0.24.17
+[0.24.12]: https://github.com/RAprogramm/masterror/compare/v0.24.11...v0.24.12
+[0.24.11]: https://github.com/RAprogramm/masterror/compare/v0.24.10...v0.24.11
+[0.24.10]: https://github.com/RAprogramm/masterror/compare/v0.24.8...v0.24.10
+[0.24.8]: https://github.com/RAprogramm/masterror/compare/v0.24.9...v0.24.8
+[0.24.9]: https://github.com/RAprogramm/masterror/compare/v0.21.1...v0.24.9
+[0.21.1]: https://github.com/RAprogramm/masterror/compare/v0.21.0...v0.21.1
+[0.21.0]: https://github.com/RAprogramm/masterror/compare/v0.10.9...v0.21.0
+[0.10.9]: https://github.com/RAprogramm/masterror/compare/v0.11.0...v0.10.9
+[0.11.0]: https://github.com/RAprogramm/masterror/compare/v0.10.8...v0.11.0
+[0.10.8]: https://github.com/RAprogramm/masterror/compare/v0.10.7...v0.10.8
+[0.10.7]: https://github.com/RAprogramm/masterror/compare/v0.10.6...v0.10.7
+[0.10.6]: https://github.com/RAprogramm/masterror/compare/v0.10.5...v0.10.6
+[0.10.5]: https://github.com/RAprogramm/masterror/compare/v0.10.4...v0.10.5
+[0.10.4]: https://github.com/RAprogramm/masterror/compare/v0.9.0...v0.10.4
+[0.9.0]: https://github.com/RAprogramm/masterror/compare/v0.5.0...v0.9.0
+[0.5.0]: https://github.com/RAprogramm/masterror/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/RAprogramm/masterror/compare/v0.3.5...v0.4.0
+[0.3.5]: https://github.com/RAprogramm/masterror/compare/v0.3.3...v0.3.5
+[0.3.3]: https://github.com/RAprogramm/masterror/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/RAprogramm/masterror/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/RAprogramm/masterror/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/RAprogramm/masterror/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/RAprogramm/masterror/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/RAprogramm/masterror/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/RAprogramm/masterror/releases/tag/v0.1.1
 
