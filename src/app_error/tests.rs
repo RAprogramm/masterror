@@ -1016,3 +1016,227 @@ fn with_context_handles_boxed_arc_downcast() {
     assert!(err.source_ref().is_some());
     assert_eq!(err.source_ref().unwrap().to_string(), "boxed arc");
 }
+
+#[test]
+fn not_found_constructor_creates_correct_kind() {
+    let err = AppError::not_found("resource not found");
+    assert_eq!(err.kind, AppErrorKind::NotFound);
+    assert_eq!(err.message.as_deref(), Some("resource not found"));
+}
+
+#[test]
+fn not_found_accepts_string() {
+    let err = AppError::not_found("test".to_string());
+    assert_eq!(err.message.as_deref(), Some("test"));
+}
+
+#[test]
+fn not_found_accepts_cow_borrowed() {
+    let err = AppError::not_found(Cow::Borrowed("borrowed"));
+    assert_eq!(err.message.as_deref(), Some("borrowed"));
+}
+
+#[test]
+fn not_found_accepts_cow_owned() {
+    let err = AppError::not_found(Cow::Owned("owned".to_string()));
+    assert_eq!(err.message.as_deref(), Some("owned"));
+}
+
+#[test]
+fn validation_constructor_creates_correct_kind() {
+    let err = AppError::validation("invalid input");
+    assert_eq!(err.kind, AppErrorKind::Validation);
+    assert_eq!(err.message.as_deref(), Some("invalid input"));
+}
+
+#[test]
+fn unauthorized_constructor_creates_correct_kind() {
+    let err = AppError::unauthorized("missing token");
+    assert_eq!(err.kind, AppErrorKind::Unauthorized);
+    assert_eq!(err.message.as_deref(), Some("missing token"));
+}
+
+#[test]
+fn forbidden_constructor_creates_correct_kind() {
+    let err = AppError::forbidden("access denied");
+    assert_eq!(err.kind, AppErrorKind::Forbidden);
+    assert_eq!(err.message.as_deref(), Some("access denied"));
+}
+
+#[test]
+fn conflict_constructor_creates_correct_kind() {
+    let err = AppError::conflict("resource exists");
+    assert_eq!(err.kind, AppErrorKind::Conflict);
+    assert_eq!(err.message.as_deref(), Some("resource exists"));
+}
+
+#[test]
+fn bad_request_constructor_creates_correct_kind() {
+    let err = AppError::bad_request("malformed request");
+    assert_eq!(err.kind, AppErrorKind::BadRequest);
+    assert_eq!(err.message.as_deref(), Some("malformed request"));
+}
+
+#[test]
+fn rate_limited_constructor_creates_correct_kind() {
+    let err = AppError::rate_limited("too many requests");
+    assert_eq!(err.kind, AppErrorKind::RateLimited);
+    assert_eq!(err.message.as_deref(), Some("too many requests"));
+}
+
+#[test]
+fn telegram_auth_constructor_creates_correct_kind() {
+    let err = AppError::telegram_auth("invalid telegram auth");
+    assert_eq!(err.kind, AppErrorKind::TelegramAuth);
+    assert_eq!(err.message.as_deref(), Some("invalid telegram auth"));
+}
+
+#[test]
+fn internal_constructor_creates_correct_kind() {
+    let err = AppError::internal("unexpected error");
+    assert_eq!(err.kind, AppErrorKind::Internal);
+    assert_eq!(err.message.as_deref(), Some("unexpected error"));
+}
+
+#[test]
+fn service_constructor_creates_correct_kind() {
+    let err = AppError::service("service failure");
+    assert_eq!(err.kind, AppErrorKind::Service);
+    assert_eq!(err.message.as_deref(), Some("service failure"));
+}
+
+#[test]
+fn database_constructor_with_none_creates_correct_kind() {
+    let err = AppError::database(None);
+    assert_eq!(err.kind, AppErrorKind::Database);
+    assert!(err.message.is_none());
+}
+
+#[test]
+fn database_constructor_with_some_creates_correct_kind() {
+    let err = AppError::database(Some(Cow::Borrowed("connection failed")));
+    assert_eq!(err.kind, AppErrorKind::Database);
+    assert_eq!(err.message.as_deref(), Some("connection failed"));
+}
+
+#[test]
+fn database_with_message_creates_correct_kind() {
+    let err = AppError::database_with_message("query timeout");
+    assert_eq!(err.kind, AppErrorKind::Database);
+    assert_eq!(err.message.as_deref(), Some("query timeout"));
+}
+
+#[test]
+fn database_with_message_accepts_string() {
+    let err = AppError::database_with_message("test".to_string());
+    assert_eq!(err.message.as_deref(), Some("test"));
+}
+
+#[test]
+fn config_constructor_creates_correct_kind() {
+    let err = AppError::config("missing configuration");
+    assert_eq!(err.kind, AppErrorKind::Config);
+    assert_eq!(err.message.as_deref(), Some("missing configuration"));
+}
+
+#[test]
+fn turnkey_constructor_creates_correct_kind() {
+    let err = AppError::turnkey("turnkey error");
+    assert_eq!(err.kind, AppErrorKind::Turnkey);
+    assert_eq!(err.message.as_deref(), Some("turnkey error"));
+}
+
+#[test]
+fn timeout_constructor_creates_correct_kind() {
+    let err = AppError::timeout("operation timeout");
+    assert_eq!(err.kind, AppErrorKind::Timeout);
+    assert_eq!(err.message.as_deref(), Some("operation timeout"));
+}
+
+#[test]
+fn network_constructor_creates_correct_kind() {
+    let err = AppError::network("connection lost");
+    assert_eq!(err.kind, AppErrorKind::Network);
+    assert_eq!(err.message.as_deref(), Some("connection lost"));
+}
+
+#[test]
+fn dependency_unavailable_constructor_creates_correct_kind() {
+    let err = AppError::dependency_unavailable("service down");
+    assert_eq!(err.kind, AppErrorKind::DependencyUnavailable);
+    assert_eq!(err.message.as_deref(), Some("service down"));
+}
+
+#[test]
+fn service_unavailable_alias_maps_to_dependency_unavailable() {
+    let err = AppError::service_unavailable("unavailable");
+    assert_eq!(err.kind, AppErrorKind::DependencyUnavailable);
+    assert_eq!(err.message.as_deref(), Some("unavailable"));
+}
+
+#[test]
+fn serialization_constructor_creates_correct_kind() {
+    let err = AppError::serialization("serialize failed");
+    assert_eq!(err.kind, AppErrorKind::Serialization);
+    assert_eq!(err.message.as_deref(), Some("serialize failed"));
+}
+
+#[test]
+fn deserialization_constructor_creates_correct_kind() {
+    let err = AppError::deserialization("deserialize failed");
+    assert_eq!(err.kind, AppErrorKind::Deserialization);
+    assert_eq!(err.message.as_deref(), Some("deserialize failed"));
+}
+
+#[test]
+fn external_api_constructor_creates_correct_kind() {
+    let err = AppError::external_api("api error");
+    assert_eq!(err.kind, AppErrorKind::ExternalApi);
+    assert_eq!(err.message.as_deref(), Some("api error"));
+}
+
+#[test]
+fn queue_constructor_creates_correct_kind() {
+    let err = AppError::queue("queue full");
+    assert_eq!(err.kind, AppErrorKind::Queue);
+    assert_eq!(err.message.as_deref(), Some("queue full"));
+}
+
+#[test]
+fn cache_constructor_creates_correct_kind() {
+    let err = AppError::cache("cache miss");
+    assert_eq!(err.kind, AppErrorKind::Cache);
+    assert_eq!(err.message.as_deref(), Some("cache miss"));
+}
+
+#[test]
+fn constructors_accept_empty_strings() {
+    let err = AppError::internal("");
+    assert_eq!(err.message.as_deref(), Some(""));
+
+    let err = AppError::validation("");
+    assert_eq!(err.message.as_deref(), Some(""));
+}
+
+#[test]
+fn constructors_accept_unicode_messages() {
+    let err = AppError::not_found("リソースが見つかりません");
+    assert_eq!(err.message.as_deref(), Some("リソースが見つかりません"));
+
+    let err = AppError::validation("Неверный ввод");
+    assert_eq!(err.message.as_deref(), Some("Неверный ввод"));
+}
+
+#[test]
+fn constructors_accept_long_messages() {
+    let long_msg = "x".repeat(10000);
+    let err = AppError::internal(long_msg.clone());
+    assert_eq!(err.message.as_deref(), Some(long_msg.as_str()));
+}
+
+#[test]
+fn constructors_accept_static_str() {
+    const STATIC_MSG: &str = "static message";
+    let err = AppError::not_found(STATIC_MSG);
+    assert_eq!(err.message.as_deref(), Some(STATIC_MSG));
+}
