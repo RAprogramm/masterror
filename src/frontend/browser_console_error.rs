@@ -193,3 +193,73 @@ impl BrowserConsoleError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clone_creates_identical_copy() {
+        let err1 = BrowserConsoleError::Serialization {
+            message: "test".to_string()
+        };
+        let err2 = err1.clone();
+        assert_eq!(err1, err2);
+
+        let err3 = BrowserConsoleError::ConsoleMethodNotCallable;
+        let err4 = err3.clone();
+        assert_eq!(err3, err4);
+    }
+
+    #[test]
+    fn context_returns_none_for_unit_variants() {
+        assert_eq!(
+            BrowserConsoleError::ConsoleMethodNotCallable.context(),
+            None
+        );
+        assert_eq!(BrowserConsoleError::UnsupportedTarget.context(), None);
+    }
+
+    #[test]
+    fn context_returns_message_for_serialization() {
+        let err = BrowserConsoleError::Serialization {
+            message: "JSON parse error".to_string()
+        };
+        assert_eq!(err.context(), Some("JSON parse error"));
+    }
+
+    #[test]
+    fn context_returns_message_for_console_invocation() {
+        let err = BrowserConsoleError::ConsoleInvocation {
+            message: "TypeError: null reference".to_string()
+        };
+        assert_eq!(err.context(), Some("TypeError: null reference"));
+    }
+
+    #[test]
+    fn partial_eq_compares_variants_correctly() {
+        let serialization1 = BrowserConsoleError::Serialization {
+            message: "error1".to_string()
+        };
+        let serialization2 = BrowserConsoleError::Serialization {
+            message: "error1".to_string()
+        };
+        let serialization3 = BrowserConsoleError::Serialization {
+            message: "error2".to_string()
+        };
+
+        assert_eq!(serialization1, serialization2);
+        assert_ne!(serialization1, serialization3);
+        assert_ne!(serialization1, BrowserConsoleError::UnsupportedTarget);
+    }
+
+    #[test]
+    fn debug_format_includes_variant_and_message() {
+        let err = BrowserConsoleError::ConsoleUnavailable {
+            message: "console is undefined".to_string()
+        };
+        let debug_str = format!("{err:?}");
+        assert!(debug_str.contains("ConsoleUnavailable"));
+        assert!(debug_str.contains("console is undefined"));
+    }
+}
