@@ -7,7 +7,7 @@ name = "masterror"
 version = "0.24.19"
 rust-version = "1.90"
 edition = "2024"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 repository = "https://github.com/RAprogramm/masterror"
 readme = "README.md"
 description = "Application error types and response mapping"
@@ -26,8 +26,7 @@ include = [
   "README.ko.md",
   "README.template.md",
   "CHANGELOG.md",
-  "LICENSE-APACHE",
-  "LICENSE-MIT",
+  "LICENSE",
   "Makefile.toml",
   "deny.toml",
   "idea.md",
@@ -48,7 +47,7 @@ resolver = "3"
 [workspace.package]
 edition = "2024"
 rust-version = "1.90"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 repository = "https://github.com/RAprogramm/masterror"
 readme = "README.md"
 

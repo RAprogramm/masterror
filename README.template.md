@@ -15,7 +15,7 @@ SPDX-License-Identifier: MIT
   [![docs.rs](https://img.shields.io/docsrs/masterror)](https://docs.rs/masterror)
   [![Downloads](https://img.shields.io/crates/d/masterror)](https://crates.io/crates/masterror)
   ![MSRV](https://img.shields.io/badge/MSRV-{{MSRV}}-blue)
-  ![License](https://img.shields.io/badge/License-MIT%20or%20Apache--2.0-informational)
+  ![License](https://img.shields.io/badge/License-MIT-informational)
   [![REUSE status](https://api.reuse.software/badge/github.com/RAprogramm/masterror)](https://api.reuse.software/info/github.com/RAprogramm/masterror)
   [![codecov](https://codecov.io/gh/RAprogramm/masterror/graph/badge.svg?token=V9JQDTZLXH)](https://codecov.io/gh/RAprogramm/masterror)
 
@@ -638,6 +638,6 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 
 ## License
 
-MSRV: **{{MSRV}}** · License: **MIT OR Apache-2.0** · No `unsafe`
+MSRV: **{{MSRV}}** · License: **MIT** · No `unsafe`
 
 
