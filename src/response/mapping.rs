@@ -2,19 +2,85 @@
 //
 // SPDX-License-Identifier: MIT
 
+//! Mapping from [`AppError`] to [`ErrorResponse`].
+//!
+//! This module provides [`From`] trait implementations and [`Display`]
+//! formatting for converting application errors into HTTP-ready responses.
+//!
+//! # Conversions
+//!
+//! - [`From<AppError>`]: Consumes the error, transferring ownership of message
+//!   and metadata
+//! - [`From<&AppError>`]: Borrows the error, cloning message and metadata
+//!
+//! Both conversions respect the [`MessageEditPolicy`] to control message
+//! visibility.
+//!
+//! # Display Format
+//!
+//! The [`Display`] implementation produces a concise log-safe format:
+//! `"{status} {code:?}: {message}"`
+//!
+//! # Examples
+//!
+//! ```rust
+//! use masterror::{AppError, ErrorResponse};
+//!
+//! let err = AppError::not_found("user not found");
+//! let resp: ErrorResponse = err.into();
+//!
+//! assert_eq!(resp.status, 404);
+//! assert_eq!(resp.message, "user not found");
+//! ```
+//!
+//! [`MessageEditPolicy`]: crate::MessageEditPolicy
+
 use alloc::string::String;
 use core::fmt::{Display, Formatter, Result as FmtResult};
 
 use super::core::ErrorResponse;
 use crate::{AppCode, AppError};
 
+/// Format [`ErrorResponse`] for logging and debugging.
+///
+/// Produces a concise format: `"{status} {code:?}: {message}"`.
+///
+/// # Examples
+///
+/// ```rust
+/// use masterror::{AppCode, ErrorResponse};
+///
+/// let resp = ErrorResponse::new(404, AppCode::NotFound, "user not found").expect("status");
+///
+/// let formatted = resp.to_string();
+/// assert!(formatted.contains("404"));
+/// assert!(formatted.contains("NOT_FOUND"));
+/// assert!(formatted.contains("user not found"));
+/// ```
 impl Display for ErrorResponse {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        // Concise string form, safe for logs and debugging.
         write!(f, "{} {:?}: {}", self.status, self.code, self.message)
     }
 }
 
+/// Convert owned [`AppError`] to [`ErrorResponse`].
+///
+/// Consumes the error, transferring ownership of message and metadata.
+/// Respects [`MessageEditPolicy`] for message visibility.
+///
+/// # Examples
+///
+/// ```rust
+/// use masterror::{AppError, AppErrorKind, ErrorResponse};
+///
+/// let err = AppError::validation("invalid email");
+/// let resp: ErrorResponse = err.into();
+///
+/// assert_eq!(resp.status, AppErrorKind::Validation.http_status());
+/// assert_eq!(resp.message, "invalid email");
+/// ```
+///
+/// [`MessageEditPolicy`]: crate::MessageEditPolicy
 impl From<AppError> for ErrorResponse {
     fn from(mut err: AppError) -> Self {
         let kind = err.kind;
@@ -52,6 +118,25 @@ impl From<AppError> for ErrorResponse {
     }
 }
 
+/// Convert borrowed [`AppError`] to [`ErrorResponse`].
+///
+/// Clones the error's message and metadata, leaving the original error intact.
+/// Respects [`MessageEditPolicy`] for message visibility.
+///
+/// # Examples
+///
+/// ```rust
+/// use masterror::{AppError, ErrorResponse};
+///
+/// let err = AppError::conflict("resource exists");
+/// let resp: ErrorResponse = (&err).into();
+///
+/// assert_eq!(resp.message, "resource exists");
+/// // Original error remains intact
+/// assert_eq!(err.message.as_deref(), Some("resource exists"));
+/// ```
+///
+/// [`MessageEditPolicy`]: crate::MessageEditPolicy
 impl From<&AppError> for ErrorResponse {
     fn from(err: &AppError) -> Self {
         let status = err.kind.http_status();

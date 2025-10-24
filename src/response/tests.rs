@@ -617,3 +617,182 @@ fn app_error_into_response_maps_status() {
     let resp = app.into_response();
     assert_eq!(resp.status(), 401);
 }
+
+// --- Mapping: Display trait ---------------------------------------------
+
+#[test]
+fn display_formats_status_code_and_message() {
+    let resp = ErrorResponse::new(404, AppCode::NotFound, "user not found").expect("status");
+    let display = resp.to_string();
+    assert!(display.contains("404"));
+    assert!(display.contains("NOT_FOUND"));
+    assert!(display.contains("user not found"));
+}
+
+#[test]
+fn display_works_with_empty_message() {
+    let resp = ErrorResponse::new(500, AppCode::Internal, "").expect("status");
+    let display = resp.to_string();
+    assert!(display.contains("500"));
+    assert!(display.contains("INTERNAL"));
+}
+
+#[test]
+fn display_works_with_unicode_message() {
+    let resp =
+        ErrorResponse::new(404, AppCode::NotFound, "ユーザーが見つかりません").expect("status");
+    let display = resp.to_string();
+    assert!(display.contains("404"));
+    assert!(display.contains("ユーザーが見つかりません"));
+}
+
+#[test]
+fn display_works_with_long_message() {
+    let long_msg = "x".repeat(1000);
+    let resp = ErrorResponse::new(400, AppCode::BadRequest, &long_msg).expect("status");
+    let display = resp.to_string();
+    assert!(display.contains(&long_msg));
+}
+
+#[test]
+fn display_works_with_special_characters() {
+    let resp =
+        ErrorResponse::new(400, AppCode::BadRequest, "Error: \"test\" <>&").expect("status");
+    let display = resp.to_string();
+    assert!(display.contains("Error: \"test\" <>&"));
+}
+
+#[test]
+fn display_uses_custom_code() {
+    let custom = AppCode::new("CUSTOM_ERROR");
+    let resp = ErrorResponse::new(418, custom, "teapot").expect("status");
+    let display = resp.to_string();
+    assert!(display.contains("418"));
+    assert!(display.contains("CUSTOM_ERROR"));
+    assert!(display.contains("teapot"));
+}
+
+// --- Mapping: From<AppError> --------------------------------------------
+
+#[test]
+fn from_owned_app_error_with_custom_code() {
+    let custom = AppCode::new("PAYMENT_FAILED");
+    let err = AppError::bad_request("transaction declined").with_code(custom.clone());
+    let resp: ErrorResponse = err.into();
+
+    assert_eq!(resp.status, 400);
+    assert_eq!(resp.code, custom);
+    assert_eq!(resp.message, "transaction declined");
+}
+
+#[test]
+fn from_owned_app_error_with_empty_message() {
+    let err = AppError::internal("");
+    let resp: ErrorResponse = err.into();
+
+    assert_eq!(resp.status, 500);
+    assert_eq!(resp.message, "");
+}
+
+#[test]
+fn from_owned_app_error_with_unicode_message() {
+    let err = AppError::not_found("Ошибка поиска");
+    let resp: ErrorResponse = err.into();
+
+    assert_eq!(resp.status, 404);
+    assert_eq!(resp.message, "Ошибка поиска");
+}
+
+#[test]
+fn from_owned_app_error_with_special_characters() {
+    let err = AppError::validation("Error: \"invalid\" <>&");
+    let resp: ErrorResponse = err.into();
+
+    assert_eq!(resp.message, "Error: \"invalid\" <>&");
+}
+
+#[test]
+fn from_owned_app_error_transfers_code_ownership() {
+    let custom = AppCode::new("DUPLICATE_KEY");
+    let err = AppError::conflict("already exists").with_code(custom.clone());
+    let resp: ErrorResponse = err.into();
+
+    assert_eq!(resp.code, custom);
+    assert_eq!(resp.code.as_str(), "DUPLICATE_KEY");
+}
+
+// --- Mapping: From<&AppError> -------------------------------------------
+
+#[test]
+fn from_borrowed_app_error_preserves_original() {
+    let err = AppError::forbidden("access denied");
+    let resp: ErrorResponse = (&err).into();
+
+    assert_eq!(resp.status, 403);
+    assert_eq!(resp.message, "access denied");
+
+    assert_eq!(err.message.as_deref(), Some("access denied"));
+    assert_eq!(err.kind, AppErrorKind::Forbidden);
+}
+
+#[test]
+fn from_borrowed_app_error_with_metadata() {
+    let err = AppError::rate_limited("slow down")
+        .with_retry_after_secs(120)
+        .with_www_authenticate("Bearer realm=\"api\"");
+
+    let resp: ErrorResponse = (&err).into();
+
+    assert_eq!(resp.status, 429);
+    assert_eq!(resp.message, "slow down");
+    assert_eq!(resp.retry.unwrap().after_seconds, 120);
+    assert_eq!(
+        resp.www_authenticate.as_deref(),
+        Some("Bearer realm=\"api\"")
+    );
+
+    assert_eq!(err.retry.unwrap().after_seconds, 120);
+    assert_eq!(
+        err.www_authenticate.as_deref(),
+        Some("Bearer realm=\"api\"")
+    );
+}
+
+#[test]
+fn from_borrowed_app_error_clones_custom_code() {
+    let custom = AppCode::new("SESSION_EXPIRED");
+    let err = AppError::unauthorized("login again").with_code(custom.clone());
+    let resp: ErrorResponse = (&err).into();
+
+    assert_eq!(resp.code, custom);
+    assert_eq!(err.code, custom);
+}
+
+#[test]
+fn from_borrowed_app_error_with_empty_message() {
+    let err = AppError::timeout("");
+    let resp: ErrorResponse = (&err).into();
+
+    assert_eq!(resp.status, 504);
+    assert_eq!(resp.message, "");
+}
+
+#[test]
+fn from_borrowed_app_error_with_unicode() {
+    let err = AppError::validation("無効な入力");
+    let resp: ErrorResponse = (&err).into();
+
+    assert_eq!(resp.message, "無効な入力");
+    assert_eq!(err.message.as_deref(), Some("無効な入力"));
+}
+
+#[test]
+fn from_borrowed_app_error_redacts_message() {
+    let err = AppError::internal("database password: secret123").redactable();
+    let resp: ErrorResponse = (&err).into();
+
+    assert_eq!(resp.message, AppErrorKind::Internal.label());
+    assert!(!resp.message.contains("secret123"));
+
+    assert_eq!(err.message.as_deref(), Some("database password: secret123"));
+}
