@@ -24,3 +24,9 @@ jobs:
     with:
       all-features: true
     secrets: inherit
+
+  update-changelog:
+    needs: ci
+    uses: ./.github/workflows/reusable-changelog.yml
+    secrets:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
