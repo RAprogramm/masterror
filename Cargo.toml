@@ -39,7 +39,14 @@ include = [
 ]
 
 [workspace]
-members = ["masterror-derive", "masterror-template"]
+members = [
+    "masterror-derive",
+    "masterror-template",
+    "examples/axum-rest-api",
+    "examples/custom-domain-errors",
+    "examples/sqlx-database",
+    "examples/basic-async",
+]
 
 resolver = "3"
 
