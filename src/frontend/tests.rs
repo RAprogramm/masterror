@@ -113,6 +113,74 @@ fn partial_eq_works() {
     assert_ne!(err1, err3);
 }
 
+#[test]
+fn serialization_error_with_empty_message() {
+    let err = BrowserConsoleError::Serialization {
+        message: String::new()
+    };
+    assert_eq!(err.context(), Some(""));
+    assert!(err.to_string().contains("failed to serialize"));
+}
+
+#[test]
+fn console_unavailable_with_unicode() {
+    let err = BrowserConsoleError::ConsoleUnavailable {
+        message: "コンソールなし".to_owned()
+    };
+    assert_eq!(err.context(), Some("コンソールなし"));
+}
+
+#[test]
+fn console_error_unavailable_with_long_message() {
+    let long_msg = "x".repeat(1000);
+    let err = BrowserConsoleError::ConsoleErrorUnavailable {
+        message: long_msg.clone()
+    };
+    assert_eq!(err.context(), Some(long_msg.as_str()));
+}
+
+#[test]
+fn console_invocation_with_special_chars() {
+    let err = BrowserConsoleError::ConsoleInvocation {
+        message: "Error: \"test\" <>&".to_owned()
+    };
+    assert_eq!(err.context(), Some("Error: \"test\" <>&"));
+}
+
+#[test]
+fn clone_works_for_error_variants() {
+    let err1 = BrowserConsoleError::Serialization {
+        message: "test".to_owned()
+    };
+    let err2 = err1.clone();
+    assert_eq!(err1, err2);
+}
+
+#[test]
+fn eq_compares_messages() {
+    let err1 = BrowserConsoleError::Serialization {
+        message: "msg1".to_owned()
+    };
+    let err2 = BrowserConsoleError::Serialization {
+        message: "msg1".to_owned()
+    };
+    let err3 = BrowserConsoleError::Serialization {
+        message: "msg2".to_owned()
+    };
+
+    assert_eq!(err1, err2);
+    assert_ne!(err1, err3);
+}
+
+#[test]
+fn context_returns_none_for_unit_variants() {
+    assert_eq!(
+        BrowserConsoleError::ConsoleMethodNotCallable.context(),
+        None
+    );
+    assert_eq!(BrowserConsoleError::UnsupportedTarget.context(), None);
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 mod native {
     use super::*;
