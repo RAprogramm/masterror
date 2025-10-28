@@ -378,8 +378,8 @@ pub mod prelude;
 pub mod mapping;
 
 pub use app_error::{
-    AppError, AppResult, Context, Error, ErrorChain, Field, FieldRedaction, FieldValue,
-    MessageEditPolicy, Metadata, field
+    AppError, AppResult, Context, DisplayMode, Error, ErrorChain, Field, FieldRedaction,
+    FieldValue, MessageEditPolicy, Metadata, field
 };
 pub use code::{AppCode, ParseAppCodeError};
 pub use kind::AppErrorKind;
