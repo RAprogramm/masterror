@@ -112,7 +112,7 @@ SPDX-License-Identifier: MIT
 필요한 것만 선택하세요; 모든 것이 기본적으로 비활성화되어 있습니다.
 
 - **웹 전송:** `axum`, `actix`, `multipart`, `openapi`, `serde_json`.
-- **텔레메트리 및 관찰성:** `tracing`, `metrics`, `backtrace`.
+- **텔레메트리 및 관찰성:** `tracing`, `metrics`, `backtrace`, 컬러 터미널 출력을 위한 `colored`.
 - **비동기 및 IO 통합:** `tokio`, `reqwest`, `sqlx`, `sqlx-migrate`, `redis`, `validator`, `config`.
 - **메시징 및 봇:** `teloxide`, `telegram-webapp-sdk`.
 - **프론트엔드 도구:** WASM/브라우저 콘솔 로깅을 위한 `frontend`.
@@ -521,6 +521,88 @@ assert_eq!(problem.status, 401);
 assert_eq!(problem.retry_after, Some(30));
 assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 ~~~
+
+</details>
+
+<details>
+  <summary><b>DisplayMode를 통한 환경 인식 오류 포매팅</b></summary>
+
+`DisplayMode` API를 사용하면 오류 처리 코드를 변경하지 않고도 배포 환경에 따라 오류 출력 포매팅을 제어할 수 있습니다. 세 가지 모드를 사용할 수 있습니다:
+
+- **`DisplayMode::Prod`** — 프로덕션 로그에 최적화된 최소 필드가 포함된 경량 JSON 출력. `kind`, `code` 및 `message`(리덕션되지 않은 경우)만 포함합니다. 민감한 메타데이터를 자동으로 필터링합니다.
+
+- **`DisplayMode::Local`** — 전체 컨텍스트가 포함된 사람이 읽을 수 있는 여러 줄 출력. 오류 세부 정보, 전체 소스 체인, 모든 메타데이터 및 백트레이스(활성화된 경우)를 표시합니다. 로컬 개발 및 디버깅에 가장 적합합니다.
+
+- **`DisplayMode::Staging`** — 추가 컨텍스트가 포함된 JSON 출력. `kind`, `code`, `message`, 제한된 `source_chain` 및 필터링된 메타데이터를 포함합니다. 더 많은 세부 정보가 포함된 구조화된 로그가 필요한 스테이징 환경에 유용합니다.
+
+**자동 환경 감지:**
+
+모드는 다음 순서로 자동 감지됩니다:
+1. `MASTERROR_ENV` 환경 변수 (`prod`, `local` 또는 `staging`)
+2. `KUBERNETES_SERVICE_HOST` 존재 여부 (`Prod` 모드 트리거)
+3. 빌드 구성 (`debug_assertions` → `Local`, 릴리스 → `Prod`)
+
+결과는 첫 번째 액세스 시 캐시되어 후속 호출에서 비용이 전혀 발생하지 않습니다.
+
+~~~rust
+use masterror::DisplayMode;
+
+// 현재 모드 쿼리 (첫 호출 후 캐시됨)
+let mode = DisplayMode::current();
+
+match mode {
+    DisplayMode::Prod => println!("프로덕션 모드에서 실행 중"),
+    DisplayMode::Local => println!("로컬 개발 모드에서 실행 중"),
+    DisplayMode::Staging => println!("스테이징 모드에서 실행 중"),
+}
+~~~
+
+**컬러 터미널 출력:**
+
+로컬 모드에서 향상된 터미널 출력을 위해 `colored` 기능을 활성화하세요:
+
+~~~toml
+[dependencies]
+masterror = { version = "0.24.19", features = ["colored"] }
+~~~
+
+`colored`가 활성화되면 오류가 구문 강조 표시와 함께 표시됩니다:
+- 굵은 글씨로 표시되는 오류 종류 및 코드
+- 색상으로 표시되는 오류 메시지
+- 들여쓰기된 소스 체인
+- 강조 표시된 메타데이터 키
+
+~~~rust
+use masterror::{AppError, field};
+
+let error = AppError::not_found("사용자를 찾을 수 없음")
+    .with_field(field::str("user_id", "12345"))
+    .with_field(field::str("request_id", "abc-def"));
+
+// 'colored' 없이: 일반 텍스트
+// 'colored' 사용 시: 터미널에서 색상 코딩된 출력
+println!("{}", error);
+~~~
+
+**프로덕션 vs 개발 출력:**
+
+`colored` 기능 없이 오류는 `AppErrorKind` 레이블을 표시합니다:
+~~~
+NotFound
+~~~
+
+`colored` 기능 사용 시 컨텍스트가 포함된 전체 여러 줄 형식:
+~~~
+Error: NotFound
+Code: NOT_FOUND
+Message: 사용자를 찾을 수 없음
+
+Context:
+  user_id: 12345
+  request_id: abc-def
+~~~
+
+이러한 구분은 프로덕션 로그를 깔끔하게 유지하면서 로컬 디버깅 세션 중에 개발자에게 풍부한 컨텍스트를 제공합니다.
 
 </details>
 
