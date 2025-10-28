@@ -627,6 +627,121 @@ mod tests {
         assert!(output.contains(r#""nanos":500000000"#));
     }
 
+    #[test]
+    fn fmt_prod_formats_bool_metadata() {
+        let error = AppError::internal("Error").with_field(field::bool("active", true));
+        let output = format!("{}", error.fmt_prod_wrapper());
+
+        assert!(output.contains(r#""active":true"#));
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn fmt_prod_formats_ip_metadata() {
+        use std::net::IpAddr;
+
+        let ip: IpAddr = "192.168.1.1".parse().unwrap();
+        let error = AppError::internal("Error").with_field(field::ip("client_ip", ip));
+        let output = format!("{}", error.fmt_prod_wrapper());
+
+        assert!(output.contains(r#""client_ip":"192.168.1.1""#));
+    }
+
+    #[test]
+    fn fmt_prod_formats_uuid_metadata() {
+        use uuid::Uuid;
+
+        let uuid = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        let error = AppError::internal("Error").with_field(field::uuid("request_id", uuid));
+        let output = format!("{}", error.fmt_prod_wrapper());
+
+        assert!(output.contains(r#""request_id":"550e8400-e29b-41d4-a716-446655440000""#));
+    }
+
+    #[cfg(feature = "serde_json")]
+    #[test]
+    fn fmt_prod_formats_json_metadata() {
+        let json = serde_json::json!({"nested": "value"});
+        let error = AppError::internal("Error").with_field(field::json("data", json));
+        let output = format!("{}", error.fmt_prod_wrapper());
+
+        assert!(output.contains(r#""data":"#));
+    }
+
+    #[test]
+    fn fmt_prod_without_message() {
+        let error = AppError::bare(crate::AppErrorKind::Internal);
+        let output = format!("{}", error.fmt_prod_wrapper());
+
+        assert!(output.contains(r#""kind":"Internal""#));
+        assert!(!output.contains(r#""message""#));
+    }
+
+    #[test]
+    fn fmt_local_without_message() {
+        let error = AppError::bare(crate::AppErrorKind::BadRequest);
+        let output = format!("{}", error.fmt_local_wrapper());
+
+        assert!(output.contains("Error:"));
+        assert!(!output.contains("Message:"));
+    }
+
+    #[test]
+    fn fmt_local_with_metadata() {
+        let error = AppError::internal("Error")
+            .with_field(field::str("key", "value"))
+            .with_field(field::i64("count", -42));
+        let output = format!("{}", error.fmt_local_wrapper());
+
+        assert!(output.contains("Context:"));
+        assert!(output.contains("key: value"));
+        assert!(output.contains("count: -42"));
+    }
+
+    #[test]
+    fn fmt_staging_without_message() {
+        let error = AppError::bare(crate::AppErrorKind::Timeout);
+        let output = format!("{}", error.fmt_staging_wrapper());
+
+        assert!(output.contains(r#""kind":"Timeout""#));
+        assert!(!output.contains(r#""message""#));
+    }
+
+    #[test]
+    fn fmt_staging_with_metadata() {
+        let error = AppError::service("Service error").with_field(field::u64("retry_count", 3));
+        let output = format!("{}", error.fmt_staging_wrapper());
+
+        assert!(output.contains(r#""metadata""#));
+        assert!(output.contains(r#""retry_count":3"#));
+    }
+
+    #[test]
+    fn fmt_staging_with_redacted_message() {
+        let error = AppError::internal("sensitive data").redactable();
+        let output = format!("{}", error.fmt_staging_wrapper());
+
+        assert!(!output.contains("sensitive data"));
+    }
+
+    #[test]
+    fn fmt_prod_escapes_control_chars() {
+        let error = AppError::internal("test\x00\x1F");
+        let output = format!("{}", error.fmt_prod_wrapper());
+
+        assert!(output.contains(r#"\u0000"#));
+        assert!(output.contains(r#"\u001f"#));
+    }
+
+    #[test]
+    fn fmt_prod_escapes_tab_and_carriage_return() {
+        let error = AppError::internal("line\ttab\rreturn");
+        let output = format!("{}", error.fmt_prod_wrapper());
+
+        assert!(output.contains(r#"\t"#));
+        assert!(output.contains(r#"\r"#));
+    }
+
     impl Error {
         fn fmt_prod_wrapper(&self) -> FormatterWrapper<'_> {
             FormatterWrapper {
