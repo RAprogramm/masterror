@@ -112,7 +112,8 @@ SPDX-License-Identifier: MIT
 Выбирайте только то, что вам нужно; по умолчанию все отключено.
 
 - **Веб-транспорты:** `axum`, `actix`, `multipart`, `openapi`, `serde_json`.
-- **Телеметрия и наблюдаемость:** `tracing`, `metrics`, `backtrace`.
+- **Телеметрия и наблюдаемость:** `tracing`, `metrics`, `backtrace`, `colored` для
+  цветного вывода в терминале.
 - **Асинхронные интеграции и ввод/вывод:** `tokio`, `reqwest`, `sqlx`, `sqlx-migrate`, `redis`, `validator`, `config`.
 - **Обмен сообщениями и боты:** `teloxide`, `telegram-webapp-sdk`.
 - **Инструменты фронтенда:** `frontend` для логирования WASM/консоли браузера.
@@ -521,6 +522,88 @@ assert_eq!(problem.status, 401);
 assert_eq!(problem.retry_after, Some(30));
 assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 ~~~
+
+</details>
+
+<details>
+  <summary><b>Форматирование ошибок с учётом окружения через DisplayMode</b></summary>
+
+API `DisplayMode` позволяет контролировать форматирование вывода ошибок в зависимости от окружения развертывания без изменения кода обработки ошибок. Доступны три режима:
+
+- **`DisplayMode::Prod`** — Компактный JSON-вывод с минимальным набором полей, оптимизированный для production логов. Включает только `kind`, `code` и `message` (если не скрыто). Автоматически фильтрует чувствительные метаданные.
+
+- **`DisplayMode::Local`** — Человекочитаемый многострочный вывод с полным контекстом. Показывает детали ошибки, полную цепочку источников, все метаданные и бэктрейс (если включен). Лучший вариант для локальной разработки и отладки.
+
+- **`DisplayMode::Staging`** — JSON-вывод с дополнительным контекстом. Включает `kind`, `code`, `message`, ограниченную `source_chain` и отфильтрованные метаданные. Полезен для staging окружений, где нужны структурированные логи с большей детализацией.
+
+**Автоматическое определение окружения:**
+
+Режим определяется автоматически в следующем порядке:
+1. Переменная окружения `MASTERROR_ENV` (`prod`, `local` или `staging`)
+2. Наличие `KUBERNETES_SERVICE_HOST` (активирует режим `Prod`)
+3. Конфигурация сборки (`debug_assertions` → `Local`, release → `Prod`)
+
+Результат кэшируется при первом обращении для нулевой стоимости последующих вызовов.
+
+~~~rust
+use masterror::DisplayMode;
+
+// Запрос текущего режима (кэшируется после первого вызова)
+let mode = DisplayMode::current();
+
+match mode {
+    DisplayMode::Prod => println!("Работа в production режиме"),
+    DisplayMode::Local => println!("Работа в режиме локальной разработки"),
+    DisplayMode::Staging => println!("Работа в staging режиме"),
+}
+~~~
+
+**Цветной вывод в терминале:**
+
+Включите функцию `colored` для улучшенного вывода в терминале в локальном режиме:
+
+~~~toml
+[dependencies]
+masterror = { version = "0.24.19", features = ["colored"] }
+~~~
+
+С включённой `colored`, ошибки отображаются с подсветкой синтаксиса:
+- Тип и код ошибки выделены жирным шрифтом
+- Сообщения об ошибках в цвете
+- Цепочка источников с отступами
+- Выделенные ключи метаданных
+
+~~~rust
+use masterror::{AppError, field};
+
+let error = AppError::not_found("Пользователь не найден")
+    .with_field(field::str("user_id", "12345"))
+    .with_field(field::str("request_id", "abc-def"));
+
+// Без 'colored': обычный текст
+// С 'colored': цветной вывод в терминалах
+println!("{}", error);
+~~~
+
+**Вывод в Production vs Development:**
+
+Без функции `colored` ошибки отображают метку `AppErrorKind`:
+~~~
+NotFound
+~~~
+
+С функцией `colored` полный многострочный формат с контекстом:
+~~~
+Error: NotFound
+Code: NOT_FOUND
+Message: Пользователь не найден
+
+Context:
+  user_id: 12345
+  request_id: abc-def
+~~~
+
+Такое разделение сохраняет production логи чистыми, предоставляя разработчикам богатый контекст во время локальных сессий отладки.
 
 </details>
 

@@ -91,56 +91,53 @@ impl DerefMut for Error {
     }
 }
 
-#[cfg(not(feature = "colored"))]
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        Display::fmt(&self.kind, f)
-    }
-}
-
-#[cfg(feature = "colored")]
-impl Display for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        use crate::colored::style;
-
-        writeln!(f, "Error: {}", self.kind)?;
-        writeln!(f, "Code: {}", style::error_code(self.code.to_string()))?;
-
-        if let Some(msg) = &self.message {
-            writeln!(f, "Message: {}", style::error_message(msg))?;
+        #[cfg(not(feature = "colored"))]
+        {
+            Display::fmt(&self.kind, f)
         }
 
-        if let Some(source) = &self.source {
-            writeln!(f)?;
-            let mut current: &dyn CoreError = source.as_ref();
-            let mut depth = 0;
+        #[cfg(feature = "colored")]
+        {
+            use crate::colored::style;
 
-            while depth < 10 {
-                writeln!(
-                    f,
-                    "  {}: {}",
-                    style::source_context("Caused by"),
-                    style::source_context(current.to_string())
-                )?;
+            writeln!(f, "Error: {}", self.kind)?;
+            writeln!(f, "Code: {}", style::error_code(self.code.to_string()))?;
 
-                if let Some(next) = current.source() {
-                    current = next;
-                    depth += 1;
-                } else {
-                    break;
+            if let Some(msg) = &self.message {
+                writeln!(f, "Message: {}", style::error_message(msg))?;
+            }
+
+            if let Some(source) = &self.source {
+                writeln!(f)?;
+                let mut current: &dyn CoreError = source.as_ref();
+                let mut depth = 0;
+                while depth < 10 {
+                    writeln!(
+                        f,
+                        "{}",
+                        style::source_context(alloc::format!("Caused by: {}", current))
+                    )?;
+                    if let Some(next) = current.source() {
+                        current = next;
+                        depth += 1;
+                    } else {
+                        break;
+                    }
                 }
             }
-        }
 
-        if !self.metadata.is_empty() {
-            writeln!(f)?;
-            writeln!(f, "Context:")?;
-            for (key, value) in self.metadata.iter() {
-                writeln!(f, "  {}: {}", style::metadata_key(key), value)?;
+            if !self.metadata.is_empty() {
+                writeln!(f)?;
+                writeln!(f, "Context:")?;
+                for (key, value) in self.metadata.iter() {
+                    writeln!(f, "  {}: {}", style::metadata_key(key), value)?;
+                }
             }
-        }
 
-        Ok(())
+            Ok(())
+        }
     }
 }
 

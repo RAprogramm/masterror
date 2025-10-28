@@ -52,8 +52,17 @@ pub mod telemetry;
 /// - `CapturedBacktrace` type alias
 pub mod types;
 
+/// Display formatting and environment-based output modes.
+///
+/// Provides environment-aware error formatting with three modes:
+/// - Production: lightweight JSON, minimal fields
+/// - Local: human-readable with full context
+/// - Staging: JSON with additional context
+pub mod display;
+
 #[cfg(all(test, feature = "backtrace"))]
 pub use backtrace::{reset_backtrace_preference, set_backtrace_preference_override};
+pub use display::DisplayMode;
 pub use error::{AppError, AppResult, Error};
 pub use types::{ErrorChain, MessageEditPolicy};
 

@@ -131,7 +131,8 @@ of redaction and metadata.
 Pick only what you need; everything is off by default.
 
 - **Web transports:** `axum`, `actix`, `multipart`, `openapi`, `serde_json`.
-- **Telemetry & observability:** `tracing`, `metrics`, `backtrace`.
+- **Telemetry & observability:** `tracing`, `metrics`, `backtrace`, `colored` for
+  colored terminal output.
 - **Async & IO integrations:** `tokio`, `reqwest`, `sqlx`, `sqlx-migrate`,
   `redis`, `validator`, `config`.
 - **Messaging & bots:** `teloxide`, `telegram-webapp-sdk`.
@@ -590,6 +591,96 @@ assert_eq!(problem.status, 401);
 assert_eq!(problem.retry_after, Some(30));
 assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 ~~~
+
+</details>
+
+<details>
+  <summary><b>Environment-aware error formatting with DisplayMode</b></summary>
+
+The `DisplayMode` API lets you control error output formatting based on deployment
+environment without changing your error handling code. Three modes are available:
+
+- **`DisplayMode::Prod`** — Lightweight JSON output with minimal fields, optimized
+  for production logs. Only includes `kind`, `code`, and `message` (if not redacted).
+  Filters sensitive metadata automatically.
+
+- **`DisplayMode::Local`** — Human-readable multi-line output with full context.
+  Shows error details, complete source chain, all metadata, and backtrace (if enabled).
+  Best for local development and debugging.
+
+- **`DisplayMode::Staging`** — JSON output with additional context. Includes
+  `kind`, `code`, `message`, limited `source_chain`, and filtered metadata.
+  Useful for staging environments where you need structured logs with more detail.
+
+**Automatic Environment Detection:**
+
+The mode is auto-detected in this order:
+1. `MASTERROR_ENV` environment variable (`prod`, `local`, or `staging`)
+2. `KUBERNETES_SERVICE_HOST` presence (triggers `Prod` mode)
+3. Build configuration (`debug_assertions` → `Local`, release → `Prod`)
+
+The result is cached on first access for zero-cost subsequent calls.
+
+~~~rust
+use masterror::DisplayMode;
+
+// Query the current mode (cached after first call)
+let mode = DisplayMode::current();
+
+match mode {
+    DisplayMode::Prod => println!("Running in production mode"),
+    DisplayMode::Local => println!("Running in local development mode"),
+    DisplayMode::Staging => println!("Running in staging mode"),
+}
+~~~
+
+**Colored Terminal Output:**
+
+Enable the `colored` feature for enhanced terminal output in local mode:
+
+~~~toml
+[dependencies]
+masterror = { version = "0.24.19", features = ["colored"] }
+~~~
+
+With `colored` enabled, errors display with syntax highlighting:
+- Error kind and code in bold
+- Error messages in color
+- Source chain with indentation
+- Metadata keys highlighted
+
+~~~rust
+use masterror::{AppError, field};
+
+let error = AppError::not_found("User not found")
+    .with_field(field::str("user_id", "12345"))
+    .with_field(field::str("request_id", "abc-def"));
+
+// Without 'colored': plain text
+// With 'colored': color-coded output in terminals
+println!("{}", error);
+~~~
+
+**Production vs Development Output:**
+
+Without `colored` feature, errors display their `AppErrorKind` label:
+~~~
+NotFound
+~~~
+
+With `colored` feature, full multi-line format with context:
+~~~
+Error: NotFound
+Code: NOT_FOUND
+Message: User not found
+
+Context:
+  user_id: 12345
+  request_id: abc-def
+~~~
+
+This separation keeps production logs clean while giving developers rich context
+during local debugging sessions.
 
 </details>
 
