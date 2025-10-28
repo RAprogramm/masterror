@@ -151,6 +151,7 @@ impl DisplayMode {
     }
 }
 
+#[allow(dead_code)]
 impl Error {
     /// Formats error in production mode (compact JSON).
     ///
@@ -442,6 +443,7 @@ impl Error {
 }
 
 /// Writes a string with JSON escaping.
+#[allow(dead_code)]
 fn write_json_escaped(f: &mut Formatter<'_>, s: &str) -> FmtResult {
     for ch in s.chars() {
         match ch {
@@ -458,6 +460,7 @@ fn write_json_escaped(f: &mut Formatter<'_>, s: &str) -> FmtResult {
 }
 
 /// Writes a metadata field value in JSON format.
+#[allow(dead_code)]
 fn write_metadata_value(
     f: &mut Formatter<'_>,
     value: &crate::app_error::metadata::FieldValue
@@ -740,6 +743,102 @@ mod tests {
 
         assert!(output.contains(r#"\t"#));
         assert!(output.contains(r#"\r"#));
+    }
+
+    #[test]
+    fn display_mode_current_caches_result() {
+        let first = DisplayMode::current();
+        let second = DisplayMode::current();
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn display_mode_detect_auto_returns_prod_in_release() {
+        if !cfg!(debug_assertions) {
+            assert_eq!(DisplayMode::detect_auto(), DisplayMode::Prod);
+        }
+    }
+
+    #[test]
+    fn fmt_prod_with_multiple_metadata_fields() {
+        let error = AppError::not_found("test")
+            .with_field(field::str("first", "value1"))
+            .with_field(field::u64("second", 42))
+            .with_field(field::bool("third", true));
+        let output = format!("{}", error.fmt_prod_wrapper());
+        assert!(output.contains(r#""first":"value1""#));
+        assert!(output.contains(r#""second":42"#));
+        assert!(output.contains(r#""third":true"#));
+    }
+
+    #[test]
+    fn fmt_prod_escapes_backslash() {
+        let error = AppError::internal("path\\to\\file");
+        let output = format!("{}", error.fmt_prod_wrapper());
+        assert!(output.contains(r#"path\\to\\file"#));
+    }
+
+    #[test]
+    fn fmt_prod_with_i64_metadata() {
+        let error = AppError::internal("test").with_field(field::i64("count", -100));
+        let output = format!("{}", error.fmt_prod_wrapper());
+        assert!(output.contains(r#""count":-100"#));
+    }
+
+    #[test]
+    fn fmt_prod_with_string_metadata() {
+        let error = AppError::internal("test").with_field(field::str("name", "value"));
+        let output = format!("{}", error.fmt_prod_wrapper());
+        assert!(output.contains(r#""name":"value""#));
+    }
+
+    #[cfg(feature = "colored")]
+    #[test]
+    fn fmt_local_with_deep_source_chain() {
+        use std::io::{Error as IoError, ErrorKind};
+
+        let io1 = IoError::new(ErrorKind::NotFound, "level 1");
+        let io2 = IoError::other(io1);
+        let error = AppError::internal("top").with_source(io2);
+
+        let output = format!("{}", error.fmt_local_wrapper());
+        assert!(output.contains("Caused by"));
+        assert!(output.contains("level 1"));
+    }
+
+    #[test]
+    fn fmt_staging_with_multiple_metadata_fields() {
+        let error = AppError::service("error")
+            .with_field(field::str("key1", "value1"))
+            .with_field(field::u64("key2", 123))
+            .with_field(field::bool("key3", false));
+        let output = format!("{}", error.fmt_staging_wrapper());
+        assert!(output.contains(r#""key1":"value1""#));
+        assert!(output.contains(r#""key2":123"#));
+        assert!(output.contains(r#""key3":false"#));
+    }
+
+    #[test]
+    fn fmt_staging_with_deep_source_chain() {
+        use std::io::{Error as IoError, ErrorKind};
+
+        let io1 = IoError::new(ErrorKind::NotFound, "inner error");
+        let io2 = IoError::other(io1);
+        let error = AppError::service("outer").with_source(io2);
+
+        let output = format!("{}", error.fmt_staging_wrapper());
+        assert!(output.contains(r#""source_chain""#));
+        assert!(output.contains("inner error"));
+    }
+
+    #[test]
+    fn fmt_staging_with_redacted_and_public_metadata() {
+        let error = AppError::internal("test")
+            .with_field(field::str("public", "visible"))
+            .with_field(field::str("password", "secret"));
+        let output = format!("{}", error.fmt_staging_wrapper());
+        assert!(output.contains(r#""public":"visible""#));
+        assert!(!output.contains("secret"));
     }
 
     impl Error {

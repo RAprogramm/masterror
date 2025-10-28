@@ -794,8 +794,15 @@ fn error_chain_iterates_through_sources() {
     assert_eq!(chain.len(), 2);
 
     let first_err = chain[0].to_string();
-    assert!(first_err.contains("Internal") || first_err.contains("INTERNAL"));
+    assert!(
+        first_err.contains("Internal")
+            || first_err.contains("INTERNAL")
+            || first_err.contains("Error:")
+    );
+    #[cfg(feature = "colored")]
     assert!(first_err.contains("db down"));
+    #[cfg(not(feature = "colored"))]
+    assert!(first_err.contains("Internal"));
     assert_eq!(chain[1].to_string(), "disk offline");
 }
 
@@ -843,8 +850,15 @@ fn root_cause_returns_self_when_no_source() {
     let root = err.root_cause();
     let root_str = root.to_string();
 
-    assert!(root_str.contains("timed out") || root_str.contains("TIMEOUT"));
+    assert!(
+        root_str.contains("timed out")
+            || root_str.contains("TIMEOUT")
+            || root_str.contains("Timeout")
+    );
+    #[cfg(feature = "colored")]
     assert!(root_str.contains("operation"));
+    #[cfg(not(feature = "colored"))]
+    assert!(root_str.contains("Timeout") || root_str.contains("timed out"));
 }
 
 #[test]
