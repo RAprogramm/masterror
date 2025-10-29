@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-use alloc::borrow::Cow;
+use alloc::{borrow::Cow, boxed::Box};
 use core::error::Error as CoreError;
 
 #[cfg(feature = "backtrace")]
