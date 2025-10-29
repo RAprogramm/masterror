@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+use alloc::string::ToString;
 use core::{
     error::Error as CoreError,
     fmt::{Formatter, Result as FmtResult},
