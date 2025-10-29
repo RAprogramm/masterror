@@ -15,14 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Rebase before push in Auto Release workflow
-- Regenerate CHANGELOG.md with full release history [skip ci]
+- Add rebase before push in CHANGELOG workflow to prevent race conditions
+- Make auto-release workflow idempotent with version existence check
 
-### Miscellaneous
-
-- Update CHANGELOG.md [skip ci]
-- Update CHANGELOG.md [skip ci]
-- Update CHANGELOG.md [skip ci]
-
-[unreleased]: https://github.com/RAprogramm/masterror/compare/v0.25.0...unreleased
+[unreleased]: https://github.com/RAprogramm/masterror/compare/v0.25.1...unreleased
 
