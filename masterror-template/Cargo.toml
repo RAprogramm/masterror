@@ -10,6 +10,6 @@ edition = "2024"
 repository = "https://github.com/RAprogramm/masterror"
 readme = "README.md"
 description = "Template utilities for masterror and its derive macros"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 
 [dependencies]

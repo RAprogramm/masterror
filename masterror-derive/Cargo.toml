@@ -5,9 +5,9 @@
 [package]
 name = "masterror-derive"
 rust-version = "1.90"
-version = "0.9.2"
+version = "0.10.0"
 edition = "2024"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 repository = "https://github.com/RAprogramm/masterror"
 readme = "README.md"
 description = "Derive macros for masterror"
