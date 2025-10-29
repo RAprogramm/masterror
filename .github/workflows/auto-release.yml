@@ -222,6 +222,7 @@ jobs:
 
           git add CHANGELOG.md
           git commit -m "chore: update CHANGELOG.md for v${VERSION} [skip ci]"
+          git pull --rebase origin main
           git push origin main
 
       - name: Install Rust toolchain for publish
