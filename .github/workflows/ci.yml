@@ -26,8 +26,24 @@ jobs:
     secrets: inherit
 
   no-std:
-    name: no_std compatibility
+    name: no_std (${{ matrix.name }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "bare"
+            features: "--no-default-features"
+          - name: "std"
+            features: "--features std"
+          - name: "tracing"
+            features: "--no-default-features --features tracing"
+          - name: "metrics"
+            features: "--no-default-features --features metrics"
+          - name: "colored"
+            features: "--no-default-features --features colored"
+          - name: "all"
+            features: "--all-features"
     steps:
       - uses: actions/checkout@v5
 
@@ -39,11 +55,11 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: no-std
+          shared-key: no-std-${{ matrix.name }}
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Check no_std build
-        run: cargo check --no-default-features
+      - name: Check ${{ matrix.name }}
+        run: cargo check ${{ matrix.features }}
 
   update-changelog:
     needs: [ci, no-std]
