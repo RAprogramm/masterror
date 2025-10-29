@@ -329,7 +329,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "axum-test",
- "masterror 0.25.0",
+ "masterror 0.25.1",
  "serde",
  "serde_json",
  "tokio",
@@ -390,7 +390,7 @@ checksum = "55248b47b0caf0546f7988906588779981c43bb1bc9d0c44087278f80cdb44ba"
 name = "basic-async"
 version = "0.1.0"
 dependencies = [
- "masterror 0.25.0",
+ "masterror 0.25.1",
  "tokio",
 ]
 
@@ -793,7 +793,7 @@ dependencies = [
 name = "custom-domain-errors"
 version = "0.1.0"
 dependencies = [
- "masterror 0.25.0",
+ "masterror 0.25.1",
  "serde",
  "thiserror",
 ]
@@ -1948,7 +1948,7 @@ dependencies = [
 
 [[package]]
 name = "masterror"
-version = "0.25.0"
+version = "0.25.1"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -3397,7 +3397,7 @@ dependencies = [
 name = "sqlx-database"
 version = "0.1.0"
 dependencies = [
- "masterror 0.25.0",
+ "masterror 0.25.1",
  "sqlx",
  "tokio",
 ]
