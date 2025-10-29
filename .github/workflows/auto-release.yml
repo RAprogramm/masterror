@@ -342,6 +342,25 @@ jobs:
           set -euo pipefail
           VERSION="${{ steps.local_version.outputs.version }}"
 
+          # Check if version already exists on crates.io
+          echo "Checking crates.io for masterror..."
+          CRATESIO_RESPONSE=$(curl -s -A "masterror-ci/1.0" "https://crates.io/api/v1/crates/masterror")
+
+          if [ -z "${CRATESIO_RESPONSE}" ]; then
+            echo "ERROR: Empty response from crates.io API"
+            echo "Publishing anyway..."
+          else
+            echo "API response received (first 200 chars): ${CRATESIO_RESPONSE:0:200}"
+            CRATESIO_VER=$(echo "${CRATESIO_RESPONSE}" | jq -r '.crate.max_version // empty')
+            echo "crates.io masterror version: '${CRATESIO_VER}'"
+
+            if [ -n "${CRATESIO_VER}" ] && [ "${VERSION}" = "${CRATESIO_VER}" ]; then
+              echo "masterror@${VERSION} already published on crates.io, skipping"
+              echo "https://crates.io/crates/masterror/${VERSION}"
+              exit 0
+            fi
+          fi
+
           echo "Publishing masterror v${VERSION}..."
           n=0
           until [ $n -ge 5 ]; do
@@ -354,5 +373,5 @@ jobs:
             echo "Retry $n/5 for masterror..."
             sleep $((10*n))
           done
-          echo "Failed to publish masterror after 5 retries"
+          echo "Failed to publish masterror after retries"
           exit 1
