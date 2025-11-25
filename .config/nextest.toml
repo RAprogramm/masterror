@@ -22,7 +22,7 @@ fail-fast = false
 
 # Enable JUnit XML output for Codecov Test Analytics
 [profile.ci.junit]
-path = "junit.xml"
+path = "target/nextest/ci/junit.xml"
 # Store output for failed tests only
 store-success-output = false
 store-failure-output = true
