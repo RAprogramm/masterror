@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### CI/CD
 
+- Fix nextest junit path and artifact upload by [@RAprogramm](https://github.com/RAprogramm) ([64099b4](https://github.com/RAprogramm/masterror/commit/64099b404c7ad938eb7a4731a5b8f9abfa56900e))
+- Fix version comparison in release job by [@RAprogramm](https://github.com/RAprogramm) ([e78a64d](https://github.com/RAprogramm/masterror/commit/e78a64d4e2bbf2cbad04fc48068cf49e3e3c4f17))
 - Fix changelog conflict resolution by [@RAprogramm](https://github.com/RAprogramm) ([39970a5](https://github.com/RAprogramm/masterror/commit/39970a5e7457ee5d912e2eb681ccbceece1b9aab))
 - Professional unified CI pipeline by [@RAprogramm](https://github.com/RAprogramm) ([535ade6](https://github.com/RAprogramm/masterror/commit/535ade61e5c90ce878c47793b93a4031488a29d4))
 - Consolidate all workflows into single CI pipeline by [@RAprogramm](https://github.com/RAprogramm) ([a50ea4b](https://github.com/RAprogramm/masterror/commit/a50ea4b74c02235aef4fdbfeb9881738b4a42197))
