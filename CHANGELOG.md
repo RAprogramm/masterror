@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Replace telegram-webapp-sdk with init-data-rs by [@RAprogramm](https://github.com/RAprogramm) ([19e1798](https://github.com/RAprogramm/masterror/commit/19e1798c7838a458a75392e9835605357211d4b4))
 
+### CI/CD
+
+- Fix changelog generation and improve robustness by [@RAprogramm](https://github.com/RAprogramm) ([ae83a14](https://github.com/RAprogramm/masterror/commit/ae83a14b3f07ef609c6eb0cd2462dab2ade42314))
+- Consolidate changelog into main CI workflow by [@RAprogramm](https://github.com/RAprogramm) ([b58ebb6](https://github.com/RAprogramm/masterror/commit/b58ebb69645eadf9d33663edd80840341e032fa9))
+
 ### Dependencies
 
 - **deps:** Bump syn from 2.0.107 to 2.0.111 by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#333](https://github.com/RAprogramm/masterror/pull/333)
@@ -32,12 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous
 
-- Update CHANGELOG.md [skip ci]
-- Update CHANGELOG.md [skip ci]
-- Update CHANGELOG.md [skip ci]
-- Update CHANGELOG.md [skip ci]
-- Update CHANGELOG.md [skip ci]
-- Update CHANGELOG.md [skip ci]
 - Ignore RUSTSEC-2025-0120 (json5 unmaintained) by [@RAprogramm](https://github.com/RAprogramm) ([3d2691a](https://github.com/RAprogramm/masterror/commit/3d2691a5a649c731a2c28b6a5229b3d3c12c1c01))
 ## [0.25.1](https://github.com/RAprogramm/masterror/releases/tag/v0.25.1) - 2025-10-29
 
@@ -186,25 +185,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Resolve README.md conflict from upstream by [@RAprogramm](https://github.com/RAprogramm) ([a3f0150](https://github.com/RAprogramm/masterror/commit/a3f0150978fa09d1394c9bdeb0bb0859321a4691))
 
-
-### New Contributors
-
-- [@dependabot[bot]](https://github.com/dependabot[bot]) made their first contribution
-
-
 **Full Changelog**: [v0.24.12...v0.24.17](https://github.com/RAprogramm/masterror/compare/v0.24.12...v0.24.17)
 ## [0.24.12](https://github.com/RAprogramm/masterror/releases/tag/v0.24.12) - 2025-09-30
-
-### Miscellaneous
-
-- **readme:** Auto-refresh [skip ci] by [@github-actions[bot]](https://github.com/github-actions[bot]) ([1e0595a](https://github.com/RAprogramm/masterror/commit/1e0595a0e3cddafe479ffed710dfe9360d8b5107))
-
-### Testing
-
-- Test 1 by [@RAprogramm](https://github.com/RAprogramm) ([ce399a4](https://github.com/RAprogramm/masterror/commit/ce399a40cddf275361ec8c52080fe293ffefae33))
-
-**Full Changelog**: [v0.24.11...v0.24.12](https://github.com/RAprogramm/masterror/compare/v0.24.11...v0.24.12)
-## [0.24.11](https://github.com/RAprogramm/masterror/releases/tag/v0.24.11) - 2025-09-30
 
 ### Fixed
 
@@ -213,11 +195,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous
 
+- **readme:** Auto-refresh [skip ci] by [@github-actions[bot]](https://github.com/github-actions[bot]) ([1e0595a](https://github.com/RAprogramm/masterror/commit/1e0595a0e3cddafe479ffed710dfe9360d8b5107))
 - **ci:** Extract cargo steps into composite actions by [@RAprogramm](https://github.com/RAprogramm) ([a2c8d2c](https://github.com/RAprogramm/masterror/commit/a2c8d2c02e477d808a67dab40ec0b955ebeaf770))
 - **readme:** Auto-refresh [skip ci] by [@github-actions[bot]](https://github.com/github-actions[bot]) ([c4952f3](https://github.com/RAprogramm/masterror/commit/c4952f321ae10a4fd1b7c5929b4bde3f3148646b))
 - **readme:** Auto-refresh [skip ci] by [@github-actions[bot]](https://github.com/github-actions[bot]) ([732c71c](https://github.com/RAprogramm/masterror/commit/732c71ca48262411c37bb38da9fd31cb4aeed67d))
 
-**Full Changelog**: [v0.24.10...v0.24.11](https://github.com/RAprogramm/masterror/compare/v0.24.10...v0.24.11)
+### Testing
+
+- Test 1 by [@RAprogramm](https://github.com/RAprogramm) ([ce399a4](https://github.com/RAprogramm/masterror/commit/ce399a40cddf275361ec8c52080fe293ffefae33))
+
+**Full Changelog**: [v0.24.10...v0.24.12](https://github.com/RAprogramm/masterror/compare/v0.24.10...v0.24.12)
 ## [0.24.10](https://github.com/RAprogramm/masterror/releases/tag/v0.24.10) - 2025-09-30
 
 ### Miscellaneous
@@ -404,12 +391,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enforce AppResult alias usage by [@RAprogramm](https://github.com/RAprogramm) ([595576d](https://github.com/RAprogramm/masterror/commit/595576d9a781fe2f34f778831e12f9830151a6f1))
 - Test readme by [@RAprogramm](https://github.com/RAprogramm) ([0ce3f45](https://github.com/RAprogramm/masterror/commit/0ce3f45524537d0bd4caa5c4860a40ae8577a263))
 
-
-### New Contributors
-
-- [@github-actions[bot]](https://github.com/github-actions[bot]) made their first contribution
-
-
 **Full Changelog**: [v0.4.0...v0.5.0](https://github.com/RAprogramm/masterror/compare/v0.4.0...v0.5.0)
 ## [0.4.0](https://github.com/RAprogramm/masterror/releases/tag/v0.4.0) - 2025-09-16
 
@@ -527,12 +508,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Testing
 
 - Auto publish by [@RAprogramm](https://github.com/RAprogramm) ([f55f0e1](https://github.com/RAprogramm/masterror/commit/f55f0e1c59e06238f5fd89660a4251f83c2028b7))
-
-
-### New Contributors
-
-- [@RAprogramm](https://github.com/RAprogramm) made their first contribution
-
 
 **Full Changelog**: [...v0.1.1](https://github.com/RAprogramm/masterror/compare/...v0.1.1)
 
