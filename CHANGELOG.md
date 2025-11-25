@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### CI/CD
 
+- Fix changelog conflict resolution by [@RAprogramm](https://github.com/RAprogramm) ([39970a5](https://github.com/RAprogramm/masterror/commit/39970a5e7457ee5d912e2eb681ccbceece1b9aab))
+- Professional unified CI pipeline by [@RAprogramm](https://github.com/RAprogramm) ([535ade6](https://github.com/RAprogramm/masterror/commit/535ade61e5c90ce878c47793b93a4031488a29d4))
+- Consolidate all workflows into single CI pipeline by [@RAprogramm](https://github.com/RAprogramm) ([a50ea4b](https://github.com/RAprogramm/masterror/commit/a50ea4b74c02235aef4fdbfeb9881738b4a42197))
 - Fix changelog generation and improve robustness by [@RAprogramm](https://github.com/RAprogramm) ([ae83a14](https://github.com/RAprogramm/masterror/commit/ae83a14b3f07ef609c6eb0cd2462dab2ade42314))
 - Consolidate changelog into main CI workflow by [@RAprogramm](https://github.com/RAprogramm) ([b58ebb6](https://github.com/RAprogramm/masterror/commit/b58ebb69645eadf9d33663edd80840341e032fa9))
 
@@ -32,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Resolve broken intra-doc link in builder.rs by [@RAprogramm](https://github.com/RAprogramm) ([d1d2e18](https://github.com/RAprogramm/masterror/commit/d1d2e180b5c4e8c0e6ff8010189fcf4535b764b2))
 - Make auto-release workflow idempotent with version existence check by [@RAprogramm](https://github.com/RAprogramm) ([3e4a351](https://github.com/RAprogramm/masterror/commit/3e4a3511aff2604e3f0f1fb861ac6071cfcc88bd))
 - Add rebase before push in CHANGELOG workflow to prevent race conditions by [@RAprogramm](https://github.com/RAprogramm) ([1e5db0d](https://github.com/RAprogramm/masterror/commit/1e5db0d24c9f7f19819159dd0bac57108537b4d1))
 
