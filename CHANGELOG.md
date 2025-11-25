@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
 - Update CHANGELOG.md [skip ci]
+- Update CHANGELOG.md [skip ci]
+- Ignore RUSTSEC-2025-0120 (json5 unmaintained)
 
 [unreleased]: https://github.com/RAprogramm/masterror/compare/v0.25.1...unreleased
 
