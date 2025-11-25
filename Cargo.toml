@@ -4,8 +4,8 @@
 
 [package]
 name = "masterror"
-version = "0.25.2"
-rust-version = "1.90"
+version = "0.26.0"
+rust-version = "1.91"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/RAprogramm/masterror"
@@ -53,7 +53,7 @@ resolver = "3"
 # Defaults for members (root объявлен строками выше, потому что build.rs парсит его как строки)
 [workspace.package]
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.91"
 license = "MIT"
 repository = "https://github.com/RAprogramm/masterror"
 readme = "README.md"

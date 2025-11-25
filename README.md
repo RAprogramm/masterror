@@ -14,7 +14,7 @@ SPDX-License-Identifier: MIT
   [![Crates.io](https://img.shields.io/crates/v/masterror)](https://crates.io/crates/masterror)
   [![docs.rs](https://img.shields.io/docsrs/masterror)](https://docs.rs/masterror)
   [![Downloads](https://img.shields.io/crates/d/masterror)](https://crates.io/crates/masterror)
-  ![MSRV](https://img.shields.io/badge/MSRV-1.90-blue)
+  ![MSRV](https://img.shields.io/badge/MSRV-1.91-blue)
   ![License](https://img.shields.io/badge/License-MIT-informational)
   [![REUSE status](https://api.reuse.software/badge/github.com/RAprogramm/masterror)](https://api.reuse.software/info/github.com/RAprogramm/masterror)
   [![codecov](https://codecov.io/gh/RAprogramm/masterror/graph/badge.svg?token=V9JQDTZLXH)](https://codecov.io/gh/RAprogramm/masterror)
@@ -159,9 +159,9 @@ The build script keeps the full feature snippet below in sync with
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.25.2", default-features = false }
+masterror = { version = "0.26.0", default-features = false }
 # or with features:
-# masterror = { version = "0.25.2", features = [
+# masterror = { version = "0.26.0", features = [
 #   "std", "axum", "actix", "openapi",
 #   "serde_json", "tracing", "metrics", "backtrace",
 #   "colored", "sqlx", "sqlx-migrate", "reqwest",
@@ -640,7 +640,7 @@ Enable the `colored` feature for enhanced terminal output in local mode:
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.25.2", features = ["colored"] }
+masterror = { version = "0.26.0", features = ["colored"] }
 ~~~
 
 With `colored` enabled, errors display with syntax highlighting:
@@ -760,6 +760,6 @@ All examples are runnable and include comprehensive tests. See the [`examples/`]
 
 ## License
 
-MSRV: **1.90** · License: **MIT** · No `unsafe`
+MSRV: **1.91** · License: **MIT** · No `unsafe`
 
 
