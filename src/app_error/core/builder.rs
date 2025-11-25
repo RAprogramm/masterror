@@ -361,8 +361,8 @@ impl Error {
 
     /// Serialize and attach structured details.
     ///
-    /// Returns [`AppError`] with [`AppErrorKind::BadRequest`] if serialization
-    /// fails.
+    /// Returns [`crate::AppError`] with [`crate::AppErrorKind::BadRequest`] if
+    /// serialization fails.
     ///
     /// # Examples
     ///
