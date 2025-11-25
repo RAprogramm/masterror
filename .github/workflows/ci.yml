@@ -12,7 +12,11 @@ on:
   workflow_dispatch:
     inputs:
       force_publish:
-        description: "Force publish all crates"
+        description: "Force publish all crates (ignores version check)"
+        type: boolean
+        default: false
+      skip_tests:
+        description: "Skip test stage (for emergency releases)"
         type: boolean
         default: false
 
@@ -28,18 +32,96 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: short
+  RUSTFLAGS: -D warnings
+  # Crate publish order (dependencies first)
+  CRATES: "masterror-template masterror-derive masterror"
 
 jobs:
-  # ============================================================================
-  # STAGE 1: Quality checks (parallel)
-  # ============================================================================
-  ci:
-    name: Quality Checks
-    uses: ./.github/workflows/reusable-ci.yml
-    with:
-      all-features: true
-    secrets: inherit
+  # ════════════════════════════════════════════════════════════════════════════
+  # STAGE 1: CHECKS (parallel matrix)
+  # ════════════════════════════════════════════════════════════════════════════
+
+  check:
+    name: Check (${{ matrix.rust }} / ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # MSRV
+          - rust: "1.91"
+            os: ubuntu-latest
+            msrv: true
+          # Stable (primary)
+          - rust: stable
+            os: ubuntu-latest
+          # Stable on macOS
+          - rust: stable
+            os: macos-latest
+          # Stable on Windows
+          - rust: stable
+            os: windows-latest
+          # Nightly (for future compat)
+          - rust: nightly
+            os: ubuntu-latest
+            allow_fail: true
+    continue-on-error: ${{ matrix.allow_fail || false }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust ${{ matrix.rust }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: clippy
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ${{ matrix.rust }}-${{ matrix.os }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: Check (all features)
+        run: cargo check --workspace --all-features
+
+      - name: Check (no default features)
+        run: cargo check --workspace --no-default-features
+
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+
+      - name: Check formatting
+        run: cargo +nightly fmt --all -- --check
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build docs
+        run: cargo doc --workspace --all-features --no-deps
 
   no-std:
     name: no_std (${{ matrix.name }})
@@ -49,45 +131,189 @@ jobs:
       matrix:
         include:
           - name: bare
-            features: "--no-default-features"
-          - name: std
-            features: "--features std"
+            args: --no-default-features
+          - name: std-only
+            args: --features std
           - name: tracing
-            features: "--no-default-features --features tracing"
+            args: --no-default-features --features tracing
           - name: metrics
-            features: "--no-default-features --features metrics"
+            args: --no-default-features --features metrics
           - name: colored
-            features: "--no-default-features --features colored"
-          - name: all
-            features: "--all-features"
+            args: --no-default-features --features colored
+          - name: all-features
+            args: --all-features
     steps:
       - uses: actions/checkout@v5
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: stable
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo
+      - name: Cache
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: no-std-${{ matrix.name }}
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Check ${{ matrix.name }}
-        run: cargo check ${{ matrix.features }}
+        run: cargo check ${{ matrix.args }}
 
-  # ============================================================================
-  # STAGE 2: Changelog (after quality checks pass)
-  # ============================================================================
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install tools
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny,cargo-audit
+
+      - name: Cargo deny
+        run: cargo deny check
+
+      - name: Cargo audit
+        run: cargo audit
+
+  reuse:
+    name: REUSE Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install reuse
+        run: pip install --user reuse
+
+      - name: Check REUSE compliance
+        run: reuse lint
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # STAGE 2: TEST (after checks pass)
+  # ════════════════════════════════════════════════════════════════════════════
+
+  test:
+    name: Test Suite
+    needs: [check, fmt, no-std, security, reuse]
+    if: ${{ !inputs.skip_tests }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: test
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Install nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - name: Run tests
+        run: cargo nextest run --workspace --all-features --profile ci
+
+      - name: Run doctests
+        run: cargo test --doc --workspace --all-features
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: target/nextest/ci/junit.xml
+          retention-days: 30
+
+  coverage:
+    name: Coverage
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: coverage
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Install tools
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov,cargo-nextest
+
+      - name: Generate coverage
+        run: |
+          cargo llvm-cov nextest --workspace --all-features --profile ci --lcov --output-path lcov.info
+          cargo llvm-cov report --html
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: lcov.info
+          fail_ci_if_error: false
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: target/llvm-cov/html/
+          retention-days: 30
+
+      - name: Coverage summary
+        run: |
+          COVERAGE=$(cargo llvm-cov report 2>/dev/null | grep TOTAL | awk '{print $NF}' || echo "N/A")
+          echo "## Coverage: $COVERAGE" >> $GITHUB_STEP_SUMMARY
+
+  benchmarks:
+    name: Benchmarks
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: bench
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Run benchmarks
+        run: cargo bench --features benchmarks -- --save-baseline ci
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: target/criterion/
+          retention-days: 30
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # STAGE 3: RELEASE (after tests pass, main branch only)
+  # ════════════════════════════════════════════════════════════════════════════
+
   changelog:
-    name: Update CHANGELOG
-    needs: [ci, no-std]
+    name: Update Changelog
+    needs: [check, fmt, no-std, security, reuse]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN }}
@@ -97,253 +323,254 @@ jobs:
         with:
           tool: git-cliff
 
-      - name: Generate CHANGELOG
-        id: generate
+      - name: Generate changelog
+        id: changelog
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
         run: |
           set -euo pipefail
-          echo "::group::Generating CHANGELOG"
 
-          if ! git cliff --config cliff.toml --github-token "$GITHUB_TOKEN" -o CHANGELOG.md 2>&1; then
+          # Try with GitHub API first (for contributors)
+          if ! git cliff --config cliff.toml --github-token "$GITHUB_TOKEN" -o CHANGELOG.md 2>/dev/null; then
             echo "::warning::GitHub API unavailable, generating without contributors"
             git cliff --config cliff.toml -o CHANGELOG.md
           fi
-
-          echo "::endgroup::"
 
           if git diff --quiet CHANGELOG.md 2>/dev/null; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            git diff --stat CHANGELOG.md
           fi
 
-      - name: Commit and push
-        if: steps.generate.outputs.changed == 'true'
-        shell: bash
+      - name: Commit changelog
+        if: steps.changelog.outputs.changed == 'true'
         run: |
-          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add CHANGELOG.md
           git commit -m "chore: update CHANGELOG.md [skip ci]"
 
+          # Retry push with rebase
           for i in 1 2 3; do
-            if git push origin main; then exit 0; fi
-            git fetch origin main && git rebase origin/main || { git rebase --abort; exit 1; }
+            git push origin main && exit 0
+            git fetch origin main
+            git rebase origin/main || { git rebase --abort; exit 1; }
             sleep $((i * 2))
           done
           exit 1
 
-  # ============================================================================
-  # STAGE 3: Release detection and publishing
-  # ============================================================================
   release:
     name: Release
-    needs: [ci, no-std]
-    runs-on: ubuntu-latest
+    needs: [test, changelog]
     if: |
+      always() &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
       !contains(github.event.head_commit.message, '[skip ci]')
+    runs-on: ubuntu-latest
     outputs:
-      published_any: ${{ steps.publish.outputs.published_any }}
-      template_published: ${{ steps.publish.outputs.template_published }}
-      derive_published: ${{ steps.publish.outputs.derive_published }}
-      masterror_published: ${{ steps.publish.outputs.masterror_published }}
-      release_tag: ${{ steps.publish.outputs.release_tag }}
+      published: ${{ steps.publish.outputs.published }}
+      version: ${{ steps.publish.outputs.version }}
+      tag: ${{ steps.publish.outputs.tag }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN }}
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install git-cliff
         uses: taiki-e/install-action@v2
         with:
           tool: git-cliff
 
-      - name: Check versions and publish
+      - name: Detect and publish
         id: publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          FORCE_PUBLISH: ${{ github.event.inputs.force_publish }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE: ${{ inputs.force_publish }}
         shell: bash
         run: |
           set -euo pipefail
 
-          # Function to get local version
+          # ══════════════════════════════════════════════════════════════════
+          # Helper functions
+          # ══════════════════════════════════════════════════════════════════
+
+          log() { echo "::group::$1"; }
+          endlog() { echo "::endgroup::"; }
+          info() { echo "ℹ️  $*"; }
+          success() { echo "✅ $*"; }
+          warn() { echo "::warning::$*"; }
+          err() { echo "::error::$*"; }
+
           get_local_version() {
             cargo metadata --no-deps --format-version=1 | \
-              jq -r --arg name "$1" '.packages[] | select(.name == $name and .source == null) | .version'
+              jq -r --arg n "$1" '.packages[] | select(.name == $n and .source == null) | .version'
           }
 
-          # Function to get crates.io version
-          get_cratesio_version() {
-            local response
-            response=$(curl -sS -A "masterror-ci/1.0" "https://crates.io/api/v1/crates/$1" 2>/dev/null || echo "{}")
-            echo "$response" | jq -r '.crate.max_version // "0.0.0"'
+          get_remote_version() {
+            curl -sS -A "masterror-ci/2.0" "https://crates.io/api/v1/crates/$1" 2>/dev/null | \
+              jq -r '.crate.max_version // "0.0.0"'
           }
 
-          # Function to compare semver (returns: gt, lt, eq)
-          compare_versions() {
-            local v1=$1 v2=$2
-            if [[ "$v1" == "$v2" ]]; then echo "eq"; return; fi
-
-            local IFS=.
-            read -ra V1 <<< "$v1"
-            read -ra V2 <<< "$v2"
-
+          version_gt() {
+            local IFS=. v1=($1) v2=($2)
             for i in 0 1 2; do
-              local n1=${V1[i]:-0} n2=${V2[i]:-0}
-              if ((n1 > n2)); then echo "gt"; return; fi
-              if ((n1 < n2)); then echo "lt"; return; fi
+              local a=${v1[i]:-0} b=${v2[i]:-0}
+              ((a > b)) && return 0
+              ((a < b)) && return 1
             done
-            echo "eq"
+            return 1
           }
 
-          # Function to publish a crate with retries
           publish_crate() {
-            local crate=$1
-            echo "::group::Publishing $crate"
-            for attempt in 1 2 3 4 5; do
-              echo "Attempt $attempt/5..."
+            local crate=$1 attempt
+            log "Publishing $crate"
+            for attempt in {1..5}; do
+              info "Attempt $attempt/5"
               if cargo publish -p "$crate" --locked 2>&1; then
-                echo "::endgroup::"
+                success "$crate published!"
+                endlog
                 return 0
               fi
               sleep $((attempt * 5))
             done
-            echo "::endgroup::"
-            echo "::error::Failed to publish $crate after 5 attempts"
+            endlog
+            err "Failed to publish $crate"
             return 1
           }
 
-          # Initialize outputs
-          echo "published_any=false" >> "$GITHUB_OUTPUT"
-          echo "template_published=false" >> "$GITHUB_OUTPUT"
-          echo "derive_published=false" >> "$GITHUB_OUTPUT"
-          echo "masterror_published=false" >> "$GITHUB_OUTPUT"
+          # ══════════════════════════════════════════════════════════════════
+          # Version detection
+          # ══════════════════════════════════════════════════════════════════
 
+          log "Checking versions"
+
+          declare -A LOCAL REMOTE NEEDS_PUBLISH
           PUBLISHED_ANY=false
 
-          # ====================================================================
-          # Check and publish masterror-template
-          # ====================================================================
-          TEMPLATE_LOCAL=$(get_local_version "masterror-template")
-          TEMPLATE_REMOTE=$(get_cratesio_version "masterror-template")
-          echo "masterror-template: local=$TEMPLATE_LOCAL, crates.io=$TEMPLATE_REMOTE"
+          for crate in masterror-template masterror-derive masterror; do
+            LOCAL[$crate]=$(get_local_version "$crate")
+            REMOTE[$crate]=$(get_remote_version "$crate")
 
-          if [[ "$(compare_versions "$TEMPLATE_LOCAL" "$TEMPLATE_REMOTE")" == "gt" ]] || [[ "$FORCE_PUBLISH" == "true" ]]; then
-            if publish_crate "masterror-template"; then
-              echo "template_published=true" >> "$GITHUB_OUTPUT"
-              PUBLISHED_ANY=true
-              echo "Waiting for crates.io index sync..."
-              sleep 20
+            if version_gt "${LOCAL[$crate]}" "${REMOTE[$crate]}" || [[ "$FORCE" == "true" ]]; then
+              NEEDS_PUBLISH[$crate]=true
+              info "$crate: ${LOCAL[$crate]} > ${REMOTE[$crate]} (will publish)"
+            else
+              NEEDS_PUBLISH[$crate]=false
+              info "$crate: ${LOCAL[$crate]} = ${REMOTE[$crate]} (skip)"
             fi
+          done
+
+          endlog
+
+          # ══════════════════════════════════════════════════════════════════
+          # Dependency-aware publishing
+          # ══════════════════════════════════════════════════════════════════
+
+          # If derive changes, masterror should also be republished
+          # (it depends on derive, users need consistent versions)
+          if [[ "${NEEDS_PUBLISH[masterror-derive]}" == "true" ]] && \
+             [[ "${NEEDS_PUBLISH[masterror]}" == "false" ]]; then
+            warn "masterror-derive changed but masterror version unchanged"
+            warn "Consider bumping masterror version for dependency consistency"
           fi
 
-          # ====================================================================
-          # Check and publish masterror-derive
-          # ====================================================================
-          DERIVE_LOCAL=$(get_local_version "masterror-derive")
-          DERIVE_REMOTE=$(get_cratesio_version "masterror-derive")
-          echo "masterror-derive: local=$DERIVE_LOCAL, crates.io=$DERIVE_REMOTE"
-
-          if [[ "$(compare_versions "$DERIVE_LOCAL" "$DERIVE_REMOTE")" == "gt" ]] || [[ "$FORCE_PUBLISH" == "true" ]]; then
-            if publish_crate "masterror-derive"; then
-              echo "derive_published=true" >> "$GITHUB_OUTPUT"
-              PUBLISHED_ANY=true
-              echo "Waiting for crates.io index sync..."
-              sleep 20
+          # Publish in order: template → derive → masterror
+          for crate in masterror-template masterror-derive masterror; do
+            if [[ "${NEEDS_PUBLISH[$crate]}" == "true" ]]; then
+              if publish_crate "$crate"; then
+                PUBLISHED_ANY=true
+                # Wait for crates.io index to sync
+                if [[ "$crate" != "masterror" ]]; then
+                  info "Waiting 20s for crates.io index sync..."
+                  sleep 20
+                fi
+              fi
             fi
-          fi
+          done
 
-          # ====================================================================
-          # Check and publish masterror (main crate)
-          # ====================================================================
-          MASTERROR_LOCAL=$(get_local_version "masterror")
-          MASTERROR_REMOTE=$(get_cratesio_version "masterror")
-          echo "masterror: local=$MASTERROR_LOCAL, crates.io=$MASTERROR_REMOTE"
+          # ══════════════════════════════════════════════════════════════════
+          # GitHub Release
+          # ══════════════════════════════════════════════════════════════════
 
-          if [[ "$(compare_versions "$MASTERROR_LOCAL" "$MASTERROR_REMOTE")" == "gt" ]] || [[ "$FORCE_PUBLISH" == "true" ]]; then
-            if publish_crate "masterror"; then
-              echo "masterror_published=true" >> "$GITHUB_OUTPUT"
-              echo "release_tag=v$MASTERROR_LOCAL" >> "$GITHUB_OUTPUT"
-              PUBLISHED_ANY=true
-            fi
-          fi
+          MASTERROR_VERSION="${LOCAL[masterror]}"
+          TAG="v$MASTERROR_VERSION"
 
-          echo "published_any=$PUBLISHED_ANY" >> "$GITHUB_OUTPUT"
+          if [[ "$PUBLISHED_ANY" == "true" ]] && [[ "${NEEDS_PUBLISH[masterror]}" == "true" ]]; then
+            log "Creating GitHub release"
 
-          # ====================================================================
-          # Create GitHub release if masterror was published
-          # ====================================================================
-          if [[ "$PUBLISHED_ANY" == "true" ]] && [[ "$(compare_versions "$MASTERROR_LOCAL" "$MASTERROR_REMOTE")" == "gt" ]]; then
-            TAG="v$MASTERROR_LOCAL"
-
-            # Create tag if not exists
+            # Create tag
             if ! git rev-parse "$TAG" >/dev/null 2>&1; then
               git config user.name "github-actions[bot]"
               git config user.email "github-actions[bot]@users.noreply.github.com"
               git tag -a "$TAG" -m "Release $TAG"
               git push origin "$TAG"
+              success "Created tag $TAG"
             fi
 
             # Generate release notes
-            LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-            if [[ -n "$LAST_TAG" ]]; then
-              NOTES=$(git cliff --config cliff.toml "$LAST_TAG"..HEAD --strip all 2>/dev/null || echo "")
+            PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+            if [[ -n "$PREV_TAG" ]]; then
+              NOTES=$(git cliff --config cliff.toml "$PREV_TAG"..HEAD --strip all 2>/dev/null || echo "Release $TAG")
             else
-              NOTES=$(git cliff --config cliff.toml --strip all 2>/dev/null || echo "")
+              NOTES=$(git cliff --config cliff.toml --strip all 2>/dev/null || echo "Release $TAG")
             fi
 
-            # Create GitHub release if not exists
+            # Create release
             if ! gh release view "$TAG" >/dev/null 2>&1; then
-              gh release create "$TAG" \
-                --title "$TAG" \
-                --notes "$NOTES" \
-                --latest
+              gh release create "$TAG" --title "$TAG" --notes "$NOTES" --latest
+              success "Created GitHub release $TAG"
             fi
+
+            endlog
+          fi
+
+          # ══════════════════════════════════════════════════════════════════
+          # Outputs
+          # ══════════════════════════════════════════════════════════════════
+
+          echo "published=$PUBLISHED_ANY" >> "$GITHUB_OUTPUT"
+          echo "version=$MASTERROR_VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "${NEEDS_PUBLISH[masterror]}" == "true" ]]; then
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Summary
         if: always()
-        shell: bash
         run: |
-          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Crate | Published |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|-----------|" >> $GITHUB_STEP_SUMMARY
-          echo "| masterror-template | ${{ steps.publish.outputs.template_published }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| masterror-derive | ${{ steps.publish.outputs.derive_published }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| masterror | ${{ steps.publish.outputs.masterror_published }} |" >> $GITHUB_STEP_SUMMARY
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## 📦 Release Summary
 
-  # ============================================================================
-  # STAGE 4: Security artifacts (after release)
-  # ============================================================================
-  security:
+          | Crate | Status |
+          |-------|--------|
+          | masterror-template | ${{ steps.publish.outputs.published == 'true' && '✅ Published' || '⏭️ Skipped' }} |
+          | masterror-derive | ${{ steps.publish.outputs.published == 'true' && '✅ Published' || '⏭️ Skipped' }} |
+          | masterror | ${{ steps.publish.outputs.published == 'true' && '✅ Published' || '⏭️ Skipped' }} |
+
+          **Version:** `${{ steps.publish.outputs.version }}`
+          EOF
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # STAGE 4: POST-RELEASE (security artifacts)
+  # ════════════════════════════════════════════════════════════════════════════
+
+  artifacts:
     name: Security Artifacts
     needs: release
+    if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
-    if: needs.release.outputs.published_any == 'true'
     steps:
       - uses: actions/checkout@v5
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install tools
         uses: taiki-e/install-action@v2
@@ -361,11 +588,11 @@ jobs:
       - name: Package crates
         run: cargo package --locked
 
-      - name: Sign artifacts
+      - name: Sign with Sigstore
         run: |
           cosign sign-blob --bundle sbom.cosign.bundle --yes sbom.json
-          for crate in target/package/*.crate; do
-            [[ -f "$crate" ]] && cosign sign-blob --bundle "${crate}.cosign.bundle" --yes "$crate"
+          for f in target/package/*.crate; do
+            [[ -f "$f" ]] && cosign sign-blob --bundle "${f}.cosign.bundle" --yes "$f"
           done
 
       - name: Generate attestations
@@ -376,15 +603,13 @@ jobs:
             target/package/*.crate
 
       - name: Upload to release
-        if: needs.release.outputs.release_tag != ''
+        if: needs.release.outputs.tag != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "${{ needs.release.outputs.release_tag }}" \
-            sbom.json \
-            sbom.cosign.bundle \
-            target/package/*.crate \
-            target/package/*.crate.cosign.bundle \
+          gh release upload "${{ needs.release.outputs.tag }}" \
+            sbom.json sbom.cosign.bundle \
+            target/package/*.crate target/package/*.crate.cosign.bundle \
             --clobber || true
 
       - name: Upload artifacts
@@ -396,3 +621,26 @@ jobs:
             sbom.cosign.bundle
             target/package/*.crate.cosign.bundle
           retention-days: 90
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # FINAL: Status check for branch protection
+  # ════════════════════════════════════════════════════════════════════════════
+
+  ci-success:
+    name: CI Success
+    needs: [check, fmt, docs, no-std, security, reuse, test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all jobs
+        run: |
+          results="${{ needs.check.result }} ${{ needs.fmt.result }} ${{ needs.docs.result }} ${{ needs.no-std.result }} ${{ needs.security.result }} ${{ needs.reuse.result }} ${{ needs.test.result }}"
+
+          for r in $results; do
+            if [[ "$r" == "failure" ]]; then
+              echo "::error::One or more required jobs failed"
+              exit 1
+            fi
+          done
+
+          echo "✅ All CI checks passed!"
