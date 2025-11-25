@@ -6,8 +6,15 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
+    tags: ["v*"]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      force_publish:
+        description: "Force publish all crates"
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -17,9 +24,18 @@ permissions:
   contents: write
   pull-requests: write
   id-token: write
+  attestations: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
 
 jobs:
+  # ============================================================================
+  # STAGE 1: Quality checks (parallel)
+  # ============================================================================
   ci:
+    name: Quality Checks
     uses: ./.github/workflows/reusable-ci.yml
     with:
       all-features: true
@@ -32,22 +48,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: "bare"
+          - name: bare
             features: "--no-default-features"
-          - name: "std"
+          - name: std
             features: "--features std"
-          - name: "tracing"
+          - name: tracing
             features: "--no-default-features --features tracing"
-          - name: "metrics"
+          - name: metrics
             features: "--no-default-features --features metrics"
-          - name: "colored"
+          - name: colored
             features: "--no-default-features --features colored"
-          - name: "all"
+          - name: all
             features: "--all-features"
     steps:
       - uses: actions/checkout@v5
 
-      - name: Install Rust (stable)
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: stable
@@ -61,13 +77,16 @@ jobs:
       - name: Check ${{ matrix.name }}
         run: cargo check ${{ matrix.features }}
 
-  update-changelog:
+  # ============================================================================
+  # STAGE 2: Changelog (after quality checks pass)
+  # ============================================================================
+  changelog:
     name: Update CHANGELOG
     needs: [ci, no-std]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -85,58 +104,295 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo "::group::Generating CHANGELOG"
 
-          echo "::group::Generating CHANGELOG with git-cliff"
-
-          if ! git cliff --config cliff.toml --github-token "$GITHUB_TOKEN" --output CHANGELOG.md 2>&1; then
-            echo "::warning::Failed to generate changelog with GitHub API, retrying without contributors"
-            git cliff --config cliff.toml --output CHANGELOG.md
+          if ! git cliff --config cliff.toml --github-token "$GITHUB_TOKEN" -o CHANGELOG.md 2>&1; then
+            echo "::warning::GitHub API unavailable, generating without contributors"
+            git cliff --config cliff.toml -o CHANGELOG.md
           fi
 
           echo "::endgroup::"
 
           if git diff --quiet CHANGELOG.md 2>/dev/null; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "No changes to CHANGELOG.md"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "CHANGELOG.md has been updated"
-            git diff --stat CHANGELOG.md || true
+            git diff --stat CHANGELOG.md
           fi
 
       - name: Commit and push
         if: steps.generate.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "chore: update CHANGELOG.md [skip ci]"
+
+          for i in 1 2 3; do
+            if git push origin main; then exit 0; fi
+            git fetch origin main && git rebase origin/main || { git rebase --abort; exit 1; }
+            sleep $((i * 2))
+          done
+          exit 1
+
+  # ============================================================================
+  # STAGE 3: Release detection and publishing
+  # ============================================================================
+  release:
+    name: Release
+    needs: [ci, no-std]
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      !contains(github.event.head_commit.message, '[skip ci]')
+    outputs:
+      published_any: ${{ steps.publish.outputs.published_any }}
+      template_published: ${{ steps.publish.outputs.template_published }}
+      derive_published: ${{ steps.publish.outputs.derive_published }}
+      masterror_published: ${{ steps.publish.outputs.masterror_published }}
+      release_tag: ${{ steps.publish.outputs.release_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
+      - name: Check versions and publish
+        id: publish
         env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          FORCE_PUBLISH: ${{ github.event.inputs.force_publish }}
         shell: bash
         run: |
           set -euo pipefail
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Function to get local version
+          get_local_version() {
+            cargo metadata --no-deps --format-version=1 | \
+              jq -r --arg name "$1" '.packages[] | select(.name == $name and .source == null) | .version'
+          }
 
-          git add CHANGELOG.md
-          git commit -m "chore: update CHANGELOG.md [skip ci]"
+          # Function to get crates.io version
+          get_cratesio_version() {
+            local response
+            response=$(curl -sS -A "masterror-ci/1.0" "https://crates.io/api/v1/crates/$1" 2>/dev/null || echo "{}")
+            echo "$response" | jq -r '.crate.max_version // "0.0.0"'
+          }
 
-          MAX_RETRIES=3
-          for i in $(seq 1 $MAX_RETRIES); do
-            echo "Push attempt $i/$MAX_RETRIES"
+          # Function to compare semver (returns: gt, lt, eq)
+          compare_versions() {
+            local v1=$1 v2=$2
+            if [[ "$v1" == "$v2" ]]; then echo "eq"; return; fi
 
-            if git push origin main 2>&1; then
-              echo "Successfully pushed CHANGELOG.md update"
-              exit 0
+            local IFS=.
+            read -ra V1 <<< "$v1"
+            read -ra V2 <<< "$v2"
+
+            for i in 0 1 2; do
+              local n1=${V1[i]:-0} n2=${V2[i]:-0}
+              if ((n1 > n2)); then echo "gt"; return; fi
+              if ((n1 < n2)); then echo "lt"; return; fi
+            done
+            echo "eq"
+          }
+
+          # Function to publish a crate with retries
+          publish_crate() {
+            local crate=$1
+            echo "::group::Publishing $crate"
+            for attempt in 1 2 3 4 5; do
+              echo "Attempt $attempt/5..."
+              if cargo publish -p "$crate" --locked 2>&1; then
+                echo "::endgroup::"
+                return 0
+              fi
+              sleep $((attempt * 5))
+            done
+            echo "::endgroup::"
+            echo "::error::Failed to publish $crate after 5 attempts"
+            return 1
+          }
+
+          # Initialize outputs
+          echo "published_any=false" >> "$GITHUB_OUTPUT"
+          echo "template_published=false" >> "$GITHUB_OUTPUT"
+          echo "derive_published=false" >> "$GITHUB_OUTPUT"
+          echo "masterror_published=false" >> "$GITHUB_OUTPUT"
+
+          PUBLISHED_ANY=false
+
+          # ====================================================================
+          # Check and publish masterror-template
+          # ====================================================================
+          TEMPLATE_LOCAL=$(get_local_version "masterror-template")
+          TEMPLATE_REMOTE=$(get_cratesio_version "masterror-template")
+          echo "masterror-template: local=$TEMPLATE_LOCAL, crates.io=$TEMPLATE_REMOTE"
+
+          if [[ "$(compare_versions "$TEMPLATE_LOCAL" "$TEMPLATE_REMOTE")" == "gt" ]] || [[ "$FORCE_PUBLISH" == "true" ]]; then
+            if publish_crate "masterror-template"; then
+              echo "template_published=true" >> "$GITHUB_OUTPUT"
+              PUBLISHED_ANY=true
+              echo "Waiting for crates.io index sync..."
+              sleep 20
+            fi
+          fi
+
+          # ====================================================================
+          # Check and publish masterror-derive
+          # ====================================================================
+          DERIVE_LOCAL=$(get_local_version "masterror-derive")
+          DERIVE_REMOTE=$(get_cratesio_version "masterror-derive")
+          echo "masterror-derive: local=$DERIVE_LOCAL, crates.io=$DERIVE_REMOTE"
+
+          if [[ "$(compare_versions "$DERIVE_LOCAL" "$DERIVE_REMOTE")" == "gt" ]] || [[ "$FORCE_PUBLISH" == "true" ]]; then
+            if publish_crate "masterror-derive"; then
+              echo "derive_published=true" >> "$GITHUB_OUTPUT"
+              PUBLISHED_ANY=true
+              echo "Waiting for crates.io index sync..."
+              sleep 20
+            fi
+          fi
+
+          # ====================================================================
+          # Check and publish masterror (main crate)
+          # ====================================================================
+          MASTERROR_LOCAL=$(get_local_version "masterror")
+          MASTERROR_REMOTE=$(get_cratesio_version "masterror")
+          echo "masterror: local=$MASTERROR_LOCAL, crates.io=$MASTERROR_REMOTE"
+
+          if [[ "$(compare_versions "$MASTERROR_LOCAL" "$MASTERROR_REMOTE")" == "gt" ]] || [[ "$FORCE_PUBLISH" == "true" ]]; then
+            if publish_crate "masterror"; then
+              echo "masterror_published=true" >> "$GITHUB_OUTPUT"
+              echo "release_tag=v$MASTERROR_LOCAL" >> "$GITHUB_OUTPUT"
+              PUBLISHED_ANY=true
+            fi
+          fi
+
+          echo "published_any=$PUBLISHED_ANY" >> "$GITHUB_OUTPUT"
+
+          # ====================================================================
+          # Create GitHub release if masterror was published
+          # ====================================================================
+          if [[ "$PUBLISHED_ANY" == "true" ]] && [[ "$(compare_versions "$MASTERROR_LOCAL" "$MASTERROR_REMOTE")" == "gt" ]]; then
+            TAG="v$MASTERROR_LOCAL"
+
+            # Create tag if not exists
+            if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git tag -a "$TAG" -m "Release $TAG"
+              git push origin "$TAG"
             fi
 
-            echo "Push failed, rebasing and retrying..."
-            git fetch origin main
-            git rebase origin/main || {
-              echo "::error::Rebase failed, aborting"
-              git rebase --abort
-              exit 1
-            }
+            # Generate release notes
+            LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+            if [[ -n "$LAST_TAG" ]]; then
+              NOTES=$(git cliff --config cliff.toml "$LAST_TAG"..HEAD --strip all 2>/dev/null || echo "")
+            else
+              NOTES=$(git cliff --config cliff.toml --strip all 2>/dev/null || echo "")
+            fi
 
-            sleep $((i * 2))
+            # Create GitHub release if not exists
+            if ! gh release view "$TAG" >/dev/null 2>&1; then
+              gh release create "$TAG" \
+                --title "$TAG" \
+                --notes "$NOTES" \
+                --latest
+            fi
+          fi
+
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Crate | Published |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| masterror-template | ${{ steps.publish.outputs.template_published }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| masterror-derive | ${{ steps.publish.outputs.derive_published }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| masterror | ${{ steps.publish.outputs.masterror_published }} |" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # STAGE 4: Security artifacts (after release)
+  # ============================================================================
+  security:
+    name: Security Artifacts
+    needs: release
+    runs-on: ubuntu-latest
+    if: needs.release.outputs.published_any == 'true'
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install tools
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-cyclonedx
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Generate SBOM
+        run: |
+          cargo cyclonedx --format json --all-features
+          mv masterror.cdx.json sbom.json
+
+      - name: Package crates
+        run: cargo package --locked
+
+      - name: Sign artifacts
+        run: |
+          cosign sign-blob --bundle sbom.cosign.bundle --yes sbom.json
+          for crate in target/package/*.crate; do
+            [[ -f "$crate" ]] && cosign sign-blob --bundle "${crate}.cosign.bundle" --yes "$crate"
           done
 
-          echo "::error::Failed to push after $MAX_RETRIES attempts"
-          exit 1
+      - name: Generate attestations
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: |
+            sbom.json
+            target/package/*.crate
+
+      - name: Upload to release
+        if: needs.release.outputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ needs.release.outputs.release_tag }}" \
+            sbom.json \
+            sbom.cosign.bundle \
+            target/package/*.crate \
+            target/package/*.crate.cosign.bundle \
+            --clobber || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-artifacts
+          path: |
+            sbom.json
+            sbom.cosign.bundle
+            target/package/*.crate.cosign.bundle
+          retention-days: 90
