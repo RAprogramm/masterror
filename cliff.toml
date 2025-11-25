@@ -40,7 +40,7 @@ body = """
 {% endfor -%}
 {% endfor %}
 
-{%- if remote.contributors | filter(attribute="is_first_time", value=true) | length != 0 %}
+{%- if remote.contributors is defined and remote.contributors | filter(attribute="is_first_time", value=true) | length != 0 %}
 
 ### New Contributors
 {% for contributor in remote.contributors | filter(attribute="is_first_time", value=true) %}
