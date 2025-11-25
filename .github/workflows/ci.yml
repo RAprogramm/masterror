@@ -437,11 +437,13 @@ jobs:
           }
 
           version_gt() {
-            local IFS=. v1=($1) v2=($2)
+            local v1 v2
+            IFS='.' read -ra v1 <<< "$1"
+            IFS='.' read -ra v2 <<< "$2"
             for i in 0 1 2; do
               local a=${v1[i]:-0} b=${v2[i]:-0}
-              ((a > b)) && return 0
-              ((a < b)) && return 1
+              if [[ $a -gt $b ]]; then return 0; fi
+              if [[ $a -lt $b ]]; then return 1; fi
             done
             return 1
           }
