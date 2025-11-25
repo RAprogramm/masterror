@@ -4,7 +4,7 @@
 
 [package]
 name = "masterror"
-version = "0.25.1"
+version = "0.25.2"
 rust-version = "1.90"
 edition = "2024"
 license = "MIT"
@@ -40,12 +40,12 @@ include = [
 
 [workspace]
 members = [
-    "masterror-derive",
-    "masterror-template",
-    "examples/axum-rest-api",
-    "examples/custom-domain-errors",
-    "examples/sqlx-database",
-    "examples/basic-async",
+  "masterror-derive",
+  "masterror-template",
+  "examples/axum-rest-api",
+  "examples/custom-domain-errors",
+  "examples/sqlx-database",
+  "examples/basic-async",
 ]
 
 resolver = "3"
@@ -81,7 +81,7 @@ multipart = ["axum", "std"]
 tokio = ["dep:tokio", "std"]
 reqwest = ["dep:reqwest", "std"]
 teloxide = ["dep:teloxide-core", "std"]
-telegram-webapp-sdk = ["dep:telegram-webapp-sdk", "std"]
+init-data = ["dep:init-data-rs", "std"]
 frontend = ["dep:wasm-bindgen", "dep:js-sys", "dep:serde-wasm-bindgen", "std"]
 turnkey = ["std"]
 tonic = ["dep:tonic", "std"]
@@ -138,7 +138,7 @@ utoipa = { version = "5.4", optional = true }
 tokio = { version = "1", optional = true, features = ["time"] }
 reqwest = { version = "0.12", optional = true, default-features = false }
 teloxide-core = { version = "0.13", optional = true, default-features = false }
-telegram-webapp-sdk = { version = "0.2", optional = true }
+init-data-rs = { version = "0.1", optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 js-sys = { version = "0.3", optional = true }
 serde-wasm-bindgen = { version = "0.6", optional = true }
@@ -196,7 +196,7 @@ feature_order = [
   "tokio",
   "multipart",
   "teloxide",
-  "telegram-webapp-sdk",
+  "init-data",
   "tonic",
   "frontend",
   "turnkey",
@@ -214,7 +214,7 @@ conversion_lines = [
   "`config::ConfigError` → Config",
   "`tokio::time::error::Elapsed` → Timeout",
   "`teloxide_core::RequestError` → RateLimited/Network/ExternalApi/Deserialization/Internal",
-  "`telegram_webapp_sdk::utils::validate_init_data::ValidationError` → TelegramAuth",
+  "`init_data_rs::InitDataError` → TelegramAuth",
 ]
 
 [package.metadata.masterror.readme.features.axum]
@@ -271,8 +271,8 @@ description = "Classify tokio::time::error::Elapsed as timeout"
 [package.metadata.masterror.readme.features.teloxide]
 description = "Convert teloxide_core::RequestError into domain errors"
 
-[package.metadata.masterror.readme.features."telegram-webapp-sdk"]
-description = "Surface Telegram WebApp validation failures"
+[package.metadata.masterror.readme.features."init-data"]
+description = "Convert init-data-rs validation errors for Telegram Mini Apps"
 
 [package.metadata.masterror.readme.features.tonic]
 description = "Convert AppError into tonic::Status with redaction"
@@ -285,9 +285,7 @@ description = "Ship Turnkey-specific error taxonomy and conversions"
 
 [package.metadata.masterror.readme.features.benchmarks]
 description = "Enable Criterion benchmarks and CI baseline tooling"
-extra = [
-  "Primarily used for local profiling and continuous benchmarking runs"
-]
+extra = ["Primarily used for local profiling and continuous benchmarking runs"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

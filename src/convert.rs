@@ -131,9 +131,9 @@ mod validator;
 #[cfg_attr(docsrs, doc(cfg(feature = "teloxide")))]
 mod teloxide;
 
-#[cfg(feature = "telegram-webapp-sdk")]
-#[cfg_attr(docsrs, doc(cfg(feature = "telegram-webapp-sdk")))]
-mod telegram_webapp_sdk;
+#[cfg(feature = "init-data")]
+#[cfg_attr(docsrs, doc(cfg(feature = "init-data")))]
+mod init_data;
 
 #[cfg(feature = "tonic")]
 #[cfg_attr(docsrs, doc(cfg(feature = "tonic")))]

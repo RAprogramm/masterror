@@ -20,7 +20,7 @@ SPDX-License-Identifier: MIT
   [![codecov](https://codecov.io/gh/RAprogramm/masterror/graph/badge.svg?token=V9JQDTZLXH)](https://codecov.io/gh/RAprogramm/masterror)
 
   [![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
-  [![Hits-of-Code](https://hitsofcode.com/github/RAprogramm/masterror?branch=main)](https://hitsofcode.com/github/RAprogramm/masterror/view?branch=main)
+  [![Hits-of-Code](https://hitsofcode.com/github/RAprogramm/masterror?branch=main&exclude=Cargo.lock,.gitignore,CHANGELOG.md)](https://hitsofcode.com/github/RAprogramm/masterror/view?branch=main&exclude=Cargo.lock,.gitignore,CHANGELOG.md)
   [![IMIR](https://raw.githubusercontent.com/RAprogramm/infra-metrics-insight-renderer/main/assets/badges/imir-badge-simple-public.svg)](https://github.com/RAprogramm/infra-metrics-insight-renderer)
 
   > 🇷🇺 [Читайте README на русском языке](README.ru.md)
@@ -159,14 +159,14 @@ The build script keeps the full feature snippet below in sync with
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.25.1", default-features = false }
+masterror = { version = "0.25.2", default-features = false }
 # or with features:
-# masterror = { version = "0.25.1", features = [
+# masterror = { version = "0.25.2", features = [
 #   "std", "axum", "actix", "openapi",
 #   "serde_json", "tracing", "metrics", "backtrace",
 #   "colored", "sqlx", "sqlx-migrate", "reqwest",
 #   "redis", "validator", "config", "tokio",
-#   "multipart", "teloxide", "telegram-webapp-sdk", "tonic",
+#   "multipart", "teloxide", "init-data", "tonic",
 #   "frontend", "turnkey", "benchmarks"
 # ] }
 ~~~
@@ -640,7 +640,7 @@ Enable the `colored` feature for enhanced terminal output in local mode:
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.25.1", features = ["colored"] }
+masterror = { version = "0.25.2", features = ["colored"] }
 ~~~
 
 With `colored` enabled, errors display with syntax highlighting:

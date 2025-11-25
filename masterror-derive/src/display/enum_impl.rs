@@ -503,7 +503,7 @@ mod tests {
                 segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
             })
         );
-        let result = expand_enum(&input, &vec![variant]);
+        let result = expand_enum(&input, &[variant]);
         assert!(result.is_ok());
         let tokens = result.unwrap();
         let output = tokens.to_string();
@@ -528,7 +528,7 @@ mod tests {
                 segments: vec![TemplateSegmentSpec::Literal("error2".to_string())]
             })
         );
-        let result = expand_enum(&input, &vec![variant1, variant2]);
+        let result = expand_enum(&input, &[variant1, variant2]);
         assert!(result.is_ok());
     }
 
