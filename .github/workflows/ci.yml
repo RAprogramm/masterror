@@ -312,7 +312,10 @@ jobs:
     name: Update Changelog
     needs: [check, fmt, no-std, security, reuse]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
+    if: |
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == 'refs/heads/main' &&
+      !contains(github.event.head_commit.message || '', '[skip ci]')
     steps:
       - uses: actions/checkout@v5
         with:
@@ -383,9 +386,9 @@ jobs:
     if: |
       always() &&
       (needs.test.result == 'success' || needs.test.result == 'skipped') &&
-      github.event_name == 'push' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       github.ref == 'refs/heads/main' &&
-      !contains(github.event.head_commit.message, '[skip ci]')
+      !contains(github.event.head_commit.message || '', '[skip ci]')
     runs-on: ubuntu-latest
     outputs:
       published: ${{ steps.publish.outputs.published }}
