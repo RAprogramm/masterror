@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### CI/CD
 
+- Allow changelog and release on workflow_dispatch by [@RAprogramm](https://github.com/RAprogramm) ([befaa0a](https://github.com/RAprogramm/masterror/commit/befaa0aafc197b2d422267999ce864dbe137a5ee))
 - Fix nextest junit path and artifact upload by [@RAprogramm](https://github.com/RAprogramm) ([64099b4](https://github.com/RAprogramm/masterror/commit/64099b404c7ad938eb7a4731a5b8f9abfa56900e))
 - Fix version comparison in release job by [@RAprogramm](https://github.com/RAprogramm) ([e78a64d](https://github.com/RAprogramm/masterror/commit/e78a64d4e2bbf2cbad04fc48068cf49e3e3c4f17))
 - Fix changelog conflict resolution by [@RAprogramm](https://github.com/RAprogramm) ([39970a5](https://github.com/RAprogramm/masterror/commit/39970a5e7457ee5d912e2eb681ccbceece1b9aab))
