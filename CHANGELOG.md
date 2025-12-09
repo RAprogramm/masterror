@@ -11,7 +11,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.25.1...HEAD)
+## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.26.0...HEAD)
+
+### Dependencies
+
+- **deps:** Bump uuid from 1.18.1 to 1.19.0 by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#336](https://github.com/RAprogramm/masterror/pull/336)
+- **deps:** Bump metrics from 0.24.2 to 0.24.3 by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#338](https://github.com/RAprogramm/masterror/pull/338)
+- **deps:** Bump criterion from 0.7.0 to 0.8.1 by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#339](https://github.com/RAprogramm/masterror/pull/339)
+- **deps:** Bump tracing from 0.1.41 to 0.1.43 by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#337](https://github.com/RAprogramm/masterror/pull/337)
+- **deps:** Bump redis from 0.32.7 to 1.0.0 by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#335](https://github.com/RAprogramm/masterror/pull/335)
+## [0.26.0](https://github.com/RAprogramm/masterror/releases/tag/v0.26.0) - 2025-11-25
 
 ### Added
 
@@ -45,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Miscellaneous
 
 - Ignore RUSTSEC-2025-0120 (json5 unmaintained) by [@RAprogramm](https://github.com/RAprogramm) ([3d2691a](https://github.com/RAprogramm/masterror/commit/3d2691a5a649c731a2c28b6a5229b3d3c12c1c01))
+
+**Full Changelog**: [v0.25.1...v0.26.0](https://github.com/RAprogramm/masterror/compare/v0.25.1...v0.26.0)
 ## [0.25.1](https://github.com/RAprogramm/masterror/releases/tag/v0.25.1) - 2025-10-29
 
 ### Fixed
