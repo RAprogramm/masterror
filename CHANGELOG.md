@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **deps:** Bump criterion from 0.7.0 to 0.8.1 by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#339](https://github.com/RAprogramm/masterror/pull/339)
 - **deps:** Bump tracing from 0.1.41 to 0.1.43 by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#337](https://github.com/RAprogramm/masterror/pull/337)
 - **deps:** Bump redis from 0.32.7 to 1.0.0 by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#335](https://github.com/RAprogramm/masterror/pull/335)
+
+### Miscellaneous
+
+- Update dependencies by [@RAprogramm](https://github.com/RAprogramm) in [#345](https://github.com/RAprogramm/masterror/pull/345)
 ## [0.26.0](https://github.com/RAprogramm/masterror/releases/tag/v0.26.0) - 2025-11-25
 
 ### Added
