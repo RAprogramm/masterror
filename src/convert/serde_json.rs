@@ -69,18 +69,12 @@ fn build_context(err: &SjError) -> Context {
 
     let line = err.line();
     if line != 0 {
-        let value = match u64::try_from(line) {
-            Ok(converted) => converted,
-            Err(_) => u64::MAX
-        };
+        let value = u64::try_from(line).unwrap_or(u64::MAX);
         context = context.with(field::u64("serde_json.line", value));
     }
     let column = err.column();
     if column != 0 {
-        let value = match u64::try_from(column) {
-            Ok(converted) => converted,
-            Err(_) => u64::MAX
-        };
+        let value = u64::try_from(column).unwrap_or(u64::MAX);
         context = context.with(field::u64("serde_json.column", value));
     }
     if line != 0 && column != 0 {

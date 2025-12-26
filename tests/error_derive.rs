@@ -1,4 +1,3 @@
-#![allow(unused_variables)]
 #![deny(non_shorthand_field_patterns)]
 
 // SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
