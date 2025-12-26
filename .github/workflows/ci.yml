@@ -93,6 +93,7 @@ jobs:
 
       - name: Resolve toolchain
         id: toolchain
+        shell: bash
         run: |
           if [ "${{ matrix.rust }}" = "msrv" ]; then
             echo "version=${{ needs.msrv.outputs.version }}" >> "$GITHUB_OUTPUT"
