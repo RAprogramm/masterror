@@ -40,18 +40,38 @@ env:
 
 jobs:
   # ════════════════════════════════════════════════════════════════════════════
+  # Read MSRV from Cargo.toml (single source of truth)
+  # ════════════════════════════════════════════════════════════════════════════
+
+  msrv:
+    name: Read MSRV
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.msrv.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Extract MSRV from Cargo.toml
+        id: msrv
+        run: |
+          MSRV=$(grep '^rust-version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          echo "version=$MSRV" >> "$GITHUB_OUTPUT"
+          echo "MSRV: $MSRV"
+
+  # ════════════════════════════════════════════════════════════════════════════
   # STAGE 1: CHECKS (parallel matrix)
   # ════════════════════════════════════════════════════════════════════════════
 
   check:
     name: Check (${{ matrix.rust }} / ${{ matrix.os }})
+    needs: msrv
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          # MSRV
-          - rust: "1.91"
+          # MSRV (from Cargo.toml)
+          - rust: msrv
             os: ubuntu-latest
             msrv: true
           # Stable (primary)
@@ -71,16 +91,26 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Install Rust ${{ matrix.rust }}
+      - name: Resolve toolchain
+        id: toolchain
+        shell: bash
+        run: |
+          if [ "${{ matrix.rust }}" = "msrv" ]; then
+            echo "version=${{ needs.msrv.outputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${{ matrix.rust }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Rust ${{ steps.toolchain.outputs.version }}
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ matrix.rust }}
+          toolchain: ${{ steps.toolchain.outputs.version }}
           components: clippy
 
       - name: Cache
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: ${{ matrix.rust }}-${{ matrix.os }}
+          shared-key: ${{ steps.toolchain.outputs.version }}-${{ matrix.os }}
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Clippy
