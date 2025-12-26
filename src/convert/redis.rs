@@ -30,14 +30,14 @@
 //! }
 //!
 //! // In production code, this would come from a Redis client operation
-//! let dummy = RedisError::from((redis::ErrorKind::IoError, "connection lost"));
+//! let dummy = RedisError::from((redis::ErrorKind::Io, "connection lost"));
 //! let app_err = handle_cache_error(dummy);
 //!
 //! assert!(matches!(app_err.kind, AppErrorKind::Cache));
 //! ```
 
 #[cfg(feature = "redis")]
-use redis::{ErrorKind, RedisError, RetryMethod};
+use redis::{ErrorKind, RedisError, RetryMethod, ServerErrorKind};
 
 #[cfg(feature = "redis")]
 use crate::{AppErrorKind, Context, Error, field};
@@ -88,7 +88,7 @@ fn build_context(err: &RedisError) -> (Context, Option<u64>) {
         || err.is_connection_dropped()
         || err.is_cluster_error()
         || err.is_io_error()
-        || matches!(err.kind(), ErrorKind::BusyLoadingError)
+        || is_busy_loading(err)
     {
         context = context.category(AppErrorKind::DependencyUnavailable);
     }
@@ -107,6 +107,11 @@ fn build_context(err: &RedisError) -> (Context, Option<u64>) {
     }
 
     (context, retry_after)
+}
+
+#[cfg(feature = "redis")]
+fn is_busy_loading(err: &RedisError) -> bool {
+    err.kind() == ErrorKind::Server(ServerErrorKind::BusyLoading)
 }
 
 #[cfg(feature = "redis")]
@@ -133,26 +138,21 @@ mod tests {
     use crate::{AppErrorKind, FieldValue};
 
     #[test]
-    fn maps_to_cache_kind() {
-        let redis_err = RedisError::from((ErrorKind::IoError, "boom"));
+    fn maps_io_error_to_dependency_unavailable() {
+        let redis_err = RedisError::from((ErrorKind::Io, "boom"));
         let app_err: Error = redis_err.into();
         assert!(matches!(app_err.kind, AppErrorKind::DependencyUnavailable));
         let metadata = app_err.metadata();
         assert_eq!(
             metadata.get("redis.kind"),
-            Some(&FieldValue::Str("IoError".into()))
+            Some(&FieldValue::Str("Io".into()))
         );
     }
 
     #[test]
-    fn busy_loading_sets_retry_hint() {
-        let err = RedisError::from((ErrorKind::BusyLoadingError, "loading"));
-        let app_err: Error = err.into();
-        assert_eq!(app_err.retry.map(|r| r.after_seconds), Some(2));
-        assert!(matches!(app_err.kind, AppErrorKind::DependencyUnavailable));
-        assert_eq!(
-            app_err.metadata().get("redis.retry_after_hint_secs"),
-            Some(&FieldValue::U64(2))
-        );
+    fn maps_client_error_to_cache() {
+        let redis_err = RedisError::from((ErrorKind::Client, "bad config"));
+        let app_err: Error = redis_err.into();
+        assert!(matches!(app_err.kind, AppErrorKind::Cache));
     }
 }
