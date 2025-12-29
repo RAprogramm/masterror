@@ -1977,8 +1977,8 @@ dependencies = [
  "js-sys",
  "log",
  "log-mdc",
- "masterror-derive 0.10.0",
- "masterror-template 0.4.0",
+ "masterror-derive",
+ "masterror-template",
  "metrics",
  "owo-colors",
  "redis",
@@ -2007,31 +2007,13 @@ dependencies = [
 
 [[package]]
 name = "masterror-derive"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c67cb4a9c7ac7a6473b96e7ed3b72f755809334e1c5c44cf80211358d382d68"
-dependencies = [
- "masterror-template 0.3.8",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "masterror-derive"
 version = "0.11.0"
 dependencies = [
- "masterror-template 0.4.0",
+ "masterror-template",
  "proc-macro2",
  "quote",
  "syn",
 ]
-
-[[package]]
-name = "masterror-template"
-version = "0.3.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76cbb19c37caa0e505f0fb43a68184a4d22dc6e81daea40dd00fc24a356ffa9a"
 
 [[package]]
 name = "masterror-template"
