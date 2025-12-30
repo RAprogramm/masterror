@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Miscellaneous
 
 - Configure dependabot to group minor/patch updates by [@RAprogramm](https://github.com/RAprogramm) ([653ccd2](https://github.com/RAprogramm/masterror/commit/653ccd299cb2833f11cdff716bdc24fa06af1d03))
+
+### Refactored
+
+- Apply cargo qual code quality rules by [@RAprogramm](https://github.com/RAprogramm) in [#353](https://github.com/RAprogramm/masterror/pull/353)
 ## [0.27.0](https://github.com/RAprogramm/masterror/releases/tag/v0.27.0) - 2025-12-26
 
 ### Dependencies
