@@ -123,10 +123,8 @@ mod actix_tests {
         let err = AppError::unauthorized("no token")
             .with_retry_after_secs(7)
             .with_www_authenticate("Bearer");
-
         let resp = err.error_response();
         assert_eq!(resp.status().as_u16(), 401);
-
         let headers = resp.headers().clone();
         assert_eq!(
             headers.get(RETRY_AFTER).and_then(|v| v.to_str().ok()),
@@ -136,7 +134,6 @@ mod actix_tests {
             headers.get(WWW_AUTHENTICATE).and_then(|v| v.to_str().ok()),
             Some("Bearer")
         );
-
         let bytes = to_bytes(resp.into_body()).await?;
         let body: serde_json::Value = serde_json::from_slice(&bytes)?;
         assert_eq!(

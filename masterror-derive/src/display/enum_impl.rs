@@ -42,14 +42,11 @@ use crate::{
 /// Token stream containing the complete Display trait implementation
 pub fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> Result<TokenStream, Error> {
     let mut arms = Vec::new();
-
     for variant in variants {
         arms.push(render_variant(variant)?);
     }
-
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
     Ok(quote! {
         impl #impl_generics core::fmt::Display for #ident #ty_generics #where_clause {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -104,7 +101,6 @@ pub fn render_variant(variant: &VariantData) -> Result<TokenStream, Error> {
 /// Token stream containing the match arm with Display delegation
 pub fn render_variant_transparent(variant: &VariantData) -> Result<TokenStream, Error> {
     let variant_ident = &variant.ident;
-
     match &variant.fields {
         Fields::Unit => Err(Error::new(
             variant.span,
@@ -117,7 +113,6 @@ pub fn render_variant_transparent(variant: &VariantData) -> Result<TokenStream, 
                     "#[error(transparent)] requires exactly one field"
                 ));
             }
-
             let binding = binding_ident(&fields[0]);
             let pattern = match &variant.fields {
                 Fields::Named(_) => {
@@ -129,7 +124,6 @@ pub fn render_variant_transparent(variant: &VariantData) -> Result<TokenStream, 
                 }
                 Fields::Unit => unreachable!()
             };
-
             Ok(quote! {
                 #pattern => core::fmt::Display::fmt(#binding, f)
             })
@@ -328,13 +322,11 @@ pub fn variant_tuple_placeholder(
             needs_pointer_value(&placeholder.formatter)
         ));
     }
-
     if let Some(env) = env
         && let Some(resolved) = env.resolve_placeholder(placeholder)?
     {
         return Ok(resolved);
     }
-
     match &placeholder.identifier {
         TemplateIdentifierSpec::Named(_) => {
             Err(placeholder_error(placeholder.span, &placeholder.identifier))
@@ -390,13 +382,11 @@ pub fn variant_named_placeholder(
             needs_pointer_value(&placeholder.formatter)
         ));
     }
-
     if let Some(env) = env
         && let Some(resolved) = env.resolve_placeholder(placeholder)?
     {
         return Ok(resolved);
     }
-
     match &placeholder.identifier {
         TemplateIdentifierSpec::Named(name) => {
             if let Some(index) = fields
@@ -750,7 +740,6 @@ mod tests {
         use masterror_template::template::TemplateFormatter;
 
         use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
-
         let bindings = vec![format_ident!("field0")];
         let placeholder = TemplatePlaceholderSpec {
             identifier: TemplateIdentifierSpec::Named("self".to_string()),
@@ -770,7 +759,6 @@ mod tests {
         use masterror_template::template::TemplateFormatter;
 
         use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
-
         let bindings = vec![format_ident!("field0"), format_ident!("field1")];
         let placeholder = TemplatePlaceholderSpec {
             identifier: TemplateIdentifierSpec::Positional(1),
@@ -790,7 +778,6 @@ mod tests {
         use masterror_template::template::TemplateFormatter;
 
         use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
-
         let bindings = vec![format_ident!("field0")];
         let placeholder = TemplatePlaceholderSpec {
             identifier: TemplateIdentifierSpec::Positional(5),
@@ -808,7 +795,6 @@ mod tests {
         use masterror_template::template::TemplateFormatter;
 
         use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
-
         let bindings = vec![format_ident!("field0")];
         let placeholder = TemplatePlaceholderSpec {
             identifier: TemplateIdentifierSpec::Implicit(0),
@@ -826,7 +812,6 @@ mod tests {
         use masterror_template::template::TemplateFormatter;
 
         use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
-
         let bindings = vec![format_ident!("field0")];
         let placeholder = TemplatePlaceholderSpec {
             identifier: TemplateIdentifierSpec::Named("unknown".to_string()),
@@ -844,7 +829,6 @@ mod tests {
         use masterror_template::template::TemplateFormatter;
 
         use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
-
         let field = make_test_field("message", parse_quote!(String), 0);
         let fields = vec![field];
         let bindings = vec![format_ident!("message")];
@@ -866,7 +850,6 @@ mod tests {
         use masterror_template::template::TemplateFormatter;
 
         use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
-
         let field = make_test_field("message", parse_quote!(String), 0);
         let fields = vec![field];
         let bindings = vec![format_ident!("message")];
@@ -888,7 +871,6 @@ mod tests {
         use masterror_template::template::TemplateFormatter;
 
         use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
-
         let field = make_test_field("message", parse_quote!(String), 0);
         let fields = vec![field];
         let bindings = vec![format_ident!("message")];
@@ -908,7 +890,6 @@ mod tests {
         use masterror_template::template::TemplateFormatter;
 
         use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
-
         let field = make_test_field("message", parse_quote!(String), 0);
         let fields = vec![field];
         let bindings = vec![format_ident!("message")];
@@ -928,7 +909,6 @@ mod tests {
         use masterror_template::template::TemplateFormatter;
 
         use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
-
         let field = make_test_field("message", parse_quote!(String), 0);
         let fields = vec![field];
         let bindings = vec![format_ident!("message")];
@@ -954,7 +934,6 @@ mod tests {
         );
         let result = render_variant(&variant_transparent);
         assert!(result.is_ok());
-
         let variant_template = make_variant_data(
             "Template",
             Fields::Unit,
@@ -964,7 +943,6 @@ mod tests {
         );
         let result = render_variant(&variant_template);
         assert!(result.is_ok());
-
         let variant_formatter = make_variant_data(
             "Formatter",
             Fields::Unit,

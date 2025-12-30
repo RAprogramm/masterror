@@ -95,7 +95,6 @@ mod tests {
     #[test]
     fn error_with_code_overrides_code() {
         use crate::AppCode;
-
         let err = Error::new(AppErrorKind::BadRequest, "test").with_code(AppCode::NotFound);
         assert_eq!(err.code, AppCode::NotFound);
     }
@@ -119,7 +118,6 @@ mod tests {
     #[test]
     fn error_with_field_adds_metadata() {
         use crate::field;
-
         let err = Error::new(AppErrorKind::Validation, "bad field")
             .with_field(field::str("field_name", "email"));
         assert_eq!(
@@ -131,7 +129,6 @@ mod tests {
     #[test]
     fn error_with_fields_adds_multiple_metadata() {
         use crate::field;
-
         let fields = vec![field::str("key1", "value1"), field::str("key2", "value2")];
         let err = Error::new(AppErrorKind::BadRequest, "test").with_fields(fields);
         assert!(err.metadata().get("key1").is_some());
@@ -148,7 +145,6 @@ mod tests {
     #[test]
     fn error_with_source_attaches_source() {
         use std::io::Error as IoError;
-
         let io_err = IoError::other("disk error");
         let err = Error::new(AppErrorKind::Internal, "fail").with_source(io_err);
         assert!(err.source_ref().is_some());
@@ -158,7 +154,6 @@ mod tests {
     #[test]
     fn error_with_context_attaches_source() {
         use std::io::Error as IoError;
-
         let io_err = IoError::other("network error");
         let err = Error::new(AppErrorKind::Network, "fail").with_context(io_err);
         assert!(err.source_ref().is_some());
@@ -167,7 +162,6 @@ mod tests {
     #[test]
     fn error_metadata_returns_metadata() {
         use crate::field;
-
         let err =
             Error::new(AppErrorKind::Internal, "test").with_field(field::str("test", "value"));
         let metadata = err.metadata();
@@ -197,7 +191,6 @@ mod tests {
     #[test]
     fn error_chain_returns_iterator() {
         use std::io::Error as IoError;
-
         let io_err = IoError::other("root cause");
         let err = Error::new(AppErrorKind::Internal, "wrapper").with_context(io_err);
         let chain: Vec<_> = err.chain().collect();
@@ -208,7 +201,6 @@ mod tests {
     #[test]
     fn error_root_cause_returns_lowest_error() {
         use std::io::Error as IoError;
-
         let io_err = IoError::other("disk offline");
         let err = Error::new(AppErrorKind::Internal, "db down").with_context(io_err);
         let root = err.root_cause();
@@ -219,7 +211,6 @@ mod tests {
     #[test]
     fn error_is_checks_source_type() {
         use std::io::Error as IoError;
-
         let io_err = IoError::other("test");
         let err = Error::new(AppErrorKind::Network, "fail").with_context(io_err);
         assert!(err.is::<IoError>());
@@ -229,7 +220,6 @@ mod tests {
     #[test]
     fn error_downcast_ref_returns_concrete_type() {
         use std::io::Error as IoError;
-
         let io_err = IoError::other("disk error");
         let err = Error::new(AppErrorKind::Internal, "fail").with_context(io_err);
         assert!(err.downcast_ref::<IoError>().is_some());
@@ -239,7 +229,6 @@ mod tests {
     #[test]
     fn error_downcast_mut_returns_none() {
         use std::io::Error as IoError;
-
         let io_err = IoError::other("test");
         let mut err = Error::new(AppErrorKind::Internal, "fail").with_context(io_err);
         assert!(err.downcast_mut::<IoError>().is_none());
@@ -249,7 +238,6 @@ mod tests {
     #[test]
     fn error_downcast_returns_err() {
         use std::io::Error as IoError;
-
         let io_err = IoError::other("test");
         let err = Error::new(AppErrorKind::Internal, "fail").with_context(io_err);
         assert!(err.downcast::<IoError>().is_err());
@@ -287,7 +275,6 @@ mod tests {
     #[test]
     fn error_with_details_json_attaches_details() {
         use serde_json::json;
-
         let err = Error::new(AppErrorKind::Validation, "invalid")
             .with_details_json(json!({"field": "email"}));
         assert!(err.details.is_some());
@@ -297,12 +284,10 @@ mod tests {
     #[test]
     fn error_with_details_serializes_payload() {
         use serde::Serialize;
-
         #[derive(Serialize)]
         struct Extra {
             reason: &'static str
         }
-
         let err = Error::new(AppErrorKind::BadRequest, "invalid")
             .with_details(Extra {
                 reason: "missing"
@@ -315,7 +300,6 @@ mod tests {
     #[test]
     fn error_with_backtrace_attaches_backtrace() {
         use std::backtrace::Backtrace;
-
         let bt = Backtrace::capture();
         let err = Error::new(AppErrorKind::Internal, "test").with_backtrace(bt);
         assert!(err.backtrace.is_some());
@@ -325,11 +309,9 @@ mod tests {
     #[test]
     fn error_with_shared_backtrace_reuses_arc() {
         use std::{backtrace::Backtrace, sync::Arc};
-
         let bt = Arc::new(Backtrace::capture());
         let bt_clone = Arc::clone(&bt);
         let err = Error::new(AppErrorKind::Internal, "test").with_shared_backtrace(bt);
-
         assert!(err.backtrace.is_some());
         assert_eq!(Arc::strong_count(&bt_clone), 2);
     }
@@ -340,11 +322,9 @@ mod tests {
         use std::{io::Error as IoError, sync::Arc};
 
         use crate::app_error::core::types::ContextAttachment;
-
         let io_err = Arc::new(IoError::other("shared error"));
         let err = Error::new(AppErrorKind::Internal, "test")
             .with_context(ContextAttachment::Shared(io_err.clone()));
-
         assert!(err.source_ref().is_some());
         assert_eq!(Arc::strong_count(&io_err), 2);
     }

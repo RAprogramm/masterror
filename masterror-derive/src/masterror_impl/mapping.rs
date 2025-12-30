@@ -67,16 +67,13 @@ pub fn struct_mapping_impl(input: &ErrorInput, spec: &MasterrorSpec) -> TokenStr
         category,
         MappingKind::Problem
     );
-
     quote! {
         impl #impl_generics #ident #ty_generics #where_clause {
             /// HTTP mapping for this error type.
             pub const HTTP_MAPPING: masterror::mapping::HttpMapping =
                 masterror::mapping::HttpMapping::new((#code), (#category));
-
             /// gRPC mapping for this error type.
             pub const GRPC_MAPPING: Option<masterror::mapping::GrpcMapping> = #grpc_mapping;
-
             /// Problem JSON mapping for this error type.
             pub const PROBLEM_MAPPING: Option<masterror::mapping::ProblemMapping> = #problem_mapping;
         }
@@ -124,7 +121,6 @@ pub fn struct_mapping_impl(input: &ErrorInput, spec: &MasterrorSpec) -> TokenStr
 pub fn enum_mapping_impl(input: &ErrorInput, variants: &[VariantData]) -> TokenStream {
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
     let http_entries: Vec<_> = variants
         .iter()
         .map(|variant| {
@@ -134,7 +130,6 @@ pub fn enum_mapping_impl(input: &ErrorInput, variants: &[VariantData]) -> TokenS
             quote!(masterror::mapping::HttpMapping::new((#code), (#category)))
         })
         .collect();
-
     let grpc_entries: Vec<_> = variants
         .iter()
         .filter_map(|variant| {
@@ -146,7 +141,6 @@ pub fn enum_mapping_impl(input: &ErrorInput, variants: &[VariantData]) -> TokenS
             )
         })
         .collect();
-
     let problem_entries: Vec<_> = variants
         .iter()
         .filter_map(|variant| {
@@ -158,29 +152,23 @@ pub fn enum_mapping_impl(input: &ErrorInput, variants: &[VariantData]) -> TokenS
             })
         })
         .collect();
-
     let http_len = Index::from(http_entries.len());
-
     let grpc_slice = if grpc_entries.is_empty() {
         quote!(&[] as &[masterror::mapping::GrpcMapping])
     } else {
         quote!(&[#(#grpc_entries),*])
     };
-
     let problem_slice = if problem_entries.is_empty() {
         quote!(&[] as &[masterror::mapping::ProblemMapping])
     } else {
         quote!(&[#(#problem_entries),*])
     };
-
     quote! {
         impl #impl_generics #ident #ty_generics #where_clause {
             /// HTTP mappings for enum variants.
             pub const HTTP_MAPPINGS: [masterror::mapping::HttpMapping; #http_len] = [#(#http_entries),*];
-
             /// gRPC mappings for enum variants.
             pub const GRPC_MAPPINGS: &'static [masterror::mapping::GrpcMapping] = #grpc_slice;
-
             /// Problem JSON mappings for enum variants.
             pub const PROBLEM_MAPPINGS: &'static [masterror::mapping::ProblemMapping] = #problem_slice;
         }
@@ -251,10 +239,8 @@ mod tests {
         let expr: Expr = parse_quote!(tonic::Code::Internal);
         let code: Expr = parse_quote!("E001");
         let category: ExprPath = parse_quote!(ErrorCategory::Internal);
-
         let result = mapping_option_tokens(Some(&expr), &code, &category, MappingKind::Grpc);
         let result_str = result.to_string();
-
         assert!(result_str.contains("GrpcMapping"));
         assert!(result_str.contains("Some"));
     }
@@ -264,10 +250,8 @@ mod tests {
         let expr: Expr = parse_quote!("about:blank");
         let code: Expr = parse_quote!("E001");
         let category: ExprPath = parse_quote!(ErrorCategory::Internal);
-
         let result = mapping_option_tokens(Some(&expr), &code, &category, MappingKind::Problem);
         let result_str = result.to_string();
-
         assert!(result_str.contains("ProblemMapping"));
         assert!(result_str.contains("Some"));
     }
@@ -276,7 +260,6 @@ mod tests {
     fn test_mapping_option_tokens_none() {
         let code: Expr = parse_quote!("E001");
         let category: ExprPath = parse_quote!(ErrorCategory::Internal);
-
         let result = mapping_option_tokens(None, &code, &category, MappingKind::Grpc);
         assert_eq!(result.to_string(), "None");
     }
@@ -285,7 +268,6 @@ mod tests {
     fn test_mapping_option_tokens_problem_none() {
         let code: Expr = parse_quote!("E002");
         let category: ExprPath = parse_quote!(ErrorCategory::NotFound);
-
         let result = mapping_option_tokens(None, &code, &category, MappingKind::Problem);
         assert_eq!(result.to_string(), "None");
     }

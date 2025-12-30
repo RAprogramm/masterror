@@ -205,7 +205,6 @@ mod tests {
         };
         let err2 = err1.clone();
         assert_eq!(err1, err2);
-
         let err3 = BrowserConsoleError::ConsoleMethodNotCallable;
         let err4 = err3.clone();
         assert_eq!(err3, err4);
@@ -247,7 +246,6 @@ mod tests {
         let serialization3 = BrowserConsoleError::Serialization {
             message: "error2".to_string()
         };
-
         assert_eq!(serialization1, serialization2);
         assert_ne!(serialization1, serialization3);
         assert_ne!(serialization1, BrowserConsoleError::UnsupportedTarget);

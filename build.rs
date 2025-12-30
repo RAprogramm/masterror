@@ -21,6 +21,13 @@ fn main() {
     }
 }
 
+/// Runs build script with README sync and feature detection.
+///
+/// # Modes
+///
+/// - **Drift allowed**: Skip all checks if `MASTERROR_DISABLE_README_SYNC=1`
+/// - **Packaged/no-git**: Relaxed verification (warning only, no failure)
+/// - **Git working tree**: Strict sync mode
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rustc-check-cfg=cfg(masterror_has_error_generic_member_access)");
     println!("cargo:rustc-check-cfg=cfg(masterror_requires_error_generic_feature)");
@@ -28,34 +35,23 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rerun-if-changed=README.template.md");
     println!("cargo:rerun-if-changed=build/readme.rs");
     println!("cargo:rerun-if-env-changed=MASTERROR_DISABLE_ERROR_GENERIC_MEMBER_ACCESS");
-
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR")?);
-
-    // Явный флаг, чтобы где угодно ослабить проверку (ремень безопасности для
-    // CI/verify)
     if allow_readme_drift() {
         return Ok(());
     }
-
-    // В tarball-е (cargo package --verify) или вообще без .git — проверяем мягко и
-    // НЕ валимся.
     if is_packaged_manifest(&manifest_dir) || !has_git_anywhere(&manifest_dir) {
         if let Err(err) = verify_readme_relaxed(&manifest_dir) {
             println!("cargo:warning={err}");
         }
         return Ok(());
     }
-
-    // В нормальном git-рабочем дереве — синхронизируем (жёсткий режим).
     sync_readme(&manifest_dir)?;
-
     if let Some(support) = detect_error_generic_member_access()? {
         if support.requires_feature_attr {
             println!("cargo:rustc-cfg=masterror_requires_error_generic_feature");
         }
         println!("cargo:rustc-cfg=masterror_has_error_generic_member_access");
     }
-
     Ok(())
 }
 
@@ -109,10 +105,8 @@ fn detect_error_generic_member_access()
     if has_env("MASTERROR_DISABLE_ERROR_GENERIC_MEMBER_ACCESS") {
         return Ok(None);
     }
-
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
     fs::create_dir_all(&out_dir)?;
-
     let stable_check = out_dir.join("check_error_generic_stable.rs");
     fs::write(&stable_check, STABLE_SNIPPET)?;
     if compile_probe(&stable_check, &out_dir)?.success() {
@@ -120,7 +114,6 @@ fn detect_error_generic_member_access()
             requires_feature_attr: false
         }));
     }
-
     let nightly_check = out_dir.join("check_error_generic_nightly.rs");
     fs::write(&nightly_check, NIGHTLY_SNIPPET)?;
     if compile_probe(&nightly_check, &out_dir)?.success() {
@@ -128,7 +121,6 @@ fn detect_error_generic_member_access()
             requires_feature_attr: true
         }));
     }
-
     Ok(None)
 }
 
@@ -222,11 +214,9 @@ mod tests {
         env::remove_var("MASTERROR_ALLOW_README_DRIFT");
         env::remove_var("MASTERROR_SKIP_README_CHECK");
         assert!(!allow_readme_drift());
-
         env::set_var("MASTERROR_ALLOW_README_DRIFT", "1");
         assert!(allow_readme_drift());
         env::remove_var("MASTERROR_ALLOW_README_DRIFT");
-
         env::set_var("MASTERROR_SKIP_README_CHECK", "1");
         assert!(allow_readme_drift());
         env::remove_var("MASTERROR_SKIP_README_CHECK");
@@ -238,7 +228,6 @@ mod tests {
             requires_feature_attr: true
         };
         assert!(support.requires_feature_attr);
-
         let support = ErrorGenericSupport {
             requires_feature_attr: false
         };

@@ -190,8 +190,9 @@ impl Hash for AppCode {
 }
 
 impl Display for AppCode {
+    /// Writes the stable human/machine readable form matching JSON
+    /// representation.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Stable human/machine readable form matching JSON representation.
         f.write_str(self.as_str())
     }
 }
@@ -219,7 +220,6 @@ impl FromStr for AppCode {
         if let Some(code) = match_static(s) {
             return Ok(code);
         }
-
         Self::try_new(s.to_owned())
     }
 }
@@ -231,7 +231,6 @@ impl From<AppErrorKind> for AppCode {
     /// The mapping is 1:1 today and intentionally conservative.
     fn from(kind: AppErrorKind) -> Self {
         match kind {
-            // 4xx
             AppErrorKind::NotFound => Self::NotFound,
             AppErrorKind::Validation => Self::Validation,
             AppErrorKind::Conflict => Self::Conflict,
@@ -242,8 +241,6 @@ impl From<AppErrorKind> for AppCode {
             AppErrorKind::RateLimited => Self::RateLimited,
             AppErrorKind::TelegramAuth => Self::TelegramAuth,
             AppErrorKind::InvalidJwt => Self::InvalidJwt,
-
-            // 5xx
             AppErrorKind::Internal => Self::Internal,
             AppErrorKind::Database => Self::Database,
             AppErrorKind::Service => Self::Service,
@@ -276,28 +273,23 @@ impl<'de> Deserialize<'de> for AppCode {
         D: Deserializer<'de>
     {
         struct Visitor;
-
         impl<'de> serde::de::Visitor<'de> for Visitor {
             type Value = AppCode;
-
             fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 f.write_str("a SCREAMING_SNAKE_CASE code")
             }
-
             fn visit_borrowed_str<E>(self, value: &'de str) -> Result<Self::Value, E>
             where
                 E: serde::de::Error
             {
                 AppCode::from_str(value).map_err(E::custom)
             }
-
             fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
             where
                 E: serde::de::Error
             {
                 AppCode::from_str(value).map_err(E::custom)
             }
-
             fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
             where
                 E: serde::de::Error
@@ -305,7 +297,6 @@ impl<'de> Deserialize<'de> for AppCode {
                 AppCode::try_new(value).map_err(E::custom)
             }
         }
-
         deserializer.deserialize_str(Visitor)
     }
 }
@@ -331,7 +322,6 @@ fn validate_code(value: &str) -> Result<(), ParseAppCodeError> {
     if !is_valid_literal(value) {
         return Err(ParseAppCodeError);
     }
-
     Ok(())
 }
 
@@ -371,11 +361,9 @@ const fn is_valid_literal(value: &str) -> bool {
     if len == 0 {
         return false;
     }
-
     if bytes[0] == b'_' || bytes[len - 1] == b'_' {
         return false;
     }
-
     let mut index = 0;
     while index < len {
         let byte = bytes[index];
@@ -387,7 +375,6 @@ const fn is_valid_literal(value: &str) -> bool {
         }
         index += 1;
     }
-
     true
 }
 
@@ -407,9 +394,9 @@ mod tests {
         );
     }
 
+    /// Spot checks to guard against accidental remaps.
     #[test]
     fn mapping_from_kind_is_stable() {
-        // Spot checks to guard against accidental remaps.
         assert_eq!(AppCode::from(AppErrorKind::NotFound), AppCode::NotFound);
         assert_eq!(AppCode::from(AppErrorKind::Validation), AppCode::Validation);
         assert_eq!(AppCode::from(AppErrorKind::Internal), AppCode::Internal);

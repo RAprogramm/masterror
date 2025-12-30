@@ -199,7 +199,6 @@ pub fn map_turnkey_kind(kind: TurnkeyErrorKind) -> AppErrorKind {
         TurnkeyErrorKind::Auth => AppErrorKind::Unauthorized,
         TurnkeyErrorKind::Network => AppErrorKind::Network,
         TurnkeyErrorKind::Service => AppErrorKind::Turnkey,
-        // Future-proofing: unknown variants map to Turnkey (500) by default.
         #[allow(unreachable_patterns)]
         _ => AppErrorKind::Turnkey
     }
@@ -272,7 +271,6 @@ mod tests {
         let err2 = TurnkeyError::new(TurnkeyErrorKind::Auth, "invalid token");
         let err3 = TurnkeyError::new(TurnkeyErrorKind::Auth, "different message");
         let err4 = TurnkeyError::new(TurnkeyErrorKind::Network, "invalid token");
-
         assert_eq!(err1, err2);
         assert_ne!(err1, err3);
         assert_ne!(err1, err4);

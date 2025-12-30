@@ -221,7 +221,6 @@ fn turnkey_error_partial_eq_compares_kind_and_message() {
     let err2 = TurnkeyError::new(TurnkeyErrorKind::Auth, "invalid token");
     let err3 = TurnkeyError::new(TurnkeyErrorKind::Auth, "different message");
     let err4 = TurnkeyError::new(TurnkeyErrorKind::Service, "invalid token");
-
     assert_eq!(err1, err2);
     assert_ne!(err1, err3);
     assert_ne!(err1, err4);

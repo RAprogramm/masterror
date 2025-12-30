@@ -73,7 +73,6 @@ fn detect_backtrace_preference() -> bool {
     if let Some(value) = test_backtrace_override::get() {
         return value;
     }
-
     match env::var_os("RUST_BACKTRACE") {
         None => false,
         Some(value) => {
@@ -198,28 +197,22 @@ mod tests {
     fn should_capture_caches_enabled_state() {
         reset_backtrace_preference();
         set_backtrace_preference_override(Some(true));
-
         should_capture_backtrace();
-
         set_backtrace_preference_override(Some(false));
         assert!(
             should_capture_backtrace(),
             "should use cached enabled state"
         );
-
         reset_backtrace_preference();
     }
 
     #[test]
     fn detect_preference_respects_override() {
         reset_backtrace_preference();
-
         set_backtrace_preference_override(Some(true));
         assert!(detect_backtrace_preference());
-
         set_backtrace_preference_override(Some(false));
         assert!(!detect_backtrace_preference());
-
         reset_backtrace_preference();
     }
 
@@ -227,9 +220,7 @@ mod tests {
     fn detect_preference_returns_false_by_default() {
         reset_backtrace_preference();
         set_backtrace_preference_override(None);
-
         let result = detect_backtrace_preference();
-
         reset_backtrace_preference();
         let _ = result;
     }
@@ -238,9 +229,7 @@ mod tests {
     fn reset_clears_state_and_override() {
         set_backtrace_preference_override(Some(true));
         BACKTRACE_STATE.store(BACKTRACE_STATE_ENABLED, AtomicOrdering::Release);
-
         reset_backtrace_preference();
-
         assert_eq!(
             BACKTRACE_STATE.load(AtomicOrdering::Acquire),
             BACKTRACE_STATE_UNSET

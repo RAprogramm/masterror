@@ -31,7 +31,6 @@ struct MasterrorError {
 
 fn bench_error_creation(c: &mut Criterion) {
     let mut group = c.benchmark_group("error_creation");
-
     group.bench_function("thiserror", |b| {
         b.iter(|| {
             let err = ThiserrorError {
@@ -40,21 +39,18 @@ fn bench_error_creation(c: &mut Criterion) {
             black_box(err)
         });
     });
-
     group.bench_function("anyhow", |b| {
         b.iter(|| {
             let err = anyhow::anyhow!("IO operation failed");
             black_box(err)
         });
     });
-
     group.bench_function("masterror", |b| {
         b.iter(|| {
             let err = masterror::AppError::internal("IO operation failed");
             black_box(err)
         });
     });
-
     group.bench_function("masterror_with_source", |b| {
         b.iter(|| {
             let err = masterror::AppError::internal("IO operation failed")
@@ -62,13 +58,11 @@ fn bench_error_creation(c: &mut Criterion) {
             black_box(err)
         });
     });
-
     group.finish();
 }
 
 fn bench_error_with_context(c: &mut Criterion) {
     let mut group = c.benchmark_group("error_with_context");
-
     group.bench_function("anyhow_context", |b| {
         b.iter(|| {
             let result: Result<(), IoError> = Err(IoError::other("disk offline"));
@@ -76,7 +70,6 @@ fn bench_error_with_context(c: &mut Criterion) {
             black_box(err)
         });
     });
-
     group.bench_function("masterror_context", |b| {
         b.iter(|| {
             let err = masterror::AppError::internal("IO operation failed")
@@ -84,13 +77,11 @@ fn bench_error_with_context(c: &mut Criterion) {
             black_box(err)
         });
     });
-
     group.finish();
 }
 
 fn bench_error_chain_traversal(c: &mut Criterion) {
     let mut group = c.benchmark_group("error_chain_traversal");
-
     group.bench_function("anyhow_chain", |b| {
         b.iter_batched(
             || {
@@ -104,7 +95,6 @@ fn bench_error_chain_traversal(c: &mut Criterion) {
             BatchSize::SmallInput
         );
     });
-
     group.bench_function("masterror_chain", |b| {
         b.iter_batched(
             || {
@@ -118,13 +108,11 @@ fn bench_error_chain_traversal(c: &mut Criterion) {
             BatchSize::SmallInput
         );
     });
-
     group.finish();
 }
 
 fn bench_root_cause(c: &mut Criterion) {
     let mut group = c.benchmark_group("root_cause");
-
     group.bench_function("anyhow", |b| {
         b.iter_batched(
             || {
@@ -138,7 +126,6 @@ fn bench_root_cause(c: &mut Criterion) {
             BatchSize::SmallInput
         );
     });
-
     group.bench_function("masterror", |b| {
         b.iter_batched(
             || {
@@ -152,13 +139,11 @@ fn bench_root_cause(c: &mut Criterion) {
             BatchSize::SmallInput
         );
     });
-
     group.finish();
 }
 
 fn bench_is_type_check(c: &mut Criterion) {
     let mut group = c.benchmark_group("is_type_check");
-
     group.bench_function("anyhow", |b| {
         b.iter_batched(
             || {
@@ -172,7 +157,6 @@ fn bench_is_type_check(c: &mut Criterion) {
             BatchSize::SmallInput
         );
     });
-
     group.bench_function("masterror", |b| {
         b.iter_batched(
             || masterror::AppError::internal("error").with_context(IoError::other("disk offline")),
@@ -183,13 +167,11 @@ fn bench_is_type_check(c: &mut Criterion) {
             BatchSize::SmallInput
         );
     });
-
     group.finish();
 }
 
 fn bench_display(c: &mut Criterion) {
     let mut group = c.benchmark_group("display");
-
     group.bench_function("thiserror", |b| {
         b.iter_batched(
             || ThiserrorError {
@@ -202,7 +184,6 @@ fn bench_display(c: &mut Criterion) {
             BatchSize::SmallInput
         );
     });
-
     group.bench_function("anyhow", |b| {
         b.iter_batched(
             || anyhow::anyhow!("IO operation failed"),
@@ -213,7 +194,6 @@ fn bench_display(c: &mut Criterion) {
             BatchSize::SmallInput
         );
     });
-
     group.bench_function("masterror", |b| {
         b.iter_batched(
             || masterror::AppError::internal("IO operation failed"),
@@ -224,7 +204,6 @@ fn bench_display(c: &mut Criterion) {
             BatchSize::SmallInput
         );
     });
-
     group.finish();
 }
 

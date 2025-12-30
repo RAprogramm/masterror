@@ -89,7 +89,6 @@ mod telemetry_support {
             if event.metadata().target() != "masterror::error" {
                 return;
             }
-
             let mut record = RecordedEvent::default();
             event.record(&mut EventVisitor {
                 record: &mut record
@@ -238,7 +237,6 @@ fn constructors_match_kinds() {
 #[test]
 fn with_context_attaches_plain_source() {
     let err = AppError::internal("boom").with_context(IoError::from(IoErrorKind::Other));
-
     let source = err.source_ref().expect("stored source");
     assert!(source.is::<IoError>());
     assert_eq!(source.to_string(), IoErrorKind::Other.to_string());
@@ -249,7 +247,6 @@ fn with_context_attaches_plain_source() {
 fn with_context_accepts_anyhow_error() {
     let upstream: AnyhowError = anyhow::anyhow!("context failed");
     let err = AppError::service("downstream").with_context(AnyhowSource(upstream));
-
     let source = err.source_ref().expect("stored source");
     let stored = source
         .downcast_ref::<AnyhowSource>()
@@ -261,10 +258,8 @@ fn with_context_accepts_anyhow_error() {
 fn database_accepts_optional_message() {
     let with_msg = AppError::database_with_message("db down");
     assert_err_with_msg(with_msg, AppErrorKind::Database, "db down");
-
     let via_option = AppError::database(Some(Cow::Borrowed("db down")));
     assert_err_with_msg(via_option, AppErrorKind::Database, "db down");
-
     let without = AppError::database(None);
     assert_err_bare(without, AppErrorKind::Database);
 }
@@ -301,11 +296,9 @@ fn context_moves_dynamic_code_without_cloning() {
     let dynamic_code =
         AppCode::try_new(String::from("THIRD_PARTY_FAILURE")).expect("valid dynamic code");
     let expected_ptr = dynamic_code.as_str().as_ptr();
-
     let err = Result::<(), IoError>::Err(IoError::from(IoErrorKind::Other))
         .ctx(|| Context::new(AppErrorKind::Service).code(dynamic_code))
         .unwrap_err();
-
     assert_eq!(err.code.as_str().as_ptr(), expected_ptr);
 }
 
@@ -323,7 +316,6 @@ fn metadata_and_code_are_preserved() {
         .with_field(field::str("request_id", "abc-123"))
         .with_field(field::i64("attempt", 2))
         .with_code(AppCode::Service);
-
     assert_eq!(err.code, AppCode::Service);
     let metadata = err.metadata();
     assert_eq!(metadata.len(), 2);
@@ -339,7 +331,6 @@ fn custom_literal_codes_flow_into_responses() {
     let custom = AppCode::new("INVALID_JSON");
     let err = AppError::bad_request("invalid").with_code(custom.clone());
     assert_eq!(err.code, custom);
-
     let response: ErrorResponse = err.into();
     assert_eq!(response.code, custom);
 }
@@ -349,7 +340,6 @@ fn dynamic_codes_flow_into_responses() {
     let custom = AppCode::try_new(String::from("THIRD_PARTY_FAILURE")).expect("valid code");
     let err = AppError::service("down").with_code(custom.clone());
     assert_eq!(err.code, custom);
-
     let response: ErrorResponse = err.into();
     assert_eq!(response.code, custom);
 }
@@ -358,7 +348,6 @@ fn dynamic_codes_flow_into_responses() {
 #[test]
 fn with_details_json_attaches_payload() {
     use serde_json::json;
-
     let payload = json!({"field": "email"});
     let err = AppError::validation("invalid").with_details_json(payload.clone());
     assert_eq!(err.details, Some(payload));
@@ -368,9 +357,7 @@ fn with_details_json_attaches_payload() {
 #[test]
 fn with_details_serialization_failure_is_bad_request() {
     use serde::{Serialize, Serializer};
-
     struct Failing;
-
     impl Serialize for Failing {
         fn serialize<S>(&self, _: S) -> Result<S::Ok, S::Error>
         where
@@ -379,7 +366,6 @@ fn with_details_serialization_failure_is_bad_request() {
             Err(serde::ser::Error::custom("nope"))
         }
     }
-
     let err = AppError::internal("boom")
         .with_details(Failing)
         .expect_err("should fail");
@@ -398,7 +384,6 @@ fn context_with_preserves_default_redaction() {
     let err = super::Context::new(AppErrorKind::Service)
         .with(field::str("request_id", "abc-123"))
         .into_error(DummyError);
-
     let metadata = err.metadata();
     assert_eq!(metadata.len(), 1);
     assert_eq!(
@@ -414,7 +399,6 @@ fn context_redact_field_overrides_policy() {
         .with(field::str("token", "super-secret"))
         .redact_field("token", FieldRedaction::Redact)
         .into_error(DummyError);
-
     let metadata = err.metadata();
     assert_eq!(
         metadata.get("token"),
@@ -429,7 +413,6 @@ fn context_redact_field_before_insertion_applies_policy() {
         .redact_field("token", FieldRedaction::Hash)
         .with(field::str("token", "super-secret"))
         .into_error(DummyError);
-
     let metadata = err.metadata();
     assert_eq!(
         metadata.get("token"),
@@ -443,7 +426,6 @@ fn context_redact_field_mut_applies_policies() {
     let mut context = super::Context::new(AppErrorKind::Service);
     let _ = context.redact_field_mut("token", FieldRedaction::Hash);
     context = context.with(field::str("token", "super-secret"));
-
     let err = context.into_error(DummyError);
     let metadata = err.metadata();
     assert_eq!(
@@ -460,7 +442,6 @@ fn context_with_uses_latest_matching_policy() {
         .redact_field("token", FieldRedaction::Redact)
         .with(field::str("token", "super-secret"))
         .into_error(DummyError);
-
     let metadata = err.metadata();
     assert_eq!(
         metadata.get("token"),
@@ -474,7 +455,6 @@ fn app_error_redact_field_updates_metadata() {
     let err = AppError::internal("boom")
         .with_field(field::str("api_key", "key"))
         .redact_field("api_key", FieldRedaction::Hash);
-
     assert_eq!(
         err.metadata().redaction("api_key"),
         Some(FieldRedaction::Hash)
@@ -500,9 +480,7 @@ impl StdError for DummyError {}
 fn source_is_preserved_without_extra_allocation() {
     let source = Arc::new(DummyError);
     let err = AppError::internal("boom").with_source_arc(source.clone());
-
     assert_eq!(Arc::strong_count(&source), 2);
-
     let stored = err.source_ref().expect("source");
     let stored_dummy = stored
         .downcast_ref::<DummyError>()
@@ -516,19 +494,16 @@ fn error_chain_is_preserved() {
     struct NestedError {
         inner: DummyError
     }
-
     impl Display for NestedError {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             self.inner.fmt(f)
         }
     }
-
     impl StdError for NestedError {
         fn source(&self) -> Option<&(dyn StdError + 'static)> {
             Some(&self.inner)
         }
     }
-
     let err = AppError::internal("boom").with_source(NestedError {
         inner: DummyError
     });
@@ -572,10 +547,9 @@ fn redactable_policy_is_exposed() {
     assert!(matches!(err.edit_policy, MessageEditPolicy::Redact));
 }
 
+/// Smoke test to ensure `log()` is callable; tracing output isn't asserted.
 #[test]
 fn log_uses_kind_and_code() {
-    // Smoke test to ensure the method is callable; tracing output isn't asserted
-    // here.
     let err = AppError::internal("boom");
     err.log();
 }
@@ -584,23 +558,18 @@ fn log_uses_kind_and_code() {
 #[test]
 fn telemetry_emits_single_tracing_event_with_trace_id() {
     let _guard = TELEMETRY_GUARD.lock().expect("telemetry guard");
-
     use telemetry_support::new_recording_dispatch;
     use tracing::{callsite::rebuild_interest_cache, dispatcher};
-
     let (dispatch, events) = new_recording_dispatch();
     let events = events.clone();
-
     dispatcher::with_default(&dispatch, || {
         rebuild_interest_cache();
         log_mdc::insert("trace_id", "trace-123");
         let err = AppError::internal("boom");
         err.log();
         log_mdc::remove("trace_id");
-
         let events = events.lock().expect("events lock");
         assert_eq!(events.len(), 1, "expected exactly one tracing event");
-
         let event = &events[0];
         assert_eq!(event.code.as_deref(), Some(AppCode::Internal.as_str()));
         assert_eq!(event.category.as_deref(), Some("Internal"));
@@ -617,19 +586,15 @@ fn telemetry_emits_single_tracing_event_with_trace_id() {
 #[test]
 fn telemetry_flushes_after_subscriber_install() {
     let _guard = TELEMETRY_GUARD.lock().expect("telemetry guard");
-
     use telemetry_support::new_recording_dispatch;
     use tracing::{callsite::rebuild_interest_cache, dispatcher};
-
     let (dispatch, events) = new_recording_dispatch();
     let events_clone = events.clone();
-
     dispatcher::with_default(&dispatch, || {
         rebuild_interest_cache();
         let err = AppError::internal("boom");
         err.log();
         drop(err);
-
         let events = events_clone.lock().expect("events lock");
         assert_eq!(
             events.len(),
@@ -653,13 +618,11 @@ fn metrics_counter_is_incremented_once() {
     use metrics::{
         Counter, CounterFn, Gauge, Histogram, Key, KeyName, Metadata, Recorder, SharedString, Unit
     };
-
     #[derive(Clone, Debug, Eq, PartialEq, Hash)]
     struct CounterKey {
         name:   String,
         labels: Vec<(String, String)>
     }
-
     impl CounterKey {
         fn new(name: String, labels: Vec<(String, String)>) -> Self {
             Self {
@@ -668,32 +631,26 @@ fn metrics_counter_is_incremented_once() {
             }
         }
     }
-
     type CounterMap = HashMap<CounterKey, u64>;
     type SharedCounterMap = Arc<Mutex<CounterMap>>;
-
     #[derive(Clone)]
     struct MetricsCounterHandle {
         key:    CounterKey,
         counts: SharedCounterMap
     }
-
     impl CounterFn for MetricsCounterHandle {
         fn increment(&self, value: u64) {
             let mut map = self.counts.lock().expect("counter map");
             *map.entry(self.key.clone()).or_default() += value;
         }
-
         fn absolute(&self, value: u64) {
             let mut map = self.counts.lock().expect("counter map");
             map.insert(self.key.clone(), value);
         }
     }
-
     struct CountingRecorder {
         counts: SharedCounterMap
     }
-
     impl Recorder for CountingRecorder {
         fn describe_counter(
             &self,
@@ -702,9 +659,7 @@ fn metrics_counter_is_incremented_once() {
             _description: SharedString
         ) {
         }
-
         fn describe_gauge(&self, _key: KeyName, _unit: Option<Unit>, _description: SharedString) {}
-
         fn describe_histogram(
             &self,
             _key: KeyName,
@@ -712,7 +667,6 @@ fn metrics_counter_is_incremented_once() {
             _description: SharedString
         ) {
         }
-
         fn register_counter(&self, key: &Key, _metadata: &Metadata<'_>) -> Counter {
             let labels = key
                 .labels()
@@ -724,20 +678,15 @@ fn metrics_counter_is_incremented_once() {
                 counts: self.counts.clone()
             }))
         }
-
         fn register_gauge(&self, _key: &Key, _metadata: &Metadata<'_>) -> Gauge {
             Gauge::noop()
         }
-
         fn register_histogram(&self, _key: &Key, _metadata: &Metadata<'_>) -> Histogram {
             Histogram::noop()
         }
     }
-
     use std::sync::OnceLock;
-
     static RECORDER_COUNTS: OnceLock<SharedCounterMap> = OnceLock::new();
-
     let counts = RECORDER_COUNTS
         .get_or_init(|| {
             let counts = Arc::new(Mutex::new(HashMap::new()));
@@ -748,12 +697,9 @@ fn metrics_counter_is_incremented_once() {
             counts
         })
         .clone();
-
     counts.lock().expect("counter map").clear();
-
     let err = AppError::forbidden("denied");
     err.log();
-
     let key = CounterKey::new(
         "error_total".to_owned(),
         vec![
@@ -761,7 +707,6 @@ fn metrics_counter_is_incremented_once() {
             ("category".to_owned(), "Forbidden".to_owned()),
         ]
     );
-
     let counts = counts.lock().expect("counter map");
     assert_eq!(counts.get(&key).copied(), Some(1));
 }
@@ -770,14 +715,13 @@ fn metrics_counter_is_incremented_once() {
 fn result_alias_is_generic() {
     let default_result: super::AppResult<u8> = Ok(1);
     let custom_result: super::AppResult<u8, &'static str> = Ok(2);
-
     assert!(matches!(default_result, Ok(value) if value == 1));
     assert!(matches!(custom_result, Ok(value) if value == 2));
 }
 
 #[test]
 fn app_error_fits_result_budget() {
-    let size = std::mem::size_of::<AppError>();
+    let size = size_of::<AppError>();
     assert!(
         size <= 128,
         "AppError grew to {size} bytes; keep the Err variant lean"
@@ -789,10 +733,8 @@ fn app_error_fits_result_budget() {
 fn error_chain_iterates_through_sources() {
     let io_err = IoError::other("disk offline");
     let app_err = AppError::internal("db down").with_context(io_err);
-
     let chain: Vec<_> = app_err.chain().collect();
     assert_eq!(chain.len(), 2);
-
     let first_err = chain[0].to_string();
     assert!(
         first_err.contains("Internal")
@@ -811,7 +753,6 @@ fn error_chain_iterates_through_sources() {
 fn error_chain_single_error() {
     let err = AppError::bad_request("missing field");
     let chain: Vec<_> = err.chain().collect();
-
     assert_eq!(chain.len(), 1);
     let err_str = chain[0].to_string();
     assert!(err_str.contains("Bad") || err_str.contains("BAD"));
@@ -828,7 +769,6 @@ fn error_chain_multiple_sources() {
     let root = IoError::new(IoErrorKind::NotFound, "file not found");
     let wrapped = IoError::other(format!("config error: {}", root));
     let app_err = AppError::internal("startup failed").with_context(wrapped);
-
     let chain: Vec<_> = app_err.chain().collect();
     assert_eq!(chain.len(), 2);
 }
@@ -838,7 +778,6 @@ fn error_chain_multiple_sources() {
 fn root_cause_returns_deepest_error() {
     let io_err = IoError::other("disk offline");
     let app_err = AppError::internal("db down").with_context(io_err);
-
     let root = app_err.root_cause();
     assert_eq!(root.to_string(), "disk offline");
 }
@@ -849,7 +788,6 @@ fn root_cause_returns_self_when_no_source() {
     let err = AppError::timeout("operation timed out");
     let root = err.root_cause();
     let root_str = root.to_string();
-
     assert!(
         root_str.contains("timed out")
             || root_str.contains("TIMEOUT")
@@ -866,9 +804,7 @@ fn root_cause_returns_self_when_no_source() {
 fn is_checks_source_type() {
     let io_err = IoError::other("disk offline");
     let app_err = AppError::internal("db down").with_context(io_err);
-
     assert!(app_err.is::<IoError>());
-
     let anyhow_err = anyhow::anyhow!("test error");
     let anyhow_app_err = AppError::internal("wrapped").with_context(AnyhowSource(anyhow_err));
     assert!(!anyhow_app_err.is::<IoError>());
@@ -878,7 +814,6 @@ fn is_checks_source_type() {
 #[cfg(feature = "std")]
 fn is_returns_false_when_no_source() {
     let err = AppError::not_found("user not found");
-
     assert!(!err.is::<IoError>());
     assert!(!err.is::<AnyhowSource>());
 }
@@ -888,7 +823,6 @@ fn is_returns_false_when_no_source() {
 fn downcast_ref_retrieves_source() {
     let io_err = IoError::other("disk offline");
     let app_err = AppError::internal("db down").with_context(io_err);
-
     let retrieved = app_err.downcast_ref::<IoError>().expect("should downcast");
     assert_eq!(retrieved.to_string(), "disk offline");
 }
@@ -898,7 +832,6 @@ fn downcast_ref_retrieves_source() {
 fn downcast_ref_returns_none_when_wrong_type() {
     let io_err = IoError::other("disk offline");
     let app_err = AppError::internal("db down").with_context(io_err);
-
     assert!(app_err.downcast_ref::<AnyhowSource>().is_none());
 }
 
@@ -914,7 +847,6 @@ fn downcast_ref_returns_none_when_no_source() {
 fn colored_display_bare_error_without_message() {
     let err = AppError::bare(AppErrorKind::Internal);
     let output = format!("{}", err);
-
     assert!(output.contains("Internal server error"));
     assert!(output.contains("Code:"));
     assert!(output.contains("INTERNAL"));
@@ -924,25 +856,21 @@ fn colored_display_bare_error_without_message() {
 #[cfg(feature = "colored")]
 fn colored_display_deep_error_chain() {
     use crate::field;
-
     #[derive(Debug)]
     struct CustomError {
         msg:    String,
         source: Option<IoError>
     }
-
     impl Display for CustomError {
         fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
             write!(f, "{}", self.msg)
         }
     }
-
     impl StdError for CustomError {
         fn source(&self) -> Option<&(dyn StdError + 'static)> {
             self.source.as_ref().map(|e| e as &(dyn StdError + 'static))
         }
     }
-
     let root = IoError::other("disk full");
     let mid = CustomError {
         msg:    "write failed".to_string(),
@@ -951,9 +879,7 @@ fn colored_display_deep_error_chain() {
     let top = AppError::internal("operation failed")
         .with_context(mid)
         .with_field(field::str("operation", "backup"));
-
     let output = format!("{}", top);
-
     assert!(output.contains("Internal server error"));
     assert!(output.contains("INTERNAL"));
     assert!(output.contains("operation failed"));
@@ -969,18 +895,14 @@ fn colored_display_deep_error_chain() {
 #[cfg(feature = "std")]
 fn with_metadata_replaces_all_metadata() {
     use crate::{Metadata, field};
-
     let err = AppError::internal("test")
         .with_field(field::str("key1", "value1"))
         .with_field(field::u64("key2", 42));
-
     let new_metadata = Metadata::from_fields(vec![
         field::str("new_key", "new_value"),
         field::u64("count", 100),
     ]);
-
     let err = err.with_metadata(new_metadata);
-
     let metadata = err.metadata();
     assert!(metadata.get("new_key").is_some());
     assert!(metadata.get("count").is_some());
@@ -993,11 +915,9 @@ fn with_metadata_replaces_all_metadata() {
 fn with_context_handles_arc_source() {
     let io_err = IoError::other("network down");
     let arc_source: Arc<dyn StdError + Send + Sync + 'static> = Arc::new(io_err);
-
     let err1 = AppError::internal("first")
         .with_context(Arc::clone(&arc_source) as Arc<dyn StdError + Send + Sync>);
     let err2 = AppError::internal("second").with_context(arc_source);
-
     assert!(err1.source_ref().is_some());
     assert!(err2.source_ref().is_some());
     assert_eq!(err1.source_ref().unwrap().to_string(), "network down");
@@ -1010,9 +930,7 @@ fn with_context_handles_boxed_arc_downcast() {
     let io_err = IoError::other("boxed arc");
     let arc_source: Arc<dyn StdError + Send + Sync + 'static> = Arc::new(io_err);
     let boxed_arc: Box<Arc<dyn StdError + Send + Sync + 'static>> = Box::new(arc_source);
-
     let err = AppError::internal("test").with_context(*boxed_arc);
-
     assert!(err.source_ref().is_some());
     assert_eq!(err.source_ref().unwrap().to_string(), "boxed arc");
 }
@@ -1213,7 +1131,6 @@ fn cache_constructor_creates_correct_kind() {
 fn constructors_accept_empty_strings() {
     let err = AppError::internal("");
     assert_eq!(err.message.as_deref(), Some(""));
-
     let err = AppError::validation("");
     assert_eq!(err.message.as_deref(), Some(""));
 }
@@ -1222,7 +1139,6 @@ fn constructors_accept_empty_strings() {
 fn constructors_accept_unicode_messages() {
     let err = AppError::not_found("リソースが見つかりません");
     assert_eq!(err.message.as_deref(), Some("リソースが見つかりません"));
-
     let err = AppError::validation("Неверный ввод");
     assert_eq!(err.message.as_deref(), Some("Неверный ввод"));
 }

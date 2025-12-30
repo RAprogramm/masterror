@@ -34,16 +34,12 @@ fn readme_is_in_sync() -> Result<(), Box<dyn Error>> {
     let manifest_path = manifest_dir.join("Cargo.toml");
     let template_path = manifest_dir.join("README.template.md");
     let readme_path = manifest_dir.join("README.md");
-
     let generated = readme::generate_readme(&manifest_path, &template_path)?;
     let actual = fs::read_to_string(&readme_path)?;
-
     if actual != generated {
-        // Use std::io::Error::other to satisfy clippy::io-other-error
         let msg = "README.md is out of date; run `cargo build` to regenerate";
         return Err(io::Error::other(msg).into());
     }
-
     Ok(())
 }
 
@@ -53,12 +49,10 @@ fn verify_readme_succeeds_when_in_sync() -> Result<(), Box<dyn Error>> {
     let manifest_path = tmp.path().join("Cargo.toml");
     let template_path = tmp.path().join("README.template.md");
     let readme_path = tmp.path().join("README.md");
-
     fs::write(&manifest_path, MINIMAL_MANIFEST)?;
     fs::write(&template_path, MINIMAL_TEMPLATE)?;
     let generated = readme::generate_readme(&manifest_path, &template_path)?;
     fs::write(&readme_path, generated)?;
-
     readme::verify_readme(tmp.path()).map_err(|err| io::Error::other(err.to_string()))?;
     Ok(())
 }
@@ -69,11 +63,9 @@ fn verify_readme_detects_out_of_sync() -> Result<(), Box<dyn Error>> {
     let manifest_path = tmp.path().join("Cargo.toml");
     let template_path = tmp.path().join("README.template.md");
     let readme_path = tmp.path().join("README.md");
-
     fs::write(&manifest_path, MINIMAL_MANIFEST)?;
     fs::write(&template_path, MINIMAL_TEMPLATE)?;
     fs::write(&readme_path, "outdated")?;
-
     match readme::verify_readme(tmp.path()) {
         Err(readme::ReadmeError::OutOfSync {
             path

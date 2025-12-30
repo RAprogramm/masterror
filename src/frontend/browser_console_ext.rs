@@ -118,7 +118,6 @@ impl BrowserConsoleExt for ErrorResponse {
                 message: err.to_string()
             })
         }
-
         #[cfg(not(target_arch = "wasm32"))]
         {
             Err(BrowserConsoleError::UnsupportedTarget)
@@ -133,7 +132,6 @@ impl BrowserConsoleExt for AppError {
             let response: ErrorResponse = self.into();
             response.to_js_value()
         }
-
         #[cfg(not(target_arch = "wasm32"))]
         {
             Err(BrowserConsoleError::UnsupportedTarget)
@@ -149,34 +147,28 @@ fn log_js_value(value: &JsValue) -> AppResult<(), BrowserConsoleError> {
             message: format_js_value(&err)
         }
     })?;
-
     if console.is_undefined() || console.is_null() {
         return Err(BrowserConsoleError::ConsoleUnavailable {
             message: "console is undefined".into()
         });
     }
-
     let error_fn = Reflect::get(&console, &JsValue::from_str("error")).map_err(|err| {
         BrowserConsoleError::ConsoleErrorUnavailable {
             message: format_js_value(&err)
         }
     })?;
-
     if error_fn.is_undefined() || error_fn.is_null() {
         return Err(BrowserConsoleError::ConsoleErrorUnavailable {
             message: "console.error is undefined".into()
         });
     }
-
     let func = error_fn
         .dyn_into::<Function>()
         .map_err(|_| BrowserConsoleError::ConsoleMethodNotCallable)?;
-
     func.call1(&console, value)
         .map_err(|err| BrowserConsoleError::ConsoleInvocation {
             message: format_js_value(&err)
         })?;
-
     Ok(())
 }
 

@@ -66,7 +66,6 @@ fn build_context(err: &SjError) -> Context {
         }
     }
     .with(field::str("serde_json.category", format!("{:?}", category)));
-
     let line = err.line();
     if line != 0 {
         let value = u64::try_from(line).unwrap_or(u64::MAX);
@@ -83,7 +82,6 @@ fn build_context(err: &SjError) -> Context {
             format!("{line}:{column}")
         ));
     }
-
     context
 }
 
@@ -99,17 +97,14 @@ mod tests {
     #[test]
     fn io_maps_to_serialization() {
         struct FailWriter;
-
         impl Write for FailWriter {
             fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
                 Err(io::Error::other("fail"))
             }
-
             fn flush(&mut self) -> io::Result<()> {
                 Ok(())
             }
         }
-
         let err = serde_json::to_writer(FailWriter, &json!({"k": "v"})).unwrap_err();
         let app: Error = err.into();
         assert!(matches!(app.kind, AppErrorKind::Serialization));

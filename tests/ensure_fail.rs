@@ -14,7 +14,6 @@ fn ensure_allows_success_path() {
         masterror::ensure!(flag, AppError::bad_request("flag required"));
         Ok("ok")
     }
-
     assert_eq!(run(true).unwrap(), "ok");
 }
 
@@ -24,16 +23,13 @@ fn ensure_yields_error_once() {
         CALLS.fetch_add(1, Ordering::SeqCst);
         AppError::service("bounded")
     }
-
     fn run(flag: bool) -> AppResult<()> {
         masterror::ensure!(cond = flag, else = build_error());
         Ok(())
     }
-
     CALLS.store(0, Ordering::SeqCst);
     assert!(run(false).is_err());
     assert_eq!(CALLS.load(Ordering::SeqCst), 1);
-
     CALLS.store(0, Ordering::SeqCst);
     assert!(run(true).is_ok());
     assert_eq!(CALLS.load(Ordering::SeqCst), 0);
@@ -45,7 +41,6 @@ fn ensure_preserves_error_kind() {
         masterror::ensure!(flag, AppError::unauthorized("token expired"));
         Ok(())
     }
-
     let err = run(false).unwrap_err();
     assert!(matches!(err.kind, AppErrorKind::Unauthorized));
 }
@@ -55,7 +50,6 @@ fn fail_returns_error() {
     fn run() -> AppResult<()> {
         masterror::fail!(AppError::forbidden("admin only"));
     }
-
     let err = run().unwrap_err();
     assert!(matches!(err.kind, AppErrorKind::Forbidden));
 }
@@ -71,11 +65,9 @@ fn macros_work_with_custom_error_types() {
         masterror::ensure!(flag, CustomError("custom failure"));
         Ok("ok")
     }
-
     fn bail() -> CustomResult<()> {
         masterror::fail!(CustomError("fail"));
     }
-
     assert_eq!(guard(true).unwrap(), "ok");
     assert_eq!(guard(false).unwrap_err(), CustomError("custom failure"));
     assert_eq!(bail().unwrap_err(), CustomError("fail"));

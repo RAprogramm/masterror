@@ -23,12 +23,10 @@ fn main() {
     let app_missing: AppError = missing.into();
     assert!(matches!(app_missing.kind, AppErrorKind::NotFound));
     assert_eq!(app_missing.message.as_deref(), Some("missing resource 7"));
-
     let backend = ApiError::Backend;
     let app_backend: AppError = backend.into();
     assert!(matches!(app_backend.kind, AppErrorKind::Service));
     assert!(app_backend.message.is_none());
-
     let code: AppCode = ApiError::Backend.into();
     assert_eq!(code, AppCode::Service);
 }

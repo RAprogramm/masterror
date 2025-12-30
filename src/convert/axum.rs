@@ -58,7 +58,6 @@ impl AppError {
     /// `AppErrorKind::http_status()` mapping.
     #[inline]
     pub fn http_status(&self) -> StatusCode {
-        // `kind` is a field, not a method.
         self.kind.status_code()
     }
 }
@@ -85,9 +84,7 @@ mod tests {
     #[test]
     fn http_status_maps_from_kind() {
         let e = AppError::forbidden("nope");
-        // sanity: kind -> 403
         assert_eq!(e.http_status(), StatusCode::FORBIDDEN);
-
         let e = AppError::validation("bad");
         assert_eq!(e.http_status(), StatusCode::UNPROCESSABLE_ENTITY);
     }
@@ -101,40 +98,33 @@ mod tests {
             http::header::{CONTENT_TYPE, RETRY_AFTER, WWW_AUTHENTICATE},
             response::IntoResponse
         };
-
         let app_err = AppError::unauthorized("missing token")
             .with_retry_after_secs(7)
             .with_www_authenticate("Bearer realm=\"api\"");
         let resp = app_err.into_response();
-
         assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
-
         let content_type = resp
             .headers()
             .get(CONTENT_TYPE)
             .and_then(|value| value.to_str().ok())
             .expect("content-type header");
         assert_eq!(content_type, "application/problem+json");
-
         let retry_after = resp
             .headers()
             .get(RETRY_AFTER)
             .and_then(|value| value.to_str().ok())
             .expect("retry-after header");
         assert_eq!(retry_after, "7");
-
         let www_authenticate = resp
             .headers()
             .get(WWW_AUTHENTICATE)
             .and_then(|value| value.to_str().ok())
             .expect("www-authenticate header");
         assert_eq!(www_authenticate, "Bearer realm=\"api\"");
-
         let bytes = to_bytes(resp.into_body(), usize::MAX)
             .await
             .expect("read body");
         let body: serde_json::Value = serde_json::from_slice(&bytes).expect("json body");
-
         assert_eq!(
             body.get("status").and_then(|value| value.as_u64()),
             Some(401)
@@ -158,17 +148,13 @@ mod tests {
     #[tokio::test]
     async fn redacted_errors_hide_detail() {
         use axum::{body::to_bytes, response::IntoResponse};
-
         let app_err = AppError::internal("secret").redactable();
         let resp = app_err.into_response();
-
         assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
-
         let bytes = to_bytes(resp.into_body(), usize::MAX)
             .await
             .expect("read body");
         let body: serde_json::Value = serde_json::from_slice(&bytes).expect("json body");
-
         assert!(body.get("detail").is_none());
         assert!(body.get("metadata").is_none());
     }

@@ -13,8 +13,6 @@ fn main() {
     println!("Step 2: Add #[app_error(...)] for HTTP/gRPC mapping");
     println!("Step 3: Use AppError with structured metadata");
     println!();
-
-    // Demonstrate AppError with structured metadata
     match find_user("alice") {
         Ok(()) => println!("User found"),
         Err(e) => println!("Error: {e}")

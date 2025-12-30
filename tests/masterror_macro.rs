@@ -68,9 +68,7 @@ fn struct_masterror_conversion_populates_metadata_and_source() {
         attempt: Some(3),
         source:  Some(source)
     };
-
     let converted: MasterrorError = err.into();
-
     assert_eq!(converted.code, AppCode::NotFound);
     assert_eq!(converted.kind, AppErrorKind::NotFound);
     assert_eq!(converted.edit_policy, MessageEditPolicy::Redact);
@@ -80,7 +78,6 @@ fn struct_masterror_conversion_populates_metadata_and_source() {
             .as_deref()
             .is_some_and(|message| message.contains("beta"))
     );
-
     let user_id = converted
         .metadata()
         .get("user_id")
@@ -89,7 +86,6 @@ fn struct_masterror_conversion_populates_metadata_and_source() {
             _ => None
         });
     assert_eq!(user_id, Some("alice"));
-
     let attempt = converted
         .metadata()
         .get("attempt")
@@ -98,11 +94,9 @@ fn struct_masterror_conversion_populates_metadata_and_source() {
             _ => None
         });
     assert_eq!(attempt, Some(3));
-
     assert!(converted.source_ref().is_some());
     let converted_source = StdError::source(&converted).expect("masterror source");
     assert!(converted_source.is::<std::io::Error>());
-
     assert_eq!(
         MissingFlag::HTTP_MAPPING,
         HttpMapping::new(AppCode::NotFound, AppErrorKind::NotFound)
@@ -112,11 +106,9 @@ fn struct_masterror_conversion_populates_metadata_and_source() {
         Some(FieldRedaction::Hash)
     );
     assert_eq!(MissingFlag::HTTP_MAPPING.status(), 404);
-
     let grpc = MissingFlag::GRPC_MAPPING.expect("grpc mapping");
     assert_eq!(grpc.status(), 5);
     assert_eq!(grpc.kind(), AppErrorKind::NotFound);
-
     let problem = MissingFlag::PROBLEM_MAPPING.expect("problem mapping");
     assert_eq!(problem.type_uri(), "https://errors.example.com/not-found");
 }
@@ -128,7 +120,6 @@ fn enum_masterror_conversion_handles_variants() {
         details: "missing field",
         _source: io_error
     };
-
     let converted: MasterrorError = payload.into();
     assert_eq!(converted.code, AppCode::BadRequest);
     assert_eq!(converted.kind, AppErrorKind::BadRequest);
@@ -136,19 +127,16 @@ fn enum_masterror_conversion_handles_variants() {
         |value| matches!(value, masterror::FieldValue::Str(detail) if detail == "missing field")
     ));
     assert!(converted.source_ref().is_some());
-
     let offline: MasterrorError = ApiError::StorageOffline.into();
     assert_eq!(offline.code, AppCode::Service);
     assert_eq!(offline.kind, AppErrorKind::Service);
     assert!(offline.metadata().is_empty());
-
     assert_eq!(ApiError::HTTP_MAPPINGS.len(), 2);
     assert!(
         ApiError::HTTP_MAPPINGS
             .iter()
             .any(|mapping| mapping.kind() == AppErrorKind::BadRequest)
     );
-
     assert_eq!(
         ApiError::GRPC_MAPPINGS,
         &[GrpcMapping::new(
@@ -157,7 +145,6 @@ fn enum_masterror_conversion_handles_variants() {
             14
         )]
     );
-
     assert_eq!(
         ApiError::PROBLEM_MAPPINGS,
         &[ProblemMapping::new(
@@ -175,9 +162,7 @@ fn masterror_preserves_arc_source_without_extra_clone() {
         source: source.clone()
     }
     .into();
-
     assert_eq!(Arc::strong_count(&source), 2);
-
     let stored = converted
         .source_ref()
         .and_then(|src| src.downcast_ref::<ArcLeafError>())

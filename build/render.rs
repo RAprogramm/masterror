@@ -37,13 +37,11 @@ pub(crate) fn render_readme(
     let feature_bullets = render_feature_bullets(features);
     let feature_snippet = render_feature_snippet(features, snippet_group);
     let conversion_bullets = render_conversion_bullets(conversions);
-
     let mut rendered = template.replace("{{CRATE_VERSION}}", version);
     rendered = rendered.replace("{{MSRV}}", rust_version);
     rendered = rendered.replace("{{FEATURE_BULLETS}}", &feature_bullets);
     rendered = rendered.replace("{{FEATURE_SNIPPET}}", &feature_snippet);
     rendered = rendered.replace("{{CONVERSION_BULLETS}}", &conversion_bullets);
-
     if let Some(name) = find_placeholder(&rendered) {
         return Err(ReadmeError::UnresolvedPlaceholder(name));
     }
@@ -189,9 +187,7 @@ mod tests {
                 extra:       vec!["Requires Tokio runtime".to_string()]
             },
         ];
-
         let result = render_feature_bullets(&features);
-
         assert!(result.contains("- `actix` — Actix-web integration"));
         assert!(result.contains("- `axum` — Axum integration"));
         assert!(result.contains("  - Requires Tokio runtime"));
@@ -210,9 +206,7 @@ mod tests {
             "std::io::Error → AppError::Internal".to_string(),
             "String → AppError::BadRequest".to_string(),
         ];
-
         let result = render_conversion_bullets(&conversions);
-
         assert_eq!(
             result,
             "- std::io::Error → AppError::Internal\n- String → AppError::BadRequest"
@@ -245,9 +239,7 @@ mod tests {
                 extra:       vec![]
             },
         ];
-
         let result = render_feature_snippet(&features, 2);
-
         assert!(result.contains("\"feat1\", \"feat2\","));
         assert!(result.contains("\"feat3\""));
     }
@@ -268,7 +260,6 @@ mod tests {
             extra:       vec![]
         }];
         let conversions = vec!["Error → AppError".to_string()];
-
         let result = render_readme(template, "1.0.0", "1.70", &features, 4, &conversions);
         assert!(result.is_ok());
         let rendered = result.unwrap();
@@ -284,7 +275,6 @@ mod tests {
         let template = "{{CRATE_VERSION}} {{UNKNOWN}}";
         let features = vec![];
         let conversions = vec![];
-
         let result = render_readme(template, "1.0.0", "1.70", &features, 4, &conversions);
         assert!(result.is_err());
         assert!(matches!(

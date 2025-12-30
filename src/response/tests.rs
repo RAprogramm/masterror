@@ -39,7 +39,6 @@ fn with_retry_and_www_authenticate_attach_metadata() {
 #[test]
 fn with_retry_after_duration_attaches_advice() {
     use std::time::Duration;
-
     let e = ErrorResponse::new(429, AppCode::RateLimited, "slow down")
         .expect("status")
         .with_retry_after_duration(Duration::from_secs(42));
@@ -65,7 +64,6 @@ fn with_retry_after_secs_large_value() {
 #[test]
 fn with_retry_after_duration_zero() {
     use std::time::Duration;
-
     let e = ErrorResponse::new(503, AppCode::Internal, "unavailable")
         .expect("status")
         .with_retry_after_duration(Duration::from_secs(0));
@@ -75,7 +73,6 @@ fn with_retry_after_duration_zero() {
 #[test]
 fn with_retry_after_duration_subsecond_rounds_down() {
     use std::time::Duration;
-
     let e = ErrorResponse::new(503, AppCode::Internal, "unavailable")
         .expect("status")
         .with_retry_after_duration(Duration::from_millis(999));
@@ -126,13 +123,11 @@ fn with_www_authenticate_special_characters() {
 #[test]
 fn metadata_methods_are_chainable() {
     use std::time::Duration;
-
     let e = ErrorResponse::new(503, AppCode::Internal, "unavailable")
         .expect("status")
         .with_retry_after_duration(Duration::from_secs(30))
         .with_www_authenticate("Bearer")
         .with_retry_after_secs(60);
-
     assert_eq!(e.retry.unwrap().after_seconds, 60);
     assert_eq!(e.www_authenticate.as_deref(), Some("Bearer"));
 }
@@ -158,10 +153,8 @@ fn with_www_authenticate_overwrites_previous() {
 #[test]
 fn status_code_maps_invalid_to_internal_server_error() {
     use http::StatusCode;
-
     let valid = ErrorResponse::new(404, AppCode::NotFound, "missing").expect("status");
     assert_eq!(valid.status_code(), StatusCode::NOT_FOUND);
-
     let invalid = ErrorResponse {
         status:           1000,
         code:             AppCode::Internal,
@@ -192,10 +185,8 @@ fn details_json_are_attached() {
 fn custom_codes_roundtrip_via_json() {
     let custom = AppCode::new("INVALID_JSON");
     let response = ErrorResponse::new(400, custom.clone(), "invalid body").expect("status");
-
     let json = serde_json::to_string(&response).expect("serialize");
     let decoded: ErrorResponse = serde_json::from_str(&json).expect("decode");
-
     assert_eq!(decoded.code, custom);
     assert_eq!(decoded.code.as_str(), "INVALID_JSON");
 }
@@ -205,19 +196,16 @@ fn custom_codes_roundtrip_via_json() {
 fn with_details_serializes_custom_struct() {
     use serde::Serialize;
     use serde_json::json;
-
     #[derive(Serialize)]
     struct Extra {
         value: i32
     }
-
     let resp = ErrorResponse::new(400, AppCode::BadRequest, "bad")
         .expect("status")
         .with_details(Extra {
             value: 7
         })
         .expect("details");
-
     assert_eq!(resp.details.unwrap(), json!({"value": 7}));
 }
 
@@ -225,9 +213,7 @@ fn with_details_serializes_custom_struct() {
 #[test]
 fn with_details_propagates_serialization_errors() {
     use serde::{Serialize, Serializer};
-
     struct Failing;
-
     impl Serialize for Failing {
         fn serialize<S>(&self, _: S) -> Result<S::Ok, S::Error>
         where
@@ -236,7 +222,6 @@ fn with_details_propagates_serialization_errors() {
             Err(serde::ser::Error::custom("nope"))
         }
     }
-
     let err = ErrorResponse::new(400, AppCode::BadRequest, "bad")
         .expect("status")
         .with_details(Failing)
@@ -258,23 +243,18 @@ fn details_text_are_attached() {
 #[test]
 fn app_error_mappings_propagate_json_details() {
     use serde_json::json;
-
     let payload = json!({"hint": "enable"});
-
     let resp: ErrorResponse = AppError::validation("invalid")
         .with_details_json(payload.clone())
         .into();
     assert_eq!(resp.details, Some(payload.clone()));
-
     let borrowed = AppError::validation("invalid").with_details_json(payload.clone());
     let resp_ref: ErrorResponse = (&borrowed).into();
     assert_eq!(resp_ref.details, Some(payload.clone()));
-
     let problem_owned = ProblemJson::from_app_error(
         AppError::validation("invalid").with_details_json(payload.clone())
     );
     assert_eq!(problem_owned.details, Some(payload.clone()));
-
     let problem_ref = ProblemJson::from_ref(&borrowed);
     assert_eq!(problem_ref.details, Some(payload));
 }
@@ -283,13 +263,11 @@ fn app_error_mappings_propagate_json_details() {
 #[test]
 fn redacted_app_error_strips_json_details() {
     use serde_json::json;
-
     let resp: ErrorResponse = AppError::internal("boom")
         .with_details_json(json!({"private": true}))
         .redactable()
         .into();
     assert!(resp.details.is_none());
-
     let borrowed = AppError::internal("boom")
         .with_details_json(json!({"private": true}))
         .redactable();
@@ -297,7 +275,6 @@ fn redacted_app_error_strips_json_details() {
     assert!(resp_ref.details.is_none());
     let problem = ProblemJson::from_ref(&borrowed);
     assert!(problem.details.is_none());
-
     let owned_problem = ProblemJson::from_app_error(
         AppError::internal("boom")
             .with_details_json(json!({"private": true}))
@@ -313,16 +290,13 @@ fn app_error_mappings_propagate_text_details() {
         .with_details_text("enable feature")
         .into();
     assert_eq!(resp.details.as_deref(), Some("enable feature"));
-
     let borrowed = AppError::validation("invalid").with_details_text("enable feature");
     let resp_ref: ErrorResponse = (&borrowed).into();
     assert_eq!(resp_ref.details.as_deref(), Some("enable feature"));
-
     let problem_owned = ProblemJson::from_app_error(
         AppError::validation("invalid").with_details_text("enable feature")
     );
     assert_eq!(problem_owned.details.as_deref(), Some("enable feature"));
-
     let problem_ref = ProblemJson::from_ref(&borrowed);
     assert_eq!(problem_ref.details.as_deref(), Some("enable feature"));
 }
@@ -335,7 +309,6 @@ fn redacted_app_error_strips_text_details() {
         .redactable()
         .into();
     assert!(resp.details.is_none());
-
     let borrowed = AppError::internal("boom")
         .with_details_text("private")
         .redactable();
@@ -343,7 +316,6 @@ fn redacted_app_error_strips_text_details() {
     assert!(resp_ref.details.is_none());
     let problem = ProblemJson::from_ref(&borrowed);
     assert!(problem.details.is_none());
-
     let owned_problem = ProblemJson::from_app_error(
         AppError::internal("boom")
             .with_details_text("private")
@@ -378,9 +350,7 @@ fn from_owned_app_error_moves_message_and_metadata() {
     let err = AppError::unauthorized(String::from("owned message"))
         .with_retry_after_secs(5)
         .with_www_authenticate("Bearer");
-
     let resp: ErrorResponse = err.into();
-
     assert_eq!(resp.status, 401);
     assert_eq!(resp.code, AppCode::Unauthorized);
     assert_eq!(resp.message, "owned message");
@@ -391,7 +361,6 @@ fn from_owned_app_error_moves_message_and_metadata() {
 #[test]
 fn from_owned_app_error_defaults_message_when_absent() {
     let resp: ErrorResponse = AppError::bare(AppErrorKind::Internal).into();
-
     assert_eq!(resp.status, 500);
     assert_eq!(resp.code, AppCode::Internal);
     assert_eq!(resp.message, AppErrorKind::Internal.label());
@@ -401,7 +370,6 @@ fn from_owned_app_error_defaults_message_when_absent() {
 fn from_app_error_bare_uses_kind_display_as_message() {
     let app = AppError::bare(AppErrorKind::Timeout);
     let resp: ErrorResponse = app.into();
-
     assert_eq!(resp.status, 504);
     assert_eq!(resp.code, AppCode::Timeout);
     assert_eq!(resp.message, AppErrorKind::Timeout.label());
@@ -418,7 +386,6 @@ fn problem_json_fallbacks_borrow_bare_labels() {
         owned.detail,
         Some(Cow::Borrowed(label)) if label == AppErrorKind::Internal.label()
     ));
-
     let borrowed_error = AppError::bare(AppErrorKind::Timeout);
     let borrowed_problem = ProblemJson::from_ref(&borrowed_error);
     assert!(matches!(
@@ -435,9 +402,7 @@ fn problem_json_fallbacks_borrow_bare_labels() {
 fn from_app_error_redacts_message_when_policy_allows() {
     let app = AppError::internal("sensitive").redactable();
     let resp: ErrorResponse = app.into();
-
     assert_eq!(resp.message, AppErrorKind::Internal.label());
-
     let borrowed = AppError::internal("private").redactable();
     let resp_ref: ErrorResponse = (&borrowed).into();
     assert_eq!(resp_ref.message, AppErrorKind::Internal.label());
@@ -448,7 +413,6 @@ fn error_response_serialization_hides_redacted_message() {
     let secret = "super-secret";
     let resp: ErrorResponse = AppError::internal(secret).redactable().into();
     let json = serde_json::to_value(&resp).expect("serialize response");
-
     let fallback = AppErrorKind::Internal.label();
     assert_eq!(
         json.get("message").and_then(|value| value.as_str()),
@@ -502,13 +466,11 @@ fn axum_into_response_sets_headers_and_status() {
         http::header::{RETRY_AFTER, WWW_AUTHENTICATE},
         response::IntoResponse
     };
-
     let resp = ErrorResponse::new(401, AppCode::Unauthorized, "no token")
         .expect("status")
         .with_retry_after_secs(7)
         .with_www_authenticate(r#"Bearer realm="api", error="invalid_token""#)
         .into_response();
-
     assert_eq!(resp.status(), 401);
     let headers = resp.headers();
     let retry_after = headers.get(RETRY_AFTER).expect("Retry-After");
@@ -535,20 +497,13 @@ fn actix_responder_sets_headers_and_status() {
         },
         test::TestRequest
     };
-
-    // Build ErrorResponse with both headers
     let resp = ErrorResponse::new(429, AppCode::RateLimited, "slow down")
         .expect("status")
         .with_retry_after_secs(42)
         .with_www_authenticate("Bearer");
-
-    // Build a minimal HttpRequest for Responder::respond_to
     let req = TestRequest::default().to_http_request();
-
-    // `respond_to` builds HttpResponse synchronously; we can inspect it.
     let http = resp.respond_to(&req);
     assert_eq!(http.status(), StatusCode::TOO_MANY_REQUESTS);
-
     let headers = http.headers();
     let retry_after = headers.get(RETRY_AFTER).expect("Retry-After");
     assert_eq!(retry_after.to_str().expect("ASCII value"), "42");
@@ -569,11 +524,9 @@ fn actix_responder_no_optional_headers_by_default() {
         http::header::{RETRY_AFTER, WWW_AUTHENTICATE},
         test::TestRequest
     };
-
     let resp = ErrorResponse::new(500, AppCode::Internal, "boom").expect("status");
     let req = TestRequest::default().to_http_request();
     let http = resp.respond_to(&req);
-
     let headers = http.headers();
     assert!(headers.get(RETRY_AFTER).is_none());
     assert!(headers.get(WWW_AUTHENTICATE).is_none());
@@ -588,11 +541,9 @@ fn serialized_json_contains_core_fields() {
         .expect("status")
         .with_retry_after_secs(1);
     let s = serde_json::to_string(&e).expect("serialize");
-    // Fast contract sanity checks without tying to exact field order
     assert!(s.contains("\"status\":404"));
     assert!(s.contains("\"code\":\"NOT_FOUND\""));
     assert!(s.contains("\"message\":\"nope\""));
-    // Retry advice is serialized as nested object
     assert!(s.contains("\"retry\""));
     assert!(s.contains("\"after_seconds\":1"));
 }
@@ -602,7 +553,6 @@ fn internal_formatters_are_opt_in() {
     let resp = ErrorResponse::new(404, AppCode::NotFound, "missing").expect("status");
     let formatted = format!("{:?}", resp.internal());
     assert!(formatted.contains("ErrorResponse"));
-
     let problem = ProblemJson::from_ref(&AppError::not_found("missing"));
     let formatted_problem = format!("{:?}", problem.internal());
     assert!(formatted_problem.contains("ProblemJson"));
@@ -612,7 +562,6 @@ fn internal_formatters_are_opt_in() {
 #[test]
 fn app_error_into_response_maps_status() {
     use axum::response::IntoResponse;
-
     let app = AppError::new(AppErrorKind::Unauthorized, "no token");
     let resp = app.into_response();
     assert_eq!(resp.status(), 401);
@@ -679,7 +628,6 @@ fn from_owned_app_error_with_custom_code() {
     let custom = AppCode::new("PAYMENT_FAILED");
     let err = AppError::bad_request("transaction declined").with_code(custom.clone());
     let resp: ErrorResponse = err.into();
-
     assert_eq!(resp.status, 400);
     assert_eq!(resp.code, custom);
     assert_eq!(resp.message, "transaction declined");
@@ -689,7 +637,6 @@ fn from_owned_app_error_with_custom_code() {
 fn from_owned_app_error_with_empty_message() {
     let err = AppError::internal("");
     let resp: ErrorResponse = err.into();
-
     assert_eq!(resp.status, 500);
     assert_eq!(resp.message, "");
 }
@@ -698,7 +645,6 @@ fn from_owned_app_error_with_empty_message() {
 fn from_owned_app_error_with_unicode_message() {
     let err = AppError::not_found("Ошибка поиска");
     let resp: ErrorResponse = err.into();
-
     assert_eq!(resp.status, 404);
     assert_eq!(resp.message, "Ошибка поиска");
 }
@@ -707,7 +653,6 @@ fn from_owned_app_error_with_unicode_message() {
 fn from_owned_app_error_with_special_characters() {
     let err = AppError::validation("Error: \"invalid\" <>&");
     let resp: ErrorResponse = err.into();
-
     assert_eq!(resp.message, "Error: \"invalid\" <>&");
 }
 
@@ -716,7 +661,6 @@ fn from_owned_app_error_transfers_code_ownership() {
     let custom = AppCode::new("DUPLICATE_KEY");
     let err = AppError::conflict("already exists").with_code(custom.clone());
     let resp: ErrorResponse = err.into();
-
     assert_eq!(resp.code, custom);
     assert_eq!(resp.code.as_str(), "DUPLICATE_KEY");
 }
@@ -727,10 +671,8 @@ fn from_owned_app_error_transfers_code_ownership() {
 fn from_borrowed_app_error_preserves_original() {
     let err = AppError::forbidden("access denied");
     let resp: ErrorResponse = (&err).into();
-
     assert_eq!(resp.status, 403);
     assert_eq!(resp.message, "access denied");
-
     assert_eq!(err.message.as_deref(), Some("access denied"));
     assert_eq!(err.kind, AppErrorKind::Forbidden);
 }
@@ -740,9 +682,7 @@ fn from_borrowed_app_error_with_metadata() {
     let err = AppError::rate_limited("slow down")
         .with_retry_after_secs(120)
         .with_www_authenticate("Bearer realm=\"api\"");
-
     let resp: ErrorResponse = (&err).into();
-
     assert_eq!(resp.status, 429);
     assert_eq!(resp.message, "slow down");
     assert_eq!(resp.retry.unwrap().after_seconds, 120);
@@ -750,7 +690,6 @@ fn from_borrowed_app_error_with_metadata() {
         resp.www_authenticate.as_deref(),
         Some("Bearer realm=\"api\"")
     );
-
     assert_eq!(err.retry.unwrap().after_seconds, 120);
     assert_eq!(
         err.www_authenticate.as_deref(),
@@ -763,7 +702,6 @@ fn from_borrowed_app_error_clones_custom_code() {
     let custom = AppCode::new("SESSION_EXPIRED");
     let err = AppError::unauthorized("login again").with_code(custom.clone());
     let resp: ErrorResponse = (&err).into();
-
     assert_eq!(resp.code, custom);
     assert_eq!(err.code, custom);
 }
@@ -772,7 +710,6 @@ fn from_borrowed_app_error_clones_custom_code() {
 fn from_borrowed_app_error_with_empty_message() {
     let err = AppError::timeout("");
     let resp: ErrorResponse = (&err).into();
-
     assert_eq!(resp.status, 504);
     assert_eq!(resp.message, "");
 }
@@ -781,7 +718,6 @@ fn from_borrowed_app_error_with_empty_message() {
 fn from_borrowed_app_error_with_unicode() {
     let err = AppError::validation("無効な入力");
     let resp: ErrorResponse = (&err).into();
-
     assert_eq!(resp.message, "無効な入力");
     assert_eq!(err.message.as_deref(), Some("無効な入力"));
 }
@@ -790,9 +726,7 @@ fn from_borrowed_app_error_with_unicode() {
 fn from_borrowed_app_error_redacts_message() {
     let err = AppError::internal("database password: secret123").redactable();
     let resp: ErrorResponse = (&err).into();
-
     assert_eq!(resp.message, AppErrorKind::Internal.label());
     assert!(!resp.message.contains("secret123"));
-
     assert_eq!(err.message.as_deref(), Some("database password: secret123"));
 }

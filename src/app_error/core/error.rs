@@ -97,18 +97,14 @@ impl Display for Error {
         {
             Display::fmt(&self.kind, f)
         }
-
         #[cfg(feature = "colored")]
         {
             use crate::colored::style;
-
             writeln!(f, "Error: {}", self.kind)?;
             writeln!(f, "Code: {}", style::error_code(self.code.to_string()))?;
-
             if let Some(msg) = &self.message {
                 writeln!(f, "Message: {}", style::error_message(msg))?;
             }
-
             if let Some(source) = &self.source {
                 writeln!(f)?;
                 let mut current: &dyn CoreError = source.as_ref();
@@ -127,7 +123,6 @@ impl Display for Error {
                     }
                 }
             }
-
             if !self.metadata.is_empty() {
                 writeln!(f)?;
                 writeln!(f, "Context:")?;
@@ -135,7 +130,6 @@ impl Display for Error {
                     writeln!(f, "  {}: {}", style::metadata_key(key), value)?;
                 }
             }
-
             Ok(())
         }
     }

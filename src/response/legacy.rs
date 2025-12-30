@@ -142,7 +142,6 @@ mod tests {
             (502, "Bad Gateway"),
             (503, "Service Unavailable"),
         ];
-
         for (status, message) in test_cases {
             let resp = ErrorResponse::new_legacy(status, message);
             assert_eq!(resp.status, status);
@@ -154,11 +153,8 @@ mod tests {
     #[test]
     #[allow(deprecated)]
     fn new_legacy_handles_edge_case_status_codes() {
-        // Minimum valid HTTP status
         let resp = ErrorResponse::new_legacy(100, "continue");
         assert_eq!(resp.status, 100);
-
-        // Maximum valid HTTP status
         let resp = ErrorResponse::new_legacy(599, "custom");
         assert_eq!(resp.status, 599);
     }

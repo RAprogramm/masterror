@@ -24,7 +24,6 @@ fn main() {
         width: 8,
     }
     .to_string();
-
     let _ = DynamicPrecisionError {
         value: 42.4242,
         precision: 3,

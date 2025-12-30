@@ -12,7 +12,6 @@ use crate::input::{
 
 pub fn expand(input: &ErrorInput) -> Result<Vec<TokenStream>, Error> {
     let mut impls = Vec::new();
-
     match &input.data {
         ErrorData::Struct(data) => {
             if let Some(field) = data.fields.first_from_field() {
@@ -27,7 +26,6 @@ pub fn expand(input: &ErrorInput) -> Result<Vec<TokenStream>, Error> {
             }
         }
     }
-
     Ok(impls)
 }
 
@@ -39,9 +37,7 @@ fn struct_from_impl(
     let ident = &input.ident;
     let ty = &field.ty;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
     let constructor = struct_constructor(&data.fields, field)?;
-
     Ok(quote! {
         impl #impl_generics core::convert::From<#ty> for #ident #ty_generics #where_clause {
             fn from(value: #ty) -> Self {
@@ -60,9 +56,7 @@ fn enum_from_impl(
     let ty = &field.ty;
     let variant_ident = &variant.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
     let constructor = variant_constructor(variant_ident, &variant.fields, field)?;
-
     Ok(quote! {
         impl #impl_generics core::convert::From<#ty> for #ident #ty_generics #where_clause {
             fn from(value: #ty) -> Self {
@@ -130,15 +124,12 @@ fn field_value_expr(field: &Field, from_field: &Field) -> Result<TokenStream, Er
     if field.index == from_field.index {
         return Ok(quote! { value });
     }
-
     if field.attrs.has_backtrace() {
         return Ok(backtrace_initializer(field));
     }
-
     if field.attrs.has_source() && field.attrs.from.is_none() {
         return source_initializer(field);
     }
-
     Err(Error::new(
         field.span,
         "deriving From requires no fields other than source and backtrace"
@@ -253,7 +244,6 @@ mod tests {
             masterror: None
         }));
         let input = make_error_input("MyError", data);
-
         let result = expand(&input);
         assert!(result.is_ok());
         let impls = result.unwrap();
@@ -281,7 +271,6 @@ mod tests {
             masterror: None
         }));
         let input = make_error_input("MyError", data);
-
         let result = expand(&input);
         assert!(result.is_ok());
         let impls = result.unwrap();
@@ -305,7 +294,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let from_field2 = make_field(0, None, parse_quote!(String), make_field_attrs_with_from());
         let variant2 = VariantData {
             ident:       syn::Ident::new("Parse", Span::call_site()),
@@ -316,10 +304,8 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let data = ErrorData::Enum(vec![variant1, variant2]);
         let input = make_error_input("MyError", data);
-
         let result = expand(&input);
         assert!(result.is_ok());
         let impls = result.unwrap();
@@ -358,7 +344,6 @@ mod tests {
                 masterror:   None
             }))
         );
-
         let result = struct_from_impl(
             &input,
             &struct_data,
@@ -403,7 +388,6 @@ mod tests {
                 masterror:   None
             }))
         );
-
         let result = struct_from_impl(
             &input,
             &struct_data,
@@ -448,7 +432,6 @@ mod tests {
             span:        Span::call_site()
         };
         let input = make_error_input("MyError", ErrorData::Enum(vec![variant_input]));
-
         let result = enum_from_impl(&input, &variant, variant.fields.iter().next().unwrap());
         assert!(result.is_ok());
         let impl_tokens = result.unwrap().to_string();
@@ -489,7 +472,6 @@ mod tests {
             span:        Span::call_site()
         };
         let input = make_error_input("MyError", ErrorData::Enum(vec![variant_input]));
-
         let result = enum_from_impl(&input, &variant, variant.fields.iter().next().unwrap());
         assert!(result.is_ok());
         let impl_tokens = result.unwrap().to_string();
@@ -512,7 +494,6 @@ mod tests {
             make_field_attrs_with_backtrace()
         );
         let fields = Fields::Named(vec![from_field, backtrace_field]);
-
         let result = struct_constructor(&fields, fields.iter().next().unwrap());
         assert!(result.is_ok());
         let tokens = result.unwrap().to_string();
@@ -530,7 +511,6 @@ mod tests {
             make_field_attrs_with_from()
         );
         let fields = Fields::Unnamed(vec![from_field]);
-
         let result = struct_constructor(&fields, fields.iter().next().unwrap());
         assert!(result.is_ok());
         let tokens = result.unwrap().to_string();
@@ -546,7 +526,6 @@ mod tests {
             make_field_attrs_with_from()
         );
         let fields = Fields::Unit;
-
         let result = struct_constructor(&fields, &from_field);
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -563,7 +542,6 @@ mod tests {
         );
         let fields = Fields::Named(vec![from_field]);
         let variant_ident = syn::Ident::new("Io", Span::call_site());
-
         let result = variant_constructor(&variant_ident, &fields, fields.iter().next().unwrap());
         assert!(result.is_ok());
         let tokens = result.unwrap().to_string();
@@ -587,7 +565,6 @@ mod tests {
         );
         let fields = Fields::Unnamed(vec![from_field, backtrace_field]);
         let variant_ident = syn::Ident::new("Io", Span::call_site());
-
         let result = variant_constructor(&variant_ident, &fields, fields.iter().next().unwrap());
         assert!(result.is_ok());
         let tokens = result.unwrap().to_string();
@@ -604,7 +581,6 @@ mod tests {
         );
         let fields = Fields::Unit;
         let variant_ident = syn::Ident::new("Io", Span::call_site());
-
         let result = variant_constructor(&variant_ident, &fields, &from_field);
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -619,7 +595,6 @@ mod tests {
             parse_quote!(std::io::Error),
             make_field_attrs_with_from()
         );
-
         let result = field_value_expr(&from_field, &from_field);
         assert!(result.is_ok());
         let tokens = result.unwrap().to_string();
@@ -640,7 +615,6 @@ mod tests {
             parse_quote!(std::backtrace::Backtrace),
             make_field_attrs_with_backtrace()
         );
-
         let result = field_value_expr(&backtrace_field, &from_field);
         assert!(result.is_ok());
         let tokens = result.unwrap().to_string();
@@ -661,7 +635,6 @@ mod tests {
             parse_quote!(Option<String>),
             make_field_attrs_with_source()
         );
-
         let result = field_value_expr(&source_field, &from_field);
         assert!(result.is_ok());
         let tokens = result.unwrap().to_string();
@@ -682,7 +655,6 @@ mod tests {
             parse_quote!(String),
             make_field_attrs_with_source()
         );
-
         let result = field_value_expr(&source_field, &from_field);
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -703,7 +675,6 @@ mod tests {
             parse_quote!(String),
             make_field_attrs_plain()
         );
-
         let result = field_value_expr(&plain_field, &from_field);
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -721,7 +692,6 @@ mod tests {
             parse_quote!(Option<String>),
             make_field_attrs_with_source()
         );
-
         let result = source_initializer(&source_field);
         assert!(result.is_ok());
         let tokens = result.unwrap().to_string();
@@ -736,7 +706,6 @@ mod tests {
             parse_quote!(String),
             make_field_attrs_with_source()
         );
-
         let result = source_initializer(&source_field);
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -751,7 +720,6 @@ mod tests {
             parse_quote!(Option<std::backtrace::Backtrace>),
             make_field_attrs_with_backtrace()
         );
-
         let tokens = backtrace_initializer(&backtrace_field);
         let result = tokens.to_string();
         assert!(result.contains("Option :: Some"));
@@ -766,7 +734,6 @@ mod tests {
             parse_quote!(std::backtrace::Backtrace),
             make_field_attrs_with_backtrace()
         );
-
         let tokens = backtrace_initializer(&backtrace_field);
         let result = tokens.to_string();
         assert!(result.contains("Backtrace :: capture"));
@@ -794,7 +761,6 @@ mod tests {
             make_field_attrs_with_source()
         );
         let fields = Fields::Named(vec![from_field, backtrace_field, source_field]);
-
         let result = struct_constructor(&fields, fields.iter().next().unwrap());
         assert!(result.is_ok());
         let tokens = result.unwrap().to_string();
@@ -819,7 +785,6 @@ mod tests {
         );
         let fields = Fields::Unnamed(vec![from_field, backtrace_field]);
         let variant_ident = syn::Ident::new("Io", Span::call_site());
-
         let result = variant_constructor(&variant_ident, &fields, fields.iter().next().unwrap());
         assert!(result.is_ok());
         let tokens = result.unwrap().to_string();
@@ -847,7 +812,6 @@ mod tests {
         };
         let data = ErrorData::Enum(vec![variant]);
         let input = make_error_input("MyError", data);
-
         let result = expand(&input);
         assert!(result.is_ok());
         let impls = result.unwrap();
@@ -887,7 +851,6 @@ mod tests {
             }))
         );
         input.generics = parse_quote!(<T>);
-
         let result = struct_from_impl(
             &input,
             &struct_data,

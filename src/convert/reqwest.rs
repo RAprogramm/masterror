@@ -107,22 +107,18 @@ fn classify_reqwest_error(err: &ReqwestError) -> (Context, Option<u64>) {
         .with(field::bool("reqwest.is_body", err.is_body()))
         .with(field::bool("reqwest.is_decode", err.is_decode()))
         .with(field::bool("reqwest.is_redirect", err.is_redirect()));
-
     let mut retry_after = None;
-
     if err.is_timeout() {
         context = context.category(AppErrorKind::Timeout);
     } else if err.is_connect() || err.is_request() {
         context = context.category(AppErrorKind::Network);
     }
-
     if let Some(status) = err.status() {
         let status_code = u16::from(status);
         context = context.with(field::u64("http.status", u64::from(status_code)));
         if let Some(reason) = status.canonical_reason() {
             context = context.with(field::str("http.status_reason", reason));
         }
-
         context = match status {
             StatusCode::TOO_MANY_REQUESTS => {
                 retry_after = Some(1);
@@ -133,31 +129,25 @@ fn classify_reqwest_error(err: &ReqwestError) -> (Context, Option<u64>) {
             _ => context
         };
     }
-
     if let Some(url) = err.url() {
         context = context
             .with(field::str("http.url", url.to_string()))
             .redact_field("http.url", FieldRedaction::Hash);
-
         if let Some(host) = url.host_str() {
             context = context.with(field::str("http.host", host.to_owned()));
         }
-
         if let Some(port) = url.port() {
             context = context.with(field::u64("http.port", u64::from(port)));
         }
-
         let path = url.path();
         if !path.is_empty() {
             context = context.with(field::str("http.path", path.to_owned()));
         }
-
         let scheme = url.scheme();
         if !scheme.is_empty() {
             context = context.with(field::str("http.scheme", scheme.to_owned()));
         }
     }
-
     (context, retry_after)
 }
 
@@ -177,43 +167,35 @@ mod tests {
             .await
             .expect("bind listener");
         let addr = listener.local_addr().expect("listener addr");
-
         let server = tokio::spawn(async move {
             let (_socket, _) = listener.accept().await.expect("accept");
             sleep(Duration::from_secs(5)).await;
         });
-
         let client = Client::builder()
             .timeout(Duration::from_millis(50))
             .build()
             .expect("client");
-
         let err = client
             .get(format!("http://{addr}"))
             .send()
             .await
             .expect_err("expected timeout");
-
         let app_err: Error = err.into();
         assert_eq!(app_err.kind, AppErrorKind::Timeout);
-
         let metadata = app_err.metadata();
         assert_eq!(
             metadata.get("reqwest.is_timeout"),
             Some(&FieldValue::Bool(true))
         );
         assert_eq!(metadata.redaction("http.url"), Some(FieldRedaction::Hash));
-
         server.abort();
     }
 
     #[tokio::test]
     async fn status_error_maps_retry_and_rate_limit() {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
         let addr = listener.local_addr().expect("addr");
-
         let server = tokio::spawn(async move {
             let (mut socket, _) = listener.accept().await.expect("accept");
             let mut buf = [0_u8; 1024];
@@ -221,7 +203,6 @@ mod tests {
             let response = b"HTTP/1.1 429 Too Many Requests\r\ncontent-length: 0\r\n\r\n";
             let _ = socket.write_all(response).await;
         });
-
         let client = Client::new();
         let response = client
             .get(format!("http://{addr}"))
@@ -229,7 +210,6 @@ mod tests {
             .await
             .expect("send");
         let err = response.error_for_status().expect_err("status error");
-
         let app_err: Error = err.into();
         assert_eq!(app_err.kind, AppErrorKind::RateLimited);
         assert_eq!(app_err.code, AppCode::RateLimited);
@@ -240,17 +220,14 @@ mod tests {
             metadata.get("http.port"),
             Some(&FieldValue::U64(u64::from(addr.port())))
         );
-
         server.abort();
     }
 
     #[tokio::test]
     async fn server_error_maps_to_dependency_unavailable() {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
         let addr = listener.local_addr().expect("addr");
-
         let server = tokio::spawn(async move {
             let (mut socket, _) = listener.accept().await.expect("accept");
             let mut buf = [0_u8; 1024];
@@ -258,7 +235,6 @@ mod tests {
             let response = b"HTTP/1.1 500 Internal Server Error\r\ncontent-length: 0\r\n\r\n";
             let _ = socket.write_all(response).await;
         });
-
         let client = Client::new();
         let response = client
             .get(format!("http://{addr}"))
@@ -266,22 +242,18 @@ mod tests {
             .await
             .expect("send");
         let err = response.error_for_status().expect_err("status error");
-
         let app_err: Error = err.into();
         assert_eq!(app_err.kind, AppErrorKind::DependencyUnavailable);
         let metadata = app_err.metadata();
         assert_eq!(metadata.get("http.status"), Some(&FieldValue::U64(500)));
-
         server.abort();
     }
 
     #[tokio::test]
     async fn request_timeout_status_maps_to_timeout() {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
         let addr = listener.local_addr().expect("addr");
-
         let server = tokio::spawn(async move {
             let (mut socket, _) = listener.accept().await.expect("accept");
             let mut buf = [0_u8; 1024];
@@ -289,7 +261,6 @@ mod tests {
             let response = b"HTTP/1.1 408 Request Timeout\r\ncontent-length: 0\r\n\r\n";
             let _ = socket.write_all(response).await;
         });
-
         let client = Client::new();
         let response = client
             .get(format!("http://{addr}"))
@@ -297,22 +268,18 @@ mod tests {
             .await
             .expect("send");
         let err = response.error_for_status().expect_err("status error");
-
         let app_err: Error = err.into();
         assert_eq!(app_err.kind, AppErrorKind::Timeout);
         let metadata = app_err.metadata();
         assert_eq!(metadata.get("http.status"), Some(&FieldValue::U64(408)));
-
         server.abort();
     }
 
     #[tokio::test]
     async fn client_error_maps_to_external_api() {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
         let addr = listener.local_addr().expect("addr");
-
         let server = tokio::spawn(async move {
             let (mut socket, _) = listener.accept().await.expect("accept");
             let mut buf = [0_u8; 1024];
@@ -320,7 +287,6 @@ mod tests {
             let response = b"HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n";
             let _ = socket.write_all(response).await;
         });
-
         let client = Client::new();
         let response = client
             .get(format!("http://{addr}"))
@@ -328,12 +294,10 @@ mod tests {
             .await
             .expect("send");
         let err = response.error_for_status().expect_err("status error");
-
         let app_err: Error = err.into();
         assert_eq!(app_err.kind, AppErrorKind::ExternalApi);
         let metadata = app_err.metadata();
         assert_eq!(metadata.get("http.status"), Some(&FieldValue::U64(400)));
-
         server.abort();
     }
 
@@ -345,7 +309,6 @@ mod tests {
             .send()
             .await
             .expect_err("connection refused");
-
         let app_err: Error = err.into();
         assert_eq!(app_err.kind, AppErrorKind::Network);
         let metadata = app_err.metadata();
@@ -358,10 +321,8 @@ mod tests {
     #[tokio::test]
     async fn url_metadata_is_captured() {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
         let addr = listener.local_addr().expect("addr");
-
         let server = tokio::spawn(async move {
             let (mut socket, _) = listener.accept().await.expect("accept");
             let mut buf = [0_u8; 1024];
@@ -369,7 +330,6 @@ mod tests {
             let response = b"HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\n\r\n";
             let _ = socket.write_all(response).await;
         });
-
         let client = Client::new();
         let response = client
             .get(format!("http://{addr}/api/v1/test"))
@@ -377,7 +337,6 @@ mod tests {
             .await
             .expect("send");
         let err = response.error_for_status().expect_err("status error");
-
         let app_err: Error = err.into();
         let metadata = app_err.metadata();
         assert_eq!(
@@ -397,17 +356,14 @@ mod tests {
             Some(&FieldValue::Str("http".into()))
         );
         assert_eq!(metadata.redaction("http.url"), Some(FieldRedaction::Hash));
-
         server.abort();
     }
 
     #[tokio::test]
     async fn status_reason_is_captured() {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
         let addr = listener.local_addr().expect("addr");
-
         let server = tokio::spawn(async move {
             let (mut socket, _) = listener.accept().await.expect("accept");
             let mut buf = [0_u8; 1024];
@@ -415,7 +371,6 @@ mod tests {
             let response = b"HTTP/1.1 403 Forbidden\r\ncontent-length: 0\r\n\r\n";
             let _ = socket.write_all(response).await;
         });
-
         let client = Client::new();
         let response = client
             .get(format!("http://{addr}"))
@@ -423,14 +378,12 @@ mod tests {
             .await
             .expect("send");
         let err = response.error_for_status().expect_err("status error");
-
         let app_err: Error = err.into();
         let metadata = app_err.metadata();
         assert_eq!(
             metadata.get("http.status_reason"),
             Some(&FieldValue::Str("Forbidden".into()))
         );
-
         server.abort();
     }
 
@@ -442,10 +395,8 @@ mod tests {
             .send()
             .await
             .expect_err("connection refused");
-
         let app_err: Error = err.into();
         let metadata = app_err.metadata();
-
         assert!(metadata.get("reqwest.is_timeout").is_some());
         assert!(metadata.get("reqwest.is_connect").is_some());
         assert!(metadata.get("reqwest.is_request").is_some());
@@ -458,10 +409,8 @@ mod tests {
     #[tokio::test]
     async fn service_unavailable_maps_correctly() {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
         let addr = listener.local_addr().expect("addr");
-
         let server = tokio::spawn(async move {
             let (mut socket, _) = listener.accept().await.expect("accept");
             let mut buf = [0_u8; 1024];
@@ -469,7 +418,6 @@ mod tests {
             let response = b"HTTP/1.1 503 Service Unavailable\r\ncontent-length: 0\r\n\r\n";
             let _ = socket.write_all(response).await;
         });
-
         let client = Client::new();
         let response = client
             .get(format!("http://{addr}"))
@@ -477,10 +425,8 @@ mod tests {
             .await
             .expect("send");
         let err = response.error_for_status().expect_err("status error");
-
         let app_err: Error = err.into();
         assert_eq!(app_err.kind, AppErrorKind::DependencyUnavailable);
-
         server.abort();
     }
 }

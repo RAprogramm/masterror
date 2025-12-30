@@ -11,7 +11,6 @@ fn main() {
         .with_field(field::str("email", "user@example.com").with_redaction(FieldRedaction::Hash))
         .with_field(field::str("ip", "192.168.1.100").with_redaction(FieldRedaction::Redact))
         .with_field(field::str("session_id", "abc123"));
-
     println!("=== Redacted Metadata ===\n");
     for (key, value, redaction) in err.metadata().iter_with_redaction() {
         println!("{key}: {value:?} [{redaction:?}]");

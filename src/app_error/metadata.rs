@@ -85,7 +85,6 @@ fn duration_parts(duration: Duration) -> (u64, Option<TrimmedFraction>) {
     if nanos == 0 {
         return (secs, None);
     }
-
     let mut fraction = nanos;
     let mut width = 9u8;
     loop {
@@ -96,7 +95,6 @@ fn duration_parts(duration: Duration) -> (u64, Option<TrimmedFraction>) {
         fraction = divided;
         width -= 1;
     }
-
     (
         secs,
         Some(TrimmedFraction {
@@ -215,12 +213,10 @@ fn infer_default_redaction(name: &str) -> FieldRedaction {
     {
         return FieldRedaction::Redact;
     }
-
     let mut card_like = false;
     let mut number_like = false;
     let has_token = contains_ascii_case_insensitive(name, "token");
     let has_key = contains_ascii_case_insensitive(name, "key");
-
     for segment in name.split(['.', '_', '-', ':', '/']) {
         if segment.is_empty() {
             continue;
@@ -235,7 +231,6 @@ fn infer_default_redaction(name: &str) -> FieldRedaction {
         {
             return FieldRedaction::Hash;
         }
-
         if segment.eq_ignore_ascii_case("card")
             || segment.eq_ignore_ascii_case("iban")
             || segment.eq_ignore_ascii_case("pan")
@@ -244,7 +239,6 @@ fn infer_default_redaction(name: &str) -> FieldRedaction {
         {
             card_like = true;
         }
-
         if segment.eq_ignore_ascii_case("number")
             || segment.eq_ignore_ascii_case("no")
             || segment.eq_ignore_ascii_case("id")
@@ -252,7 +246,6 @@ fn infer_default_redaction(name: &str) -> FieldRedaction {
             number_like = true;
         }
     }
-
     if card_like && number_like {
         FieldRedaction::Last4
     } else {
@@ -274,10 +267,8 @@ fn contains_ascii_case_insensitive(haystack: &str, needle: &str) -> bool {
     if needle.is_empty() {
         return true;
     }
-
     let haystack_bytes = haystack.as_bytes();
     let needle_bytes = needle.as_bytes();
-
     haystack_bytes.len() >= needle_bytes.len()
         && haystack_bytes
             .windows(needle_bytes.len())
@@ -523,7 +514,6 @@ mod tests {
         let mut meta = Metadata::new();
         meta.insert(field::str("request_id", Cow::Borrowed("abc")));
         meta.insert(field::i64("count", 42));
-
         assert_eq!(
             meta.get("request_id"),
             Some(&FieldValue::Str(Cow::Borrowed("abc")))
@@ -550,7 +540,6 @@ mod tests {
             field::duration("elapsed", Duration::from_millis(1500)),
             field::ip("peer", IpAddr::from(Ipv4Addr::new(192, 168, 0, 1)))
         ]);
-
         assert!(meta.get("ratio").is_some_and(
             |value| matches!(value, FieldValue::F64(ratio) if ratio.to_bits() == 0.25f64.to_bits())
         ));
@@ -586,10 +575,8 @@ mod tests {
     fn default_redaction_applies_to_common_keys() {
         let password = field::str("password", Cow::Borrowed("secret"));
         assert!(matches!(password.redaction(), FieldRedaction::Redact));
-
         let token = field::str("api_token", Cow::Borrowed("abcdef"));
         assert!(matches!(token.redaction(), FieldRedaction::Hash));
-
         let card = field::str("card_number", Cow::Borrowed("4111111111111111"));
         assert!(matches!(card.redaction(), FieldRedaction::Last4));
     }
@@ -603,7 +590,6 @@ mod tests {
             ("RefreshToken", FieldRedaction::Hash),
             ("CARD_NUMBER", FieldRedaction::Last4)
         ];
-
         for (name, expected) in cases {
             let field = field::str(name, Cow::Borrowed("value"));
             assert!(
