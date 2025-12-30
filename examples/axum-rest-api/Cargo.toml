@@ -22,4 +22,4 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 
 [dev-dependencies]
-axum-test = "18.1"
+axum-test = "18.5"
