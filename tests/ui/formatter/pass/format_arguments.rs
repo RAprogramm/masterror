@@ -32,13 +32,11 @@ fn main() {
         name:  "right",
     }
     .to_string();
-
     let _ = PositionalArgumentUsage {
         first:  "positional-0",
         second: "positional-1",
     }
     .to_string();
-
     let _ = MixedImplicitUsage {
         label:  "tag",
         first:  "one",

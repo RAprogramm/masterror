@@ -10,6 +10,7 @@ use core::{
 };
 
 use super::error::Error;
+use crate::{FieldRedaction, FieldValue, MessageEditPolicy};
 
 /// Display mode for error output.
 ///
@@ -103,7 +104,6 @@ impl DisplayMode {
     #[must_use]
     pub fn current() -> Self {
         static CACHED_MODE: AtomicU8 = AtomicU8::new(255);
-
         let cached = CACHED_MODE.load(Ordering::Relaxed);
         if cached != 255 {
             return match cached {
@@ -113,7 +113,6 @@ impl DisplayMode {
                 _ => unreachable!()
             };
         }
-
         let mode = Self::detect();
         CACHED_MODE.store(mode as u8, Ordering::Relaxed);
         mode
@@ -125,7 +124,8 @@ impl DisplayMode {
     fn detect() -> Self {
         #[cfg(feature = "std")]
         {
-            if let Ok(env) = std::env::var("MASTERROR_ENV") {
+            use std::env::var;
+            if let Ok(env) = var("MASTERROR_ENV") {
                 return match env.as_str() {
                     "prod" | "production" => Self::Prod,
                     "local" | "dev" | "development" => Self::Local,
@@ -133,12 +133,10 @@ impl DisplayMode {
                     _ => Self::detect_auto()
                 };
             }
-
-            if std::env::var("KUBERNETES_SERVICE_HOST").is_ok() {
+            if var("KUBERNETES_SERVICE_HOST").is_ok() {
                 return Self::Prod;
             }
         }
-
         Self::detect_auto()
     }
 
@@ -182,51 +180,35 @@ impl Error {
 
     fn fmt_prod_impl(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, r#"{{"kind":"{:?}","code":"{}""#, self.kind, self.code)?;
-
-        if !matches!(self.edit_policy, super::types::MessageEditPolicy::Redact)
+        if !matches!(self.edit_policy, MessageEditPolicy::Redact)
             && let Some(msg) = &self.message
         {
             write!(f, ",\"message\":\"")?;
             write_json_escaped(f, msg.as_ref())?;
             write!(f, "\"")?;
         }
-
         if !self.metadata.is_empty() {
-            let has_public_fields =
-                self.metadata
-                    .iter_with_redaction()
-                    .any(|(_, _, redaction)| {
-                        !matches!(
-                            redaction,
-                            crate::app_error::metadata::FieldRedaction::Redact
-                        )
-                    });
-
+            let has_public_fields = self
+                .metadata
+                .iter_with_redaction()
+                .any(|(_, _, redaction)| !matches!(redaction, FieldRedaction::Redact));
             if has_public_fields {
                 write!(f, r#","metadata":{{"#)?;
                 let mut first = true;
-
                 for (name, value, redaction) in self.metadata.iter_with_redaction() {
-                    if matches!(
-                        redaction,
-                        crate::app_error::metadata::FieldRedaction::Redact
-                    ) {
+                    if matches!(redaction, FieldRedaction::Redact) {
                         continue;
                     }
-
                     if !first {
                         write!(f, ",")?;
                     }
                     first = false;
-
                     write!(f, r#""{}":"#, name)?;
                     write_metadata_value(f, value)?;
                 }
-
                 write!(f, "}}")?;
             }
         }
-
         write!(f, "}}")
     }
 
@@ -260,19 +242,15 @@ impl Error {
         #[cfg(feature = "colored")]
         {
             use crate::colored::style;
-
             writeln!(f, "Error: {}", self.kind)?;
             writeln!(f, "Code: {}", style::error_code(self.code.to_string()))?;
-
             if let Some(msg) = &self.message {
                 writeln!(f, "Message: {}", style::error_message(msg))?;
             }
-
             if let Some(source) = &self.source {
                 writeln!(f)?;
                 let mut current: &dyn CoreError = source.as_ref();
                 let mut depth = 0;
-
                 while depth < 10 {
                     writeln!(
                         f,
@@ -280,7 +258,6 @@ impl Error {
                         style::source_context("Caused by"),
                         style::source_context(current.to_string())
                     )?;
-
                     if let Some(next) = current.source() {
                         current = next;
                         depth += 1;
@@ -289,7 +266,6 @@ impl Error {
                     }
                 }
             }
-
             if !self.metadata.is_empty() {
                 writeln!(f)?;
                 writeln!(f, "Context:")?;
@@ -297,27 +273,21 @@ impl Error {
                     writeln!(f, "  {}: {}", style::metadata_key(key), value)?;
                 }
             }
-
             Ok(())
         }
-
         #[cfg(not(feature = "colored"))]
         {
             writeln!(f, "Error: {}", self.kind)?;
             writeln!(f, "Code: {}", self.code)?;
-
             if let Some(msg) = &self.message {
                 writeln!(f, "Message: {}", msg)?;
             }
-
             if let Some(source) = &self.source {
                 writeln!(f)?;
                 let mut current: &dyn CoreError = source.as_ref();
                 let mut depth = 0;
-
                 while depth < 10 {
                     writeln!(f, "  Caused by: {}", current)?;
-
                     if let Some(next) = current.source() {
                         current = next;
                         depth += 1;
@@ -326,7 +296,6 @@ impl Error {
                     }
                 }
             }
-
             if !self.metadata.is_empty() {
                 writeln!(f)?;
                 writeln!(f, "Context:")?;
@@ -334,7 +303,6 @@ impl Error {
                     writeln!(f, "  {}: {}", key, value)?;
                 }
             }
-
             Ok(())
         }
     }
@@ -367,31 +335,26 @@ impl Error {
 
     fn fmt_staging_impl(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, r#"{{"kind":"{:?}","code":"{}""#, self.kind, self.code)?;
-
-        if !matches!(self.edit_policy, super::types::MessageEditPolicy::Redact)
+        if !matches!(self.edit_policy, MessageEditPolicy::Redact)
             && let Some(msg) = &self.message
         {
             write!(f, ",\"message\":\"")?;
             write_json_escaped(f, msg.as_ref())?;
             write!(f, "\"")?;
         }
-
         if let Some(source) = &self.source {
             write!(f, r#","source_chain":["#)?;
             let mut current: &dyn CoreError = source.as_ref();
             let mut depth = 0;
             let mut first = true;
-
             while depth < 5 {
                 if !first {
                     write!(f, ",")?;
                 }
                 first = false;
-
                 write!(f, "\"")?;
                 write_json_escaped(f, &current.to_string())?;
                 write!(f, "\"")?;
-
                 if let Some(next) = current.source() {
                     current = next;
                     depth += 1;
@@ -399,46 +362,30 @@ impl Error {
                     break;
                 }
             }
-
             write!(f, "]")?;
         }
-
         if !self.metadata.is_empty() {
-            let has_public_fields =
-                self.metadata
-                    .iter_with_redaction()
-                    .any(|(_, _, redaction)| {
-                        !matches!(
-                            redaction,
-                            crate::app_error::metadata::FieldRedaction::Redact
-                        )
-                    });
-
+            let has_public_fields = self
+                .metadata
+                .iter_with_redaction()
+                .any(|(_, _, redaction)| !matches!(redaction, FieldRedaction::Redact));
             if has_public_fields {
                 write!(f, r#","metadata":{{"#)?;
                 let mut first = true;
-
                 for (name, value, redaction) in self.metadata.iter_with_redaction() {
-                    if matches!(
-                        redaction,
-                        crate::app_error::metadata::FieldRedaction::Redact
-                    ) {
+                    if matches!(redaction, FieldRedaction::Redact) {
                         continue;
                     }
-
                     if !first {
                         write!(f, ",")?;
                     }
                     first = false;
-
                     write!(f, r#""{}":"#, name)?;
                     write_metadata_value(f, value)?;
                 }
-
                 write!(f, "}}")?;
             }
         }
-
         write!(f, "}}")
     }
 }
@@ -462,12 +409,8 @@ fn write_json_escaped(f: &mut Formatter<'_>, s: &str) -> FmtResult {
 
 /// Writes a metadata field value in JSON format.
 #[allow(dead_code)]
-fn write_metadata_value(
-    f: &mut Formatter<'_>,
-    value: &crate::app_error::metadata::FieldValue
-) -> FmtResult {
+fn write_metadata_value(f: &mut Formatter<'_>, value: &FieldValue) -> FmtResult {
     use crate::app_error::metadata::FieldValue;
-
     match value {
         FieldValue::Str(s) => {
             write!(f, "\"")?;
@@ -526,7 +469,6 @@ mod tests {
     fn fmt_prod_outputs_json() {
         let error = AppError::not_found("User not found");
         let output = format!("{}", error.fmt_prod_wrapper());
-
         assert!(output.contains(r#""kind":"NotFound""#));
         assert!(output.contains(r#""code":"NOT_FOUND""#));
         assert!(output.contains(r#""message":"User not found""#));
@@ -536,7 +478,6 @@ mod tests {
     fn fmt_prod_excludes_redacted_message() {
         let error = AppError::internal("secret").redactable();
         let output = format!("{}", error.fmt_prod_wrapper());
-
         assert!(!output.contains("secret"));
     }
 
@@ -544,7 +485,6 @@ mod tests {
     fn fmt_prod_includes_metadata() {
         let error = AppError::not_found("User not found").with_field(field::u64("user_id", 12345));
         let output = format!("{}", error.fmt_prod_wrapper());
-
         assert!(output.contains(r#""metadata""#));
         assert!(output.contains(r#""user_id":12345"#));
     }
@@ -553,7 +493,6 @@ mod tests {
     fn fmt_prod_excludes_sensitive_metadata() {
         let error = AppError::internal("Error").with_field(field::str("password", "secret"));
         let output = format!("{}", error.fmt_prod_wrapper());
-
         assert!(!output.contains("secret"));
     }
 
@@ -561,7 +500,6 @@ mod tests {
     fn fmt_local_outputs_human_readable() {
         let error = AppError::not_found("User not found");
         let output = format!("{}", error.fmt_local_wrapper());
-
         assert!(output.contains("Error:"));
         assert!(output.contains("Code: NOT_FOUND"));
         assert!(output.contains("Message: User not found"));
@@ -571,11 +509,9 @@ mod tests {
     #[test]
     fn fmt_local_includes_source_chain() {
         use std::io::Error as IoError;
-
         let io_err = IoError::other("connection failed");
         let error = AppError::internal("Database error").with_source(io_err);
         let output = format!("{}", error.fmt_local_wrapper());
-
         assert!(output.contains("Caused by"));
         assert!(output.contains("connection failed"));
     }
@@ -584,7 +520,6 @@ mod tests {
     fn fmt_staging_outputs_json_with_context() {
         let error = AppError::service("Service unavailable");
         let output = format!("{}", error.fmt_staging_wrapper());
-
         assert!(output.contains(r#""kind":"Service""#));
         assert!(output.contains(r#""code":"SERVICE""#));
     }
@@ -593,11 +528,9 @@ mod tests {
     #[test]
     fn fmt_staging_includes_source_chain() {
         use std::io::Error as IoError;
-
         let io_err = IoError::other("timeout");
         let error = AppError::network("Network error").with_source(io_err);
         let output = format!("{}", error.fmt_staging_wrapper());
-
         assert!(output.contains(r#""source_chain""#));
         assert!(output.contains("timeout"));
     }
@@ -606,7 +539,6 @@ mod tests {
     fn fmt_prod_escapes_special_chars() {
         let error = AppError::internal("Line\nwith\"quotes\"");
         let output = format!("{}", error.fmt_prod_wrapper());
-
         assert!(output.contains(r#"\n"#));
         assert!(output.contains(r#"\""#));
     }
@@ -615,18 +547,15 @@ mod tests {
     fn fmt_prod_handles_infinity_in_metadata() {
         let error = AppError::internal("Error").with_field(field::f64("ratio", f64::INFINITY));
         let output = format!("{}", error.fmt_prod_wrapper());
-
         assert!(output.contains("null"));
     }
 
     #[test]
     fn fmt_prod_formats_duration_metadata() {
         use core::time::Duration;
-
         let error = AppError::internal("Error")
             .with_field(field::duration("elapsed", Duration::from_millis(1500)));
         let output = format!("{}", error.fmt_prod_wrapper());
-
         assert!(output.contains(r#""secs":1"#));
         assert!(output.contains(r#""nanos":500000000"#));
     }
@@ -635,7 +564,6 @@ mod tests {
     fn fmt_prod_formats_bool_metadata() {
         let error = AppError::internal("Error").with_field(field::bool("active", true));
         let output = format!("{}", error.fmt_prod_wrapper());
-
         assert!(output.contains(r#""active":true"#));
     }
 
@@ -643,22 +571,18 @@ mod tests {
     #[test]
     fn fmt_prod_formats_ip_metadata() {
         use std::net::IpAddr;
-
         let ip: IpAddr = "192.168.1.1".parse().unwrap();
         let error = AppError::internal("Error").with_field(field::ip("client_ip", ip));
         let output = format!("{}", error.fmt_prod_wrapper());
-
         assert!(output.contains(r#""client_ip":"192.168.1.1""#));
     }
 
     #[test]
     fn fmt_prod_formats_uuid_metadata() {
         use uuid::Uuid;
-
         let uuid = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
         let error = AppError::internal("Error").with_field(field::uuid("request_id", uuid));
         let output = format!("{}", error.fmt_prod_wrapper());
-
         assert!(output.contains(r#""request_id":"550e8400-e29b-41d4-a716-446655440000""#));
     }
 
@@ -668,7 +592,6 @@ mod tests {
         let json = serde_json::json!({"nested": "value"});
         let error = AppError::internal("Error").with_field(field::json("data", json));
         let output = format!("{}", error.fmt_prod_wrapper());
-
         assert!(output.contains(r#""data":"#));
     }
 
@@ -676,7 +599,6 @@ mod tests {
     fn fmt_prod_without_message() {
         let error = AppError::bare(crate::AppErrorKind::Internal);
         let output = format!("{}", error.fmt_prod_wrapper());
-
         assert!(output.contains(r#""kind":"Internal""#));
         assert!(!output.contains(r#""message""#));
     }
@@ -685,7 +607,6 @@ mod tests {
     fn fmt_local_without_message() {
         let error = AppError::bare(crate::AppErrorKind::BadRequest);
         let output = format!("{}", error.fmt_local_wrapper());
-
         assert!(output.contains("Error:"));
         assert!(!output.contains("Message:"));
     }
@@ -696,7 +617,6 @@ mod tests {
             .with_field(field::str("key", "value"))
             .with_field(field::i64("count", -42));
         let output = format!("{}", error.fmt_local_wrapper());
-
         assert!(output.contains("Context:"));
         assert!(output.contains("key: value"));
         assert!(output.contains("count: -42"));
@@ -706,7 +626,6 @@ mod tests {
     fn fmt_staging_without_message() {
         let error = AppError::bare(crate::AppErrorKind::Timeout);
         let output = format!("{}", error.fmt_staging_wrapper());
-
         assert!(output.contains(r#""kind":"Timeout""#));
         assert!(!output.contains(r#""message""#));
     }
@@ -715,7 +634,6 @@ mod tests {
     fn fmt_staging_with_metadata() {
         let error = AppError::service("Service error").with_field(field::u64("retry_count", 3));
         let output = format!("{}", error.fmt_staging_wrapper());
-
         assert!(output.contains(r#""metadata""#));
         assert!(output.contains(r#""retry_count":3"#));
     }
@@ -724,7 +642,6 @@ mod tests {
     fn fmt_staging_with_redacted_message() {
         let error = AppError::internal("sensitive data").redactable();
         let output = format!("{}", error.fmt_staging_wrapper());
-
         assert!(!output.contains("sensitive data"));
     }
 
@@ -732,7 +649,6 @@ mod tests {
     fn fmt_prod_escapes_control_chars() {
         let error = AppError::internal("test\x00\x1F");
         let output = format!("{}", error.fmt_prod_wrapper());
-
         assert!(output.contains(r#"\u0000"#));
         assert!(output.contains(r#"\u001f"#));
     }
@@ -741,7 +657,6 @@ mod tests {
     fn fmt_prod_escapes_tab_and_carriage_return() {
         let error = AppError::internal("line\ttab\rreturn");
         let output = format!("{}", error.fmt_prod_wrapper());
-
         assert!(output.contains(r#"\t"#));
         assert!(output.contains(r#"\r"#));
     }
@@ -797,11 +712,9 @@ mod tests {
     #[test]
     fn fmt_local_with_deep_source_chain() {
         use std::io::{Error as IoError, ErrorKind};
-
         let io1 = IoError::new(ErrorKind::NotFound, "level 1");
         let io2 = IoError::other(io1);
         let error = AppError::internal("top").with_source(io2);
-
         let output = format!("{}", error.fmt_local_wrapper());
         assert!(output.contains("Caused by"));
         assert!(output.contains("level 1"));
@@ -822,11 +735,9 @@ mod tests {
     #[test]
     fn fmt_staging_with_deep_source_chain() {
         use std::io::{Error as IoError, ErrorKind};
-
         let io1 = IoError::new(ErrorKind::NotFound, "inner error");
         let io2 = IoError::other(io1);
         let error = AppError::service("outer").with_source(io2);
-
         let output = format!("{}", error.fmt_staging_wrapper());
         assert!(output.contains(r#""source_chain""#));
         assert!(output.contains("inner error"));

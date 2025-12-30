@@ -95,10 +95,8 @@ fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, E
             "#[derive(Masterror)] requires #[masterror(...)] on structs"
         )
     })?;
-
     let conversion = struct_conversion_impl(input, data, spec);
     let mappings = struct_mapping_impl(input, spec);
-
     use quote::quote;
     Ok(quote! {
         #conversion
@@ -121,10 +119,8 @@ fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, E
 /// Combined conversion and mapping implementations.
 fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> Result<TokenStream, Error> {
     ensure_all_variants_have_masterror(variants)?;
-
     let conversion = enum_conversion_impl(input, variants);
     let mappings = enum_mapping_impl(input, variants);
-
     use quote::quote;
     Ok(quote! {
         #conversion

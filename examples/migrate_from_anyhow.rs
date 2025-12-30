@@ -17,7 +17,6 @@ fn main() {
     println!("Same:    .context() works identically");
     println!("Plus:    Structured metadata with field::*");
     println!();
-
     match read_config("/tmp/config.toml") {
         Ok(content) => println!("Config: {content}"),
         Err(e) => println!("Error: {e}")
@@ -27,13 +26,11 @@ fn main() {
 fn read_config(path: &str) -> AppResult<String> {
     // .context() works exactly like anyhow
     let content = fs::read_to_string(path).context("Failed to read config file")?;
-
     ensure!(
         !content.is_empty(),
         AppError::bad_request("Config file is empty")
             .with_field(field::str("path", path.to_string()))
     );
-
     if content.starts_with("invalid") {
         fail!(
             AppError::bad_request("Invalid config format")
@@ -41,6 +38,5 @@ fn read_config(path: &str) -> AppResult<String> {
                 .with_field(field::u64("size", content.len() as u64))
         );
     }
-
     Ok(content)
 }

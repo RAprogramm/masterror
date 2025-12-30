@@ -36,7 +36,10 @@
 //! [`MessageEditPolicy`]: crate::MessageEditPolicy
 
 use alloc::string::String;
-use core::fmt::{Display, Formatter, Result as FmtResult};
+use core::{
+    fmt::{Display, Formatter, Result as FmtResult},
+    mem::replace
+};
 
 use super::core::ErrorResponse;
 use crate::{AppCode, AppError};
@@ -84,11 +87,10 @@ impl Display for ErrorResponse {
 impl From<AppError> for ErrorResponse {
     fn from(mut err: AppError) -> Self {
         let kind = err.kind;
-        let code = core::mem::replace(&mut err.code, AppCode::from(kind));
+        let code = replace(&mut err.code, AppCode::from(kind));
         let retry = err.retry.take();
         let www_authenticate = err.www_authenticate.take();
         let policy = err.edit_policy;
-
         let status = kind.http_status();
         let message = match err.message.take() {
             Some(msg) if !matches!(policy, crate::MessageEditPolicy::Redact) => msg.into_owned(),
@@ -106,7 +108,6 @@ impl From<AppError> for ErrorResponse {
         } else {
             err.details.take()
         };
-
         Self {
             status,
             code,
@@ -157,7 +158,6 @@ impl From<&AppError> for ErrorResponse {
         } else {
             err.details.clone()
         };
-
         Self {
             status,
             code: err.code.clone(),

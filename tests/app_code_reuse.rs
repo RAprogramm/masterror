@@ -14,9 +14,7 @@ fn error_with_dynamic_code() -> AppError {
 fn problem_json_reuses_app_code_allocation() {
     let error = error_with_dynamic_code();
     let expected_ptr = error.code.as_str().as_ptr();
-
     let problem = ProblemJson::from_app_error(error);
-
     assert_eq!(problem.code.as_str().as_ptr(), expected_ptr);
 }
 
@@ -24,8 +22,6 @@ fn problem_json_reuses_app_code_allocation() {
 fn error_response_reuses_app_code_allocation() {
     let error = error_with_dynamic_code();
     let expected_ptr = error.code.as_str().as_ptr();
-
     let response = ErrorResponse::from(error);
-
     assert_eq!(response.code.as_str().as_ptr(), expected_ptr);
 }

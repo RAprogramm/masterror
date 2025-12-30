@@ -39,13 +39,10 @@ pub(crate) fn respond_with_problem_json(mut problem: ProblemJson) -> HttpRespons
         .unwrap_or(actix_web::http::StatusCode::INTERNAL_SERVER_ERROR);
     let retry_after = problem.retry_after;
     let www_authenticate = problem.www_authenticate.take();
-
     let mut response = HttpResponse::build(status).json(problem);
-
     response
         .headers_mut()
         .insert(CONTENT_TYPE, "application/problem+json".parse().unwrap());
-
     if let Some(retry) = retry_after {
         let mut buffer = IntegerBuffer::new();
         let retry_str = buffer.format(retry);
@@ -58,7 +55,6 @@ pub(crate) fn respond_with_problem_json(mut problem: ProblemJson) -> HttpRespons
     {
         response.headers_mut().insert(WWW_AUTHENTICATE, hv);
     }
-
     response
 }
 
@@ -93,7 +89,6 @@ mod tests {
     async fn respond_with_problem_json_sets_status_and_content_type() {
         let problem = ProblemJson::from_app_error(AppError::not_found("missing resource"));
         let response = respond_with_problem_json(problem);
-
         assert_eq!(response.status(), 404);
         let content_type = response
             .headers()
@@ -107,7 +102,6 @@ mod tests {
         let error = AppError::rate_limited("too many requests").with_retry_after_secs(60);
         let problem = ProblemJson::from_app_error(error);
         let response = respond_with_problem_json(problem);
-
         assert_eq!(response.status(), 429);
         let retry = response
             .headers()
@@ -122,7 +116,6 @@ mod tests {
             AppError::unauthorized("invalid token").with_www_authenticate("Bearer realm=\"api\"");
         let problem = ProblemJson::from_app_error(error);
         let response = respond_with_problem_json(problem);
-
         assert_eq!(response.status(), 401);
         let auth = response
             .headers()
@@ -138,7 +131,6 @@ mod tests {
             .with_www_authenticate("Bearer");
         let problem = ProblemJson::from_app_error(error);
         let response = respond_with_problem_json(problem);
-
         assert_eq!(response.status(), 429);
         let retry = response
             .headers()
@@ -157,7 +149,6 @@ mod tests {
         let req = test::TestRequest::default().to_http_request();
         let problem = ProblemJson::from_app_error(AppError::bad_request("invalid input"));
         let response = problem.respond_to(&req);
-
         assert_eq!(response.status(), 400);
         let content_type = response
             .headers()
@@ -172,7 +163,6 @@ mod tests {
         let error_response =
             ErrorResponse::new(503, AppCode::Service, "service down").expect("valid status");
         let response = error_response.respond_to(&req);
-
         assert_eq!(response.status(), 503);
         let content_type = response
             .headers()
@@ -190,7 +180,6 @@ mod tests {
             after_seconds: 120
         });
         let response = error_response.respond_to(&req);
-
         assert_eq!(response.status(), 503);
         let retry = response
             .headers()
@@ -206,7 +195,6 @@ mod tests {
             ErrorResponse::new(401, AppCode::Unauthorized, "auth required").expect("valid status");
         error_response.www_authenticate = Some("Basic".to_owned());
         let response = error_response.respond_to(&req);
-
         assert_eq!(response.status(), 401);
         let auth = response
             .headers()

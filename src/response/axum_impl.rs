@@ -31,12 +31,10 @@ impl IntoResponse for ProblemJson {
         let retry_after = body.retry_after;
         let www_authenticate = body.www_authenticate.take();
         let mut response = (status, Json(body)).into_response();
-
         response.headers_mut().insert(
             CONTENT_TYPE,
             HeaderValue::from_static("application/problem+json")
         );
-
         if let Some(retry) = retry_after {
             let mut buffer = IntegerBuffer::new();
             let retry_str = buffer.format(retry);
@@ -49,7 +47,6 @@ impl IntoResponse for ProblemJson {
         {
             response.headers_mut().insert(WWW_AUTHENTICATE, hv);
         }
-
         response
     }
 }
@@ -76,7 +73,6 @@ mod tests {
     async fn problem_json_into_response_sets_status_and_content_type() {
         let problem = ProblemJson::from_app_error(AppError::not_found("resource not found"));
         let response = problem.into_response();
-
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
         let content_type = response
             .headers()
@@ -90,7 +86,6 @@ mod tests {
         let error = AppError::rate_limited("too many requests").with_retry_after_secs(120);
         let problem = ProblemJson::from_app_error(error);
         let response = problem.into_response();
-
         assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
         let retry = response
             .headers()
@@ -105,7 +100,6 @@ mod tests {
             .with_www_authenticate("Basic realm=\"api\"");
         let problem = ProblemJson::from_app_error(error);
         let response = problem.into_response();
-
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         let auth = response
             .headers()
@@ -121,7 +115,6 @@ mod tests {
             .with_www_authenticate("Bearer");
         let problem = ProblemJson::from_app_error(error);
         let response = problem.into_response();
-
         assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
         let retry = response
             .headers()
@@ -140,7 +133,6 @@ mod tests {
         let error_response =
             ErrorResponse::new(500, AppCode::Internal, "internal error").expect("valid status");
         let response = error_response.into_response();
-
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
         let content_type = response
             .headers()
@@ -157,7 +149,6 @@ mod tests {
             after_seconds: 300
         });
         let response = error_response.into_response();
-
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
         let retry = response
             .headers()
@@ -172,7 +163,6 @@ mod tests {
             ErrorResponse::new(401, AppCode::Unauthorized, "auth required").expect("valid status");
         error_response.www_authenticate = Some("Digest realm=\"api\"".to_owned());
         let response = error_response.into_response();
-
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         let auth = response
             .headers()
@@ -192,7 +182,6 @@ mod tests {
                 StatusCode::INTERNAL_SERVER_ERROR
             ),
         ];
-
         for (error, expected_status) in test_cases {
             let problem = ProblemJson::from_app_error(error);
             let response = problem.into_response();

@@ -11,12 +11,10 @@ fn context_returns_optional_message() {
         message: "encode failed".to_owned()
     };
     assert_eq!(serialization.context(), Some("encode failed"));
-
     let invocation = BrowserConsoleError::ConsoleInvocation {
         message: "js error".to_owned()
     };
     assert_eq!(invocation.context(), Some("js error"));
-
     assert_eq!(
         BrowserConsoleError::ConsoleMethodNotCallable.context(),
         None
@@ -108,7 +106,6 @@ fn partial_eq_works() {
     let err1 = BrowserConsoleError::UnsupportedTarget;
     let err2 = BrowserConsoleError::UnsupportedTarget;
     assert_eq!(err1, err2);
-
     let err3 = BrowserConsoleError::ConsoleMethodNotCallable;
     assert_ne!(err1, err3);
 }
@@ -167,7 +164,6 @@ fn eq_compares_messages() {
     let err3 = BrowserConsoleError::Serialization {
         message: "msg2".to_owned()
     };
-
     assert_eq!(err1, err2);
     assert_ne!(err1, err3);
 }
@@ -192,7 +188,6 @@ mod native {
             response.to_js_value(),
             Err(BrowserConsoleError::UnsupportedTarget)
         ));
-
         let err = AppError::conflict("already exists");
         assert!(matches!(
             err.to_js_value(),
@@ -228,7 +223,6 @@ mod native {
             (500, AppCode::Internal, "internal"),
             (401, AppCode::Unauthorized, "unauthorized"),
         ];
-
         for (status, code, message) in errors {
             let response = ErrorResponse::new(status, code, message).expect("status");
             assert!(matches!(
@@ -252,7 +246,6 @@ mod native {
             AppError::timeout("timeout"),
             AppError::network("network"),
         ];
-
         for err in errors {
             assert!(matches!(
                 err.to_js_value(),

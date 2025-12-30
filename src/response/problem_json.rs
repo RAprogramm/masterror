@@ -7,7 +7,13 @@ use alloc::{
     collections::BTreeMap,
     string::{String, ToString}
 };
-use core::{fmt::Write, net::IpAddr};
+use core::{
+    fmt::Write,
+    iter::repeat_n,
+    mem::{replace, take},
+    net::IpAddr,
+    str::from_utf8
+};
 
 use http::StatusCode;
 use itoa::Buffer as IntegerBuffer;
@@ -165,22 +171,19 @@ impl ProblemJson {
     #[must_use]
     pub fn from_app_error(mut error: AppError) -> Self {
         error.emit_telemetry();
-
         let kind = error.kind;
-        let code = core::mem::replace(&mut error.code, AppCode::from(kind));
+        let code = replace(&mut error.code, AppCode::from(kind));
         let message = error.message.take();
-        let metadata = core::mem::take(&mut error.metadata);
+        let metadata = take(&mut error.metadata);
         let edit_policy = error.edit_policy;
         let details = sanitize_details_owned(error.details.take(), edit_policy);
         let retry = error.retry.take();
         let www_authenticate = error.www_authenticate.take();
-
         let mapping = mapping_for_code(&code);
         let status = kind.http_status();
         let title = Cow::Borrowed(kind.label());
         let detail = sanitize_detail(message, kind, edit_policy);
         let metadata = sanitize_metadata_owned(metadata, edit_policy);
-
         Self {
             type_uri: Some(Cow::Borrowed(mapping.problem_type())),
             title,
@@ -218,7 +221,6 @@ impl ProblemJson {
         let detail = sanitize_detail_ref(error);
         let details = sanitize_details_ref(error);
         let metadata = sanitize_metadata_ref(error.metadata(), error.edit_policy);
-
         Self {
             type_uri: Some(Cow::Borrowed(mapping.problem_type())),
             title,
@@ -257,14 +259,12 @@ impl ProblemJson {
             retry,
             www_authenticate
         } = response;
-
         let mapping = mapping_for_code(&code);
         let detail = if message.is_empty() {
             None
         } else {
             Some(Cow::Owned(message))
         };
-
         Self {
             type_uri: Some(Cow::Borrowed(mapping.problem_type())),
             title: Cow::Borrowed(mapping.kind().label()),
@@ -415,7 +415,6 @@ fn sanitize_detail(
     if matches!(policy, MessageEditPolicy::Redact) {
         return None;
     }
-
     Some(message.unwrap_or_else(|| Cow::Borrowed(kind.label())))
 }
 
@@ -423,7 +422,6 @@ fn sanitize_detail_ref(error: &AppError) -> Option<Cow<'static, str>> {
     if matches!(error.edit_policy, MessageEditPolicy::Redact) {
         return None;
     }
-
     match error.message.as_ref() {
         Some(Cow::Borrowed(msg)) => Some(Cow::Borrowed(*msg)),
         Some(Cow::Owned(msg)) => Some(Cow::Owned(msg.clone())),
@@ -477,7 +475,6 @@ fn sanitize_metadata_owned(
     if matches!(policy, MessageEditPolicy::Redact) || metadata.is_empty() {
         return None;
     }
-
     let mut public = BTreeMap::new();
     for field in metadata {
         let (name, value, redaction) = field.into_parts();
@@ -485,7 +482,6 @@ fn sanitize_metadata_owned(
             public.insert(Cow::Borrowed(name), sanitized);
         }
     }
-
     if public.is_empty() {
         None
     } else {
@@ -500,14 +496,12 @@ fn sanitize_metadata_ref(
     if matches!(policy, MessageEditPolicy::Redact) || metadata.is_empty() {
         return None;
     }
-
     let mut public = BTreeMap::new();
     for (name, value, redaction) in metadata.iter_with_redaction() {
         if let Some(sanitized) = sanitize_problem_metadata_value_ref(value, redaction) {
             public.insert(Cow::Borrowed(name), sanitized);
         }
     }
-
     if public.is_empty() {
         None
     } else {
@@ -569,7 +563,7 @@ impl<const N: usize> StackBuffer<N> {
     }
 
     fn as_str(&self) -> Option<&str> {
-        core::str::from_utf8(self.as_bytes()).ok()
+        from_utf8(self.as_bytes()).ok()
     }
 }
 
@@ -606,8 +600,6 @@ fn hash_field_value(value: &FieldValue) -> String {
             }
         }
         FieldValue::Uuid(value) => {
-            // `Uuid::to_string()` produces a lowercase hyphenated representation; we
-            // keep the same bytes to preserve the hash output that clients rely on.
             let mut repr = [0u8; 36];
             let text = value.hyphenated().encode_lower(&mut repr);
             hasher.update(text.as_bytes());
@@ -682,11 +674,10 @@ fn mask_last4(value: &str) -> String {
     if total == 0 {
         return String::new();
     }
-
     let keep = if total <= 4 { 1 } else { 4 };
     let mask_len = total.saturating_sub(keep);
     let mut masked = String::with_capacity(value.len());
-    masked.extend(core::iter::repeat_n('*', mask_len));
+    masked.extend(repeat_n('*', mask_len));
     masked.extend(chars.skip(mask_len));
     masked
 }
@@ -1042,7 +1033,12 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::AppError;
+    #[cfg(feature = "serde_json")]
+    use crate::field::json;
+    use crate::{
+        AppError,
+        field::{duration, f64, ip, str, u64, uuid}
+    };
 
     fn sha256_hex(input: &[u8]) -> String {
         let mut hasher = Sha256::new();
@@ -1060,7 +1056,7 @@ mod tests {
     fn metadata_is_skipped_when_redacted() {
         let err = AppError::internal("secret")
             .redactable()
-            .with_field(crate::field::str("token", "super-secret"));
+            .with_field(str("token", "super-secret"));
         let problem = ProblemJson::from_ref(&err);
         assert!(problem.detail.is_none());
         assert!(problem.metadata.is_none());
@@ -1068,7 +1064,7 @@ mod tests {
 
     #[test]
     fn metadata_is_serialized_when_allowed() {
-        let err = AppError::internal("oops").with_field(crate::field::u64("attempt", 2));
+        let err = AppError::internal("oops").with_field(u64("attempt", 2));
         let problem = ProblemJson::from_ref(&err);
         let metadata = problem.metadata.expect("metadata");
         assert!(!metadata.is_empty());
@@ -1077,42 +1073,28 @@ mod tests {
     #[test]
     fn metadata_preserves_extended_field_types() {
         let mut err = AppError::internal("oops");
-        err = err.with_field(crate::field::f64("ratio", 0.25));
-        err = err.with_field(crate::field::duration(
-            "elapsed",
-            Duration::from_millis(1500)
-        ));
-        err = err.with_field(crate::field::ip(
-            "peer",
-            IpAddr::from(Ipv4Addr::new(10, 0, 0, 42))
-        ));
+        err = err.with_field(f64("ratio", 0.25));
+        err = err.with_field(duration("elapsed", Duration::from_millis(1500)));
+        err = err.with_field(ip("peer", IpAddr::from(Ipv4Addr::new(10, 0, 0, 42))));
         #[cfg(feature = "serde_json")]
         {
-            err = err.with_field(crate::field::json(
-                "payload",
-                serde_json::json!({ "status": "ok" })
-            ));
+            err = err.with_field(json("payload", serde_json::json!({ "status": "ok" })));
         }
-
         let problem = ProblemJson::from_ref(&err);
         let metadata = problem.metadata.expect("metadata");
-
         let ratio = metadata.0.get("ratio").expect("ratio metadata");
         assert!(matches!(
             ratio,
             ProblemMetadataValue::F64(value) if (*value - 0.25).abs() < f64::EPSILON
         ));
-
         let duration = metadata.0.get("elapsed").expect("elapsed metadata");
         assert!(matches!(
             duration,
             ProblemMetadataValue::Duration { secs, nanos }
             if *secs == 1 && *nanos == 500_000_000
         ));
-
         let ip = metadata.0.get("peer").expect("peer metadata");
         assert!(matches!(ip, ProblemMetadataValue::Ip(addr) if addr.is_ipv4()));
-
         #[cfg(feature = "serde_json")]
         {
             let payload = metadata.0.get("payload").expect("payload metadata");
@@ -1125,7 +1107,7 @@ mod tests {
 
     #[test]
     fn redacted_metadata_uses_placeholder() {
-        let err = AppError::internal("oops").with_field(crate::field::str("password", "secret"));
+        let err = AppError::internal("oops").with_field(str("password", "secret"));
         let problem = ProblemJson::from_ref(&err);
         let metadata = problem.metadata.expect("metadata");
         let value = metadata.0.get("password").expect("password field");
@@ -1139,7 +1121,7 @@ mod tests {
 
     #[test]
     fn hashed_metadata_masks_original_value() {
-        let err = AppError::internal("oops").with_field(crate::field::str("token", "super"));
+        let err = AppError::internal("oops").with_field(str("token", "super"));
         let problem = ProblemJson::from_ref(&err);
         let metadata = problem.metadata.expect("metadata");
         let value = metadata.0.get("token").expect("token field");
@@ -1155,7 +1137,7 @@ mod tests {
     #[test]
     fn hashed_numeric_metadata_uses_decimal_text() {
         let err = AppError::internal("oops")
-            .with_field(crate::field::u64("attempt", 42).with_redaction(FieldRedaction::Hash));
+            .with_field(u64("attempt", 42).with_redaction(FieldRedaction::Hash));
         let problem = ProblemJson::from_ref(&err);
         let metadata = problem.metadata.expect("metadata");
         let value = metadata.0.get("attempt").expect("attempt field");
@@ -1170,16 +1152,16 @@ mod tests {
 
     #[test]
     fn hashed_uuid_metadata_preserves_hyphenated_text() {
-        let uuid = Uuid::from_u128(0x1234_5678_9abc_def0_1234_5678_9abc_def0);
+        let trace_id = Uuid::from_u128(0x1234_5678_9abc_def0_1234_5678_9abc_def0);
         let err = AppError::internal("oops")
-            .with_field(crate::field::uuid("trace", uuid).with_redaction(FieldRedaction::Hash));
+            .with_field(uuid("trace", trace_id).with_redaction(FieldRedaction::Hash));
         let problem = ProblemJson::from_ref(&err);
         let metadata = problem.metadata.expect("metadata");
         let value = metadata.0.get("trace").expect("trace field");
         match value {
             ProblemMetadataValue::String(text) => {
                 let mut repr = [0u8; 36];
-                let expected_repr = uuid.hyphenated().encode_lower(&mut repr);
+                let expected_repr = trace_id.hyphenated().encode_lower(&mut repr);
                 let expected = sha256_hex(expected_repr.as_bytes());
                 assert_eq!(text.as_ref(), expected);
             }
@@ -1189,15 +1171,15 @@ mod tests {
 
     #[test]
     fn hashed_ip_metadata_preserves_display_text() {
-        let ip = IpAddr::from(Ipv4Addr::new(10, 10, 10, 10));
+        let peer_addr = IpAddr::from(Ipv4Addr::new(10, 10, 10, 10));
         let err = AppError::internal("oops")
-            .with_field(crate::field::ip("peer", ip).with_redaction(FieldRedaction::Hash));
+            .with_field(ip("peer", peer_addr).with_redaction(FieldRedaction::Hash));
         let problem = ProblemJson::from_ref(&err);
         let metadata = problem.metadata.expect("metadata");
         let value = metadata.0.get("peer").expect("peer field");
         match value {
             ProblemMetadataValue::String(text) => {
-                let expected = sha256_hex(ip.to_string().as_bytes());
+                let expected = sha256_hex(peer_addr.to_string().as_bytes());
                 assert_eq!(text.as_ref(), expected);
             }
             other => panic!("unexpected metadata value: {other:?}")
@@ -1206,8 +1188,7 @@ mod tests {
 
     #[test]
     fn last4_metadata_preserves_suffix() {
-        let err = AppError::internal("oops")
-            .with_field(crate::field::str("card_number", "4111111111111111"));
+        let err = AppError::internal("oops").with_field(str("card_number", "4111111111111111"));
         let problem = ProblemJson::from_ref(&err);
         let metadata = problem.metadata.expect("metadata");
         let value = metadata.0.get("card_number").expect("card number");
@@ -1223,9 +1204,8 @@ mod tests {
     #[test]
     fn last4_metadata_handles_multibyte_suffix() {
         let multibyte = "💳💳💳💳💳💳";
-        let err = AppError::internal("oops").with_field(
-            crate::field::str("emoji", multibyte).with_redaction(FieldRedaction::Last4)
-        );
+        let err = AppError::internal("oops")
+            .with_field(str("emoji", multibyte).with_redaction(FieldRedaction::Last4));
         let problem = ProblemJson::from_ref(&err);
         let metadata = problem.metadata.expect("metadata");
         let value = metadata.0.get("emoji").expect("emoji field");
@@ -1235,7 +1215,6 @@ mod tests {
                 let keep = if total <= 4 { 1 } else { 4 };
                 let expected_mask_len = total.saturating_sub(keep);
                 let expected_suffix: String = multibyte.chars().skip(expected_mask_len).collect();
-
                 assert!(text.ends_with(&expected_suffix));
                 assert!(text.chars().take(expected_mask_len).all(|c| c == '*'));
                 assert_eq!(
@@ -1251,9 +1230,8 @@ mod tests {
     #[test]
     fn last4_numeric_metadata_matches_decimal_format() {
         let number = 123456789u64;
-        let err = AppError::internal("oops").with_field(
-            crate::field::u64("invoice", number).with_redaction(FieldRedaction::Last4)
-        );
+        let err = AppError::internal("oops")
+            .with_field(u64("invoice", number).with_redaction(FieldRedaction::Last4));
         let problem = ProblemJson::from_ref(&err);
         let metadata = problem.metadata.expect("metadata");
         let metadata_value = metadata.0.get("invoice").expect("invoice field");
@@ -1268,13 +1246,13 @@ mod tests {
 
     #[test]
     fn last4_uuid_metadata_matches_previous_format() {
-        let uuid = Uuid::from_u128(0x4321_8765_cba9_0fed_cba9_8765_4321_0fed);
+        let trace_id = Uuid::from_u128(0x4321_8765_cba9_0fed_cba9_8765_4321_0fed);
         let err = AppError::internal("oops")
-            .with_field(crate::field::uuid("trace", uuid).with_redaction(FieldRedaction::Last4));
+            .with_field(uuid("trace", trace_id).with_redaction(FieldRedaction::Last4));
         let problem = ProblemJson::from_ref(&err);
         let metadata = problem.metadata.expect("metadata");
         let metadata_value = metadata.0.get("trace").expect("trace field");
-        let expected_repr = uuid.to_string();
+        let expected_repr = trace_id.to_string();
         let expected_suffix = mask_last4(&expected_repr);
         match metadata_value {
             ProblemMetadataValue::String(text) => {
@@ -1286,13 +1264,13 @@ mod tests {
 
     #[test]
     fn last4_ip_metadata_matches_previous_format() {
-        let ip = IpAddr::from(Ipv4Addr::new(172, 16, 10, 1));
+        let peer_addr = IpAddr::from(Ipv4Addr::new(172, 16, 10, 1));
         let err = AppError::internal("oops")
-            .with_field(crate::field::ip("peer", ip).with_redaction(FieldRedaction::Last4));
+            .with_field(ip("peer", peer_addr).with_redaction(FieldRedaction::Last4));
         let problem = ProblemJson::from_ref(&err);
         let metadata = problem.metadata.expect("metadata");
         let metadata_value = metadata.0.get("peer").expect("peer field");
-        let expected_suffix = mask_last4(&ip.to_string());
+        let expected_suffix = mask_last4(&peer_addr.to_string());
         match metadata_value {
             ProblemMetadataValue::String(text) => {
                 assert_eq!(text.as_ref(), expected_suffix);
@@ -1304,10 +1282,9 @@ mod tests {
     #[test]
     fn problem_json_serialization_masks_sensitive_metadata() {
         let secret = "super-secret";
-        let err = AppError::internal("oops").with_field(crate::field::str("token", secret));
+        let err = AppError::internal("oops").with_field(str("token", secret));
         let problem = ProblemJson::from_ref(&err);
         let json = serde_json::to_value(&problem).expect("serialize problem");
-
         let metadata = json
             .get("metadata")
             .and_then(Value::as_object)
@@ -1316,7 +1293,6 @@ mod tests {
             .get("token")
             .and_then(Value::as_str)
             .expect("hashed token");
-
         let mut hasher = Sha256::new();
         hasher.update(secret.as_bytes());
         let digest = hasher.finalize();
@@ -1326,10 +1302,8 @@ mod tests {
                 let _ = write!(&mut acc, "{:02x}", byte);
                 acc
             });
-
         assert_eq!(hashed, expected);
         assert!(!json.to_string().contains(secret));
-
         let debug_repr = format!("{:?}", problem.internal());
         assert!(debug_repr.contains("metadata"));
         assert!(!debug_repr.contains(secret));
@@ -1340,13 +1314,11 @@ mod tests {
         let secret_value = "sensitive-value";
         let err = AppError::internal("secret")
             .redactable()
-            .with_field(crate::field::str("token", secret_value));
+            .with_field(str("token", secret_value));
         let problem = ProblemJson::from_ref(&err);
         let json = serde_json::to_value(&problem).expect("serialize problem");
-
         assert!(json.get("metadata").is_none());
         assert!(!json.to_string().contains(secret_value));
-
         let debug_repr = format!("{:?}", problem.internal());
         assert!(debug_repr.contains("ProblemJson"));
     }

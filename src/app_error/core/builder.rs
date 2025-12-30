@@ -314,7 +314,6 @@ impl Error {
         {
             self.set_backtrace_slot(Arc::new(backtrace));
         }
-
         #[cfg(not(feature = "backtrace"))]
         {
             self.set_backtrace_slot(backtrace);

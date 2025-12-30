@@ -59,7 +59,6 @@ pub(crate) fn enum_backtrace_method(variants: &[VariantData]) -> Option<TokenStr
         }
         arms.push(variant_backtrace_arm(variant));
     }
-
     if has_backtrace {
         Some(quote! {
             #[cfg(masterror_has_error_generic_member_access)]
@@ -89,7 +88,6 @@ pub(crate) fn enum_backtrace_method(variants: &[VariantData]) -> Option<TokenStr
 pub(crate) fn variant_backtrace_arm(variant: &VariantData) -> TokenStream {
     let variant_ident = &variant.ident;
     let backtrace_field = variant.fields.backtrace_field();
-
     match (&variant.fields, backtrace_field) {
         (Fields::Unit, _) => quote! { Self::#variant_ident => None },
         (Fields::Named(fields), Some(backtrace)) => {
@@ -202,7 +200,6 @@ mod tests {
     fn test_struct_backtrace_method_with_backtrace_field() {
         let field = make_field_with_backtrace(Some("bt"), 0);
         let fields = Fields::Named(vec![field]);
-
         let result = struct_backtrace_method(&fields);
         assert!(result.is_some());
         let output = result.expect("backtrace method").to_string();
@@ -231,7 +228,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let result = enum_backtrace_method(&[variant]);
         assert!(result.is_some());
         let output = result.expect("backtrace method").to_string();
@@ -252,7 +248,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let result = enum_backtrace_method(&[variant]);
         assert!(result.is_none());
     }
@@ -270,7 +265,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let result = variant_backtrace_arm(&variant);
         assert!(result.to_string().contains("Self :: Error => None"));
     }
@@ -289,7 +283,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let result = variant_backtrace_arm(&variant);
         let output = result.to_string();
         assert!(output.contains("Self :: WithBacktrace"));
@@ -310,7 +303,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let result = variant_backtrace_arm(&variant);
         let output = result.to_string();
         assert!(output.contains("Self :: Error"));
@@ -323,7 +315,6 @@ mod tests {
         use syn::parse_quote;
 
         use crate::input::{Field, FieldAttrs};
-
         let field = Field {
             ident:  Some(syn::Ident::new("value", Span::call_site())),
             member: syn::Member::Named(syn::Ident::new("value", Span::call_site())),
@@ -343,7 +334,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let result = variant_backtrace_arm(&variant);
         let output = result.to_string();
         assert!(output.contains("Self :: Error"));
@@ -357,7 +347,6 @@ mod tests {
         use syn::parse_quote;
 
         use crate::input::{Field, FieldAttrs};
-
         let field = Field {
             ident:  None,
             member: syn::Member::Unnamed(syn::Index {
@@ -380,7 +369,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let result = variant_backtrace_arm(&variant);
         let output = result.to_string();
         assert!(output.contains("Self :: Error"));

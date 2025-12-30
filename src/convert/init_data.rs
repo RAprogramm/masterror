@@ -94,7 +94,6 @@ mod tests {
             InitDataError::SignatureMissing,
             InitDataError::SignatureInvalid("bad sig".into()),
         ];
-
         for case in cases {
             let app: Error = case.into();
             assert!(matches!(app.kind, AppErrorKind::TelegramAuth));

@@ -8,6 +8,8 @@ use core::error::Error as CoreError;
 #[cfg(feature = "backtrace")]
 use {alloc::sync::Arc, std::backtrace::Backtrace};
 
+#[cfg(feature = "backtrace")]
+use super::backtrace::capture_backtrace_snapshot;
 use super::{
     error::Error,
     types::{CapturedBacktrace, ErrorChain}
@@ -62,9 +64,8 @@ impl Error {
         if let Some(backtrace) = self.backtrace.as_ref() {
             return Some(Arc::clone(backtrace));
         }
-
         self.captured_backtrace
-            .get_or_init(super::backtrace::capture_backtrace_snapshot)
+            .get_or_init(capture_backtrace_snapshot)
             .as_ref()
             .map(Arc::clone)
     }

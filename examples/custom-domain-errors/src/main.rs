@@ -203,14 +203,12 @@ fn process_payment(amount: u64, balance: u64) -> Result<String, PaymentError> {
             "amount must be greater than 0".to_string()
         ));
     }
-
     if amount > balance {
         return Err(PaymentError::InsufficientFunds {
             balance,
             required: amount
         });
     }
-
     Ok(format!("Payment of ${amount} processed successfully"))
 }
 
@@ -219,11 +217,9 @@ fn authenticate(username: &str, password: &str) -> Result<String, AuthError> {
     if username.is_empty() || password.is_empty() {
         return Err(AuthError::InvalidCredentials);
     }
-
     if username != "admin" || password != "secret" {
         return Err(AuthError::InvalidCredentials);
     }
-
     Ok("Authentication successful".to_string())
 }
 
@@ -234,23 +230,18 @@ fn validate_email(email: &str) -> Result<(), ValidationError> {
             field: "email".to_string()
         });
     }
-
     if !email.contains('@') {
         return Err(ValidationError::InvalidFormat {
             field:  "email".to_string(),
             reason: "must contain @ symbol".to_string()
         });
     }
-
     Ok(())
 }
 
 fn main() {
     println!("Custom Domain Errors Example\\n");
-
-    // Payment errors
     println!("=== Payment Processing ===");
-
     match process_payment(100, 500) {
         Ok(msg) => println!("✓ {msg}"),
         Err(e) => {
@@ -258,7 +249,6 @@ fn main() {
             println!("✗ AppError: {app_err}");
         }
     }
-
     match process_payment(600, 500) {
         Ok(msg) => println!("✓ {msg}"),
         Err(e) => {
@@ -271,7 +261,6 @@ fn main() {
             );
         }
     }
-
     match process_payment(0, 500) {
         Ok(msg) => println!("✓ {msg}"),
         Err(e) => {
@@ -280,15 +269,11 @@ fn main() {
             println!("  → AppError kind: {:?}", app_err.kind);
         }
     }
-
-    // Authentication errors
     println!("\\n=== Authentication ===");
-
     match authenticate("admin", "secret") {
         Ok(msg) => println!("✓ {msg}"),
         Err(e) => println!("✗ {e}")
     }
-
     match authenticate("user", "wrong") {
         Ok(msg) => println!("✓ {msg}"),
         Err(e) => {
@@ -301,7 +286,6 @@ fn main() {
             );
         }
     }
-
     let expired_err = AuthError::SessionExpired {
         expired_at: "2025-01-01T00:00:00Z".to_string()
     };
@@ -312,15 +296,11 @@ fn main() {
         app_err.kind,
         app_err.kind.http_status()
     );
-
-    // Validation errors
     println!("\\n=== Validation ===");
-
     match validate_email("user@example.com") {
         Ok(()) => println!("✓ Email is valid"),
         Err(e) => println!("✗ {e}")
     }
-
     match validate_email("invalid-email") {
         Ok(()) => println!("✓ Email is valid"),
         Err(e) => {
@@ -333,7 +313,6 @@ fn main() {
             );
         }
     }
-
     match validate_email("") {
         Ok(()) => println!("✓ Email is valid"),
         Err(e) => {
@@ -346,10 +325,7 @@ fn main() {
             );
         }
     }
-
-    // External service errors
     println!("\\n=== External Service Errors ===");
-
     let service_err = ExternalServiceError::Timeout {
         service:    "payment-gateway".to_string(),
         timeout_ms: 5000
@@ -361,7 +337,6 @@ fn main() {
         app_err.kind,
         app_err.kind.http_status()
     );
-
     let network_err = ExternalServiceError::NetworkError {
         service: "fraud-detection".to_string(),
         details: "connection refused".to_string()

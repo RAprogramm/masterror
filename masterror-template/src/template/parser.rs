@@ -14,7 +14,6 @@ pub fn parse_template<'a>(source: &'a str) -> Result<Vec<TemplateSegment<'a>>, T
     let mut iter = source.char_indices().peekable();
     let mut literal_start = 0usize;
     let mut implicit_counter = 0usize;
-
     while let Some((index, ch)) = iter.next() {
         match ch {
             '{' => {
@@ -22,11 +21,9 @@ pub fn parse_template<'a>(source: &'a str) -> Result<Vec<TemplateSegment<'a>>, T
                     if index > literal_start {
                         segments.push(TemplateSegment::Literal(&source[literal_start..index]));
                     }
-
                     segments.push(TemplateSegment::Literal(
                         &source[index..index + ch.len_utf8()]
                     ));
-
                     if let Some((_, escaped)) = iter.next() {
                         literal_start = index + ch.len_utf8() + escaped.len_utf8();
                     } else {
@@ -36,14 +33,11 @@ pub fn parse_template<'a>(source: &'a str) -> Result<Vec<TemplateSegment<'a>>, T
                     }
                     continue;
                 }
-
                 if index > literal_start {
                     segments.push(TemplateSegment::Literal(&source[literal_start..index]));
                 }
-
                 let parsed = parse_placeholder(source, index, &mut implicit_counter)?;
                 segments.push(TemplateSegment::Placeholder(parsed.placeholder));
-
                 literal_start = parsed.after;
                 while matches!(iter.peek(), Some(&(next_index, _)) if next_index < parsed.after) {
                     iter.next();
@@ -54,11 +48,9 @@ pub fn parse_template<'a>(source: &'a str) -> Result<Vec<TemplateSegment<'a>>, T
                     if index > literal_start {
                         segments.push(TemplateSegment::Literal(&source[literal_start..index]));
                     }
-
                     segments.push(TemplateSegment::Literal(
                         &source[index..index + ch.len_utf8()]
                     ));
-
                     if let Some((_, escaped)) = iter.next() {
                         literal_start = index + ch.len_utf8() + escaped.len_utf8();
                     } else {
@@ -68,7 +60,6 @@ pub fn parse_template<'a>(source: &'a str) -> Result<Vec<TemplateSegment<'a>>, T
                     }
                     continue;
                 }
-
                 return Err(TemplateError::UnmatchedClosingBrace {
                     index
                 });
@@ -76,11 +67,9 @@ pub fn parse_template<'a>(source: &'a str) -> Result<Vec<TemplateSegment<'a>>, T
             _ => {}
         }
     }
-
     if literal_start < source.len() {
         segments.push(TemplateSegment::Literal(&source[literal_start..]));
     }
-
     Ok(segments)
 }
 
@@ -113,7 +102,6 @@ fn parse_placeholder<'a>(
             _ => {}
         }
     }
-
     Err(TemplateError::UnterminatedPlaceholder {
         start
     })
@@ -127,7 +115,6 @@ fn build_placeholder<'a>(
 ) -> Result<TemplatePlaceholder<'a>, TemplateError> {
     let span = start..(end + 1);
     let body = &source[start + 1..end];
-
     if body.is_empty() {
         let identifier = next_implicit_identifier(implicit_counter, &span)?;
         return Ok(TemplatePlaceholder {
@@ -138,17 +125,13 @@ fn build_placeholder<'a>(
             }
         });
     }
-
     let trimmed = body.trim();
-
     if trimmed.is_empty() {
         return Err(TemplateError::EmptyPlaceholder {
             start
         });
     }
-
     let (identifier, formatter) = split_placeholder(trimmed, span.clone(), implicit_counter)?;
-
     Ok(TemplatePlaceholder {
         span,
         identifier,
@@ -163,9 +146,7 @@ fn split_placeholder<'a>(
 ) -> Result<(TemplateIdentifier<'a>, TemplateFormatter), TemplateError> {
     let mut parts = body.splitn(2, ':');
     let identifier_text = parts.next().unwrap_or("").trim();
-
     let identifier = parse_identifier(identifier_text, span.clone(), implicit_counter)?;
-
     let formatter = match parts.next().map(str::trim) {
         None => TemplateFormatter::Display {
             spec: None
@@ -177,7 +158,6 @@ fn split_placeholder<'a>(
         }
         Some(spec) => parse_formatter(spec, span.clone())?
     };
-
     Ok((identifier, formatter))
 }
 
@@ -192,28 +172,22 @@ pub(super) fn parse_formatter_spec(spec: &str) -> Option<TemplateFormatter> {
     if trimmed.is_empty() {
         return None;
     }
-
     if let Some((last_index, ty)) = trimmed.char_indices().next_back() {
         if let Some(kind) = TemplateFormatterKind::from_specifier(ty) {
             let prefix = &trimmed[..last_index];
             let alternate = detect_alternate_flag(prefix)?;
-
             return Some(TemplateFormatter::from_kind(kind, alternate));
         }
-
         if ty.is_ascii_alphabetic() {
             return None;
         }
     }
-
     if !display_allows_hash(trimmed) {
         return None;
     }
-
     if trimmed.chars().any(|ch| matches!(ch, '%' | '{' | '}')) {
         return None;
     }
-
     Some(TemplateFormatter::Display {
         spec: Some(trimmed.to_owned().into_boxed_str())
     })
@@ -221,7 +195,6 @@ pub(super) fn parse_formatter_spec(spec: &str) -> Option<TemplateFormatter> {
 
 fn detect_alternate_flag(prefix: &str) -> Option<bool> {
     let mut rest = prefix;
-
     if rest.len() >= 2 {
         let mut iter = rest.char_indices();
         if let (Some((_, _)), Some((second_index, second))) = (iter.next(), iter.next())
@@ -231,19 +204,16 @@ fn detect_alternate_flag(prefix: &str) -> Option<bool> {
             rest = &rest[skip..];
         }
     }
-
     if let Some(first) = rest.chars().next()
         && matches!(first, '<' | '>' | '^' | '=')
     {
         rest = &rest[first.len_utf8()..];
     }
-
     loop {
         let mut chars = rest.chars();
         let Some(ch) = chars.next() else {
             return Some(false);
         };
-
         match ch {
             '+' | '-' | ' ' => {
                 rest = &rest[ch.len_utf8()..];
@@ -269,11 +239,9 @@ fn display_allows_hash(spec: &str) -> bool {
             let Some(align) = chars.next() else {
                 return false;
             };
-
             if !matches!(align, '<' | '>' | '^' | '=') {
                 return false;
             }
-
             chars.all(|ch| ch != '#')
         }
         Some(_) => false
@@ -288,7 +256,6 @@ fn parse_identifier<'a>(
     if text.is_empty() {
         return next_implicit_identifier(implicit_counter, &span);
     }
-
     if text.chars().all(|ch| ch.is_ascii_digit()) {
         let value = text
             .parse::<usize>()
@@ -297,14 +264,12 @@ fn parse_identifier<'a>(
             })?;
         return Ok(TemplateIdentifier::Positional(value));
     }
-
     if text
         .chars()
         .all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
     {
         return Ok(TemplateIdentifier::Named(text));
     }
-
     Err(TemplateError::InvalidIdentifier {
         span
     })
@@ -320,7 +285,6 @@ fn next_implicit_identifier<'a>(
         .ok_or_else(|| TemplateError::InvalidIdentifier {
             span: span.clone()
         })?;
-
     Ok(TemplateIdentifier::Implicit(index))
 }
 
@@ -488,14 +452,12 @@ mod tests {
                 }
             )
         ];
-
         for (source, expected_formatter) in &cases {
             let segments = parse_template(source).expect("template parsed");
             let placeholder = match segments.first() {
                 Some(TemplateSegment::Placeholder(placeholder)) => placeholder,
                 other => panic!("unexpected segments for {source:?}: {other:?}")
             };
-
             assert_eq!(
                 placeholder.formatter(),
                 expected_formatter,
@@ -513,7 +475,6 @@ mod tests {
             "{value:>8q}",
             "{value:##x}"
         ];
-
         for source in &cases {
             let err = parse_template(source).expect_err("expected formatter error");
             assert!(
@@ -531,14 +492,12 @@ mod tests {
             ("{value:#>4}", "#>4"),
             ("{value:#>+6}", "#>+6")
         ];
-
         for (source, expected_spec) in cases {
             let segments = parse_template(source).expect("template parsed");
             let placeholder = match segments.first() {
                 Some(TemplateSegment::Placeholder(placeholder)) => placeholder,
                 other => panic!("unexpected segments for {source:?}: {other:?}")
             };
-
             let formatter = placeholder.formatter();
             assert!(formatter.display_spec().is_some());
             assert_eq!(formatter.display_spec(), Some(expected_spec));
@@ -552,7 +511,6 @@ mod tests {
             Some(TemplateSegment::Placeholder(placeholder)) => placeholder,
             other => panic!("unexpected segments for empty braces: {other:?}")
         };
-
         assert_eq!(placeholder.identifier(), &TemplateIdentifier::Implicit(0));
         assert_eq!(
             placeholder.formatter(),
@@ -572,7 +530,6 @@ mod tests {
                 TemplateSegment::Literal(_) => None
             })
             .collect();
-
         assert_eq!(placeholders.len(), 4);
         assert_eq!(
             placeholders[0].identifier(),

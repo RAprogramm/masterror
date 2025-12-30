@@ -212,7 +212,6 @@ impl Context {
             category,
             ..
         } = self;
-
         if let Some(location) = caller_location {
             fields.push(Field::new(
                 "caller.file",
@@ -227,7 +226,6 @@ impl Context {
                 FieldValue::U64(u64::from(location.column()))
             ));
         }
-
         let mut error = AppError::new_raw(category, None);
         error.code = code;
         if !fields.is_empty() {
@@ -404,7 +402,6 @@ mod tests {
     #[test]
     fn context_into_error_creates_error_with_kind_and_code() {
         use std::io::{Error as IoError, ErrorKind};
-
         let io_err = IoError::from(ErrorKind::Other);
         let ctx = Context::new(AppErrorKind::Service);
         let err = ctx.into_error(io_err);
@@ -416,7 +413,6 @@ mod tests {
     #[test]
     fn context_into_error_applies_metadata_fields() {
         use std::io::{Error as IoError, ErrorKind};
-
         let io_err = IoError::from(ErrorKind::Other);
         let ctx = Context::new(AppErrorKind::Service)
             .with(field::str("operation", "sync"))
@@ -434,7 +430,6 @@ mod tests {
     #[test]
     fn context_into_error_applies_field_redactions() {
         use std::io::{Error as IoError, ErrorKind};
-
         let io_err = IoError::from(ErrorKind::Other);
         let ctx = Context::new(AppErrorKind::Service)
             .with(field::str("secret", "password"))
@@ -450,7 +445,6 @@ mod tests {
     #[test]
     fn context_into_error_applies_message_redaction() {
         use std::io::{Error as IoError, ErrorKind};
-
         let io_err = IoError::from(ErrorKind::Other);
         let ctx = Context::new(AppErrorKind::Service).redact(true);
         let err = ctx.into_error(io_err);
@@ -462,7 +456,6 @@ mod tests {
     #[track_caller]
     fn context_into_error_captures_caller_location() {
         use std::io::{Error as IoError, ErrorKind};
-
         let io_err = IoError::from(ErrorKind::Other);
         let ctx = Context::new(AppErrorKind::Service).track_caller();
         let err = ctx.into_error(io_err);
@@ -476,7 +469,6 @@ mod tests {
     #[test]
     fn context_into_error_with_custom_code() {
         use std::io::{Error as IoError, ErrorKind};
-
         let io_err = IoError::from(ErrorKind::Other);
         let ctx = Context::new(AppErrorKind::Service).code(AppCode::Validation);
         let err = ctx.into_error(io_err);
@@ -539,7 +531,6 @@ mod tests {
             .redact_field("secret", FieldRedaction::Redact)
             .redact(true)
             .track_caller();
-
         assert_eq!(ctx.category, AppErrorKind::Service);
         assert_eq!(ctx.code, AppCode::Validation);
         assert!(ctx.code_overridden);

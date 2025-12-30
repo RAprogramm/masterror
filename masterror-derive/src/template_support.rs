@@ -38,7 +38,6 @@ pub enum TemplateIdentifierSpec {
 pub fn parse_display_template(lit: LitStr) -> Result<DisplayTemplate, Error> {
     let value = lit.value();
     let parsed = ErrorTemplate::parse(&value).map_err(|err| template_error(&lit, err))?;
-
     let mut segments = Vec::new();
     for segment in parsed.segments() {
         match segment {
@@ -56,7 +55,6 @@ pub fn parse_display_template(lit: LitStr) -> Result<DisplayTemplate, Error> {
                     }
                     TemplateIdentifier::Implicit(index) => TemplateIdentifierSpec::Implicit(*index)
                 };
-
                 segments.push(TemplateSegmentSpec::Placeholder(TemplatePlaceholderSpec {
                     span,
                     identifier,
@@ -65,7 +63,6 @@ pub fn parse_display_template(lit: LitStr) -> Result<DisplayTemplate, Error> {
             }
         }
     }
-
     Ok(DisplayTemplate {
         segments
     })
@@ -100,7 +97,6 @@ fn template_error(lit: &LitStr, error: TemplateError) -> Error {
             span
         } => literal_subspan(lit, span.clone())
     };
-
     Error::new(span.unwrap_or_else(|| lit.span()), message)
 }
 
@@ -231,7 +227,6 @@ mod tests {
         let result = parse_display_template(lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
-        // "hello {{world}}" parses as: "hello ", "{", "world", "}"
         assert_eq!(template.segments.len(), 4);
         assert!(matches!(
             &template.segments[0],
@@ -271,9 +266,9 @@ mod tests {
         assert!(msg.contains("not closed"));
     }
 
+    /// Nested placeholder `{foo{bar}` has `{` inside - should fail.
     #[test]
     fn parse_display_template_nested_placeholder() {
-        // A truly nested placeholder: "{foo{bar}" - has "{" inside the placeholder
         let lit: LitStr = parse_quote!("{foo{bar}");
         let result = parse_display_template(lit);
         assert!(result.is_err());
@@ -469,21 +464,19 @@ mod tests {
         assert!(msg.contains("unsupported formatter") || msg.contains("Invalid"));
     }
 
+    /// Verifies that `placeholder_span` doesn't panic for valid ranges.
     #[test]
     fn placeholder_span_returns_subspan_for_valid_range() {
         let lit: LitStr = parse_quote!("hello {name}");
         let span = placeholder_span(&lit, 6..12);
-        // The span should be valid (not equal to the lit span in a meaningful way)
-        // We can't directly compare spans, but we can verify the function doesn't panic
         let _ = span;
     }
 
+    /// Invalid range returns `lit.span()` without panicking.
     #[test]
     fn placeholder_span_returns_lit_span_for_invalid_range() {
         let lit: LitStr = parse_quote!("hello");
-        // Invalid range beyond the string length
         let span = placeholder_span(&lit, 100..200);
-        // Should return lit.span() without panicking
         let _ = span;
     }
 
@@ -592,7 +585,6 @@ mod tests {
             ("{val:#o}", "Octal"),
             ("{val:#p}", "Pointer"),
         ];
-
         for (template_str, formatter_name) in cases {
             let lit: LitStr = parse_quote!(#template_str);
             let result = parse_display_template(lit);
@@ -606,7 +598,6 @@ mod tests {
         let result = parse_display_template(lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
-        // Should have: "{", "prefix", "}", " ", placeholder, " ", "{", "suffix", "}"
         assert!(template.segments.len() >= 3);
     }
 

@@ -26,13 +26,10 @@ fn prohibits_direct_result_app_error_usage() {
     let src_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut files = Vec::new();
     collect_rs_files(&src_dir, &mut files).expect("collect Rust sources");
-
     let mut offenders = Vec::new();
-
     for path in &files {
         let content = fs::read_to_string(path)
             .unwrap_or_else(|err| panic!("failed to read {}: {err}", path.display()));
-
         for (idx, line) in content.lines().enumerate() {
             if line.contains("Result<")
                 && line.contains("AppError")
@@ -47,7 +44,6 @@ fn prohibits_direct_result_app_error_usage() {
             }
         }
     }
-
     if !offenders.is_empty() {
         panic!(
             "Found direct `Result<_, AppError>` usage; replace with `AppResult<_>`: {}",

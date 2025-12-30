@@ -61,11 +61,9 @@ fn build_teloxide_context(err: &RequestError) -> (Context, Option<u64>) {
                     "telegram.api_error_variant",
                     format!("{:?}", api)
                 ));
-
             if matches!(api, ApiError::InvalidToken) {
                 context = context.category(AppErrorKind::Unauthorized);
             }
-
             (context, None)
         }
         RequestError::MigrateToChatId(id) => (

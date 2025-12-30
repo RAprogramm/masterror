@@ -150,13 +150,11 @@ mod tests {
             .await
             .expect_err("expect timeout");
         let app_err1: Error = err1.into();
-
         let fut2 = sleep(Duration::from_millis(30));
         let err2 = timeout(Duration::from_millis(1), fut2)
             .await
             .expect_err("expect timeout");
         let app_err2: Error = err2.into();
-
         assert!(matches!(app_err1.kind, AppErrorKind::Timeout));
         assert!(matches!(app_err2.kind, AppErrorKind::Timeout));
         assert_eq!(

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use masterror::Error;
+use core::ptr::null;
 
 #[derive(Debug, Error)]
 #[error(
@@ -32,9 +33,8 @@ fn main() {
     let showcase = FormatterVariants {
         value: 0x5A5Au32,
         float: 1234.5,
-        ptr: core::ptr::null(),
+        ptr: null(),
         pretty: PrettyDebugValue { label: "alpha" },
     };
-
     let _ = showcase.to_string();
 }

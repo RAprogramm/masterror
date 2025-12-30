@@ -136,7 +136,6 @@ mod tests {
     fn new_accepts_string_types() {
         let owned = ErrorResponse::new(200, AppCode::Internal, String::from("owned"));
         assert!(owned.is_ok());
-
         let borrowed = ErrorResponse::new(201, AppCode::Internal, "borrowed");
         assert!(borrowed.is_ok());
     }
@@ -235,7 +234,6 @@ mod tests {
             (503, StatusCode::SERVICE_UNAVAILABLE),
             (504, StatusCode::GATEWAY_TIMEOUT),
         ];
-
         for (num, expected) in codes {
             let resp = ErrorResponse::new(num, AppCode::Internal, "test").unwrap();
             assert_eq!(resp.status_code(), expected);

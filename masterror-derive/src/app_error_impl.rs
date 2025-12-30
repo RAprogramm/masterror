@@ -17,25 +17,21 @@ pub fn expand(input: &ErrorInput) -> Result<Vec<TokenStream>, Error> {
 
 fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<Vec<TokenStream>, Error> {
     let mut impls = Vec::new();
-
     if let Some(spec) = &data.app_error {
         impls.push(struct_app_error_impl(input, spec));
         if spec.code.is_some() {
             impls.push(struct_app_code_impl(input, spec));
         }
     }
-
     Ok(impls)
 }
 
 fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> Result<Vec<TokenStream>, Error> {
     let mut impls = Vec::new();
-
     if variants.iter().any(|variant| variant.app_error.is_some()) {
         ensure_all_have_app_error(variants)?;
         impls.push(enum_app_error_impl(input, variants));
     }
-
     if variants.iter().any(|variant| {
         variant
             .app_error
@@ -45,7 +41,6 @@ fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> Result<Vec<Token
         ensure_all_have_app_code(variants)?;
         impls.push(enum_app_code_impl(input, variants));
     }
-
     Ok(impls)
 }
 
@@ -86,7 +81,6 @@ fn struct_app_error_impl(input: &ErrorInput, spec: &AppErrorSpec) -> TokenStream
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
     let kind = &spec.kind;
-
     let body = if spec.expose_message {
         quote! {
             masterror::AppError::with(#kind, std::string::ToString::to_string(&value))
@@ -99,7 +93,6 @@ fn struct_app_error_impl(input: &ErrorInput, spec: &AppErrorSpec) -> TokenStream
             }
         }
     };
-
     quote! {
         impl #impl_generics core::convert::From<#ident #ty_generics> for masterror::AppError #where_clause {
             fn from(value: #ident #ty_generics) -> Self {
@@ -113,7 +106,6 @@ fn struct_app_code_impl(input: &ErrorInput, spec: &AppErrorSpec) -> TokenStream 
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
     let code = spec.code.as_ref().expect("code presence checked");
-
     quote! {
         impl #impl_generics core::convert::From<#ident #ty_generics> for masterror::AppCode #where_clause {
             fn from(value: #ident #ty_generics) -> Self {
@@ -127,7 +119,6 @@ fn struct_app_code_impl(input: &ErrorInput, spec: &AppErrorSpec) -> TokenStream 
 fn enum_app_error_impl(input: &ErrorInput, variants: &[VariantData]) -> TokenStream {
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
     let mut arms = Vec::new();
     for variant in variants {
         let spec = variant.app_error.as_ref().expect("presence checked");
@@ -147,7 +138,6 @@ fn enum_app_error_impl(input: &ErrorInput, variants: &[VariantData]) -> TokenStr
         };
         arms.push(quote! { #pattern => #body });
     }
-
     quote! {
         impl #impl_generics core::convert::From<#ident #ty_generics> for masterror::AppError #where_clause {
             fn from(value: #ident #ty_generics) -> Self {
@@ -162,7 +152,6 @@ fn enum_app_error_impl(input: &ErrorInput, variants: &[VariantData]) -> TokenStr
 fn enum_app_code_impl(input: &ErrorInput, variants: &[VariantData]) -> TokenStream {
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
     let mut arms = Vec::new();
     for variant in variants {
         let spec = variant.app_error.as_ref().expect("presence checked");
@@ -170,7 +159,6 @@ fn enum_app_code_impl(input: &ErrorInput, variants: &[VariantData]) -> TokenStre
         let code = spec.code.as_ref().expect("code presence checked");
         arms.push(quote! { #pattern => #code });
     }
-
     quote! {
         impl #impl_generics core::convert::From<#ident #ty_generics> for masterror::AppCode #where_clause {
             fn from(value: #ident #ty_generics) -> Self {

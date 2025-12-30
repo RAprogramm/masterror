@@ -47,7 +47,6 @@ fn expand(input: DeriveInput) -> Result<proc_macro2::TokenStream, Error> {
     let error_impl = error_trait::expand(&parsed)?;
     let from_impls = from_impl::expand(&parsed)?;
     let app_error_impls = app_error_impl::expand(&parsed)?;
-
     Ok(quote! {
         #display_impl
         #error_impl
@@ -62,7 +61,6 @@ fn expand_masterror(input: DeriveInput) -> Result<proc_macro2::TokenStream, Erro
     let error_impl = error_trait::expand(&parsed)?;
     let from_impls = from_impl::expand(&parsed)?;
     let masterror_impl = masterror_impl::expand(&parsed)?;
-
     Ok(quote! {
         #display_impl
         #error_impl

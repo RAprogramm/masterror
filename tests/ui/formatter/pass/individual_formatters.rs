@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use masterror::Error;
+use core::ptr::null;
 
 #[derive(Debug, Error)]
 #[error("{value}")]
@@ -68,7 +69,7 @@ fn main() {
     let _ = LowerExpPair { value: 1234.5 }.to_string();
     let _ = UpperExpPair { value: 1234.5 }.to_string();
     let _ = PointerPair {
-        value: core::ptr::null::<u32>()
+        value: null::<u32>()
     }
     .to_string();
 }

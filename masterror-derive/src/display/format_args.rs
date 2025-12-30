@@ -131,19 +131,16 @@ impl<'a> FormatArgumentsEnv<'a> {
             positional: HashMap::new(),
             implicit: Vec::new()
         };
-
         for (index, arg) in spec.args.iter().enumerate() {
             let binding = match &arg.value {
                 FormatArgValue::Expr(_) => Some(format_ident!("__masterror_format_arg_{}", index)),
                 FormatArgValue::Shorthand(_) => None
             };
-
             let arg_index = env.args.len();
             env.args.push(EnvFormatArg {
                 binding: binding.clone(),
                 arg
             });
-
             match &arg.kind {
                 FormatBindingKind::Named(ident) => {
                     env.named.insert(ident.to_string(), arg_index);
@@ -157,7 +154,6 @@ impl<'a> FormatArgumentsEnv<'a> {
                 }
             }
         }
-
         env
     }
 
@@ -208,7 +204,6 @@ impl<'a> FormatArgumentsEnv<'a> {
         placeholder: &TemplatePlaceholderSpec
     ) -> Result<Option<ResolvedPlaceholderExpr>, Error> {
         use crate::template_support::TemplateIdentifierSpec;
-
         let arg_index = match &placeholder.identifier {
             TemplateIdentifierSpec::Named(name) => self.named.get(name).copied(),
             TemplateIdentifierSpec::Positional(index) => self.positional.get(index).copied(),
@@ -216,12 +211,10 @@ impl<'a> FormatArgumentsEnv<'a> {
                 self.implicit.get(*index).and_then(|slot| *slot)
             }
         };
-
         let index = match arg_index {
             Some(index) => index,
             None => return Ok(None)
         };
-
         let resolved = self.args[index].resolved_expr(self, placeholder)?;
         Ok(Some(resolved))
     }
@@ -281,7 +274,6 @@ impl<'a> EnvFormatArg<'a> {
         placeholder: &TemplatePlaceholderSpec
     ) -> Result<ResolvedPlaceholderExpr, Error> {
         use super::formatter::needs_pointer_value;
-
         match (&self.binding, &self.arg.value) {
             (Some(binding), FormatArgValue::Expr(_)) => {
                 if needs_pointer_value(&placeholder.formatter) {
@@ -309,13 +301,11 @@ impl<'a> EnvFormatArg<'a> {
                 "format argument expression binding was not generated"
             ))
         }?;
-
         let kind = match &self.arg.kind {
             FormatBindingKind::Named(ident) => ResolvedFormatArgumentKind::Named(ident.clone()),
             FormatBindingKind::Positional(index) => ResolvedFormatArgumentKind::Positional(*index),
             FormatBindingKind::Implicit(index) => ResolvedFormatArgumentKind::Implicit(*index)
         };
-
         Ok(ResolvedFormatArgument {
             kind,
             expr
@@ -329,15 +319,11 @@ fn resolve_struct_shorthand(
     placeholder: &TemplatePlaceholderSpec
 ) -> Result<ResolvedPlaceholderExpr, Error> {
     use super::formatter::needs_pointer_value;
-
     let FormatArgShorthand::Projection(projection) = shorthand;
-
     let (expr, first_field, has_tail) = struct_projection_expr(fields, projection)?;
-
     if !has_tail && let Some(field) = first_field {
         return Ok(struct_field_expr(field, &placeholder.formatter));
     }
-
     if needs_pointer_value(&placeholder.formatter) {
         Ok(ResolvedPlaceholderExpr::with(expr, false))
     } else {
@@ -352,16 +338,13 @@ fn resolve_variant_shorthand(
     placeholder: &TemplatePlaceholderSpec
 ) -> Result<ResolvedPlaceholderExpr, Error> {
     use super::formatter::needs_pointer_value;
-
     let FormatArgShorthand::Projection(projection) = shorthand;
-
     let Some(first_segment) = projection.segments.first() else {
         return Err(Error::new(
             projection.span,
             "empty shorthand projection is not supported"
         ));
     };
-
     match first_segment {
         FormatArgProjectionSegment::Field(ident) => {
             let Fields::Named(named_fields) = fields else {
@@ -373,34 +356,29 @@ fn resolve_variant_shorthand(
                     )
                 ));
             };
-
             let position = named_fields.iter().position(|field| {
                 field
                     .ident
                     .as_ref()
                     .is_some_and(|field_ident| field_ident == ident)
             });
-
             let index = position.ok_or_else(|| {
                 Error::new(
                     ident.span(),
                     format!("unknown field `{}` in format arguments", ident)
                 )
             })?;
-
             let binding = bindings.get(index).ok_or_else(|| {
                 Error::new(
                     ident.span(),
                     format!("field `{}` is not available in format arguments", ident)
                 )
             })?;
-
             let expr = if projection.segments.len() == 1 {
                 quote!(#binding)
             } else {
                 append_projection_segments(quote!(#binding), &projection.segments[1..])
             };
-
             if projection.segments.len() == 1 {
                 Ok(ResolvedPlaceholderExpr::with(
                     expr,
@@ -422,20 +400,17 @@ fn resolve_variant_shorthand(
                     "positional fields are not available for struct variants"
                 ));
             };
-
             let binding = bindings.get(*index).ok_or_else(|| {
                 Error::new(
                     *span,
                     format!("field `{}` is not available in format arguments", index)
                 )
             })?;
-
             let expr = if projection.segments.len() == 1 {
                 quote!(#binding)
             } else {
                 append_projection_segments(quote!(#binding), &projection.segments[1..])
             };
-
             if projection.segments.len() == 1 {
                 Ok(ResolvedPlaceholderExpr::with(
                     expr,
@@ -469,14 +444,12 @@ fn resolve_variant_shorthand_argument(
     shorthand: &FormatArgShorthand
 ) -> Result<TokenStream, Error> {
     let FormatArgShorthand::Projection(projection) = shorthand;
-
     let Some(first_segment) = projection.segments.first() else {
         return Err(Error::new(
             projection.span,
             "empty shorthand projection is not supported"
         ));
     };
-
     match first_segment {
         FormatArgProjectionSegment::Field(ident) => {
             let Fields::Named(named_fields) = fields else {
@@ -488,28 +461,24 @@ fn resolve_variant_shorthand_argument(
                     )
                 ));
             };
-
             let position = named_fields.iter().position(|field| {
                 field
                     .ident
                     .as_ref()
                     .is_some_and(|field_ident| field_ident == ident)
             });
-
             let index = position.ok_or_else(|| {
                 Error::new(
                     ident.span(),
                     format!("unknown field `{}` in format arguments", ident)
                 )
             })?;
-
             let binding = bindings.get(index).ok_or_else(|| {
                 Error::new(
                     ident.span(),
                     format!("field `{}` is not available in format arguments", ident)
                 )
             })?;
-
             if projection.segments.len() == 1 {
                 Ok(quote!(#binding))
             } else {
@@ -529,14 +498,12 @@ fn resolve_variant_shorthand_argument(
                     "positional fields are not available for struct variants"
                 ));
             };
-
             let binding = bindings.get(*index).ok_or_else(|| {
                 Error::new(
                     *span,
                     format!("field `{}` is not available in format arguments", index)
                 )
             })?;
-
             if projection.segments.len() == 1 {
                 Ok(quote!(#binding))
             } else {
@@ -558,14 +525,12 @@ fn struct_projection_expr<'a>(
     projection: &'a FormatArgProjection
 ) -> Result<(TokenStream, Option<&'a Field>, bool), Error> {
     use super::projection::append_method_call;
-
     let Some(first) = projection.segments.first() else {
         return Err(Error::new(
             projection.span,
             "empty shorthand projection is not supported"
         ));
     };
-
     let mut first_field = None;
     let mut expr = match first {
         FormatArgProjectionSegment::Field(ident) => {
@@ -595,11 +560,9 @@ fn struct_projection_expr<'a>(
         }
         FormatArgProjectionSegment::MethodCall(call) => append_method_call(quote!(self), call)
     };
-
     if projection.segments.len() > 1 {
         expr = append_projection_segments(expr, &projection.segments[1..]);
     }
-
     Ok((expr, first_field, projection.segments.len() > 1))
 }
 
@@ -608,9 +571,7 @@ fn struct_field_expr(
     formatter: &masterror_template::template::TemplateFormatter
 ) -> ResolvedPlaceholderExpr {
     use super::{formatter::needs_pointer_value, placeholder::pointer_prefers_value};
-
     let member = &field.member;
-
     if needs_pointer_value(formatter) && pointer_prefers_value(&field.ty) {
         ResolvedPlaceholderExpr::pointer(quote!(self.#member))
     } else {

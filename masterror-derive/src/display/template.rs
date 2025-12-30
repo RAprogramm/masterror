@@ -105,7 +105,6 @@ where
     let mut has_placeholder = false;
     let mut has_implicit_placeholders = false;
     let mut requires_format_engine = false;
-
     for segment in &template.segments {
         match segment {
             TemplateSegmentSpec::Literal(text) => {
@@ -121,7 +120,6 @@ where
                 if placeholder_requires_format_engine(&placeholder.formatter) {
                     requires_format_engine = true;
                 }
-
                 let resolved = resolver(placeholder)?;
                 format_buffer.push_str(&placeholder_format_fragment(placeholder));
                 segments.push(RenderedSegment::Placeholder(PlaceholderRender {
@@ -133,9 +131,7 @@ where
             }
         }
     }
-
     let has_additional_arguments = !preludes.is_empty() || !format_args.is_empty();
-
     if !has_placeholder && !has_additional_arguments {
         let literal = Literal::string(&literal_buffer);
         return Ok(quote! {
@@ -143,7 +139,6 @@ where
             f.write_str(#literal)
         });
     }
-
     if has_additional_arguments || has_implicit_placeholders || requires_format_engine {
         let format_literal = Literal::string(&format_buffer);
         let args = build_template_arguments(&segments, format_args);
@@ -152,7 +147,6 @@ where
             ::core::write!(f, #format_literal #(, #args)*)
         });
     }
-
     let mut pieces = preludes;
     for segment in segments {
         match segment {
@@ -168,7 +162,6 @@ where
         }
     }
     pieces.push(quote! { Ok(()) });
-
     Ok(quote! {
         #(#pieces)*
     })
@@ -195,12 +188,10 @@ pub fn build_template_arguments(
     let mut named = Vec::new();
     let mut positional = Vec::new();
     let mut implicit = Vec::new();
-
     for segment in segments {
         let RenderedSegment::Placeholder(placeholder) = segment else {
             continue;
         };
-
         match &placeholder.identifier {
             TemplateIdentifierSpec::Named(name) => {
                 if named
@@ -209,7 +200,6 @@ pub fn build_template_arguments(
                 {
                     continue;
                 }
-
                 named.push(NamedArgument {
                     name: name.clone(),
                     span: placeholder.span,
@@ -223,7 +213,6 @@ pub fn build_template_arguments(
                 {
                     continue;
                 }
-
                 positional.push(IndexedArgument {
                     index: *index,
                     expr:  placeholder.resolved.expr_tokens()
@@ -236,7 +225,6 @@ pub fn build_template_arguments(
                 {
                     continue;
                 }
-
                 implicit.push(IndexedArgument {
                     index: *index,
                     expr:  placeholder.resolved.expr_tokens()
@@ -244,7 +232,6 @@ pub fn build_template_arguments(
             }
         }
     }
-
     for argument in format_args {
         match argument.kind {
             ResolvedFormatArgumentKind::Named(ident) => {
@@ -255,7 +242,6 @@ pub fn build_template_arguments(
                 {
                     continue;
                 }
-
                 let span = ident.span();
                 named.push(NamedArgument {
                     name,
@@ -273,7 +259,6 @@ pub fn build_template_arguments(
                 {
                     continue;
                 }
-
                 positional.push(IndexedArgument {
                     index,
                     expr: argument.expr
@@ -286,7 +271,6 @@ pub fn build_template_arguments(
                 {
                     continue;
                 }
-
                 implicit.push(IndexedArgument {
                     index,
                     expr: argument.expr
@@ -294,10 +278,8 @@ pub fn build_template_arguments(
             }
         }
     }
-
     positional.sort_by_key(|argument| argument.index);
     implicit.sort_by_key(|argument| argument.index);
-
     let mut arguments = Vec::with_capacity(named.len() + positional.len() + implicit.len());
     for IndexedArgument {
         expr, ..
@@ -320,7 +302,6 @@ pub fn build_template_arguments(
         let ident = format_ident!("{}", name, span = span);
         arguments.push(quote_spanned!(span => #ident = #expr));
     }
-
     arguments
 }
 
@@ -358,18 +339,15 @@ pub fn push_literal_fragment(buffer: &mut String, literal: &str) {
 /// String containing the format string fragment (e.g., `"{name:?}"` or `"{0}"`)
 pub fn placeholder_format_fragment(placeholder: &TemplatePlaceholderSpec) -> String {
     let mut fragment = String::from("{");
-
     match &placeholder.identifier {
         TemplateIdentifierSpec::Named(name) => fragment.push_str(name),
         TemplateIdentifierSpec::Positional(index) => fragment.push_str(&index.to_string()),
         TemplateIdentifierSpec::Implicit(_) => {}
     }
-
     if let Some(spec) = formatter_format_fragment(&placeholder.formatter) {
         fragment.push(':');
         fragment.push_str(spec.as_ref());
     }
-
     fragment.push('}');
     fragment
 }

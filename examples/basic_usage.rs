@@ -21,11 +21,9 @@ fn fetch_user(id: &str) -> AppResult<String> {
     if id.is_empty() {
         masterror::fail!(AppError::bad_request("User ID cannot be empty"));
     }
-
     if id == "404" {
         return Err(AppError::not_found("User not found"));
     }
-
     Ok(format!("User {id}"))
 }
 
@@ -43,66 +41,51 @@ fn database_operation() -> AppResult<()> {
             "timeout",
             std::time::Duration::from_secs(5)
         ));
-
     Err(err)
 }
 
 fn main() {
     println!("=== Basic Error Creation ===\n");
-
     let err = AppError::new(AppErrorKind::BadRequest, "Invalid input");
     println!("Simple error: {err}");
     println!("Error kind: {:?}", err.kind);
     println!("Error code: {:?}\n", err.code);
-
     println!("=== Using ensure! macro ===\n");
-
     match validate_age(-5) {
         Ok(()) => println!("Age valid"),
         Err(e) => println!("Validation failed: {e}")
     }
-
     match validate_age(200) {
         Ok(()) => println!("Age valid"),
         Err(e) => println!("Validation failed: {e}")
     }
-
     match validate_age(25) {
         Ok(()) => println!("Age 25 is valid\n"),
         Err(e) => println!("Validation failed: {e}")
     }
-
     println!("=== Using fail! macro ===\n");
-
     match fetch_user("") {
         Ok(user) => println!("Found: {user}"),
         Err(e) => println!("Fetch failed: {e}")
     }
-
     match fetch_user("404") {
         Ok(user) => println!("Found: {user}"),
         Err(e) => println!("Fetch failed: {e}")
     }
-
     match fetch_user("alice") {
         Ok(user) => println!("Found: {user}\n"),
         Err(e) => println!("Fetch failed: {e}")
     }
-
     println!("=== Error Propagation ===\n");
-
     match process_request("bob", 30) {
         Ok(result) => println!("Success: {result}"),
         Err(e) => println!("Request failed: {e}")
     }
-
     match process_request("404", 30) {
         Ok(result) => println!("Success: {result}"),
         Err(e) => println!("Request failed: {e}\n")
     }
-
     println!("=== Structured Metadata ===\n");
-
     match database_operation() {
         Ok(()) => println!("Database operation succeeded"),
         Err(e) => {

@@ -23,10 +23,8 @@ use super::{
 /// Main entry point for parsing error definitions from syn AST.
 pub fn parse_input(input: DeriveInput) -> Result<ErrorInput, Error> {
     let mut errors = Vec::new();
-
     let ident = input.ident;
     let generics = input.generics;
-
     let data = match input.data {
         Data::Struct(data) => parse_struct(&ident, &input.attrs, data, &mut errors),
         Data::Enum(data) => parse_enum(&input.attrs, data, &mut errors),
@@ -38,14 +36,12 @@ pub fn parse_input(input: DeriveInput) -> Result<ErrorInput, Error> {
             Err(())
         }
     };
-
     let data = match data {
         Ok(value) => value,
         Err(()) => {
             return Err(collect_errors(errors));
         }
     };
-
     if errors.is_empty() {
         Ok(ErrorInput {
             ident,
@@ -68,11 +64,9 @@ fn parse_struct(
     let app_error = extract_app_error_spec(attrs, errors)?;
     let masterror = extract_masterror_spec(attrs, errors)?;
     let fields = Fields::from_syn(&data.fields, errors);
-
     validate_from_usage(&fields, &display, errors);
     validate_backtrace_usage(&fields, errors);
     validate_transparent(&fields, &display, errors, None);
-
     Ok(ErrorData::Struct(Box::new(StructData {
         fields,
         display,
@@ -96,12 +90,10 @@ fn parse_enum(
             ));
         }
     }
-
     let mut variants = Vec::new();
     for variant in data.variants {
         variants.push(parse_variant(variant, errors)?);
     }
-
     Ok(ErrorData::Enum(variants))
 }
 
@@ -116,16 +108,13 @@ fn parse_variant(variant: syn::Variant, errors: &mut Vec<Error>) -> Result<Varia
             ));
         }
     }
-
     let display = extract_display_spec(&variant.attrs, span, errors)?;
     let app_error = extract_app_error_spec(&variant.attrs, errors)?;
     let masterror = extract_masterror_spec(&variant.attrs, errors)?;
     let fields = Fields::from_syn(&variant.fields, errors);
-
     validate_from_usage(&fields, &display, errors);
     validate_backtrace_usage(&fields, errors);
     validate_transparent(&fields, &display, errors, Some(&variant));
-
     Ok(VariantData {
         ident: variant.ident,
         fields,

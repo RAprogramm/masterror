@@ -27,7 +27,6 @@ impl std::error::Error for DummyError {}
 
 fn context_into_error(c: &mut Criterion) {
     let mut group = c.benchmark_group("context_into_error");
-
     group.bench_function("non_redacted", |b| {
         b.iter(|| {
             let context = build_context(false);
@@ -35,7 +34,6 @@ fn context_into_error(c: &mut Criterion) {
             black_box(err)
         });
     });
-
     group.bench_function("redacted", |b| {
         b.iter(|| {
             let context = build_context(true);
@@ -43,13 +41,11 @@ fn context_into_error(c: &mut Criterion) {
             black_box(err)
         });
     });
-
     group.finish();
 }
 
 fn problem_json_from_app_error(c: &mut Criterion) {
     let mut group = c.benchmark_group("problem_json_from_app_error");
-
     group.bench_function("non_redacted", |b| {
         b.iter_batched(
             || promote_error(build_context(false)),
@@ -60,7 +56,6 @@ fn problem_json_from_app_error(c: &mut Criterion) {
             BatchSize::SmallInput
         );
     });
-
     group.bench_function("redacted", |b| {
         b.iter_batched(
             || promote_error(build_context(true)),
@@ -71,7 +66,6 @@ fn problem_json_from_app_error(c: &mut Criterion) {
             BatchSize::SmallInput
         );
     });
-
     group.finish();
 }
 
@@ -82,7 +76,6 @@ fn build_context(redacted: bool) -> Context {
         .with(field::duration("elapsed", Duration::from_millis(275)))
         .with(field::bool("idempotent", true))
         .with(field::ip("peer", IpAddr::from(Ipv4Addr::LOCALHOST)));
-
     if redacted {
         context = context
             .with(field::str("token", "secret-token"))
@@ -92,7 +85,6 @@ fn build_context(redacted: bool) -> Context {
     } else {
         context = context.with(field::str("token", "secret-token"));
     }
-
     context
 }
 

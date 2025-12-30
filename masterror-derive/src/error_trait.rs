@@ -105,10 +105,8 @@ fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, E
     let provide_method = struct_provide_method(&data.fields);
     let backtrace_method = backtrace_method.unwrap_or_default();
     let provide_method = provide_method.unwrap_or_default();
-
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
     Ok(quote! {
         impl #impl_generics std::error::Error for #ident #ty_generics #where_clause {
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
@@ -138,15 +136,12 @@ fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> Result<TokenStre
     for variant in variants {
         arms.push(variant_source_arm(variant));
     }
-
     let backtrace_method = enum_backtrace_method(variants);
     let provide_method = enum_provide_method(variants);
     let backtrace_method = backtrace_method.unwrap_or_default();
     let provide_method = provide_method.unwrap_or_default();
-
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
     Ok(quote! {
         impl #impl_generics std::error::Error for #ident #ty_generics #where_clause {
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
@@ -217,7 +212,6 @@ mod tests {
             generics: parse_quote!(),
             data:     ErrorData::Enum(vec![variant])
         };
-
         let result = expand(&input);
         assert!(result.is_ok());
         let tokens = result.expect("valid tokens");

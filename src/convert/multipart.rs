@@ -90,11 +90,9 @@ impl From<MultipartError> for Error {
                 "http.is_client_error",
                 status.is_client_error()
             ));
-
         if let Some(reason) = status.canonical_reason() {
             context = context.with(field::str("http.status_reason", reason));
         }
-
         context.into_error(err)
     }
 }
@@ -119,16 +117,13 @@ mod tests {
             )
             .body(Body::from("not-a-multipart-body"))
             .expect("request");
-
         let mut multipart = Multipart::from_request(request, &())
             .await
             .expect("extractor");
-
         let err = multipart.next_field().await.expect_err("error");
         let status = err.status();
         let body_text = err.body_text();
         let app_err: Error = err.into();
-
         assert_eq!(app_err.kind, AppErrorKind::BadRequest);
         assert_eq!(
             app_err.metadata().get("multipart.reason"),
@@ -157,14 +152,11 @@ mod tests {
             .header("content-type", "multipart/form-data; boundary=X")
             .body(Body::from("invalid-multipart-data"))
             .expect("request");
-
         let mut multipart = Multipart::from_request(request, &())
             .await
             .expect("extractor");
-
         let err = multipart.next_field().await.expect_err("error");
         let app_err: Error = err.into();
-
         assert_eq!(app_err.kind, AppErrorKind::BadRequest);
         assert!(app_err.metadata().get("multipart.reason").is_some());
     }
@@ -175,14 +167,11 @@ mod tests {
             .header("content-type", "multipart/form-data; boundary=BOUND")
             .body(Body::empty())
             .expect("request");
-
         let mut multipart = Multipart::from_request(request, &())
             .await
             .expect("extractor");
-
         let err = multipart.next_field().await.expect_err("error");
         let app_err: Error = err.into();
-
         assert_eq!(app_err.kind, AppErrorKind::BadRequest);
         let metadata = app_err.metadata();
         assert_eq!(
@@ -197,15 +186,12 @@ mod tests {
             .header("content-type", "multipart/form-data; boundary=TEST")
             .body(Body::from("garbage"))
             .expect("request");
-
         let mut multipart = Multipart::from_request(request, &())
             .await
             .expect("extractor");
-
         let err = multipart.next_field().await.expect_err("error");
         let app_err: Error = err.into();
         let metadata = app_err.metadata();
-
         assert!(metadata.get("http.status").is_some());
         assert!(metadata.get("http.status_reason").is_some());
     }
@@ -216,15 +202,12 @@ mod tests {
             .header("content-type", "multipart/form-data; boundary=B")
             .body(Body::from("bad-data"))
             .expect("request");
-
         let mut multipart = Multipart::from_request(request, &())
             .await
             .expect("extractor");
-
         let err = multipart.next_field().await.expect_err("error");
         let original_message = err.body_text();
         let app_err: Error = err.into();
-
         assert_eq!(
             app_err.metadata().get("multipart.reason"),
             Some(&FieldValue::Str(original_message.into()))
@@ -237,15 +220,12 @@ mod tests {
             .header("content-type", "multipart/form-data; boundary=XYZ")
             .body(Body::from("invalid"))
             .expect("request");
-
         let mut multipart = Multipart::from_request(request, &())
             .await
             .expect("extractor");
-
         let err = multipart.next_field().await.expect_err("error");
         let status = err.status();
         let app_err: Error = err.into();
-
         assert!(status.is_client_error());
         assert_eq!(app_err.kind, AppErrorKind::BadRequest);
     }
@@ -256,14 +236,11 @@ mod tests {
             .header("content-type", "multipart/form-data; boundary=ABC")
             .body(Body::from("malformed"))
             .expect("request");
-
         let mut multipart = Multipart::from_request(request, &())
             .await
             .expect("extractor");
-
         let err = multipart.next_field().await.expect_err("error");
         let app_err: Error = err.into();
-
         assert_eq!(app_err.kind, AppErrorKind::BadRequest);
         assert!(app_err.source.is_some());
     }
@@ -274,26 +251,20 @@ mod tests {
             .header("content-type", "multipart/form-data; boundary=A")
             .body(Body::from("bad1"))
             .expect("request");
-
         let mut multipart1 = Multipart::from_request(request1, &())
             .await
             .expect("extractor");
-
         let err1 = multipart1.next_field().await.expect_err("error");
         let app_err1: Error = err1.into();
-
         let request2 = Request::builder()
             .header("content-type", "multipart/form-data; boundary=B")
             .body(Body::from("bad2"))
             .expect("request");
-
         let mut multipart2 = Multipart::from_request(request2, &())
             .await
             .expect("extractor");
-
         let err2 = multipart2.next_field().await.expect_err("error");
         let app_err2: Error = err2.into();
-
         assert_eq!(app_err1.kind, AppErrorKind::BadRequest);
         assert_eq!(app_err2.kind, AppErrorKind::BadRequest);
     }
