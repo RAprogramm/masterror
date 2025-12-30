@@ -1964,7 +1964,7 @@ checksum = "a94d21414c1f4a51209ad204c1776a3d0765002c76c6abcb602a6f09f1e881c7"
 
 [[package]]
 name = "masterror"
-version = "0.27.0"
+version = "0.27.1"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -1978,7 +1978,7 @@ dependencies = [
  "log",
  "log-mdc",
  "masterror-derive 0.10.0",
- "masterror-template 0.4.0",
+ "masterror-template 0.4.1",
  "metrics",
  "owo-colors",
  "redis",
@@ -2019,9 +2019,9 @@ dependencies = [
 
 [[package]]
 name = "masterror-derive"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
- "masterror-template 0.4.0",
+ "masterror-template 0.4.1",
  "proc-macro2",
  "quote",
  "syn",
@@ -2035,7 +2035,7 @@ checksum = "76cbb19c37caa0e505f0fb43a68184a4d22dc6e81daea40dd00fc24a356ffa9a"
 
 [[package]]
 name = "masterror-template"
-version = "0.4.0"
+version = "0.4.1"
 
 [[package]]
 name = "matchers"
