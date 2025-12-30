@@ -93,7 +93,7 @@ masterror-derive = { version = "0.11" }
 masterror-template = { version = "0.4" }
 
 [dependencies]
-masterror-derive = { version = "0.10" }
+masterror-derive = { version = "0.11" }
 masterror-template = { workspace = true }
 tracing = { version = "0.1", optional = true, default-features = false, features = [
   "attributes",
