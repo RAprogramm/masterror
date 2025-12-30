@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.27.0...HEAD)
+
+### Miscellaneous
+
+- Configure dependabot to group minor/patch updates by [@RAprogramm](https://github.com/RAprogramm) ([653ccd2](https://github.com/RAprogramm/masterror/commit/653ccd299cb2833f11cdff716bdc24fa06af1d03))
 ## [0.27.0](https://github.com/RAprogramm/masterror/releases/tag/v0.27.0) - 2025-12-26
 
 ### Dependencies
