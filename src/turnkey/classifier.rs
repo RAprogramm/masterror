@@ -35,7 +35,6 @@ const STACK_NEEDLE_INLINE_CAP: usize = 64;
 /// ```
 #[must_use]
 pub fn classify_turnkey_error(msg: &str) -> TurnkeyErrorKind {
-    // Patterns grouped by kind. Keep short, ASCII, and conservative.
     const UNIQUE_PATTERNS: &[&str] = &[
         "label must be unique",
         "already exists",
@@ -57,7 +56,6 @@ pub fn classify_turnkey_error(msg: &str) -> TurnkeyErrorKind {
     const TO_PATTERNS: &[&str] = &["timeout", "timed out", "deadline exceeded"];
     const AUTH_PATTERNS: &[&str] = &["401", "403", "unauthor", "forbidden"];
     const NET_PATTERNS: &[&str] = &["network", "connection", "connect", "dns", "tls", "socket"];
-
     if contains_any_nocase(msg, UNIQUE_PATTERNS) {
         TurnkeyErrorKind::UniqueLabel
     } else if contains_any_nocase(msg, RL_PATTERNS)
@@ -129,11 +127,9 @@ fn contains_nocase_with(
     let needle_bytes = needle.as_bytes();
     let lowered = LowercasedNeedle::new(needle_bytes);
     let needle_lower = lowered.as_slice();
-
     if needle_lower.is_empty() {
         return true;
     }
-
     haystack_bytes
         .windows(needle_lower.len())
         .enumerate()
@@ -195,9 +191,11 @@ const fn is_ascii_alphanumeric(byte: u8) -> bool {
 }
 
 /// Converts ASCII letters to lowercase and leaves other bytes unchanged.
+///
+/// Uses direct byte comparison instead of `RangeInclusive` to stay
+/// const-friendly on MSRV 1.90.
 #[inline]
 const fn ascii_lower(b: u8) -> u8 {
-    // ASCII-only fold without RangeInclusive to keep const-friendly on MSRV 1.90
     if b >= b'A' && b <= b'Z' { b + 32 } else { b }
 }
 

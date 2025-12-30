@@ -197,14 +197,12 @@ impl Display for AppErrorKind {
 impl Display for AppErrorKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         use crate::colored::style;
-
         let label = self.label();
         let styled = if self.is_critical() {
             style::error_kind_critical(label)
         } else {
             style::error_kind_warning(label)
         };
-
         f.write_str(&styled)
     }
 }
@@ -249,7 +247,6 @@ impl AppErrorKind {
     /// library errors).
     pub fn http_status(&self) -> u16 {
         match self {
-            // 4xx — client errors
             AppErrorKind::NotFound => 404,
             AppErrorKind::Validation => 422,
             AppErrorKind::Conflict => 409,
@@ -260,11 +257,8 @@ impl AppErrorKind {
             AppErrorKind::NotImplemented => 501,
             AppErrorKind::BadRequest => 400,
             AppErrorKind::RateLimited => 429,
-
-            // 5xx — server/infrastructure errors
             AppErrorKind::Timeout => 504,
             AppErrorKind::Network | AppErrorKind::DependencyUnavailable => 503,
-
             AppErrorKind::Serialization
             | AppErrorKind::Deserialization
             | AppErrorKind::ExternalApi
@@ -362,7 +356,6 @@ mod tests {
     fn display_colored_contains_label() {
         let output = Internal.to_string();
         assert!(output.contains("Internal server error"));
-
         let output = BadRequest.to_string();
         assert!(output.contains("Bad request"));
     }

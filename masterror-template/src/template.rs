@@ -101,7 +101,6 @@ where
                 }
             }
         }
-
         Ok(())
     }
 }
@@ -677,12 +676,10 @@ mod tests {
     fn parses_basic_template() {
         let template = ErrorTemplate::parse("{code}: {message}").expect("parse");
         let segments = template.segments();
-
         assert_eq!(segments.len(), 3);
         assert!(matches!(segments[0], TemplateSegment::Placeholder(_)));
         assert!(matches!(segments[1], TemplateSegment::Literal(": ")));
         assert!(matches!(segments[2], TemplateSegment::Placeholder(_)));
-
         let placeholders: Vec<_> = template.placeholders().collect();
         assert_eq!(placeholders.len(), 2);
         assert_eq!(placeholders[0].identifier(), &named("code"));
@@ -693,7 +690,6 @@ mod tests {
     fn parses_implicit_identifiers() {
         let template = ErrorTemplate::parse("{}, {:?}, {name}, {}").expect("parse");
         let mut placeholders = template.placeholders();
-
         let first = placeholders.next().expect("first placeholder");
         assert_eq!(first.identifier(), &TemplateIdentifier::Implicit(0));
         assert_eq!(
@@ -702,7 +698,6 @@ mod tests {
                 spec: None
             }
         );
-
         let second = placeholders.next().expect("second placeholder");
         assert_eq!(second.identifier(), &TemplateIdentifier::Implicit(1));
         assert_eq!(
@@ -711,10 +706,8 @@ mod tests {
                 alternate: false
             }
         );
-
         let third = placeholders.next().expect("third placeholder");
         assert_eq!(third.identifier(), &named("name"));
-
         let fourth = placeholders.next().expect("fourth placeholder");
         assert_eq!(fourth.identifier(), &TemplateIdentifier::Implicit(2));
         assert!(placeholders.next().is_none());
@@ -724,7 +717,6 @@ mod tests {
     fn parses_debug_formatter() {
         let template = ErrorTemplate::parse("{0:#?}").expect("parse");
         let placeholders: Vec<_> = template.placeholders().collect();
-
         assert_eq!(placeholders.len(), 1);
         assert_eq!(
             placeholders[0].identifier(),
@@ -827,7 +819,6 @@ mod tests {
                 }
             )
         ];
-
         for (template_str, expected) in &cases {
             let template = ErrorTemplate::parse(template_str).expect("parse");
             let placeholder = template.placeholders().next().expect("placeholder present");
@@ -839,17 +830,14 @@ mod tests {
     fn preserves_hash_fill_display_specs() {
         let template = ErrorTemplate::parse("{value:#>4}").expect("parse");
         let placeholder = template.placeholders().next().expect("placeholder present");
-
         assert_eq!(placeholder.formatter().display_spec(), Some("#>4"));
         assert_eq!(
             placeholder.formatter().format_fragment().as_deref(),
             Some("#>4")
         );
-
         let expected = TemplateFormatter::Display {
             spec: Some("#>4".into())
         };
-
         assert_eq!(placeholder.formatter(), &expected);
     }
 
@@ -865,17 +853,13 @@ mod tests {
             (TemplateFormatterKind::LowerExp, 'e'),
             (TemplateFormatterKind::UpperExp, 'E')
         ];
-
         for (kind, specifier) in table {
             assert_eq!(TemplateFormatterKind::from_specifier(specifier), Some(kind));
             assert_eq!(kind.specifier(), Some(specifier));
-
             let with_alternate = TemplateFormatter::from_kind(kind, true);
             let without_alternate = TemplateFormatter::from_kind(kind, false);
-
             assert_eq!(with_alternate.kind(), kind);
             assert_eq!(without_alternate.kind(), kind);
-
             if kind.supports_alternate() {
                 assert!(with_alternate.is_alternate());
                 assert!(!without_alternate.is_alternate());
@@ -884,7 +868,6 @@ mod tests {
                 assert!(!without_alternate.is_alternate());
             }
         }
-
         let display = TemplateFormatter::from_kind(TemplateFormatterKind::Display, true);
         assert_eq!(display.kind(), TemplateFormatterKind::Display);
         assert!(!display.is_alternate());
@@ -896,7 +879,6 @@ mod tests {
     fn handles_brace_escaping() {
         let template = ErrorTemplate::parse("{{}} -> {value}").expect("parse");
         let mut iter = template.segments().iter();
-
         assert!(matches!(iter.next(), Some(TemplateSegment::Literal("{"))));
         assert!(matches!(iter.next(), Some(TemplateSegment::Literal("}"))));
         assert!(matches!(
@@ -949,7 +931,6 @@ mod tests {
         let template = ErrorTemplate::parse("{code}: {message}").expect("parse");
         let code = 418;
         let message = "I'm a teapot";
-
         let rendered = format!(
             "{}",
             template.display_with(|placeholder, f| match placeholder.identifier() {
@@ -958,7 +939,6 @@ mod tests {
                 other => panic!("unexpected placeholder: {:?}", other)
             })
         );
-
         assert_eq!(rendered, "418: I'm a teapot");
     }
 }

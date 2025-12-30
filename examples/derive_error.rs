@@ -81,7 +81,6 @@ fn authenticate(valid: bool) -> Result<(), ServiceError> {
 
 fn main() {
     println!("=== thiserror Compatibility ===\n");
-
     match simulate_io_error() {
         Ok(()) => println!("I/O succeeded"),
         Err(e) => {
@@ -89,9 +88,7 @@ fn main() {
             println!("Source: {:?}", e.source());
         }
     }
-
     println!("\n=== AppError Mapping ===\n");
-
     match find_user("") {
         Ok(user) => println!("Found: {user}"),
         Err(e) => {
@@ -102,9 +99,7 @@ fn main() {
             println!("Message exposed: {:?}", app_error.message);
         }
     }
-
     println!("\n=== Error Source Chain ===\n");
-
     match connect_database() {
         Ok(()) => println!("Connected"),
         Err(e) => {
@@ -116,9 +111,7 @@ fn main() {
             }
         }
     }
-
     println!("\n=== Enum Variants ===\n");
-
     match authenticate(false) {
         Ok(()) => println!("Authenticated"),
         Err(e) => {
@@ -128,12 +121,10 @@ fn main() {
             println!("Code: {:?}", app_error.code);
         }
     }
-
     let rate_limit_err = ServiceError::RateLimited;
     println!("\nRate limit error: {rate_limit_err}");
     let app_error: AppError = rate_limit_err.into();
     println!("Kind: {:?}", app_error.kind);
-
     match connect_database().map_err(ServiceError::from) {
         Ok(()) => println!("Connected"),
         Err(e) => {

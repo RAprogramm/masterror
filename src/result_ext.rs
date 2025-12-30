@@ -79,15 +79,12 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
         E: CoreError + Send + Sync + 'static
     {
         let msg = msg.into();
-
         self.map_err(|err| {
             let source: Box<dyn CoreError + Send + Sync + 'static> = Box::new(err);
-
             match source.downcast::<Error>() {
                 Ok(app_err) => {
                     let app_err = *app_err;
                     let mut enriched = Error::new_raw(app_err.kind, Some(msg.clone()));
-
                     enriched.code = app_err.code.clone();
                     enriched.metadata = app_err.metadata.clone();
                     enriched.edit_policy = app_err.edit_policy;
@@ -103,12 +100,10 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
                     }
                     #[cfg(feature = "backtrace")]
                     let shared_backtrace = app_err.backtrace_shared();
-
                     #[cfg(feature = "backtrace")]
                     if let Some(backtrace) = shared_backtrace {
                         enriched = enriched.with_shared_backtrace(backtrace);
                     }
-
                     enriched.with_context(app_err)
                 }
                 Err(source) => Error::internal(msg.clone()).with_source_arc(Arc::from(source))
@@ -188,11 +183,9 @@ mod tests {
                     .track_caller()
             })
             .expect_err("err");
-
         assert_eq!(err.kind, AppErrorKind::Service);
         assert_eq!(err.code, AppCode::Service);
         assert!(matches!(err.edit_policy, MessageEditPolicy::Redact));
-
         let metadata = err.metadata();
         assert_eq!(
             metadata.get("operation"),
@@ -211,7 +204,6 @@ mod tests {
         })
         .ctx(|| Context::new(AppErrorKind::Internal))
         .expect_err("err");
-
         let mut source = StdError::source(&err).expect("layered source");
         assert!(source.is::<LayeredError>());
         source = source.source().expect("inner source");
@@ -251,10 +243,8 @@ mod tests {
         let err = Result::<(), SharedError>::Err(shared.clone())
             .ctx(|| Context::new(AppErrorKind::Internal))
             .expect_err("err");
-
         drop(shared);
         assert_eq!(Arc::strong_count(&inner), 2);
-
         let stored = err
             .source_ref()
             .and_then(|src| src.downcast_ref::<SharedError>())
@@ -281,7 +271,6 @@ mod tests {
                 .expect_err("err");
             assert!(err.backtrace().is_none());
         });
-
         with_backtrace_preference(Some(true), || {
             let err = Result::<(), DummyError>::Err(DummyError)
                 .ctx(|| Context::new(AppErrorKind::Internal))
@@ -294,7 +283,6 @@ mod tests {
     fn context_wraps_with_simple_message() {
         let result: Result<(), DummyError> = Err(DummyError);
         let err = result.context("operation failed").expect_err("err");
-
         assert_eq!(err.kind, AppErrorKind::Internal);
         assert!(err.source_ref().is_some());
         assert!(err.source_ref().unwrap().is::<DummyError>());
@@ -306,11 +294,9 @@ mod tests {
             .with_field(field::str("flag", "beta"))
             .with_code(AppCode::Cache)
             .redactable();
-
         let err = Result::<(), Error>::Err(base)
             .context("parsing configuration failed")
             .expect_err("err");
-
         assert_eq!(err.kind, AppErrorKind::BadRequest);
         assert_eq!(err.code, AppCode::Cache);
         assert_eq!(err.message.as_deref(), Some("parsing configuration failed"));
@@ -319,7 +305,6 @@ mod tests {
             err.metadata().get("flag"),
             Some(&FieldValue::Str(Cow::Borrowed("beta")))
         );
-
         let source = err
             .source_ref()
             .and_then(|src| src.downcast_ref::<Error>())

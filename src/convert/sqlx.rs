@@ -198,11 +198,9 @@ fn build_sqlx_context(err: &SqlxError) -> (Context, Option<u64>) {
             None
         )
     };
-
     if let Some(secs) = retry_after {
         context = context.with(field::u64("db.retry_after_hint_secs", secs));
     }
-
     (context, retry_after)
 }
 
@@ -211,17 +209,14 @@ fn classify_database_error(error: &(dyn DatabaseError + 'static)) -> (Context, O
     let mut context = Context::new(AppErrorKind::Database)
         .with(field::str("db.reason", "database_error"))
         .with(field::str("db.message", error.message().to_owned()));
-
     if let Some(constraint) = error.constraint() {
         context = context.with(field::str("db.constraint", constraint.to_owned()));
     }
     if let Some(table) = error.table() {
         context = context.with(field::str("db.table", table.to_owned()));
     }
-
     let mut retry_after = None;
     let mut code_override = None;
-
     let code = error.code().map(|code| code.into_owned());
     if let Some(ref sqlstate) = code {
         context = context.with(field::str("db.code", sqlstate.clone()));
@@ -238,7 +233,6 @@ fn classify_database_error(error: &(dyn DatabaseError + 'static)) -> (Context, O
             code_override = Some(app_code.clone());
         }
     }
-
     let category = match error.kind() {
         SqlxErrorKind::UniqueViolation => AppErrorKind::Conflict,
         SqlxErrorKind::ForeignKeyViolation => AppErrorKind::Conflict,
@@ -247,12 +241,10 @@ fn classify_database_error(error: &(dyn DatabaseError + 'static)) -> (Context, O
         }
         _ => AppErrorKind::Database
     };
-
     context = context.category(category);
     if let Some(code) = code_override {
         context = context.code(code);
     }
-
     (context, retry_after)
 }
 
@@ -262,7 +254,6 @@ fn build_migrate_context(err: &MigrateError) -> Context {
         return Context::new(AppErrorKind::Database)
             .with(field::str("migration.phase", "invalid_mix"));
     }
-
     match err {
         MigrateError::Execute(inner) => Context::new(AppErrorKind::Database)
             .with(field::str("migration.phase", "execute"))

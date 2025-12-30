@@ -25,7 +25,6 @@ pub(crate) fn validate_from_usage(
     let mut from_fields = fields.iter().filter(|field| field.attrs.from.is_some());
     let first = from_fields.next();
     let second = from_fields.next();
-
     if let Some(field) = first {
         if second.is_some() {
             if let Some(attr) = &field.attrs.from {
@@ -36,17 +35,14 @@ pub(crate) fn validate_from_usage(
             }
             return;
         }
-
         let mut has_unexpected_companions = false;
         for companion in fields.iter() {
             if companion.index == field.index {
                 continue;
             }
-
             if companion.attrs.has_backtrace() {
                 continue;
             }
-
             if companion.attrs.has_source() {
                 if companion.attrs.from.is_none() && !is_option_type(&companion.ty) {
                     if let Some(attr) = companion.attrs.source_attribute() {
@@ -63,17 +59,14 @@ pub(crate) fn validate_from_usage(
                 }
                 continue;
             }
-
             has_unexpected_companions = true;
         }
-
         if has_unexpected_companions && let Some(attr) = &field.attrs.from {
             errors.push(Error::new_spanned(
                 attr,
                 "deriving From requires no fields other than source and backtrace"
             ));
         }
-
         if matches!(display, DisplaySpec::Transparent { .. })
             && fields.len() != 1
             && let Some(attr) = &field.attrs.from
@@ -94,15 +87,12 @@ pub(crate) fn validate_backtrace_usage(fields: &Fields, errors: &mut Vec<Error>)
         .iter()
         .filter(|field| field.attrs.has_backtrace())
         .collect();
-
     for field in &backtrace_fields {
         validate_backtrace_field_type(field, errors);
     }
-
     if backtrace_fields.len() <= 1 {
         return;
     }
-
     for field in backtrace_fields.iter().skip(1) {
         if let Some(attr) = field.attrs.backtrace_attribute() {
             errors.push(Error::new_spanned(
@@ -123,15 +113,12 @@ fn validate_backtrace_field_type(field: &Field, errors: &mut Vec<Error>) {
     let Some(attr) = field.attrs.backtrace_attribute() else {
         return;
     };
-
     if is_backtrace_storage(&field.ty) {
         return;
     }
-
     if field.attrs.has_source() {
         return;
     }
-
     errors.push(Error::new_spanned(
         attr,
         "fields with #[backtrace] must be std::backtrace::Backtrace or Option<std::backtrace::Backtrace>"
@@ -148,7 +135,6 @@ pub(crate) fn validate_transparent(
     if fields.len() == 1 {
         return;
     }
-
     if let DisplaySpec::Transparent {
         attribute
     } = display
@@ -280,10 +266,11 @@ mod tests {
     use syn::parse_quote;
 
     use super::*;
+    use crate::template_support::parse_display_template;
 
     fn make_template() -> DisplaySpec {
         let lit: syn::LitStr = parse_quote! { "error message" };
-        let template = crate::template_support::parse_display_template(lit).unwrap();
+        let template = parse_display_template(lit).unwrap();
         DisplaySpec::Template(template)
     }
 
@@ -295,7 +282,6 @@ mod tests {
         let mut errors = Vec::new();
         let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
         errors.clear();
-
         let display = make_template();
         validate_from_usage(&parsed, &display, &mut errors);
         assert!(!errors.is_empty());
@@ -309,7 +295,6 @@ mod tests {
         let mut errors = Vec::new();
         let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
         errors.clear();
-
         let display = make_template();
         validate_from_usage(&parsed, &display, &mut errors);
         assert!(!errors.is_empty());
@@ -323,7 +308,6 @@ mod tests {
         let mut errors = Vec::new();
         let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
         errors.clear();
-
         let display = make_template();
         validate_from_usage(&parsed, &display, &mut errors);
         assert!(!errors.is_empty());
@@ -337,7 +321,6 @@ mod tests {
         let mut errors = Vec::new();
         let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
         errors.clear();
-
         let display = make_template();
         validate_from_usage(&parsed, &display, &mut errors);
         assert!(errors.is_empty());
@@ -351,7 +334,6 @@ mod tests {
         let mut errors = Vec::new();
         let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
         errors.clear();
-
         let display = make_template();
         validate_from_usage(&parsed, &display, &mut errors);
         assert!(errors.is_empty());
@@ -365,7 +347,6 @@ mod tests {
         let mut errors = Vec::new();
         let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
         errors.clear();
-
         let attr: syn::Attribute = parse_quote! { #[error(transparent)] };
         let display = DisplaySpec::Transparent {
             attribute: Box::new(attr)
@@ -382,7 +363,6 @@ mod tests {
         let mut errors = Vec::new();
         let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
         errors.clear();
-
         validate_backtrace_usage(&parsed, &mut errors);
         assert!(errors.is_empty());
     }
@@ -395,7 +375,6 @@ mod tests {
         let mut errors = Vec::new();
         let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
         errors.clear();
-
         validate_backtrace_usage(&parsed, &mut errors);
         assert!(!errors.is_empty());
     }
@@ -408,7 +387,6 @@ mod tests {
         let mut errors = Vec::new();
         let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
         errors.clear();
-
         validate_backtrace_usage(&parsed, &mut errors);
         assert!(!errors.is_empty());
     }
@@ -421,7 +399,6 @@ mod tests {
         let mut errors = Vec::new();
         let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
         errors.clear();
-
         validate_backtrace_usage(&parsed, &mut errors);
         assert!(errors.is_empty());
     }
@@ -431,7 +408,6 @@ mod tests {
         let fields: syn::FieldsUnnamed = parse_quote! { (io::Error) };
         let mut errors = Vec::new();
         let parsed = Fields::from_syn(&syn::Fields::Unnamed(fields), &mut errors);
-
         let attr: syn::Attribute = parse_quote! { #[error(transparent)] };
         let display = DisplaySpec::Transparent {
             attribute: Box::new(attr)
@@ -446,7 +422,6 @@ mod tests {
         let mut errors = Vec::new();
         let parsed = Fields::from_syn(&syn::Fields::Unnamed(fields), &mut errors);
         errors.clear();
-
         let attr: syn::Attribute = parse_quote! { #[error(transparent)] };
         let display = DisplaySpec::Transparent {
             attribute: Box::new(attr)
@@ -461,7 +436,6 @@ mod tests {
         let mut errors = Vec::new();
         let parsed = Fields::from_syn(&syn::Fields::Unnamed(fields), &mut errors);
         errors.clear();
-
         let attr: syn::Attribute = parse_quote! { #[error(transparent)] };
         let display = DisplaySpec::Transparent {
             attribute: Box::new(attr)
@@ -642,7 +616,6 @@ mod tests {
         let mut errors = Vec::new();
         let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
         errors.clear();
-
         let display = make_template();
         validate_from_usage(&parsed, &display, &mut errors);
         assert!(!errors.is_empty());
@@ -656,7 +629,6 @@ mod tests {
         let mut errors = Vec::new();
         let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
         errors.clear();
-
         validate_backtrace_usage(&parsed, &mut errors);
         assert!(errors.is_empty());
     }
@@ -711,7 +683,6 @@ mod tests {
         let mut errors = Vec::new();
         let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
         errors.clear();
-
         let attr: syn::Attribute = parse_quote! { #[error(transparent)] };
         let display = DisplaySpec::Transparent {
             attribute: Box::new(attr)

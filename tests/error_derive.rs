@@ -5,6 +5,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+use core::ptr::null;
 #[cfg(masterror_has_error_generic_member_access)]
 use std::ptr;
 use std::{error::Error as StdError, fmt};
@@ -454,8 +455,7 @@ where
 {
     let reported = std::error::Error::backtrace(error).expect("backtrace");
     assert!(ptr::eq(expected, reported));
-    let provided =
-        std::error::request_ref::<std::backtrace::Backtrace>(error).expect("provided backtrace");
+    let provided = request_ref::<std::backtrace::Backtrace>(error).expect("provided backtrace");
     assert!(ptr::eq(reported, provided));
 }
 
@@ -476,13 +476,9 @@ fn struct_provides_custom_telemetry() {
     let err = StructuredTelemetryError {
         snapshot: telemetry.clone()
     };
-
-    let provided_ref =
-        std::error::request_ref::<TelemetrySnapshot>(&err).expect("telemetry reference");
+    let provided_ref = request_ref::<TelemetrySnapshot>(&err).expect("telemetry reference");
     assert!(ptr::eq(provided_ref, &err.snapshot));
-
-    let provided_value =
-        std::error::request_value::<TelemetrySnapshot>(&err).expect("telemetry value");
+    let provided_value = request_value::<TelemetrySnapshot>(&err).expect("telemetry value");
     assert_eq!(provided_value, telemetry);
 }
 
@@ -493,27 +489,22 @@ fn option_telemetry_only_provided_when_present() {
         name:  "task",
         value: 13
     };
-
     let with_value = OptionalTelemetryError {
         telemetry: Some(snapshot.clone())
     };
-    let provided =
-        std::error::request_ref::<TelemetrySnapshot>(&with_value).expect("optional telemetry");
+    let provided = request_ref::<TelemetrySnapshot>(&with_value).expect("optional telemetry");
     let inner = with_value.telemetry.as_ref().expect("inner telemetry");
     assert!(ptr::eq(provided, inner));
-
     let without = OptionalTelemetryError {
         telemetry: None
     };
     assert!(std::error::request_ref::<TelemetrySnapshot>(&without).is_none());
-
     let owned_value = OptionalOwnedTelemetryError {
         telemetry: Some(snapshot.clone())
     };
     let provided_owned =
-        std::error::request_value::<TelemetrySnapshot>(&owned_value).expect("owned telemetry");
+        request_value::<TelemetrySnapshot>(&owned_value).expect("owned telemetry");
     assert_eq!(provided_owned, snapshot);
-
     let owned_none = OptionalOwnedTelemetryError {
         telemetry: None
     };
@@ -527,33 +518,27 @@ fn enum_variants_provide_custom_telemetry() {
         name:  "span",
         value: 21
     };
-
     let named = EnumTelemetryError::Named {
         label:    "named",
         snapshot: named_snapshot.clone()
     };
-    let provided_named =
-        std::error::request_ref::<TelemetrySnapshot>(&named).expect("named telemetry");
+    let provided_named = request_ref::<TelemetrySnapshot>(&named).expect("named telemetry");
     if let EnumTelemetryError::Named {
         snapshot, ..
     } = &named
     {
         assert!(ptr::eq(provided_named, snapshot));
     }
-
     let optional = EnumTelemetryError::Optional(Some(named_snapshot.clone()));
     let provided_optional =
-        std::error::request_ref::<TelemetrySnapshot>(&optional).expect("optional telemetry");
+        request_ref::<TelemetrySnapshot>(&optional).expect("optional telemetry");
     if let EnumTelemetryError::Optional(Some(snapshot)) = &optional {
         assert!(ptr::eq(provided_optional, snapshot));
     }
-
     let optional_none = EnumTelemetryError::Optional(None);
     assert!(std::error::request_ref::<TelemetrySnapshot>(&optional_none).is_none());
-
     let owned = EnumTelemetryError::Owned(named_snapshot.clone());
-    let provided_owned =
-        std::error::request_value::<TelemetrySnapshot>(&owned).expect("owned telemetry");
+    let provided_owned = request_value::<TelemetrySnapshot>(&owned).expect("owned telemetry");
     assert_eq!(provided_owned, named_snapshot);
 }
 
@@ -581,14 +566,12 @@ fn enum_variants_cover_display_and_source() {
     let unit = EnumError::Unit;
     assert_eq!(unit.to_string(), "unit failure");
     assert!(StdError::source(&unit).is_none());
-
     let code = EnumError::Code {
         code:  503,
         cause: LeafError
     };
     assert_eq!(code.to_string(), "503");
     assert_eq!(StdError::source(&code).unwrap().to_string(), "leaf failure");
-
     let pair = EnumError::Pair("left".into(), LeafError);
     assert!(pair.to_string().starts_with("left"));
     assert_eq!(StdError::source(&pair).unwrap().to_string(), "leaf failure");
@@ -675,14 +658,12 @@ fn enum_from_variants_generate_impls() {
         StdError::source(&tuple).unwrap().to_string(),
         "leaf failure"
     );
-
     let variant_attr = MixedFromError::from(PrimaryError);
     assert!(matches!(&variant_attr, MixedFromError::VariantAttr(_)));
     assert_eq!(
         StdError::source(&variant_attr).unwrap().to_string(),
         "primary failure"
     );
-
     let named = MixedFromError::from(SecondaryError);
     assert!(matches!(
         &named,
@@ -814,7 +795,6 @@ fn enum_backtrace_field_is_returned() {
     if let EnumWithBacktrace::Tuple(_, trace) = &tuple {
         assert_backtrace_interfaces(&tuple, trace);
     }
-
     let named = EnumWithBacktrace::Named {
         message: "named",
         trace:   std::backtrace::Backtrace::capture()
@@ -825,7 +805,6 @@ fn enum_backtrace_field_is_returned() {
     {
         assert_backtrace_interfaces(&named, trace);
     }
-
     let unit = EnumWithBacktrace::Unit;
     #[cfg(masterror_has_error_generic_member_access)]
     {
@@ -839,24 +818,19 @@ fn supports_display_and_debug_formatters() {
         label: "Alpha"
     };
     let tuple = ("tuple", 7u8);
-
     let expected = format!(
         "display={value} debug={value:?} #debug={value:#?} tuple={tuple:?} #tuple={tuple:#?}",
     );
-
     let standard_debug = format!("{value:?}");
     let alternate_debug = format!("{value:#?}");
     assert_ne!(standard_debug, alternate_debug);
-
     let tuple_debug = format!("{tuple:?}");
     let tuple_alternate_debug = format!("{tuple:#?}");
     assert_ne!(tuple_debug, tuple_alternate_debug);
-
     let err = FormatterDebugShowcase {
         value,
         tuple
     };
-
     assert_eq!(err.to_string(), expected);
     assert!(StdError::source(&err).is_none());
 }
@@ -870,7 +844,6 @@ fn struct_projection_shorthand_handles_nested_segments() {
         suggestion: Some("retry".to_string())
     };
     assert_eq!(err.to_string(), "range 2-5 suggestion retry");
-
     let none = ProjectionStructError {
         limits:     RangeLimits {
             lo: -1, hi: 3
@@ -886,12 +859,10 @@ fn enum_projection_shorthand_handles_nested_segments() {
         data: "payload"
     });
     assert_eq!(tuple.to_string(), "tuple data payload");
-
     let named = ProjectionEnumError::Named {
         suggestion: Some("escalate".to_string())
     };
     assert_eq!(named.to_string(), "named suggestion escalate");
-
     let fallback = ProjectionEnumError::Named {
         suggestion: None
     };
@@ -950,13 +921,11 @@ fn enum_backtrace_is_inferred_without_attribute() {
         assert_backtrace_interfaces(&named, trace);
     }
     assert!(StdError::source(&named).is_none());
-
     let tuple = AutoBacktraceEnum::Tuple(Some(std::backtrace::Backtrace::capture()));
     if let AutoBacktraceEnum::Tuple(Some(trace)) = &tuple {
         assert_backtrace_interfaces(&tuple, trace);
     }
     assert!(StdError::source(&tuple).is_none());
-
     #[cfg(masterror_has_error_generic_member_access)]
     {
         let none = AutoBacktraceEnum::Tuple(None);
@@ -968,28 +937,23 @@ fn enum_backtrace_is_inferred_without_attribute() {
 fn supports_extended_formatters() {
     let value = 0x5A5Au32;
     let float = 1234.5_f64;
-    let ptr = core::ptr::null::<u32>();
-
+    let ptr = null::<u32>();
     let err = FormatterShowcase {
         value,
         float,
         ptr
     };
-
     let expected = format!(
         "display={value} debug={value:?} #debug={value:#?} x={value:x} X={value:X} \
          #x={value:#x} #X={value:#X} b={value:b} #b={value:#b} o={value:o} #o={value:#o} \
          e={float:e} #e={float:#e} E={float:E} #E={float:#E} p={ptr:p} #p={ptr:#p}"
     );
-
     let lower_hex = format!("{value:x}");
     let upper_hex = format!("{value:X}");
     assert_ne!(lower_hex, upper_hex);
-
     let lower_exp = format!("{float:e}");
     let upper_exp = format!("{float:E}");
     assert_ne!(lower_exp, upper_exp);
-
     assert_eq!(err.to_string(), expected);
     assert!(StdError::source(&err).is_none());
 }
@@ -1000,7 +964,6 @@ fn formatter_variants_render_expected_output() {
         value: "display"
     };
     assert_eq!(display.to_string(), "display");
-
     let debug = DebugFormatterError {
         value: PrettyDebugValue {
             label: "Debug"
@@ -1027,7 +990,6 @@ fn formatter_variants_render_expected_output() {
             }
         )
     );
-
     const HEX_VALUE: u32 = 0x5A5A;
     let lower_hex = LowerHexFormatterError {
         value: HEX_VALUE
@@ -1035,7 +997,6 @@ fn formatter_variants_render_expected_output() {
     let lower_hex_expected = format!("lower={value:x} #lower={value:#x}", value = HEX_VALUE);
     assert_eq!(lower_hex.to_string(), lower_hex_expected);
     assert_ne!(format!("{HEX_VALUE:x}"), format!("{HEX_VALUE:#x}"));
-
     let upper_hex = UpperHexFormatterError {
         value: HEX_VALUE
     };
@@ -1043,7 +1004,6 @@ fn formatter_variants_render_expected_output() {
     assert_eq!(upper_hex.to_string(), upper_hex_expected);
     assert_ne!(format!("{HEX_VALUE:X}"), format!("{HEX_VALUE:#X}"));
     assert_ne!(format!("{HEX_VALUE:x}"), format!("{HEX_VALUE:X}"));
-
     const INTEGER_VALUE: u16 = 0b1010_1100;
     let binary = BinaryFormatterError {
         value: INTEGER_VALUE
@@ -1051,15 +1011,13 @@ fn formatter_variants_render_expected_output() {
     let binary_expected = format!("binary={value:b} #binary={value:#b}", value = INTEGER_VALUE);
     assert_eq!(binary.to_string(), binary_expected);
     assert_ne!(format!("{INTEGER_VALUE:b}"), format!("{INTEGER_VALUE:#b}"));
-
     let octal = OctalFormatterError {
         value: INTEGER_VALUE
     };
     let octal_expected = format!("octal={value:o} #octal={value:#o}", value = INTEGER_VALUE);
     assert_eq!(octal.to_string(), octal_expected);
     assert_ne!(format!("{INTEGER_VALUE:o}"), format!("{INTEGER_VALUE:#o}"));
-
-    let pointer_value = core::ptr::null::<u32>();
+    let pointer_value = null::<u32>();
     let pointer = PointerFormatterError {
         value: pointer_value
     };
@@ -1069,14 +1027,12 @@ fn formatter_variants_render_expected_output() {
     );
     assert_eq!(pointer.to_string(), pointer_expected);
     assert_ne!(format!("{pointer_value:p}"), format!("{pointer_value:#p}"));
-
     const FLOAT_VALUE: f64 = 1234.5;
     let lower_exp = LowerExpFormatterError {
         value: FLOAT_VALUE
     };
     let lower_exp_expected = format!("lower={value:e} #lower={value:#e}", value = FLOAT_VALUE);
     assert_eq!(lower_exp.to_string(), lower_exp_expected);
-
     let upper_exp = UpperExpFormatterError {
         value: FLOAT_VALUE
     };
@@ -1091,17 +1047,14 @@ fn display_format_specs_match_standard_formatting() {
         value: "x"
     };
     assert_eq!(alignment.to_string(), format!("{:>8}", "x"));
-
     let precision = DisplayPrecisionError {
         value: 123.456_f64
     };
     assert_eq!(precision.to_string(), format!("{:.3}", 123.456_f64));
-
     let fill = DisplayFillError {
         value: "ab"
     };
     assert_eq!(fill.to_string(), format!("{:*<6}", "ab"));
-
     let dynamic_width = DisplayDynamicWidthError {
         value: "x",
         width: 5
@@ -1110,7 +1063,6 @@ fn display_format_specs_match_standard_formatting() {
         dynamic_width.to_string(),
         format!("{value:>width$}", value = "x", width = 5)
     );
-
     let dynamic_precision = DisplayDynamicPrecisionError {
         value:     123.456_f64,
         precision: 4

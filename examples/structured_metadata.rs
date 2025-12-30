@@ -35,7 +35,6 @@ fn api_request(endpoint: &'static str, client_ip: IpAddr, latency_ms: f64) -> Ap
 
 fn main() {
     println!("=== Structured Metadata with Typed Fields ===\n");
-
     match database_query("users", 12345, Duration::from_secs(30), 3) {
         Ok(_) => println!("Query succeeded"),
         Err(e) => {
@@ -46,9 +45,7 @@ fn main() {
             }
         }
     }
-
     println!("\n=== API Request with IP and Float ===\n");
-
     let client_ip: IpAddr = "192.168.1.100".parse().unwrap();
     match api_request("/api/users", client_ip, 123.45) {
         Ok(()) => println!("API request succeeded"),
@@ -60,15 +57,12 @@ fn main() {
             }
         }
     }
-
     println!("\n=== Multiple Chained Metadata ===\n");
-
     let err = AppError::internal("Processing failed")
         .with_field(field::str("stage", "validation"))
         .with_field(field::u64("record_id", 999))
         .with_field(field::duration("elapsed", Duration::from_millis(456)))
         .with_field(field::bool("retryable", true));
-
     println!("Error: {err}");
     println!("Total metadata fields: {}", err.metadata().len());
     println!("\nAll fields:");

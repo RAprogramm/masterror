@@ -15,6 +15,7 @@ use syn::{
     token::Paren
 };
 
+use super::{parse_attr::parse_provide_attribute, utils::is_backtrace_storage};
 use crate::template_support::DisplayTemplate;
 
 /// Top-level parsed error type definition.
@@ -226,7 +227,7 @@ impl<'a> BacktraceField<'a> {
 
     /// Checks if field type can store backtrace.
     pub fn stores_backtrace(&self) -> bool {
-        super::utils::is_backtrace_storage(&self.field.ty)
+        is_backtrace_storage(&self.field.ty)
     }
 
     /// Returns the field index.
@@ -271,9 +272,7 @@ impl Field {
             Some(name) => syn::Member::Named(name.clone()),
             None => syn::Member::Unnamed(syn::Index::from(index))
         };
-
         let attrs = FieldAttrs::from_attrs(&field.attrs, ident.as_ref(), &field.ty, errors);
-
         Self {
             ident,
             member,
@@ -312,9 +311,7 @@ impl FieldAttrs {
         errors: &mut Vec<Error>
     ) -> Self {
         use super::utils::{is_backtrace_type, is_option_type, option_inner_type, path_is};
-
         let mut result = FieldAttrs::default();
-
         for attr in attrs {
             if path_is(attr, "from") {
                 if let Err(err) = attr.meta.require_path_only() {
@@ -347,23 +344,20 @@ impl FieldAttrs {
                 }
                 result.backtrace = Some(attr.clone());
             } else if path_is(attr, "provide") {
-                match super::parse_attr::parse_provide_attribute(attr) {
+                match parse_provide_attribute(attr) {
                     Ok(spec) => result.provides.push(spec),
                     Err(err) => errors.push(err)
                 }
             }
         }
-
         if result.source.is_none()
             && let Some(attr) = &result.from
         {
             result.source = Some(attr.clone());
         }
-
         if result.source.is_none() && ident.is_some_and(|ident| ident == "source") {
             result.inferred_source = true;
         }
-
         if result.backtrace.is_none() {
             if is_option_type(ty) {
                 if option_inner_type(ty).is_some_and(is_backtrace_type) {
@@ -373,7 +367,6 @@ impl FieldAttrs {
                 result.inferred_backtrace = true;
             }
         }
-
         result
     }
 
@@ -681,7 +674,6 @@ mod tests {
         let mut errors = Vec::new();
         let parsed = Field::from_syn(&field, 0, &mut errors);
         let bt = BacktraceField::new(&parsed, BacktraceFieldKind::Explicit);
-
         assert_eq!(bt.field().index, 0);
         assert_eq!(bt.kind(), BacktraceFieldKind::Explicit);
         assert!(bt.stores_backtrace());
@@ -694,7 +686,6 @@ mod tests {
         let mut errors = Vec::new();
         let parsed = Field::from_syn(&field, 0, &mut errors);
         let bt = BacktraceField::new(&parsed, BacktraceFieldKind::Inferred);
-
         assert!(bt.stores_backtrace());
     }
 

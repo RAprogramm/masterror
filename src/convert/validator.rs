@@ -64,19 +64,16 @@ impl From<ValidationErrors> for Error {
 #[cfg(feature = "validator")]
 fn build_context(errors: &ValidationErrors) -> Context {
     let mut context = Context::new(AppErrorKind::Validation);
-
     let field_errors = errors.field_errors();
     if !field_errors.is_empty() {
         context = context.with(field::u64(
             "validation.field_count",
             field_errors.len() as u64
         ));
-
         let total: u64 = field_errors.values().map(|errs| errs.len() as u64).sum();
         if total > 0 {
             context = context.with(field::u64("validation.error_count", total));
         }
-
         let mut names = String::new();
         for (idx, name) in field_errors.keys().take(3).enumerate() {
             if idx > 0 {
@@ -87,7 +84,6 @@ fn build_context(errors: &ValidationErrors) -> Context {
         if !names.is_empty() {
             context = context.with(field::str("validation.fields", names));
         }
-
         let mut codes: Vec<String> = Vec::new();
         for errors in field_errors.values() {
             for error in *errors {
@@ -105,7 +101,6 @@ fn build_context(errors: &ValidationErrors) -> Context {
             context = context.with(field::str("validation.codes", codes.join(",")));
         }
     }
-
     let has_nested = errors
         .errors()
         .values()
@@ -113,7 +108,6 @@ fn build_context(errors: &ValidationErrors) -> Context {
     if has_nested {
         context = context.with(field::bool("validation.has_nested", true));
     }
-
     context
 }
 

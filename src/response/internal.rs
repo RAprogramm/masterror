@@ -89,9 +89,7 @@ mod tests {
             after_seconds: 30
         });
         resp.www_authenticate = Some("Bearer".to_owned());
-
         let formatted = format!("{:?}", resp.internal());
-
         assert!(formatted.contains("ErrorResponse"));
         assert!(formatted.contains("status"));
         assert!(formatted.contains("404"));
@@ -109,7 +107,6 @@ mod tests {
     fn error_response_formatter_debug_shows_none_for_optional_fields() {
         let resp = ErrorResponse::new(500, AppCode::Internal, "error").unwrap();
         let formatted = format!("{:?}", resp.internal());
-
         assert!(formatted.contains("details: None"));
         assert!(formatted.contains("retry: None"));
         assert!(formatted.contains("www_authenticate: None"));
@@ -119,10 +116,8 @@ mod tests {
     fn error_response_formatter_display_delegates_to_inner() {
         let resp = ErrorResponse::new(400, AppCode::BadRequest, "invalid input").unwrap();
         let formatter = resp.internal();
-
         let display_str = format!("{}", formatter);
         let inner_display_str = format!("{}", resp);
-
         assert_eq!(display_str, inner_display_str);
     }
 
@@ -131,8 +126,6 @@ mod tests {
         let resp = ErrorResponse::new(500, AppCode::Internal, "error").unwrap();
         let formatter1 = resp.internal();
         let formatter2 = formatter1;
-
-        // Both should work
         let _ = format!("{:?}", formatter1);
         let _ = format!("{:?}", formatter2);
     }
@@ -142,10 +135,8 @@ mod tests {
         let error = AppError::not_found("missing resource")
             .with_retry_after_secs(60)
             .with_www_authenticate("Bearer realm=\"api\"");
-
         let problem = ProblemJson::from_app_error(error);
         let formatted = format!("{:?}", problem.internal());
-
         assert!(formatted.contains("ProblemJson"));
         assert!(formatted.contains("type"));
         assert!(formatted.contains("title"));
@@ -161,9 +152,7 @@ mod tests {
     fn problem_json_formatter_display_shows_status_code_detail() {
         let error = AppError::bad_request("validation failed");
         let problem = ProblemJson::from_app_error(error);
-
         let display_str = format!("{}", problem.internal());
-
         assert!(display_str.contains("400"));
         assert!(display_str.contains("BAD_REQUEST"));
         assert!(display_str.contains("validation failed"));
@@ -173,10 +162,7 @@ mod tests {
     fn problem_json_formatter_display_format_matches_pattern() {
         let error = AppError::internal("server error");
         let problem = ProblemJson::from_app_error(error);
-
         let display_str = format!("{}", problem.internal());
-
-        // Format: "{status} {code}: {detail:?}"
         assert!(display_str.starts_with("500"));
         assert!(display_str.contains("INTERNAL"));
         assert!(display_str.contains(": "));
@@ -187,11 +173,8 @@ mod tests {
     fn problem_json_formatter_is_copy() {
         let error = AppError::internal("error");
         let problem = ProblemJson::from_app_error(error);
-
         let formatter1 = problem.internal();
         let formatter2 = formatter1;
-
-        // Both should work
         let _ = format!("{:?}", formatter1);
         let _ = format!("{:?}", formatter2);
     }
@@ -208,11 +191,9 @@ mod tests {
                 "RATE_LIMITED"
             ),
         ];
-
         for (error, expected_status, expected_code) in test_cases {
             let problem = ProblemJson::from_app_error(error);
             let display = format!("{}", problem.internal());
-
             assert!(display.contains(&expected_status.to_string()));
             assert!(display.contains(expected_code));
         }

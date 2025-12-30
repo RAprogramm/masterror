@@ -62,10 +62,8 @@ pub fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStrea
             path, ..
         } => render_struct_formatter_path(&data.fields, path)
     };
-
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
     Ok(quote! {
         impl #impl_generics core::fmt::Display for #ident #ty_generics #where_clause {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -190,13 +188,11 @@ pub fn struct_placeholder_expr(
             needs_pointer_value(&placeholder.formatter)
         ));
     }
-
     if let Some(env) = env
         && let Some(resolved) = env.resolve_placeholder(placeholder)?
     {
         return Ok(resolved);
     }
-
     match &placeholder.identifier {
         TemplateIdentifierSpec::Named(name) => {
             if let Some(field) = fields.get_named(name) {
@@ -234,7 +230,6 @@ pub fn struct_field_expr(
     formatter: &masterror_template::template::TemplateFormatter
 ) -> ResolvedPlaceholderExpr {
     let member = &field.member;
-
     if needs_pointer_value(formatter) && pointer_prefers_value(&field.ty) {
         ResolvedPlaceholderExpr::pointer(quote!(self.#member))
     } else {
@@ -507,7 +502,6 @@ mod tests {
         use masterror_template::template::TemplateFormatter;
 
         use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
-
         let fields = Fields::Unit;
         let placeholder = TemplatePlaceholderSpec {
             identifier: TemplateIdentifierSpec::Named("self".to_string()),
@@ -527,7 +521,6 @@ mod tests {
         use masterror_template::template::TemplateFormatter;
 
         use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
-
         let field = make_test_field("message", parse_quote!(String), 0);
         let fields = Fields::Named(vec![field]);
         let placeholder = TemplatePlaceholderSpec {
@@ -549,7 +542,6 @@ mod tests {
         use masterror_template::template::TemplateFormatter;
 
         use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
-
         let fields = Fields::Unit;
         let placeholder = TemplatePlaceholderSpec {
             identifier: TemplateIdentifierSpec::Named("unknown".to_string()),
@@ -567,7 +559,6 @@ mod tests {
         use masterror_template::template::TemplateFormatter;
 
         use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
-
         let field = make_test_unnamed_field(parse_quote!(i32), 0);
         let fields = Fields::Unnamed(vec![field]);
         let placeholder = TemplatePlaceholderSpec {
@@ -586,7 +577,6 @@ mod tests {
         use masterror_template::template::TemplateFormatter;
 
         use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
-
         let fields = Fields::Unit;
         let placeholder = TemplatePlaceholderSpec {
             identifier: TemplateIdentifierSpec::Positional(5),
@@ -604,7 +594,6 @@ mod tests {
         use masterror_template::template::TemplateFormatter;
 
         use crate::template_support::{TemplateIdentifierSpec, TemplatePlaceholderSpec};
-
         let field = make_test_unnamed_field(parse_quote!(String), 0);
         let fields = Fields::Unnamed(vec![field]);
         let placeholder = TemplatePlaceholderSpec {
@@ -621,7 +610,6 @@ mod tests {
     #[test]
     fn test_struct_field_expr_with_display() {
         use masterror_template::template::TemplateFormatter;
-
         let field = make_test_field("value", parse_quote!(String), 0);
         let formatter = TemplateFormatter::Display {
             spec: None
@@ -635,7 +623,6 @@ mod tests {
     #[test]
     fn test_struct_field_expr_with_pointer() {
         use masterror_template::template::TemplateFormatter;
-
         let field = make_test_field("ptr", parse_quote!(*const i32), 0);
         let formatter = TemplateFormatter::Pointer {
             alternate: false
@@ -649,7 +636,6 @@ mod tests {
     #[test]
     fn test_struct_field_expr_with_reference() {
         use masterror_template::template::TemplateFormatter;
-
         let field = make_test_field("ref_val", parse_quote!(&str), 0);
         let formatter = TemplateFormatter::Pointer {
             alternate: false
@@ -719,7 +705,6 @@ mod tests {
     #[test]
     fn test_struct_field_expr_unnamed_field() {
         use masterror_template::template::TemplateFormatter;
-
         let field = make_test_unnamed_field(parse_quote!(String), 0);
         let formatter = TemplateFormatter::Display {
             spec: None

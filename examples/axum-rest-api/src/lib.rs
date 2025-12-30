@@ -131,7 +131,6 @@ pub async fn get_user(
     Path(user_id): Path<Uuid>
 ) -> Result<axum::Json<User>, UserError> {
     let users = state.users.read().unwrap();
-
     users
         .get(&user_id)
         .cloned()
@@ -149,24 +148,17 @@ pub async fn create_user(
 ) -> Result<(StatusCode, axum::Json<User>), UserError> {
     validate_email(&req.email)?;
     validate_name(&req.name)?;
-
     let mut users = state.users.write().unwrap();
-
-    // Check for duplicate email
     if users.values().any(|u| u.email == req.email) {
         return Err(UserError::DuplicateEmail);
     }
-
     let user = User {
         id:    Uuid::new_v4(),
         name:  req.name,
         email: req.email
     };
-
     info!(user_id = %user.id, email = %user.email, "Creating new user");
-
     users.insert(user.id, user.clone());
-
     Ok((StatusCode::CREATED, axum::Json(user)))
 }
 
@@ -181,27 +173,18 @@ pub async fn update_user(
 ) -> Result<axum::Json<User>, UserError> {
     validate_email(&req.email)?;
     validate_name(&req.name)?;
-
     let mut users = state.users.write().unwrap();
-
-    // Check if user exists and get current email
     let current_email = users
         .get(&user_id)
         .map(|u| u.email.clone())
         .ok_or(UserError::NotFound)?;
-
-    // Check if email is being changed to existing email
     if req.email != current_email && users.values().any(|u| u.email == req.email) {
         return Err(UserError::DuplicateEmail);
     }
-
     info!(user_id = %user_id, "Updating user");
-
-    // Now update the user
     let user = users.get_mut(&user_id).ok_or(UserError::NotFound)?;
     user.name = req.name;
     user.email = req.email;
-
     Ok(axum::Json(user.clone()))
 }
 
@@ -213,10 +196,7 @@ pub async fn delete_user(
     Path(user_id): Path<Uuid>
 ) -> Result<StatusCode, UserError> {
     let mut users = state.users.write().unwrap();
-
     users.remove(&user_id).ok_or(UserError::NotFound)?;
-
     info!(user_id = %user_id, "Deleted user");
-
     Ok(StatusCode::NO_CONTENT)
 }

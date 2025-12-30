@@ -67,18 +67,15 @@ impl From<Error> for Status {
 
 fn status_from_error(error: &Error) -> Status {
     error.emit_telemetry();
-
     let mapping = mapping_for_code(&error.code);
     let grpc_code = Code::from_i32(mapping.grpc().value);
     let detail = sanitize_detail(error.message.as_ref(), error.kind, error.edit_policy);
     let mut meta = MetadataMap::new();
-
     insert_ascii(&mut meta, "app-code", error.code.as_str());
     let mut http_status_buffer = IntegerBuffer::new();
     let http_status = http_status_buffer.format(mapping.http_status());
     insert_ascii(&mut meta, "app-http-status", http_status);
     insert_ascii(&mut meta, "app-problem-type", mapping.problem_type());
-
     if let Some(advice) = error.retry {
         insert_retry(&mut meta, advice);
     }
@@ -87,11 +84,9 @@ fn status_from_error(error: &Error) -> Status {
     {
         insert_ascii(&mut meta, "www-authenticate", challenge);
     }
-
     if !matches!(error.edit_policy, MessageEditPolicy::Redact) {
         attach_metadata(&mut meta, error.metadata());
     }
-
     Status::with_metadata(grpc_code, detail, meta)
 }
 
@@ -103,7 +98,6 @@ fn sanitize_detail(
     if matches!(policy, MessageEditPolicy::Redact) {
         return kind.to_string();
     }
-
     message.map_or_else(|| kind.to_string(), |msg| msg.as_ref().to_owned())
 }
 
@@ -183,7 +177,6 @@ fn metadata_value_to_ascii<'a>(
             if !is_ascii_metadata_value(text) {
                 return None;
             }
-
             match value {
                 Cow::Borrowed(borrowed) => Some(MetadataAscii::Static(borrowed)),
                 Cow::Owned(owned) => Some(MetadataAscii::Owned(owned.clone()))

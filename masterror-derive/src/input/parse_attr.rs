@@ -32,12 +32,10 @@ pub(crate) fn extract_masterror_spec(
 ) -> Result<Option<MasterrorSpec>, ()> {
     let mut spec = None;
     let mut had_error = false;
-
     for attr in attrs {
         if !path_is(attr, "masterror") {
             continue;
         }
-
         if spec.is_some() {
             errors.push(Error::new_spanned(
                 attr,
@@ -46,7 +44,6 @@ pub(crate) fn extract_masterror_spec(
             had_error = true;
             continue;
         }
-
         match parse_masterror_attribute(attr) {
             Ok(parsed) => spec = Some(parsed),
             Err(err) => {
@@ -55,7 +52,6 @@ pub(crate) fn extract_masterror_spec(
             }
         }
     }
-
     if had_error { Err(()) } else { Ok(spec) }
 }
 
@@ -66,12 +62,10 @@ pub(crate) fn extract_app_error_spec(
 ) -> Result<Option<AppErrorSpec>, ()> {
     let mut spec = None;
     let mut had_error = false;
-
     for attr in attrs {
         if !path_is(attr, "app_error") {
             continue;
         }
-
         if spec.is_some() {
             errors.push(Error::new_spanned(
                 attr,
@@ -80,7 +74,6 @@ pub(crate) fn extract_app_error_spec(
             had_error = true;
             continue;
         }
-
         match parse_app_error_attribute(attr) {
             Ok(parsed) => spec = Some(parsed),
             Err(err) => {
@@ -89,7 +82,6 @@ pub(crate) fn extract_app_error_spec(
             }
         }
     }
-
     if had_error { Err(()) } else { Ok(spec) }
 }
 
@@ -101,25 +93,20 @@ pub(crate) fn extract_display_spec(
 ) -> Result<DisplaySpec, ()> {
     let mut display = None;
     let mut saw_error_attribute = false;
-
     for attr in attrs {
         if !path_is(attr, "error") {
             continue;
         }
-
         saw_error_attribute = true;
-
         if display.is_some() {
             errors.push(Error::new_spanned(attr, "duplicate #[error] attribute"));
             continue;
         }
-
         match parse_error_attribute(attr) {
             Ok(spec) => display = Some(spec),
             Err(err) => errors.push(err)
         }
     }
-
     match display {
         Some(spec) => Ok(spec),
         None => {
@@ -137,7 +124,6 @@ fn parse_app_error_attribute(attr: &Attribute) -> Result<AppErrorSpec, Error> {
         let mut kind = None;
         let mut code = None;
         let mut expose_message = false;
-
         while !input.is_empty() {
             let ident: Ident = input.parse()?;
             let name = ident.to_string();
@@ -177,7 +163,6 @@ fn parse_app_error_attribute(attr: &Attribute) -> Result<AppErrorSpec, Error> {
                     ));
                 }
             }
-
             if input.peek(Token![,]) {
                 input.parse::<Token![,]>()?;
             } else if !input.is_empty() {
@@ -187,7 +172,6 @@ fn parse_app_error_attribute(attr: &Attribute) -> Result<AppErrorSpec, Error> {
                 ));
             }
         }
-
         let kind = match kind {
             Some(kind) => kind,
             None => {
@@ -197,7 +181,6 @@ fn parse_app_error_attribute(attr: &Attribute) -> Result<AppErrorSpec, Error> {
                 ));
             }
         };
-
         Ok(AppErrorSpec {
             kind,
             code,
@@ -218,7 +201,6 @@ fn parse_masterror_attribute(attr: &Attribute) -> Result<MasterrorSpec, Error> {
         let mut telemetry = None;
         let mut map_grpc = None;
         let mut map_problem = None;
-
         while !input.is_empty() {
             let ident: Ident = input.call(Ident::parse_any)?;
             match ident.to_string().as_str() {
@@ -298,7 +280,6 @@ fn parse_masterror_attribute(attr: &Attribute) -> Result<MasterrorSpec, Error> {
                     ));
                 }
             }
-
             if input.peek(Token![,]) {
                 input.parse::<Token![,]>()?;
             } else if !input.is_empty() {
@@ -308,7 +289,6 @@ fn parse_masterror_attribute(attr: &Attribute) -> Result<MasterrorSpec, Error> {
                 ));
             }
         }
-
         let code = match code {
             Some(value) => value,
             None => {
@@ -318,7 +298,6 @@ fn parse_masterror_attribute(attr: &Attribute) -> Result<MasterrorSpec, Error> {
                 ));
             }
         };
-
         let category = match category {
             Some(value) => value,
             None => {
@@ -328,7 +307,6 @@ fn parse_masterror_attribute(attr: &Attribute) -> Result<MasterrorSpec, Error> {
                 ));
             }
         };
-
         Ok(MasterrorSpec {
             code,
             category,
@@ -357,13 +335,10 @@ fn parse_flag_value(input: ParseStream) -> Result<bool, Error> {
 fn parse_redact_block(input: ParseStream, span: Span) -> Result<RedactSpec, Error> {
     let content;
     syn::parenthesized!(content in input);
-
     if content.is_empty() {
         return Err(Error::new(span, "redact(...) requires at least one option"));
     }
-
     let mut spec = RedactSpec::default();
-
     while !content.is_empty() {
         let ident: Ident = content.call(Ident::parse_any)?;
         match ident.to_string().as_str() {
@@ -395,7 +370,6 @@ fn parse_redact_block(input: ParseStream, span: Span) -> Result<RedactSpec, Erro
                 ));
             }
         }
-
         if content.peek(Token![,]) {
             content.parse::<Token![,]>()?;
         } else if !content.is_empty() {
@@ -405,7 +379,6 @@ fn parse_redact_block(input: ParseStream, span: Span) -> Result<RedactSpec, Erro
             ));
         }
     }
-
     Ok(spec)
 }
 
@@ -416,14 +389,12 @@ fn parse_redact_fields(
 ) -> Result<Vec<FieldRedactionSpec>, Error> {
     let inner;
     syn::parenthesized!(inner in *content);
-
     if inner.is_empty() {
         return Err(Error::new(
             span,
             "redact(fields(...)) requires at least one field"
         ));
     }
-
     let mut fields = Vec::new();
     while !inner.is_empty() {
         let name: LitStr = inner.parse()?;
@@ -449,7 +420,6 @@ fn parse_redact_fields(
             name,
             policy
         });
-
         if inner.peek(Token![,]) {
             inner.parse::<Token![,]>()?;
         } else if !inner.is_empty() {
@@ -459,7 +429,6 @@ fn parse_redact_fields(
             ));
         }
     }
-
     Ok(fields)
 }
 
@@ -467,13 +436,10 @@ fn parse_redact_fields(
 fn parse_telemetry_block(input: ParseStream, span: Span) -> Result<Vec<Expr>, Error> {
     let content;
     syn::parenthesized!(content in input);
-
     let mut entries = Vec::new();
-
     while !content.is_empty() {
         let expr: Expr = content.parse()?;
         entries.push(expr);
-
         if content.peek(Token![,]) {
             content.parse::<Token![,]>()?;
             if content.is_empty() {
@@ -489,7 +455,6 @@ fn parse_telemetry_block(input: ParseStream, span: Span) -> Result<Vec<Expr>, Er
             ));
         }
     }
-
     Ok(entries)
 }
 
@@ -499,20 +464,17 @@ fn parse_error_attribute(attr: &Attribute) -> Result<DisplaySpec, Error> {
         syn::custom_keyword!(transparent);
         syn::custom_keyword!(fmt);
     }
-
     attr.parse_args_with(|input: ParseStream| {
         if input.peek(LitStr) {
             let lit: LitStr = input.parse()?;
             let template = parse_display_template(lit)?;
             let args = parse_format_args(input)?;
-
             if !input.is_empty() {
                 return Err(Error::new(
                     input.span(),
                     "unexpected tokens after format arguments"
                 ));
             }
-
             if args.args.is_empty() {
                 Ok(DisplaySpec::Template(template))
             } else {
@@ -523,14 +485,12 @@ fn parse_error_attribute(attr: &Attribute) -> Result<DisplaySpec, Error> {
             }
         } else if input.peek(kw::transparent) {
             let _: kw::transparent = input.parse()?;
-
             if !input.is_empty() {
                 return Err(Error::new(
                     input.span(),
                     "format arguments are not supported with #[error(transparent)]"
                 ));
             }
-
             Ok(DisplaySpec::Transparent {
                 attribute: Box::new(attr.clone())
             })
@@ -539,7 +499,6 @@ fn parse_error_attribute(attr: &Attribute) -> Result<DisplaySpec, Error> {
             input.parse::<Token![=]>()?;
             let path: ExprPath = input.parse()?;
             let args = parse_format_args(input)?;
-
             for arg in &args.args {
                 if let FormatBindingKind::Named(ident) = &arg.kind
                     && ident == "fmt"
@@ -547,14 +506,12 @@ fn parse_error_attribute(attr: &Attribute) -> Result<DisplaySpec, Error> {
                     return Err(Error::new(arg.span, "duplicate `fmt` handler specified"));
                 }
             }
-
             if !input.is_empty() {
                 return Err(Error::new(
                     input.span(),
                     "`fmt = ...` cannot be combined with additional arguments"
                 ));
             }
-
             Ok(DisplaySpec::FormatterPath {
                 path,
                 args
@@ -573,7 +530,6 @@ pub(crate) fn parse_provide_attribute(attr: &Attribute) -> Result<ProvideSpec, E
     attr.parse_args_with(|input: ParseStream| {
         let mut reference = None;
         let mut value = None;
-
         while !input.is_empty() {
             let ident: Ident = input.call(Ident::parse_any)?;
             let name = ident.to_string();
@@ -601,7 +557,6 @@ pub(crate) fn parse_provide_attribute(attr: &Attribute) -> Result<ProvideSpec, E
                     ));
                 }
             }
-
             if input.peek(Token![,]) {
                 input.parse::<Token![,]>()?;
             } else if !input.is_empty() {
@@ -611,14 +566,12 @@ pub(crate) fn parse_provide_attribute(attr: &Attribute) -> Result<ProvideSpec, E
                 ));
             }
         }
-
         if reference.is_none() && value.is_none() {
             return Err(Error::new(
                 attr.span(),
                 "`#[provide]` requires at least one of `ref = ...` or `value = ...`"
             ));
         }
-
         Ok(ProvideSpec {
             reference,
             value

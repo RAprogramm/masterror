@@ -149,7 +149,6 @@ pub fn backtrace_attachment_tokens(
     else {
         return TokenStream::new();
     };
-
     if is_option_type(&backtrace_field.field().ty) {
         quote! {
             if let Some(trace) = #binding {
@@ -273,7 +272,6 @@ pub fn redact_tokens(spec: &RedactSpec) -> TokenStream {
     } else {
         TokenStream::new()
     };
-
     let field_updates = spec.fields.iter().map(|field_spec: &FieldRedactionSpec| {
         let name = &field_spec.name;
         let policy = field_redaction_tokens(field_spec.policy);
@@ -281,7 +279,6 @@ pub fn redact_tokens(spec: &RedactSpec) -> TokenStream {
             __masterror_error = __masterror_error.redact_field(#name, #policy);
         )
     });
-
     quote! {
         #message
         #( #field_updates )*
@@ -335,7 +332,6 @@ mod tests {
         let entries: Vec<Expr> = vec![parse_quote!(trace_id()), parse_quote!(span_id())];
         let result = telemetry_initialization(&entries);
         let result_str = result.to_string();
-
         assert!(result_str.contains("__masterror_metadata_inner"));
         assert!(result_str.contains("trace_id"));
         assert!(result_str.contains("span_id"));
@@ -346,7 +342,6 @@ mod tests {
     fn test_metadata_attach_tokens() {
         let result = metadata_attach_tokens();
         let result_str = result.to_string();
-
         assert!(result_str.contains("if let Some"));
         assert!(result_str.contains("metadata"));
         assert!(result_str.contains("with_metadata"));
@@ -356,13 +351,10 @@ mod tests {
     fn test_field_redaction_tokens_all_variants() {
         let none = field_redaction_tokens(FieldRedactionKind::None);
         assert!(none.to_string().contains("None"));
-
         let redact = field_redaction_tokens(FieldRedactionKind::Redact);
         assert!(redact.to_string().contains("Redact"));
-
         let hash = field_redaction_tokens(FieldRedactionKind::Hash);
         assert!(hash.to_string().contains("Hash"));
-
         let last4 = field_redaction_tokens(FieldRedactionKind::Last4);
         assert!(last4.to_string().contains("Last4"));
     }
@@ -370,15 +362,12 @@ mod tests {
     #[test]
     fn test_redact_tokens_message_only() {
         use crate::input::RedactSpec;
-
         let spec = RedactSpec {
             message: true,
             fields:  vec![]
         };
-
         let result = redact_tokens(&spec);
         let result_str = result.to_string();
-
         assert!(result_str.contains("redactable"));
     }
 
@@ -387,7 +376,6 @@ mod tests {
         use syn::LitStr;
 
         use crate::input::{FieldRedactionSpec, RedactSpec};
-
         let spec = RedactSpec {
             message: false,
             fields:  vec![FieldRedactionSpec {
@@ -395,10 +383,8 @@ mod tests {
                 policy: FieldRedactionKind::Hash
             }]
         };
-
         let result = redact_tokens(&spec);
         let result_str = result.to_string();
-
         assert!(result_str.contains("password"));
         assert!(result_str.contains("Hash"));
         assert!(result_str.contains("redact_field"));
@@ -426,7 +412,6 @@ mod tests {
         use syn::parse_quote;
 
         use crate::input::{Field, FieldAttrs};
-
         let mut attrs = FieldAttrs::default();
         attrs.source = Some(parse_quote!(#[source]));
         let field = Field {
@@ -442,7 +427,6 @@ mod tests {
             field: &field,
             binding
         }];
-
         let result = source_attachment_tokens(&bound);
         let result_str = result.to_string();
         assert!(result_str.contains("with_source_arc"));
@@ -455,7 +439,6 @@ mod tests {
         use syn::parse_quote;
 
         use crate::input::{Field, FieldAttrs};
-
         let mut attrs = FieldAttrs::default();
         attrs.source = Some(parse_quote!(#[source]));
         let field = Field {
@@ -471,7 +454,6 @@ mod tests {
             field: &field,
             binding
         }];
-
         let result = source_attachment_tokens(&bound);
         let result_str = result.to_string();
         assert!(result_str.contains("with_source_arc"));
@@ -482,13 +464,10 @@ mod tests {
     fn test_field_redaction_tokens_all_kinds() {
         let result_none = field_redaction_tokens(FieldRedactionKind::None);
         assert!(result_none.to_string().contains("None"));
-
         let result_redact = field_redaction_tokens(FieldRedactionKind::Redact);
         assert!(result_redact.to_string().contains("Redact"));
-
         let result_hash = field_redaction_tokens(FieldRedactionKind::Hash);
         assert!(result_hash.to_string().contains("Hash"));
-
         let result_last4 = field_redaction_tokens(FieldRedactionKind::Last4);
         assert!(result_last4.to_string().contains("Last4"));
     }

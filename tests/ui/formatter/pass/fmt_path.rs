@@ -45,7 +45,6 @@ fn main() {
         label: "alpha"
     }
     .to_string();
-
     let _ = EnumFormatter::Unit.to_string();
     let _ = EnumFormatter::Tuple(10, 20).to_string();
     let _ = EnumFormatter::Named { left: 5, right: 15 }.to_string();

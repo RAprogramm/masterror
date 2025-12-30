@@ -77,11 +77,9 @@ fn build_context(err: &RedisError) -> (Context, Option<u64>) {
             "redis.is_connection_dropped",
             err.is_connection_dropped()
         ));
-
     if let Some(code) = err.code() {
         context = context.with(field::str("redis.code", code.to_owned()));
     }
-
     if err.is_timeout() {
         context = context.category(AppErrorKind::Timeout);
     } else if err.is_connection_refusal()
@@ -92,20 +90,16 @@ fn build_context(err: &RedisError) -> (Context, Option<u64>) {
     {
         context = context.category(AppErrorKind::DependencyUnavailable);
     }
-
     if let Some((addr, slot)) = err.redirect_node() {
         context = context
             .with(field::str("redis.redirect_addr", addr.to_owned()))
             .with(field::u64("redis.redirect_slot", u64::from(slot)));
     }
-
     let (retry_method_label, retry_after) = retry_method_details(err.retry_method());
     context = context.with(field::str("redis.retry_method", retry_method_label));
-
     if let Some(secs) = retry_after {
         context = context.with(field::u64("redis.retry_after_hint_secs", secs));
     }
-
     (context, retry_after)
 }
 

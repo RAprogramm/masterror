@@ -110,13 +110,11 @@ mod tests {
     #[test]
     fn with_details_serializes_struct() {
         use serde::Serialize;
-
         #[derive(Serialize)]
         struct ErrorInfo {
             field: String,
             code:  u32
         }
-
         let info = ErrorInfo {
             field: "username".to_owned(),
             code:  1001
@@ -125,7 +123,6 @@ mod tests {
             .unwrap()
             .with_details(info)
             .unwrap();
-
         assert!(resp.details.is_some());
         let details = resp.details.unwrap();
         assert_eq!(details["field"], "username");
@@ -136,13 +133,10 @@ mod tests {
     #[test]
     fn with_details_serializes_nan_as_null() {
         use serde::Serialize;
-
-        // f64::NAN serializes to JSON null
         #[derive(Serialize)]
         struct DataWithNaN {
             value: f64
         }
-
         let data = DataWithNaN {
             value: f64::NAN
         };
@@ -150,8 +144,6 @@ mod tests {
             .unwrap()
             .with_details(data)
             .unwrap();
-
-        // NaN becomes null in JSON
         assert!(resp.details.is_some());
         let details = resp.details.unwrap();
         assert!(details["value"].is_null());
@@ -161,23 +153,19 @@ mod tests {
     #[test]
     fn with_details_preserves_other_fields() {
         use serde::Serialize;
-
         #[derive(Serialize)]
         struct Extra {
             info: String
         }
-
         let mut resp = ErrorResponse::new(429, AppCode::RateLimited, "too many").unwrap();
         resp.retry = Some(crate::response::core::RetryAdvice {
             after_seconds: 60
         });
-
         let resp = resp
             .with_details(Extra {
                 info: "try later".to_owned()
             })
             .unwrap();
-
         assert!(resp.details.is_some());
         assert!(resp.retry.is_some());
         assert_eq!(resp.status, 429);
@@ -190,7 +178,6 @@ mod tests {
         let resp = ErrorResponse::new(404, AppCode::NotFound, "missing")
             .unwrap()
             .with_details_text("resource not found in database");
-
         assert_eq!(resp.status, 404);
         assert_eq!(resp.message, "missing");
         assert!(resp.details.is_some());

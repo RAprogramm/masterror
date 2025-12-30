@@ -75,7 +75,6 @@ impl Error {
         if let Some(backtrace) = self.backtrace.as_deref() {
             return Some(backtrace);
         }
-
         self.captured_backtrace
             .get_or_init(capture_backtrace_snapshot)
             .as_deref()
@@ -95,7 +94,6 @@ impl Error {
         if self.take_dirty() {
             #[cfg(feature = "backtrace")]
             let _ = self.capture_backtrace();
-
             #[cfg(feature = "metrics")]
             {
                 let code_label = self.code.as_str().to_owned();
@@ -108,7 +106,6 @@ impl Error {
                 .increment(1);
             }
         }
-
         #[cfg(feature = "tracing")]
         self.flush_tracing();
     }
@@ -125,16 +122,13 @@ impl Error {
         if !self.take_tracing_dirty() {
             return;
         }
-
         if !tracing::event_enabled!(target: "masterror::error", Level::ERROR) {
             rebuild_interest_cache();
-
             if !tracing::event_enabled!(target: "masterror::error", Level::ERROR) {
                 self.mark_tracing_dirty();
                 return;
             }
         }
-
         let message = self.message.as_deref();
         let retry_seconds = self.retry.map(|value| value.after_seconds);
         let trace_id = log_mdc::get("trace_id", |value| value.map(str::to_owned));

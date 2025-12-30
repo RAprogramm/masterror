@@ -116,7 +116,6 @@ fn variant_transparent_source(variant: &VariantData) -> TokenStream {
 fn variant_template_source(variant: &VariantData) -> TokenStream {
     let variant_ident = &variant.ident;
     let source_field = variant.fields.iter().find(|field| field.attrs.has_source());
-
     match (&variant.fields, source_field) {
         (Fields::Unit, _) => quote! { Self::#variant_ident => None },
         (_, None) => match &variant.fields {
@@ -224,7 +223,6 @@ mod tests {
         let display = DisplaySpec::Transparent {
             attribute: Box::new(syn::parse_quote!(#[error(transparent)]))
         };
-
         let result = struct_source_body(&fields, &display);
         let output = result.to_string();
         assert!(output.contains("std :: error :: Error :: source"));
@@ -237,7 +235,6 @@ mod tests {
         let display = DisplaySpec::Transparent {
             attribute: Box::new(syn::parse_quote!(#[error(transparent)]))
         };
-
         let result = struct_source_body(&fields, &display);
         assert_eq!(result.to_string(), "None");
     }
@@ -249,7 +246,6 @@ mod tests {
         let display = DisplaySpec::Template(DisplayTemplate {
             segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
         });
-
         let result = struct_source_body(&fields, &display);
         let output = result.to_string();
         assert!(output.contains("self . cause"));
@@ -263,7 +259,6 @@ mod tests {
         let display = DisplaySpec::Template(DisplayTemplate {
             segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
         });
-
         let result = struct_source_body(&fields, &display);
         assert_eq!(result.to_string(), "None");
     }
@@ -281,7 +276,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let result = variant_source_arm(&variant);
         assert!(result.to_string().contains("Self :: Error => None"));
     }
@@ -300,7 +294,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let result = variant_source_arm(&variant);
         let output = result.to_string();
         assert!(output.contains("Self :: Wrapped"));
@@ -321,7 +314,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let result = variant_source_arm(&variant);
         let output = result.to_string();
         assert!(output.contains("Self :: Wrapped"));
@@ -343,7 +335,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let result = variant_source_arm(&variant);
         let output = result.to_string();
         assert!(output.contains("Self :: Multi"));
@@ -365,7 +356,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let result = variant_source_arm(&variant);
         let output = result.to_string();
         assert!(output.contains("Self :: Error"));
@@ -386,7 +376,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let result = variant_source_arm(&variant);
         let output = result.to_string();
         assert!(output.contains("Self :: Error"));
@@ -408,7 +397,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let result = variant_source_arm(&variant);
         let output = result.to_string();
         assert!(output.contains("Self :: Error"));
@@ -429,7 +417,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let result = variant_source_arm(&variant);
         let output = result.to_string();
         assert!(output.contains("Self :: Error"));

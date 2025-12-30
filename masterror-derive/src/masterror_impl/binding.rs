@@ -139,7 +139,6 @@ pub fn bind_variant_fields<'a>(
     variant: &'a VariantData
 ) -> (TokenStream, Vec<BoundField<'a>>) {
     let variant_ident = &variant.ident;
-
     match &variant.fields {
         Fields::Unit => (quote!(#enum_ident::#variant_ident), Vec::new()),
         Fields::Named(list) => {
@@ -200,7 +199,6 @@ pub fn field_usage_tokens(bound_fields: &[BoundField<'_>]) -> TokenStream {
     if bound_fields.is_empty() {
         return TokenStream::new();
     }
-
     let names = bound_fields.iter().map(|field| &field.binding);
     quote! {
         let _ = (#(&#names),*);
@@ -251,7 +249,6 @@ mod tests {
             Some(name) => syn::Member::Named(name.clone()),
             None => syn::Member::Unnamed(syn::Index::from(index))
         };
-
         Field {
             ident,
             member,
@@ -291,7 +288,6 @@ mod tests {
             field: &field,
             binding
         }];
-
         let result = field_usage_tokens(&bound);
         let result_str = result.to_string();
         assert!(result_str.contains("field1"));
@@ -301,7 +297,6 @@ mod tests {
     fn test_bind_struct_fields_unit() {
         let ident = format_ident!("MyError");
         let fields = Fields::Unit;
-
         let (pattern, bound) = bind_struct_fields(&ident, &fields);
         assert_eq!(pattern.to_string(), "let _ = value ;");
         assert!(bound.is_empty());
@@ -312,10 +307,8 @@ mod tests {
         let ident = format_ident!("MyError");
         let field = create_test_field(Some(format_ident!("message")), 0);
         let fields = Fields::Named(vec![field]);
-
         let (pattern, bound) = bind_struct_fields(&ident, &fields);
         let pattern_str = pattern.to_string();
-
         assert!(pattern_str.contains("MyError"));
         assert!(pattern_str.contains("message"));
         assert_eq!(bound.len(), 1);
@@ -327,10 +320,8 @@ mod tests {
         let ident = format_ident!("MyError");
         let field = create_test_field(None, 0);
         let fields = Fields::Unnamed(vec![field]);
-
         let (pattern, bound) = bind_struct_fields(&ident, &fields);
         let pattern_str = pattern.to_string();
-
         assert!(pattern_str.contains("MyError"));
         assert!(pattern_str.contains("__field0"));
         assert_eq!(bound.len(), 1);
@@ -352,7 +343,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let (pattern, bound) = bind_variant_fields(&enum_ident, &variant);
         assert_eq!(pattern.to_string(), "MyError :: NotFound");
         assert!(bound.is_empty());
@@ -374,10 +364,8 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let (pattern, bound) = bind_variant_fields(&enum_ident, &variant);
         let pattern_str = pattern.to_string();
-
         assert!(pattern_str.contains("MyError :: Auth"));
         assert!(pattern_str.contains("code"));
         assert_eq!(bound.len(), 1);
@@ -400,10 +388,8 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let (pattern, bound) = bind_variant_fields(&enum_ident, &variant);
         let pattern_str = pattern.to_string();
-
         assert!(pattern_str.contains("MyError :: Io"));
         assert!(pattern_str.contains("__field0"));
         assert_eq!(bound.len(), 1);
@@ -426,7 +412,6 @@ mod tests {
                 binding: binding2
             },
         ];
-
         let result = field_usage_tokens(&bound);
         let result_str = result.to_string();
         assert!(result_str.contains("field1"));

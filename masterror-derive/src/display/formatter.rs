@@ -69,7 +69,6 @@ pub fn format_placeholder(
         expr,
         pointer_value
     } = resolved;
-
     match formatter {
         TemplateFormatter::Display {
             spec: Some(spec)

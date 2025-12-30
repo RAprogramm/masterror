@@ -64,7 +64,6 @@ pub fn struct_conversion_impl(
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
     let code = &spec.code;
     let category = &spec.category;
-
     let message_init = message_initialization(spec.expose_message, quote!(&value));
     let (destructure, bound_fields) = bind_struct_fields(ident, &data.fields);
     let field_usage = field_usage_tokens(&bound_fields);
@@ -73,7 +72,6 @@ pub fn struct_conversion_impl(
     let redact_tokens = redact_tokens(&spec.redact);
     let source_tokens = source_attachment_tokens(&bound_fields);
     let backtrace_tokens = backtrace_attachment_tokens(&data.fields, &bound_fields);
-
     quote! {
         impl #impl_generics core::convert::From<#ident #ty_generics> for masterror::Error #where_clause {
             fn from(value: #ident #ty_generics) -> Self {
@@ -126,10 +124,8 @@ pub fn struct_conversion_impl(
 pub fn enum_conversion_impl(input: &ErrorInput, variants: &[VariantData]) -> TokenStream {
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
     let mut arms = Vec::new();
     let mut message_arms = Vec::new();
-
     for variant in variants {
         let spec = variant.masterror.as_ref().expect("presence checked");
         let code = &spec.code;
@@ -142,7 +138,6 @@ pub fn enum_conversion_impl(input: &ErrorInput, variants: &[VariantData]) -> Tok
         let source_tokens = source_attachment_tokens(&bound_fields);
         let backtrace_tokens = backtrace_attachment_tokens(&variant.fields, &bound_fields);
         message_arms.push(enum_message_arm(ident, variant, spec.expose_message));
-
         arms.push(quote! {
             #pattern => {
                 #field_usage
@@ -160,13 +155,11 @@ pub fn enum_conversion_impl(input: &ErrorInput, variants: &[VariantData]) -> Tok
             }
         });
     }
-
     let message_match = quote! {
         let __masterror_message: Option<String> = match &value {
             #(#message_arms)*
         };
     };
-
     quote! {
         impl #impl_generics core::convert::From<#ident #ty_generics> for masterror::Error #where_clause {
             fn from(value: #ident #ty_generics) -> Self {
@@ -273,7 +266,6 @@ fn enum_message_arm(
     expose_message: bool
 ) -> TokenStream {
     use quote::format_ident;
-
     if expose_message {
         let binding = format_ident!("__masterror_variant_ref");
         let pattern = enum_message_pattern(enum_ident, variant, Some(&binding));
@@ -343,10 +335,10 @@ mod tests {
         assert_eq!(result.to_string(), expected.to_string());
     }
 
+    /// Tests with empty list since creating mock VariantData structures is
+    /// complex.
     #[test]
     fn test_ensure_all_variants_have_masterror_valid() {
-        // This would require creating mock VariantData structures
-        // For now, testing that empty list succeeds
         let variants = vec![];
         assert!(ensure_all_variants_have_masterror(&variants).is_ok());
     }
@@ -357,7 +349,6 @@ mod tests {
         use quote::format_ident;
 
         use crate::input::{DisplaySpec, Fields};
-
         let variant = VariantData {
             ident:       format_ident!("NotFound"),
             fields:      Fields::Unit,
@@ -369,7 +360,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let enum_ident = format_ident!("MyError");
         let result = enum_message_pattern(&enum_ident, &variant, None);
         let result_str = result.to_string();
@@ -383,7 +373,6 @@ mod tests {
         use syn::parse_quote;
 
         use crate::input::{DisplaySpec, Field, FieldAttrs, Fields};
-
         let field = Field {
             ident:  Some(format_ident!("message")),
             member: syn::Member::Named(format_ident!("message")),
@@ -392,7 +381,6 @@ mod tests {
             attrs:  FieldAttrs::default(),
             span:   Span::call_site()
         };
-
         let variant = VariantData {
             ident:       format_ident!("Custom"),
             fields:      Fields::Named(vec![field]),
@@ -404,7 +392,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let enum_ident = format_ident!("MyError");
         let result = enum_message_pattern(&enum_ident, &variant, None);
         let result_str = result.to_string();

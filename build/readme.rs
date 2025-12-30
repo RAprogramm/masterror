@@ -47,20 +47,17 @@ pub fn generate_readme(manifest_path: &Path, template_path: &Path) -> Result<Str
         rust_version,
         metadata
     } = package;
-
     let readme_meta = metadata
         .and_then(|m| m.masterror)
         .and_then(|m| m.readme)
         .ok_or(ReadmeError::MissingMetadata(
             "package.metadata.masterror.readme"
         ))?;
-
     let feature_docs = collect_feature_docs(&features, &readme_meta)?;
     let snippet_group = readme_meta.feature_snippet_group.unwrap_or(4);
     if snippet_group == 0 {
         return Err(ReadmeError::InvalidSnippetGroup);
     }
-
     let template_raw = fs::read_to_string(template_path)?;
     render_readme(
         &template_raw,
@@ -185,7 +182,6 @@ fn collect_feature_docs(
         .filter(|n| n.as_str() != "default")
         .cloned()
         .collect();
-
     let mut missing_docs = Vec::new();
     let mut docs_map = BTreeMap::new();
     for name in &feature_names {
@@ -205,7 +201,6 @@ fn collect_feature_docs(
     if !missing_docs.is_empty() {
         return Err(ReadmeError::MissingFeatureMetadata(missing_docs));
     }
-
     let unknown_metadata: Vec<String> = readme_meta
         .features
         .keys()
@@ -215,7 +210,6 @@ fn collect_feature_docs(
     if !unknown_metadata.is_empty() {
         return Err(ReadmeError::UnknownMetadataFeature(unknown_metadata));
     }
-
     let mut ordered = Vec::new();
     for name in &readme_meta.feature_order {
         if name == "default" {
@@ -286,7 +280,6 @@ mod tests {
         features.insert("feat1".to_string(), vec![]);
         features.insert("feat2".to_string(), vec![]);
         features.insert("default".to_string(), vec![]);
-
         let mut feature_meta = BTreeMap::new();
         feature_meta.insert(
             "feat1".to_string(),
@@ -302,14 +295,12 @@ mod tests {
                 extra:       vec!["Extra note".to_string()]
             }
         );
-
         let readme_meta = ReadmeMetadata {
             feature_order:         vec!["feat1".to_string()],
             feature_snippet_group: Some(4),
             conversion_lines:      vec![],
             features:              feature_meta
         };
-
         let result = collect_feature_docs(&features, &readme_meta);
         assert!(result.is_ok());
         let docs = result.unwrap();
@@ -322,14 +313,12 @@ mod tests {
     fn collect_feature_docs_errors_on_missing_metadata() {
         let mut features = BTreeMap::new();
         features.insert("feat1".to_string(), vec![]);
-
         let readme_meta = ReadmeMetadata {
             feature_order:         vec![],
             feature_snippet_group: Some(4),
             conversion_lines:      vec![],
             features:              BTreeMap::new()
         };
-
         let result = collect_feature_docs(&features, &readme_meta);
         assert!(result.is_err());
         assert!(matches!(
@@ -341,7 +330,6 @@ mod tests {
     #[test]
     fn collect_feature_docs_errors_on_unknown_metadata() {
         let features = BTreeMap::new();
-
         let mut feature_meta = BTreeMap::new();
         feature_meta.insert(
             "unknown".to_string(),
@@ -350,14 +338,12 @@ mod tests {
                 extra:       vec![]
             }
         );
-
         let readme_meta = ReadmeMetadata {
             feature_order:         vec![],
             feature_snippet_group: Some(4),
             conversion_lines:      vec![],
             features:              feature_meta
         };
-
         let result = collect_feature_docs(&features, &readme_meta);
         assert!(result.is_err());
         assert!(matches!(
@@ -370,7 +356,6 @@ mod tests {
     fn collect_feature_docs_errors_on_unknown_feature_in_order() {
         let mut features = BTreeMap::new();
         features.insert("feat1".to_string(), vec![]);
-
         let mut feature_meta = BTreeMap::new();
         feature_meta.insert(
             "feat1".to_string(),
@@ -379,14 +364,12 @@ mod tests {
                 extra:       vec![]
             }
         );
-
         let readme_meta = ReadmeMetadata {
             feature_order:         vec!["unknown".to_string()],
             feature_snippet_group: Some(4),
             conversion_lines:      vec![],
             features:              feature_meta
         };
-
         let result = collect_feature_docs(&features, &readme_meta);
         assert!(result.is_err());
         assert!(matches!(
@@ -399,7 +382,6 @@ mod tests {
     fn collect_feature_docs_errors_on_duplicate_in_order() {
         let mut features = BTreeMap::new();
         features.insert("feat1".to_string(), vec![]);
-
         let mut feature_meta = BTreeMap::new();
         feature_meta.insert(
             "feat1".to_string(),
@@ -408,14 +390,12 @@ mod tests {
                 extra:       vec![]
             }
         );
-
         let readme_meta = ReadmeMetadata {
             feature_order:         vec!["feat1".to_string(), "feat1".to_string()],
             feature_snippet_group: Some(4),
             conversion_lines:      vec![],
             features:              feature_meta
         };
-
         let result = collect_feature_docs(&features, &readme_meta);
         assert!(result.is_err());
         assert!(matches!(
@@ -429,7 +409,6 @@ mod tests {
         let mut features = BTreeMap::new();
         features.insert("feat1".to_string(), vec![]);
         features.insert("default".to_string(), vec![]);
-
         let mut feature_meta = BTreeMap::new();
         feature_meta.insert(
             "feat1".to_string(),
@@ -438,14 +417,12 @@ mod tests {
                 extra:       vec![]
             }
         );
-
         let readme_meta = ReadmeMetadata {
             feature_order:         vec!["default".to_string(), "feat1".to_string()],
             feature_snippet_group: Some(4),
             conversion_lines:      vec![],
             features:              feature_meta
         };
-
         let result = collect_feature_docs(&features, &readme_meta);
         assert!(result.is_ok());
         let docs = result.unwrap();

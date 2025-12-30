@@ -37,7 +37,6 @@ pub(crate) fn struct_provide_method(fields: &Fields) -> Option<TokenStream> {
     });
     let mut statements = Vec::new();
     let mut needs_trait_import = false;
-
     if let Some(source_field) = source_field {
         needs_trait_import = true;
         let member = &source_field.member;
@@ -47,7 +46,6 @@ pub(crate) fn struct_provide_method(fields: &Fields) -> Option<TokenStream> {
             &request
         ));
     }
-
     if let Some(backtrace) = backtrace
         && backtrace.stores_backtrace()
         && source_field.is_none_or(|source| source.index != backtrace.index())
@@ -60,7 +58,6 @@ pub(crate) fn struct_provide_method(fields: &Fields) -> Option<TokenStream> {
             &request
         ));
     }
-
     for field in fields.iter() {
         if field.attrs.provides.is_empty() {
             continue;
@@ -71,17 +68,14 @@ pub(crate) fn struct_provide_method(fields: &Fields) -> Option<TokenStream> {
             statements.extend(provide_custom_tokens(expr.clone(), field, spec, &request));
         }
     }
-
     if statements.is_empty() {
         return None;
     }
-
     let trait_import = if needs_trait_import {
         quote! { use masterror::provide::ThiserrorProvide as _; }
     } else {
         TokenStream::new()
     };
-
     Some(quote! {
         #[cfg(masterror_has_error_generic_member_access)]
         fn provide<'a>(&'a self, #request: &mut core::error::Request<'a>) {
@@ -109,7 +103,6 @@ pub(crate) fn enum_provide_method(variants: &[VariantData]) -> Option<TokenStrea
     let mut needs_trait_import = false;
     let mut arms = Vec::new();
     let request = quote!(request);
-
     for variant in variants {
         if variant.fields.backtrace_field().is_some() {
             has_backtrace = true;
@@ -127,17 +120,14 @@ pub(crate) fn enum_provide_method(variants: &[VariantData]) -> Option<TokenStrea
             &mut needs_trait_import
         ));
     }
-
     if !has_backtrace && !has_custom_provides {
         return None;
     }
-
     let trait_import = if needs_trait_import {
         quote! { use masterror::provide::ThiserrorProvide as _; }
     } else {
         TokenStream::new()
     };
-
     Some(quote! {
         #[cfg(masterror_has_error_generic_member_access)]
         fn provide<'a>(&'a self, #request: &mut core::error::Request<'a>) {
@@ -158,7 +148,6 @@ pub(crate) fn variant_provide_arm_tokens(
     let variant_ident = &variant.ident;
     let backtrace = variant.fields.backtrace_field();
     let source_field = variant.fields.iter().find(|field| field.attrs.has_source());
-
     match &variant.fields {
         Fields::Unit => quote! { Self::#variant_ident => {} },
         Fields::Named(fields) => variant_provide_named_arm(
@@ -200,13 +189,11 @@ pub(crate) fn variant_provide_named_arm(
     let mut backtrace_binding = None;
     let mut source_binding = None;
     let mut provide_bindings: Vec<(Ident, &Field)> = Vec::new();
-
     for field in fields {
         let ident = field.ident.clone().expect("named field");
         let needs_binding = backtrace.is_some_and(|candidate| candidate.index() == field.index)
             || source.is_some_and(|candidate| candidate.index == field.index)
             || !field.attrs.provides.is_empty();
-
         if needs_binding {
             let binding = binding_ident(field);
             let pattern_binding = binding.clone();
@@ -215,15 +202,12 @@ pub(crate) fn variant_provide_named_arm(
             } else {
                 entries.push(quote!(#ident: #pattern_binding));
             }
-
             if backtrace.is_some_and(|candidate| candidate.index() == field.index) {
                 backtrace_binding = Some(binding.clone());
             }
-
             if source.is_some_and(|candidate| candidate.index == field.index) {
                 source_binding = Some(binding.clone());
             }
-
             if !field.attrs.provides.is_empty() {
                 provide_bindings.push((binding, field));
             }
@@ -231,9 +215,7 @@ pub(crate) fn variant_provide_named_arm(
             entries.push(quote!(#ident: _));
         }
     }
-
     let mut statements = Vec::new();
-
     if let Some(source_field) = source {
         *needs_trait_import = true;
         let binding = source_binding.expect("source binding");
@@ -243,7 +225,6 @@ pub(crate) fn variant_provide_named_arm(
             request
         ));
     }
-
     if let Some(backtrace_field) = backtrace
         && backtrace_field.stores_backtrace()
         && !same_as_source
@@ -256,7 +237,6 @@ pub(crate) fn variant_provide_named_arm(
             request
         ));
     }
-
     for (binding, field) in provide_bindings {
         let binding_expr = quote!(#binding);
         for spec in &field.attrs.provides {
@@ -268,9 +248,7 @@ pub(crate) fn variant_provide_named_arm(
             ));
         }
     }
-
     let pattern = quote!(Self::#variant_ident { #(#entries),* });
-
     if statements.is_empty() {
         quote! { #pattern => {} }
     } else {
@@ -298,25 +276,20 @@ pub(crate) fn variant_provide_unnamed_arm(
     let mut backtrace_binding = None;
     let mut source_binding = None;
     let mut provide_bindings: Vec<(Ident, &Field)> = Vec::new();
-
     for (index, field) in fields.iter().enumerate() {
         let needs_binding = backtrace.is_some_and(|candidate| candidate.index() == index)
             || source.is_some_and(|candidate| candidate.index == index)
             || !field.attrs.provides.is_empty();
-
         if needs_binding {
             let binding = binding_ident(field);
             let pattern_binding = binding.clone();
             elements.push(quote!(#pattern_binding));
-
             if backtrace.is_some_and(|candidate| candidate.index() == index) {
                 backtrace_binding = Some(binding.clone());
             }
-
             if source.is_some_and(|candidate| candidate.index == index) {
                 source_binding = Some(binding.clone());
             }
-
             if !field.attrs.provides.is_empty() {
                 provide_bindings.push((binding, field));
             }
@@ -324,9 +297,7 @@ pub(crate) fn variant_provide_unnamed_arm(
             elements.push(quote!(_));
         }
     }
-
     let mut statements = Vec::new();
-
     if let Some(source_field) = source {
         *needs_trait_import = true;
         let binding = source_binding.expect("source binding");
@@ -336,7 +307,6 @@ pub(crate) fn variant_provide_unnamed_arm(
             request
         ));
     }
-
     if let Some(backtrace_field) = backtrace
         && backtrace_field.stores_backtrace()
         && !same_as_source
@@ -349,7 +319,6 @@ pub(crate) fn variant_provide_unnamed_arm(
             request
         ));
     }
-
     for (binding, field) in provide_bindings {
         let binding_expr = quote!(#binding);
         for spec in &field.attrs.provides {
@@ -361,13 +330,11 @@ pub(crate) fn variant_provide_unnamed_arm(
             ));
         }
     }
-
     let pattern = if elements.is_empty() {
         quote!(Self::#variant_ident())
     } else {
         quote!(Self::#variant_ident(#(#elements),*))
     };
-
     if statements.is_empty() {
         quote! { #pattern => {} }
     } else {
@@ -526,7 +493,6 @@ mod tests {
             masterror:   None,
             span:        Span::call_site()
         };
-
         let result = enum_provide_method(&[variant]);
         assert!(result.is_none());
     }
@@ -539,7 +505,6 @@ mod tests {
         };
         let request = quote!(req);
         let expr = quote!(self.source);
-
         let result = provide_source_tokens(expr, &field, &request);
         let output = result.to_string();
         assert!(output.contains("if let Some"));
@@ -554,7 +519,6 @@ mod tests {
         };
         let request = quote!(req);
         let expr = quote!(self.source);
-
         let result = provide_source_tokens(expr, &field, &request);
         let output = result.to_string();
         assert!(output.contains("thiserror_provide"));
@@ -569,7 +533,6 @@ mod tests {
         };
         let request = quote!(req);
         let expr = quote!(self.bt);
-
         let result = provide_backtrace_tokens(expr, &field, &request);
         let output = result.to_string();
         assert!(output.contains("if let Some"));
@@ -584,7 +547,6 @@ mod tests {
         };
         let request = quote!(req);
         let expr = quote!(self.bt);
-
         let result = provide_backtrace_tokens(expr, &field, &request);
         let output = result.to_string();
         assert!(output.contains("provide_ref"));
@@ -601,7 +563,6 @@ mod tests {
         };
         let request = quote!(req);
         let expr = quote!(self.trace_id);
-
         let result = provide_custom_tokens(expr, &field, &spec, &request);
         assert_eq!(result.len(), 1);
         let output = result[0].to_string();
@@ -619,7 +580,6 @@ mod tests {
         };
         let request = quote!(req);
         let expr = quote!(self.span_id);
-
         let result = provide_custom_tokens(expr, &field, &spec, &request);
         assert_eq!(result.len(), 1);
         let output = result[0].to_string();
@@ -637,7 +597,6 @@ mod tests {
         };
         let request = quote!(req);
         let expr = quote!(self.data);
-
         let result = provide_custom_tokens(expr, &field, &spec, &request);
         assert_eq!(result.len(), 2);
         let output0 = result[0].to_string();
@@ -659,7 +618,6 @@ mod tests {
         };
         let request = quote!(req);
         let expr = quote!(self.data);
-
         let result = provide_custom_tokens(expr, &field, &spec, &request);
         assert_eq!(result.len(), 1);
         let output = result[0].to_string();

@@ -29,31 +29,24 @@ use super::types::{
 /// Handles both named and positional arguments with optional leading comma.
 pub(crate) fn parse_format_args(input: ParseStream) -> Result<FormatArgsSpec, Error> {
     let mut args = FormatArgsSpec::default();
-
     if input.is_empty() {
         return Ok(args);
     }
-
     let leading_comma = if input.peek(Token![,]) {
         let comma: Token![,] = input.parse()?;
         Some(comma.span)
     } else {
         None
     };
-
     if input.is_empty() {
         if let Some(span) = leading_comma {
             return Err(Error::new(span, "expected format argument after comma"));
         }
         return Ok(args);
     }
-
     let parsed = syn::punctuated::Punctuated::<RawFormatArg, Token![,]>::parse_terminated(input)?;
-
     let mut seen_named = HashSet::new();
-
     let mut positional_index = 0usize;
-
     for raw in parsed {
         match raw {
             RawFormatArg::Named {
@@ -68,7 +61,6 @@ pub(crate) fn parse_format_args(input: ParseStream) -> Result<FormatArgsSpec, Er
                         format!("duplicate format argument `{ident}`")
                     ));
                 }
-
                 args.args.push(FormatArg {
                     value,
                     kind: FormatBindingKind::Named(ident),
@@ -89,7 +81,6 @@ pub(crate) fn parse_format_args(input: ParseStream) -> Result<FormatArgsSpec, Er
             }
         }
     }
-
     Ok(args)
 }
 
@@ -151,17 +142,14 @@ fn parse_projection_segments(
 ) -> syn::Result<FormatArgProjection> {
     let first = parse_projection_segment(input, true)?;
     let mut segments = vec![first];
-
     while input.peek(Token![.]) {
         input.parse::<Token![.]>()?;
         segments.push(parse_projection_segment(input, false)?);
     }
-
     let mut span = join_spans(dot_span, segments[0].span());
     for segment in segments.iter().skip(1) {
         span = join_spans(span, segment.span());
     }
-
     Ok(FormatArgProjection {
         segments,
         span
@@ -181,7 +169,6 @@ fn parse_projection_segment(
             span: literal.span()
         });
     }
-
     if input.peek(Ident) {
         let ident: Ident = input.parse()?;
         if let Some((turbofish, paren_token, args)) = parse_method_call_suffix(input)? {
@@ -195,10 +182,8 @@ fn parse_projection_segment(
                 }
             ));
         }
-
         return Ok(FormatArgProjectionSegment::Field(ident));
     }
-
     let span = input.span();
     if first {
         Err(syn::Error::new(
@@ -216,17 +201,14 @@ fn parse_projection_segment(
 /// Parses method call suffix with optional turbofish.
 fn parse_method_call_suffix(input: ParseStream) -> syn::Result<MethodCallSuffix> {
     let ahead = input.fork();
-
     let has_turbofish = ahead.peek(Token![::]);
     if has_turbofish {
         let _: Token![::] = ahead.parse()?;
         let _: AngleBracketedGenericArguments = ahead.parse()?;
     }
-
     if !ahead.peek(Paren) {
         return Ok(None);
     }
-
     let turbofish = if has_turbofish {
         let colon2_token = input.parse::<Token![::]>()?;
         let generics = input.parse::<AngleBracketedGenericArguments>()?;
@@ -237,11 +219,9 @@ fn parse_method_call_suffix(input: ParseStream) -> syn::Result<MethodCallSuffix>
     } else {
         None
     };
-
     let content;
     let paren_token = syn::parenthesized!(content in input);
     let args = Punctuated::<Expr, Token![,]>::parse_terminated(&content)?;
-
     Ok(Some((turbofish, paren_token, args)))
 }
 
