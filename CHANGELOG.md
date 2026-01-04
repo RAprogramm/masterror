@@ -11,7 +11,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.27.0...HEAD)
+## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.27.1...HEAD)
+
+### Dependencies
+
+- **deps:** Bump reqwest from 0.12.28 to 0.13.1 by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#355](https://github.com/RAprogramm/masterror/pull/355)
+## [0.27.1](https://github.com/RAprogramm/masterror/releases/tag/v0.27.1) - 2025-12-30
 
 ### Miscellaneous
 
@@ -20,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Refactored
 
 - Apply cargo qual code quality rules by [@RAprogramm](https://github.com/RAprogramm) in [#353](https://github.com/RAprogramm/masterror/pull/353)
+
+**Full Changelog**: [v0.27.0...v0.27.1](https://github.com/RAprogramm/masterror/compare/v0.27.0...v0.27.1)
 ## [0.27.0](https://github.com/RAprogramm/masterror/releases/tag/v0.27.0) - 2025-12-26
 
 ### Dependencies
