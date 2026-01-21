@@ -12,6 +12,7 @@ mod display;
 mod error_trait;
 mod from_impl;
 mod input;
+mod lint;
 mod masterror_impl;
 mod span;
 mod template_support;

@@ -21,6 +21,7 @@ use super::{
 };
 use crate::{
     input::{DisplaySpec, ErrorInput, Field, Fields, StructData, placeholder_error},
+    lint::lifetime_lint_allows,
     template_support::TemplateIdentifierSpec
 };
 
@@ -64,7 +65,9 @@ pub fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStrea
     };
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+    let lint_allows = lifetime_lint_allows(&input.generics);
     Ok(quote! {
+        #lint_allows
         impl #impl_generics core::fmt::Display for #ident #ty_generics #where_clause {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 #body
