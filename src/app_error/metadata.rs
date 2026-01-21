@@ -287,7 +287,7 @@ fn eq_ascii_case_insensitive_bytes(left: &[u8], right: &[u8]) -> bool {
 
 /// Structured metadata attached to [`crate::AppError`].
 ///
-/// Internally backed by a sorted [`InlineVec`] for optimal performance with
+/// Internally backed by a sorted inline vector for optimal performance with
 /// small field counts. Fields are kept sorted by name for deterministic
 /// iteration and O(log n) lookup via binary search.
 ///
