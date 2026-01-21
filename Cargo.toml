@@ -4,7 +4,7 @@
 
 [package]
 name = "masterror"
-version = "0.27.1"
+version = "0.27.2"
 rust-version = "1.92"
 edition = "2024"
 license = "MIT"
@@ -13,7 +13,7 @@ readme = "README.md"
 description = "Application error types and response mapping"
 documentation = "https://docs.rs/masterror"
 build = "build.rs"
-categories = ["rust-patterns", "web-programming"]
+categories = ["rust-patterns", "web-programming", "no-std"]
 keywords = ["error", "api", "framework"]
 include = [
   "Cargo.toml",

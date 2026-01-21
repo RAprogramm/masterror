@@ -69,6 +69,7 @@
 mod constructors;
 mod context;
 mod core;
+mod inline_vec;
 mod metadata;
 
 pub use core::{AppError, AppResult, DisplayMode, Error, ErrorChain, MessageEditPolicy};

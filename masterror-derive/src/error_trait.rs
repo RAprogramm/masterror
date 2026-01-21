@@ -51,7 +51,10 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Error;
 
-use crate::input::{ErrorData, ErrorInput, StructData, VariantData};
+use crate::{
+    input::{ErrorData, ErrorInput, StructData, VariantData},
+    lint::lifetime_lint_allows
+};
 
 pub mod backtrace;
 pub mod binding;
@@ -107,7 +110,9 @@ fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, E
     let provide_method = provide_method.unwrap_or_default();
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+    let lint_allows = lifetime_lint_allows(&input.generics);
     Ok(quote! {
+        #lint_allows
         impl #impl_generics std::error::Error for #ident #ty_generics #where_clause {
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
                 #body
@@ -142,7 +147,9 @@ fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> Result<TokenStre
     let provide_method = provide_method.unwrap_or_default();
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+    let lint_allows = lifetime_lint_allows(&input.generics);
     Ok(quote! {
+        #lint_allows
         impl #impl_generics std::error::Error for #ident #ty_generics #where_clause {
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
                 match self {

@@ -24,6 +24,7 @@ use crate::{
     input::{
         DisplaySpec, ErrorInput, Field, Fields, FormatArgsSpec, VariantData, placeholder_error
     },
+    lint::lifetime_lint_allows,
     template_support::{DisplayTemplate, TemplateIdentifierSpec}
 };
 
@@ -47,7 +48,9 @@ pub fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> Result<Token
     }
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+    let lint_allows = lifetime_lint_allows(&input.generics);
     Ok(quote! {
+        #lint_allows
         impl #impl_generics core::fmt::Display for #ident #ty_generics #where_clause {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 match self {
