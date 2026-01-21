@@ -110,11 +110,8 @@ impl Display for Error {
                 let mut current: &dyn CoreError = source.as_ref();
                 let mut depth = 0;
                 while depth < 10 {
-                    writeln!(
-                        f,
-                        "{}",
-                        style::source_context(alloc::format!("Caused by: {}", current))
-                    )?;
+                    write!(f, "  {}: ", style::source_context("Caused by"))?;
+                    writeln!(f, "{}", style::source_context(current.to_string()))?;
                     if let Some(next) = current.source() {
                         current = next;
                         depth += 1;
