@@ -1,7 +1,0 @@
-# This crate contains intentional compile errors.
-# Do not build it normally - use `masterror check` instead.
-
-[alias]
-# Disable normal cargo commands - this crate should only be used with masterror
-check = "echo 'Use: masterror check (this crate has intentional errors)'"
-build = "echo 'Use: masterror check (this crate has intentional errors)'"

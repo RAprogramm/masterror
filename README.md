@@ -26,6 +26,8 @@ SPDX-License-Identifier: MIT
   > 🇷🇺 [Читайте README на русском языке](README.ru.md)
   > 🇰🇷 [한국어 README](README.ko.md)
 
+  **See also:** [masterror-cli](https://github.com/RAprogramm/masterror-cli) - CLI tool for explaining Rust compiler errors
+
 </div>
 
 ---
