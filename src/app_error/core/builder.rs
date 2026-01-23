@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-use alloc::{borrow::Cow, string::String, sync::Arc};
+use alloc::{borrow::Cow, boxed::Box, string::String, sync::Arc};
 use core::error::Error as CoreError;
 #[cfg(feature = "backtrace")]
 use std::backtrace::Backtrace;
