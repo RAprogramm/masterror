@@ -9,8 +9,7 @@ use owo_colors::OwoColorize;
 #[allow(unused_imports)]
 use crate::sections;
 use crate::{
-    knowledge::{self, ErrorEntry},
-    locale::Locale,
+    errors::{ErrorEntry, ErrorRegistry},
     options::DisplayOptions,
     parser::CargoMessage
 };
@@ -19,7 +18,7 @@ const SEPARATOR: &str = "--- masterror ----------------------------------------"
 const SEPARATOR_END: &str = "------------------------------------------------------";
 
 /// Print error with masterror explanation.
-pub fn print_error(locale: &Locale, msg: &CargoMessage, opts: &DisplayOptions) {
+pub fn print_error(lang: &str, msg: &CargoMessage, opts: &DisplayOptions) {
     let rendered = msg.rendered_output();
 
     #[cfg(feature = "show-original")]
@@ -32,18 +31,20 @@ pub fn print_error(locale: &Locale, msg: &CargoMessage, opts: &DisplayOptions) {
         println!();
         return;
     };
-    let Some(entry) = knowledge::find(code) else {
+
+    let registry = ErrorRegistry::new();
+    let Some(entry) = registry.find(code) else {
         #[cfg(feature = "show-original")]
         println!();
         return;
     };
 
     println!();
-    print_block(locale, entry, msg.error_message(), rendered, opts);
+    print_block(lang, entry, msg.error_message(), rendered, opts);
 }
 
 fn print_block(
-    locale: &Locale,
+    lang: &str,
     entry: &ErrorEntry,
     #[allow(unused_variables)] error_msg: Option<&str>,
     #[allow(unused_variables)] rendered: Option<&str>,
@@ -56,16 +57,28 @@ fn print_block(
     }
 
     #[cfg(feature = "show-translation")]
-    sections::translation::print(locale, entry.code, rendered, opts.colored);
+    sections::translation::print(lang, entry.code, rendered, opts.colored);
 
     #[cfg(feature = "show-why")]
-    sections::why::print(locale, entry.explanation_key, opts.colored);
+    {
+        let label = match lang {
+            "ru" => "Почему это происходит:",
+            "ko" => "왜 이런 일이 발생하나요:",
+            _ => "Why this happens:"
+        };
+        if opts.colored {
+            println!("{}", label.green().bold());
+        } else {
+            println!("{label}");
+        }
+        println!("{}", entry.explanation.get(lang));
+    }
 
     #[cfg(feature = "show-fix")]
-    sections::fix::print(locale, entry.fixes, opts.colored);
+    sections::fix::print(lang, entry.fixes, opts.colored);
 
     #[cfg(feature = "show-link")]
-    sections::link::print(locale, entry.links, opts.colored);
+    sections::link::print(lang, entry.links, opts.colored);
 
     if opts.colored {
         println!("{}", SEPARATOR_END.dimmed());

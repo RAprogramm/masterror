@@ -5,7 +5,7 @@
 //! masterror CLI - Rust compiler error explainer.
 
 mod commands;
-mod knowledge;
+mod errors;
 mod locale;
 mod options;
 mod output;
@@ -39,10 +39,18 @@ enum Commands {
         #[arg(trailing_var_arg = true)]
         args: Vec<String>
     },
-    /// Explain a specific error code
+    /// Explain a specific error code (E0382) or best practice (RA001)
     Explain { code: String },
     /// List all known error codes
     List {
+        #[arg(short, long)]
+        category: Option<String>
+    },
+    /// Show RustManifest best practices
+    Practice {
+        /// Practice code (RA001-RA015) or empty for list
+        code:     Option<String>,
+        /// Filter by category
         #[arg(short, long)]
         category: Option<String>
     }
@@ -61,10 +69,20 @@ fn main() {
         } => commands::check(&locale, args, &opts),
         Commands::Explain {
             code
-        } => commands::explain(&locale, code, &opts),
+        } => commands::explain(&cli.lang, code, &opts),
         Commands::List {
             category
-        } => commands::list(&locale, category.as_deref(), &opts)
+        } => commands::list(&cli.lang, category.as_deref(), &opts),
+        Commands::Practice {
+            code,
+            category
+        } => {
+            if let Some(c) = code {
+                commands::practice::show(&cli.lang, c, &opts)
+            } else {
+                commands::practice::list(&cli.lang, category.as_deref(), &opts)
+            }
+        }
     };
 
     if let Err(e) = result {

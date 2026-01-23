@@ -42,7 +42,7 @@ pub fn run(
             && msg.is_error()
         {
             error_count += 1;
-            output::print_error(locale, &msg, opts);
+            output::print_error(locale.lang(), &msg, opts);
             println!();
         }
     }

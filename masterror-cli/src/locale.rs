@@ -57,6 +57,11 @@ impl Locale {
         self.lang != "en"
     }
 
+    /// Get language code.
+    pub fn lang(&self) -> &str {
+        &self.lang
+    }
+
     /// Translate full rendered compiler output.
     pub fn translate_rendered(&self, rendered: &str) -> String {
         if self.lang == "en" {

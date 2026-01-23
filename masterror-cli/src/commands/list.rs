@@ -6,14 +6,19 @@
 
 use owo_colors::OwoColorize;
 
-use crate::{knowledge, locale::Locale, options::DisplayOptions};
+use crate::{
+    errors::{Category, ErrorRegistry},
+    options::DisplayOptions
+};
 
 /// List all known error codes.
 pub fn run(
-    locale: &Locale,
+    lang: &str,
     category: Option<&str>,
     opts: &DisplayOptions
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let registry = ErrorRegistry::new();
+
     println!();
     if opts.colored {
         println!("{}", "Known Rust Compiler Errors".bold());
@@ -22,28 +27,33 @@ pub fn run(
     }
     println!();
 
-    let entries = knowledge::entries();
-    let filtered: Vec<_> = if let Some(cat) = category {
-        entries
-            .iter()
-            .filter(|e| e.category.eq_ignore_ascii_case(cat))
-            .collect()
+    let mut entries: Vec<_> = if let Some(cat) = category {
+        let cat = parse_category(cat);
+        if let Some(c) = cat {
+            registry.by_category(c)
+        } else {
+            eprintln!("Unknown category: {}", category.unwrap_or(""));
+            eprintln!("Available: ownership, borrowing, lifetimes, types, traits, resolution");
+            return Ok(());
+        }
     } else {
-        entries.iter().collect()
+        registry.all().collect()
     };
 
-    if filtered.is_empty() {
+    if entries.is_empty() {
         println!("  No errors found.");
         return Ok(());
     }
 
-    let mut current_cat = "";
-    for entry in &filtered {
-        if entry.category != current_cat {
-            current_cat = entry.category;
+    // Sort by code
+    entries.sort_by_key(|e| e.code);
+
+    let mut current_cat: Option<Category> = None;
+    for entry in &entries {
+        if current_cat != Some(entry.category) {
+            current_cat = Some(entry.category);
             println!();
-            let cat_key = format!("category-{current_cat}");
-            let cat_name = locale.get(&cat_key);
+            let cat_name = entry.category.name(lang);
             if opts.colored {
                 println!("  {}", cat_name.yellow().bold());
             } else {
@@ -52,7 +62,7 @@ pub fn run(
             println!();
         }
 
-        let title = locale.get(entry.title_key);
+        let title = entry.title.get(lang);
         if opts.colored {
             println!("    {} - {title}", entry.code.cyan());
         } else {
@@ -61,8 +71,23 @@ pub fn run(
     }
 
     println!();
-    println!("Total: {} errors", filtered.len());
+    println!("Total: {} errors", entries.len());
+    println!();
+    println!("Use `masterror explain <CODE>` to see details.");
+    println!("Use `masterror practice` to see best practices.");
     println!();
 
     Ok(())
+}
+
+fn parse_category(s: &str) -> Option<Category> {
+    match s.to_lowercase().as_str() {
+        "ownership" | "own" => Some(Category::Ownership),
+        "borrowing" | "borrow" => Some(Category::Borrowing),
+        "lifetimes" | "lifetime" | "life" => Some(Category::Lifetimes),
+        "types" | "type" => Some(Category::Types),
+        "traits" | "trait" => Some(Category::Traits),
+        "resolution" | "resolve" | "names" => Some(Category::Resolution),
+        _ => None
+    }
 }

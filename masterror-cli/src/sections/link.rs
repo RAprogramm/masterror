@@ -7,15 +7,20 @@
 
 use owo_colors::OwoColorize;
 
-use crate::{knowledge::DocLink, locale::Locale};
+use crate::errors::DocLink;
 
 /// Print documentation links with titles.
-pub fn print(locale: &Locale, links: &[DocLink], colored: bool) {
+pub fn print(lang: &str, links: &[DocLink], colored: bool) {
     if links.is_empty() {
         return;
     }
 
-    let label = locale.get("label-link");
+    let label = match lang {
+        "ru" => "Ссылки:",
+        "ko" => "링크:",
+        _ => "Links:"
+    };
+
     if colored {
         println!("{}", label.blue().bold());
     } else {

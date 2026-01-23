@@ -7,12 +7,13 @@
 
 use owo_colors::OwoColorize;
 
-use crate::locale::Locale;
-
 /// Print detailed explanation of the error.
-pub fn print(locale: &Locale, explanation_key: &str, colored: bool) {
-    let label = locale.get("label-why");
-    let explanation = locale.get(explanation_key);
+pub fn print(lang: &str, explanation: &str, colored: bool) {
+    let label = match lang {
+        "ru" => "Почему это происходит:",
+        "ko" => "왜 이런 일이 발생하나요:",
+        _ => "Why this happens:"
+    };
 
     if colored {
         println!("{}", label.yellow().bold());
@@ -23,9 +24,4 @@ pub fn print(locale: &Locale, explanation_key: &str, colored: bool) {
     for line in explanation.lines() {
         println!("  {line}");
     }
-}
-
-/// Print explanation with indent (for explain command).
-pub fn print_indented(locale: &Locale, explanation_key: &str, colored: bool) {
-    print(locale, explanation_key, colored);
 }

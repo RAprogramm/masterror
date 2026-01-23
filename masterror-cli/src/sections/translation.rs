@@ -10,8 +10,9 @@ use owo_colors::OwoColorize;
 use crate::locale::Locale;
 
 /// Print full translated copy of compiler error.
-pub fn print(locale: &Locale, _error_code: &str, rendered: Option<&str>, colored: bool) {
-    if !locale.has_translation() {
+pub fn print(lang: &str, _error_code: &str, rendered: Option<&str>, colored: bool) {
+    // Only show translation for non-English languages
+    if lang == "en" {
         return;
     }
 
@@ -19,9 +20,20 @@ pub fn print(locale: &Locale, _error_code: &str, rendered: Option<&str>, colored
         return;
     };
 
+    // Create locale to use its translation capability
+    let locale = Locale::new(lang);
+    if !locale.has_translation() {
+        return;
+    }
+
     let translated = locale.translate_rendered(rendered);
 
-    let label = locale.get("label-translation");
+    let label = match lang {
+        "ru" => "Перевод:",
+        "ko" => "번역:",
+        _ => "Translation:"
+    };
+
     if colored {
         println!("{}", label.cyan().bold());
     } else {

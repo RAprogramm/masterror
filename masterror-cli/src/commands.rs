@@ -7,6 +7,7 @@
 mod check;
 mod explain;
 mod list;
+pub mod practice;
 
 pub use check::run as check;
 pub use explain::run as explain;

@@ -2,110 +2,100 @@
 //
 // SPDX-License-Identifier: MIT
 
-//! Explain command - explain a specific error code or best practice.
+//! Practice command - show best practices from RustManifest.
 
 use owo_colors::OwoColorize;
 
 use crate::{
-    errors::{
-        ErrorEntry, ErrorRegistry,
-        raprogramm::{BestPractice, PracticeRegistry}
-    },
+    errors::raprogramm::{BestPractice, PracticeCategory, PracticeRegistry},
     options::DisplayOptions
 };
 
-/// Explain a specific error code (E0382) or best practice (RA001).
-pub fn run(
+/// List all best practices or filter by category.
+pub fn list(
+    lang: &str,
+    category: Option<&str>,
+    opts: &DisplayOptions
+) -> Result<(), Box<dyn std::error::Error>> {
+    let registry = PracticeRegistry::new();
+
+    println!();
+    if opts.colored {
+        println!("{}", "RustManifest Best Practices".bold());
+    } else {
+        println!("RustManifest Best Practices");
+    }
+    println!();
+
+    let practices: Vec<_> = if let Some(cat) = category {
+        let cat = parse_category(cat);
+        if let Some(c) = cat {
+            registry.by_category(c)
+        } else {
+            eprintln!("Unknown category: {}", category.unwrap_or(""));
+            eprintln!(
+                "Available: error-handling, performance, naming, documentation, design, testing, security"
+            );
+            return Ok(());
+        }
+    } else {
+        registry.all().collect()
+    };
+
+    if practices.is_empty() {
+        println!("  No practices found.");
+        return Ok(());
+    }
+
+    let mut sorted = practices;
+    sorted.sort_by_key(|p| p.code);
+
+    let mut current_cat: Option<PracticeCategory> = None;
+    for practice in &sorted {
+        if current_cat != Some(practice.category) {
+            current_cat = Some(practice.category);
+            println!();
+            if opts.colored {
+                println!("  {}", practice.category.name(lang).yellow().bold());
+            } else {
+                println!("  {}", practice.category.name(lang));
+            }
+            println!();
+        }
+
+        let title = practice.title.get(lang);
+        if opts.colored {
+            println!("    {} - {title}", practice.code.cyan());
+        } else {
+            println!("    {} - {title}", practice.code);
+        }
+    }
+
+    println!();
+    println!("Total: {} practices", sorted.len());
+    println!();
+    println!("Use `masterror practice <CODE>` to see details.");
+    println!();
+
+    Ok(())
+}
+
+/// Show a specific best practice.
+pub fn show(
     lang: &str,
     code: &str,
     opts: &DisplayOptions
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let upper = code.to_uppercase();
+    let registry = PracticeRegistry::new();
 
-    // Check if it's a best practice code (RA*)
-    if upper.starts_with("RA") {
-        let registry = PracticeRegistry::new();
-        if let Some(practice) = registry.find(&upper) {
-            print_practice(lang, practice, opts);
-            return Ok(());
-        }
-    }
+    let Some(practice) = registry.find(code) else {
+        eprintln!("Unknown practice code: {code}");
+        eprintln!("Run `masterror practice` to see available codes.");
+        std::process::exit(1);
+    };
 
-    // Check if it's an error code (E*)
-    let registry = ErrorRegistry::new();
-    if let Some(entry) = registry.find(code) {
-        print_error(lang, entry, opts);
-        return Ok(());
-    }
-
-    eprintln!("Unknown code: {code}");
-    eprintln!("Run `masterror list` for error codes or `masterror practice` for best practices.");
-    std::process::exit(1);
-}
-
-fn print_error(lang: &str, entry: &ErrorEntry, opts: &DisplayOptions) {
-    println!();
-
-    // Title
-    let title = entry.title.get(lang);
-    if opts.colored {
-        println!("{} - {}", entry.code.yellow().bold(), title.bold());
-    } else {
-        println!("{} - {title}", entry.code);
-    }
-
-    // Category
-    let category = entry.category.name(lang);
-    if opts.colored {
-        println!("Category: {}", category.dimmed());
-    } else {
-        println!("Category: {category}");
-    }
-
-    // Explanation
-    println!();
-    if opts.colored {
-        println!("{}", "Why this happens:".green().bold());
-    } else {
-        println!("Why this happens:");
-    }
-    println!("{}", entry.explanation.get(lang));
-
-    // Fixes
-    if !entry.fixes.is_empty() {
-        println!();
-        if opts.colored {
-            println!("{}", "How to fix:".green().bold());
-        } else {
-            println!("How to fix:");
-        }
-        for (i, fix) in entry.fixes.iter().enumerate() {
-            println!();
-            println!("{}. {}", i + 1, fix.description.get(lang));
-            println!("```rust");
-            println!("{}", fix.code);
-            println!("```");
-        }
-    }
-
-    // Links
-    if !entry.links.is_empty() {
-        println!();
-        if opts.colored {
-            println!("{}", "Learn more:".cyan().bold());
-        } else {
-            println!("Learn more:");
-        }
-        for link in entry.links {
-            if opts.colored {
-                println!("  - {} {}", link.title, link.url.dimmed());
-            } else {
-                println!("  - {} {}", link.title, link.url);
-            }
-        }
-    }
-
-    println!();
+    print_practice(lang, practice, opts);
+    Ok(())
 }
 
 fn print_practice(lang: &str, practice: &BestPractice, opts: &DisplayOptions) {
@@ -205,4 +195,19 @@ fn print_practice(lang: &str, practice: &BestPractice, opts: &DisplayOptions) {
     }
 
     println!();
+}
+
+fn parse_category(s: &str) -> Option<PracticeCategory> {
+    match s.to_lowercase().as_str() {
+        "error-handling" | "error_handling" | "errorhandling" | "errors" => {
+            Some(PracticeCategory::ErrorHandling)
+        }
+        "performance" | "perf" => Some(PracticeCategory::Performance),
+        "naming" | "names" => Some(PracticeCategory::Naming),
+        "documentation" | "docs" | "doc" => Some(PracticeCategory::Documentation),
+        "design" | "architecture" | "arch" => Some(PracticeCategory::Design),
+        "testing" | "tests" | "test" => Some(PracticeCategory::Testing),
+        "security" | "sec" => Some(PracticeCategory::Security),
+        _ => None
+    }
 }
