@@ -42,6 +42,7 @@ include = [
 members = [
   "masterror-derive",
   "masterror-template",
+  "masterror-cli",
   "examples/axum-rest-api",
   "examples/custom-domain-errors",
   "examples/sqlx-database",
