@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
+#
+# SPDX-License-Identifier: MIT
+
+# This crate is EXCLUDED from workspace - it contains intentional compile errors
+# for testing masterror-cli. Do not add to workspace members.
+
+[package]
+name = "cli-test-errors"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
