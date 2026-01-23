@@ -48,7 +48,7 @@ members = [
   "examples/sqlx-database",
   "examples/basic-async",
 ]
-# cli-test-errors excluded - contains intentional compile errors for testing masterror-cli
+# cli-test-errors contains intentional compile errors for testing masterror-cli
 exclude = ["examples/cli-test-errors"]
 
 resolver = "3"
