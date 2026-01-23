@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -37,12 +37,12 @@ const INLINE_CAPACITY: usize = 4;
 /// assert_eq!(vec.len(), 2);
 /// assert!(vec.is_inline()); // Still on stack
 /// ```
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct InlineVec<T> {
     storage: Storage<T>
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum Storage<T> {
     /// Inline storage for 0-4 elements using fixed arrays.
     ///

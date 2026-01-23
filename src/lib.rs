@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -378,9 +378,14 @@ pub mod prelude;
 pub mod mapping;
 
 pub use app_error::{
-    AppError, AppResult, Context, DisplayMode, Error, ErrorChain, Field, FieldRedaction,
-    FieldValue, MessageEditPolicy, Metadata, field
+    AppError, AppResult, Context, DiagnosticVisibility, Diagnostics, DisplayMode, DocLink, Error,
+    ErrorChain, Field, FieldRedaction, FieldValue, Hint, MessageEditPolicy, Metadata, Suggestion,
+    field
 };
+/// Diagnostic types for enhanced error reporting.
+pub mod diagnostics {
+    pub use crate::app_error::diagnostics::*;
+}
 pub use code::{AppCode, ParseAppCodeError};
 pub use kind::AppErrorKind;
 /// Re-export derive macros so users only depend on this crate.

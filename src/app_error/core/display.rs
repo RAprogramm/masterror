@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -273,6 +273,76 @@ impl Error {
                     writeln!(f, "  {}: {}", style::metadata_key(key), value)?;
                 }
             }
+            // Diagnostics (hints, suggestions, docs)
+            if let Some(diag) = &self.diagnostics {
+                use crate::app_error::diagnostics::DiagnosticVisibility;
+                let min_visibility = DiagnosticVisibility::DevOnly;
+
+                // Hints
+                let hints: alloc::vec::Vec<_> = diag.visible_hints(min_visibility).collect();
+                if !hints.is_empty() {
+                    writeln!(f)?;
+                    for hint in hints {
+                        writeln!(
+                            f,
+                            "  {}: {}",
+                            style::hint_label("hint"),
+                            style::hint_text(&hint.message)
+                        )?;
+                    }
+                }
+
+                // Suggestions
+                for suggestion in diag.visible_suggestions(min_visibility) {
+                    writeln!(f)?;
+                    write!(
+                        f,
+                        "  {}: {}",
+                        style::suggestion_label("suggestion"),
+                        style::suggestion_text(&suggestion.message)
+                    )?;
+                    if let Some(cmd) = &suggestion.command {
+                        writeln!(f)?;
+                        writeln!(f, "              {}", style::command(cmd))?;
+                    } else {
+                        writeln!(f)?;
+                    }
+                }
+
+                // Documentation link
+                if let Some(doc) = diag.visible_doc_link(min_visibility) {
+                    writeln!(f)?;
+                    if let Some(title) = &doc.title {
+                        writeln!(
+                            f,
+                            "  {}: {} ({})",
+                            style::docs_label("docs"),
+                            title,
+                            style::url(&doc.url)
+                        )?;
+                    } else {
+                        writeln!(
+                            f,
+                            "  {}: {}",
+                            style::docs_label("docs"),
+                            style::url(&doc.url)
+                        )?;
+                    }
+                }
+
+                // Related codes
+                if !diag.related_codes.is_empty() {
+                    writeln!(f)?;
+                    write!(f, "  {}: ", style::related_label("see also"))?;
+                    for (i, code) in diag.related_codes.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{}", style::error_code(code))?;
+                    }
+                    writeln!(f)?;
+                }
+            }
             Ok(())
         }
         #[cfg(not(feature = "colored"))]
@@ -301,6 +371,55 @@ impl Error {
                 writeln!(f, "Context:")?;
                 for (key, value) in self.metadata.iter() {
                     writeln!(f, "  {}: {}", key, value)?;
+                }
+            }
+            // Diagnostics (hints, suggestions, docs)
+            if let Some(diag) = &self.diagnostics {
+                use crate::app_error::diagnostics::DiagnosticVisibility;
+                let min_visibility = DiagnosticVisibility::DevOnly;
+
+                // Hints
+                let hints: alloc::vec::Vec<_> = diag.visible_hints(min_visibility).collect();
+                if !hints.is_empty() {
+                    writeln!(f)?;
+                    for hint in hints {
+                        writeln!(f, "  hint: {}", hint.message)?;
+                    }
+                }
+
+                // Suggestions
+                for suggestion in diag.visible_suggestions(min_visibility) {
+                    writeln!(f)?;
+                    write!(f, "  suggestion: {}", suggestion.message)?;
+                    if let Some(cmd) = &suggestion.command {
+                        writeln!(f)?;
+                        writeln!(f, "              {}", cmd)?;
+                    } else {
+                        writeln!(f)?;
+                    }
+                }
+
+                // Documentation link
+                if let Some(doc) = diag.visible_doc_link(min_visibility) {
+                    writeln!(f)?;
+                    if let Some(title) = &doc.title {
+                        writeln!(f, "  docs: {} ({})", title, doc.url)?;
+                    } else {
+                        writeln!(f, "  docs: {}", doc.url)?;
+                    }
+                }
+
+                // Related codes
+                if !diag.related_codes.is_empty() {
+                    writeln!(f)?;
+                    write!(f, "  see also: ")?;
+                    for (i, code) in diag.related_codes.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{}", code)?;
+                    }
+                    writeln!(f)?;
                 }
             }
             Ok(())

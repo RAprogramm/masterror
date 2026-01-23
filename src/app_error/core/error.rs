@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -18,7 +18,10 @@ use serde_json::Value as JsonValue;
 #[cfg(not(feature = "backtrace"))]
 use super::types::CapturedBacktrace;
 use super::types::MessageEditPolicy;
-use crate::{AppCode, AppErrorKind, RetryAdvice, app_error::metadata::Metadata};
+use crate::{
+    AppCode, AppErrorKind, RetryAdvice,
+    app_error::{diagnostics::Diagnostics, metadata::Metadata}
+};
 
 /// Internal representation of error state.
 ///
@@ -49,6 +52,10 @@ pub struct ErrorInner {
     #[cfg(not(feature = "serde_json"))]
     pub details:                Option<String>,
     pub source:                 Option<Arc<dyn CoreError + Send + Sync + 'static>>,
+    /// Diagnostic information (hints, suggestions, documentation).
+    ///
+    /// Stored as `Option<Box<...>>` for zero-cost when not used.
+    pub diagnostics:            Option<Box<Diagnostics>>,
     #[cfg(feature = "backtrace")]
     pub backtrace:              Option<Arc<Backtrace>>,
     #[cfg(feature = "backtrace")]
@@ -194,6 +201,7 @@ impl Error {
                 www_authenticate: None,
                 details: None,
                 source: None,
+                diagnostics: None,
                 #[cfg(feature = "backtrace")]
                 backtrace: None,
                 #[cfg(feature = "backtrace")]

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -249,6 +249,110 @@ pub mod style {
             .if_supports_color(Stream::Stderr, |t| t.green())
             .to_string()
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Diagnostic styling
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// Style hint label in blue.
+    ///
+    /// # Color Behavior
+    ///
+    /// - TTY: Blue text
+    /// - Non-TTY: Plain text
+    pub fn hint_label(text: impl AsRef<str>) -> String {
+        text.as_ref()
+            .if_supports_color(Stream::Stderr, |t| t.blue())
+            .to_string()
+    }
+
+    /// Style hint message in bright blue.
+    ///
+    /// # Color Behavior
+    ///
+    /// - TTY: Bright blue text
+    /// - Non-TTY: Plain text
+    pub fn hint_text(text: impl AsRef<str>) -> String {
+        text.as_ref()
+            .if_supports_color(Stream::Stderr, |t| t.bright_blue())
+            .to_string()
+    }
+
+    /// Style suggestion label in magenta.
+    ///
+    /// # Color Behavior
+    ///
+    /// - TTY: Magenta text
+    /// - Non-TTY: Plain text
+    pub fn suggestion_label(text: impl AsRef<str>) -> String {
+        text.as_ref()
+            .if_supports_color(Stream::Stderr, |t| t.magenta())
+            .to_string()
+    }
+
+    /// Style suggestion message in bright magenta.
+    ///
+    /// # Color Behavior
+    ///
+    /// - TTY: Bright magenta text
+    /// - Non-TTY: Plain text
+    pub fn suggestion_text(text: impl AsRef<str>) -> String {
+        text.as_ref()
+            .if_supports_color(Stream::Stderr, |t| t.bright_magenta())
+            .to_string()
+    }
+
+    /// Style command/code snippet in bold bright white.
+    ///
+    /// # Color Behavior
+    ///
+    /// - TTY: Bold bright white text
+    /// - Non-TTY: Plain text
+    pub fn command(text: impl AsRef<str>) -> String {
+        use owo_colors::Style;
+        let style = Style::new().bold().bright_white();
+        text.as_ref()
+            .if_supports_color(Stream::Stderr, |t| t.style(style))
+            .to_string()
+    }
+
+    /// Style documentation link label in cyan.
+    ///
+    /// # Color Behavior
+    ///
+    /// - TTY: Cyan text
+    /// - Non-TTY: Plain text
+    pub fn docs_label(text: impl AsRef<str>) -> String {
+        text.as_ref()
+            .if_supports_color(Stream::Stderr, |t| t.cyan())
+            .to_string()
+    }
+
+    /// Style URL in underlined cyan.
+    ///
+    /// # Color Behavior
+    ///
+    /// - TTY: Underlined cyan text
+    /// - Non-TTY: Plain text
+    pub fn url(text: impl AsRef<str>) -> String {
+        use owo_colors::Style;
+        let style = Style::new().underline().cyan();
+        text.as_ref()
+            .if_supports_color(Stream::Stderr, |t| t.style(style))
+            .to_string()
+    }
+
+    /// Style "see also" label in dimmed text.
+    ///
+    /// # Color Behavior
+    ///
+    /// - TTY: Dimmed text
+    /// - Non-TTY: Plain text
+    pub fn related_label(text: impl AsRef<str>) -> String {
+        text.as_ref()
+            .if_supports_color(Stream::Stderr, |t| t.dimmed())
+            .to_string()
+    }
 }
 
 /// No-op styling for no-std builds.
@@ -281,6 +385,46 @@ pub mod style {
 
     /// Style metadata key text in green.
     pub fn metadata_key(text: impl AsRef<str>) -> String {
+        text.as_ref().to_string()
+    }
+
+    /// Style hint label.
+    pub fn hint_label(text: impl AsRef<str>) -> String {
+        text.as_ref().to_string()
+    }
+
+    /// Style hint message.
+    pub fn hint_text(text: impl AsRef<str>) -> String {
+        text.as_ref().to_string()
+    }
+
+    /// Style suggestion label.
+    pub fn suggestion_label(text: impl AsRef<str>) -> String {
+        text.as_ref().to_string()
+    }
+
+    /// Style suggestion message.
+    pub fn suggestion_text(text: impl AsRef<str>) -> String {
+        text.as_ref().to_string()
+    }
+
+    /// Style command/code snippet.
+    pub fn command(text: impl AsRef<str>) -> String {
+        text.as_ref().to_string()
+    }
+
+    /// Style documentation link label.
+    pub fn docs_label(text: impl AsRef<str>) -> String {
+        text.as_ref().to_string()
+    }
+
+    /// Style URL.
+    pub fn url(text: impl AsRef<str>) -> String {
+        text.as_ref().to_string()
+    }
+
+    /// Style "see also" label.
+    pub fn related_label(text: impl AsRef<str>) -> String {
         text.as_ref().to_string()
     }
 }
