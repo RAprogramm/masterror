@@ -1,0 +1,14 @@
+pkgbase = masterror
+	pkgdesc = CLI tool for explaining Rust compiler errors in human-friendly language
+	pkgver = 0.1.0
+	pkgrel = 1
+	url = https://github.com/RAprogramm/masterror
+	arch = x86_64
+	arch = aarch64
+	license = MIT
+	makedepends = cargo
+	depends = gcc-libs
+	source = masterror-0.1.0.tar.gz::https://github.com/RAprogramm/masterror/archive/v0.1.0.tar.gz
+	sha256sums = SKIP
+
+pkgname = masterror
