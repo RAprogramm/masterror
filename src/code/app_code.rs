@@ -447,4 +447,216 @@ mod tests {
         let err = AppCode::from_str("NOT-A-REAL-CODE").unwrap_err();
         assert_eq!(err, ParseAppCodeError);
     }
+
+    #[test]
+    fn from_str_parses_all_static_codes() {
+        let codes = [
+            ("NOT_FOUND", AppCode::NotFound),
+            ("VALIDATION", AppCode::Validation),
+            ("CONFLICT", AppCode::Conflict),
+            ("USER_ALREADY_EXISTS", AppCode::UserAlreadyExists),
+            ("UNAUTHORIZED", AppCode::Unauthorized),
+            ("FORBIDDEN", AppCode::Forbidden),
+            ("NOT_IMPLEMENTED", AppCode::NotImplemented),
+            ("BAD_REQUEST", AppCode::BadRequest),
+            ("RATE_LIMITED", AppCode::RateLimited),
+            ("TELEGRAM_AUTH", AppCode::TelegramAuth),
+            ("INVALID_JWT", AppCode::InvalidJwt),
+            ("INTERNAL", AppCode::Internal),
+            ("DATABASE", AppCode::Database),
+            ("SERVICE", AppCode::Service),
+            ("CONFIG", AppCode::Config),
+            ("TURNKEY", AppCode::Turnkey),
+            ("TIMEOUT", AppCode::Timeout),
+            ("NETWORK", AppCode::Network),
+            ("DEPENDENCY_UNAVAILABLE", AppCode::DependencyUnavailable),
+            ("SERIALIZATION", AppCode::Serialization),
+            ("DESERIALIZATION", AppCode::Deserialization),
+            ("EXTERNAL_API", AppCode::ExternalApi),
+            ("QUEUE", AppCode::Queue),
+            ("CACHE", AppCode::Cache)
+        ];
+        for (s, expected) in codes {
+            let parsed = AppCode::from_str(s).expect(s);
+            assert_eq!(parsed, expected, "mismatch for {s}");
+        }
+    }
+
+    #[test]
+    fn from_kind_covers_all_variants() {
+        let mappings = [
+            (AppErrorKind::NotFound, AppCode::NotFound),
+            (AppErrorKind::Validation, AppCode::Validation),
+            (AppErrorKind::Conflict, AppCode::Conflict),
+            (AppErrorKind::Unauthorized, AppCode::Unauthorized),
+            (AppErrorKind::Forbidden, AppCode::Forbidden),
+            (AppErrorKind::NotImplemented, AppCode::NotImplemented),
+            (AppErrorKind::BadRequest, AppCode::BadRequest),
+            (AppErrorKind::RateLimited, AppCode::RateLimited),
+            (AppErrorKind::TelegramAuth, AppCode::TelegramAuth),
+            (AppErrorKind::InvalidJwt, AppCode::InvalidJwt),
+            (AppErrorKind::Internal, AppCode::Internal),
+            (AppErrorKind::Database, AppCode::Database),
+            (AppErrorKind::Service, AppCode::Service),
+            (AppErrorKind::Config, AppCode::Config),
+            (AppErrorKind::Turnkey, AppCode::Turnkey),
+            (AppErrorKind::Timeout, AppCode::Timeout),
+            (AppErrorKind::Network, AppCode::Network),
+            (
+                AppErrorKind::DependencyUnavailable,
+                AppCode::DependencyUnavailable
+            ),
+            (AppErrorKind::Serialization, AppCode::Serialization),
+            (AppErrorKind::Deserialization, AppCode::Deserialization),
+            (AppErrorKind::ExternalApi, AppCode::ExternalApi),
+            (AppErrorKind::Queue, AppCode::Queue),
+            (AppErrorKind::Cache, AppCode::Cache)
+        ];
+        for (kind, expected) in mappings {
+            assert_eq!(AppCode::from(kind), expected, "mismatch for {kind:?}");
+        }
+    }
+
+    #[test]
+    fn is_valid_literal_rejects_empty() {
+        assert!(AppCode::try_new(String::new()).is_err());
+    }
+
+    #[test]
+    fn is_valid_literal_rejects_leading_underscore() {
+        assert!(AppCode::try_new(String::from("_INVALID")).is_err());
+    }
+
+    #[test]
+    fn is_valid_literal_rejects_trailing_underscore() {
+        assert!(AppCode::try_new(String::from("INVALID_")).is_err());
+    }
+
+    #[test]
+    fn is_valid_literal_rejects_double_underscore() {
+        assert!(AppCode::try_new(String::from("INVALID__CODE")).is_err());
+    }
+
+    #[test]
+    fn is_valid_literal_rejects_lowercase() {
+        assert!(AppCode::try_new(String::from("invalid_code")).is_err());
+    }
+
+    #[test]
+    fn is_valid_literal_accepts_numbers() {
+        assert!(AppCode::try_new(String::from("ERROR_404")).is_ok());
+        assert!(AppCode::try_new(String::from("E404")).is_ok());
+    }
+
+    #[test]
+    fn serde_roundtrip() {
+        let code = AppCode::NotFound;
+        let json = serde_json::to_string(&code).expect("serialize");
+        assert_eq!(json, "\"NOT_FOUND\"");
+        let parsed: AppCode = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(parsed, code);
+    }
+
+    #[test]
+    fn serde_custom_code_roundtrip() {
+        let code = AppCode::new("CUSTOM_ERROR");
+        let json = serde_json::to_string(&code).expect("serialize");
+        let parsed: AppCode = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(parsed, code);
+    }
+
+    #[test]
+    fn serde_deserialize_rejects_invalid() {
+        let result: Result<AppCode, _> = serde_json::from_str("\"invalid-code\"");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_error_display() {
+        let err = ParseAppCodeError;
+        assert!(!err.to_string().is_empty());
+    }
+
+    #[test]
+    fn debug_impl() {
+        let code = AppCode::NotFound;
+        let debug = format!("{:?}", code);
+        assert!(debug.contains("NotFound") || debug.contains("NOT_FOUND"));
+    }
+
+    #[test]
+    fn clone_and_eq() {
+        let code = AppCode::new("CLONED_CODE");
+        let cloned = code.clone();
+        assert_eq!(code, cloned);
+    }
+
+    #[test]
+    fn hash_impl_same_for_equal_codes() {
+        use std::{
+            collections::hash_map::DefaultHasher,
+            hash::{Hash, Hasher}
+        };
+
+        let code1 = AppCode::NotFound;
+        let code2 = AppCode::from_str("NOT_FOUND").unwrap();
+        let mut hasher1 = DefaultHasher::new();
+        let mut hasher2 = DefaultHasher::new();
+        code1.hash(&mut hasher1);
+        code2.hash(&mut hasher2);
+        assert_eq!(hasher1.finish(), hasher2.finish());
+    }
+
+    #[test]
+    fn hash_impl_different_for_different_codes() {
+        use std::{
+            collections::hash_map::DefaultHasher,
+            hash::{Hash, Hasher}
+        };
+
+        let code1 = AppCode::NotFound;
+        let code2 = AppCode::Internal;
+        let mut hasher1 = DefaultHasher::new();
+        let mut hasher2 = DefaultHasher::new();
+        code1.hash(&mut hasher1);
+        code2.hash(&mut hasher2);
+        assert_ne!(hasher1.finish(), hasher2.finish());
+    }
+
+    #[test]
+    fn parse_error_source_is_none() {
+        use core::error::Error;
+        let err = ParseAppCodeError;
+        assert!(err.source().is_none());
+    }
+
+    #[test]
+    fn hashset_works_with_app_code() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(AppCode::NotFound);
+        set.insert(AppCode::Internal);
+        set.insert(AppCode::NotFound);
+        assert_eq!(set.len(), 2);
+        assert!(set.contains(&AppCode::NotFound));
+    }
+
+    #[test]
+    fn custom_code_ne_builtin() {
+        let custom = AppCode::new("CUSTOM");
+        assert_ne!(custom, AppCode::NotFound);
+        assert_ne!(custom, AppCode::Internal);
+    }
+
+    #[test]
+    fn try_new_with_str_slice() {
+        let code = AppCode::try_new("SLICE_CODE").unwrap();
+        assert_eq!(code.as_str(), "SLICE_CODE");
+    }
+
+    #[test]
+    fn from_str_empty() {
+        let result = AppCode::from_str("");
+        assert!(result.is_err());
+    }
 }

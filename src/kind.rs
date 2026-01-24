@@ -359,4 +359,116 @@ mod tests {
         let output = BadRequest.to_string();
         assert!(output.contains("Bad request"));
     }
+
+    #[test]
+    fn http_status_all_variants() {
+        assert_eq!(NotFound.http_status(), 404);
+        assert_eq!(Validation.http_status(), 422);
+        assert_eq!(Conflict.http_status(), 409);
+        assert_eq!(Unauthorized.http_status(), 401);
+        assert_eq!(Forbidden.http_status(), 403);
+        assert_eq!(NotImplemented.http_status(), 501);
+        assert_eq!(Internal.http_status(), 500);
+        assert_eq!(BadRequest.http_status(), 400);
+        assert_eq!(TelegramAuth.http_status(), 401);
+        assert_eq!(InvalidJwt.http_status(), 401);
+        assert_eq!(Database.http_status(), 500);
+        assert_eq!(Service.http_status(), 500);
+        assert_eq!(Config.http_status(), 500);
+        assert_eq!(Turnkey.http_status(), 500);
+        assert_eq!(Timeout.http_status(), 504);
+        assert_eq!(Network.http_status(), 503);
+        assert_eq!(RateLimited.http_status(), 429);
+        assert_eq!(DependencyUnavailable.http_status(), 503);
+        assert_eq!(Serialization.http_status(), 500);
+        assert_eq!(Deserialization.http_status(), 500);
+        assert_eq!(ExternalApi.http_status(), 500);
+        assert_eq!(Queue.http_status(), 500);
+        assert_eq!(Cache.http_status(), 500);
+    }
+
+    #[test]
+    fn label_all_variants() {
+        assert_eq!(NotFound.label(), "Not found");
+        assert_eq!(Validation.label(), "Validation error");
+        assert_eq!(Conflict.label(), "Conflict");
+        assert_eq!(Unauthorized.label(), "Unauthorized");
+        assert_eq!(Forbidden.label(), "Forbidden");
+        assert_eq!(NotImplemented.label(), "Not implemented");
+        assert_eq!(Internal.label(), "Internal server error");
+        assert_eq!(BadRequest.label(), "Bad request");
+        assert_eq!(TelegramAuth.label(), "Telegram authentication error");
+        assert_eq!(InvalidJwt.label(), "Invalid JWT");
+        assert_eq!(Database.label(), "Database error");
+        assert_eq!(Service.label(), "Service error");
+        assert_eq!(Config.label(), "Configuration error");
+        assert_eq!(Turnkey.label(), "Turnkey error");
+        assert_eq!(Timeout.label(), "Operation timed out");
+        assert_eq!(Network.label(), "Network error");
+        assert_eq!(RateLimited.label(), "Rate limit exceeded");
+        assert_eq!(
+            DependencyUnavailable.label(),
+            "External dependency unavailable"
+        );
+        assert_eq!(Serialization.label(), "Serialization error");
+        assert_eq!(Deserialization.label(), "Deserialization error");
+        assert_eq!(ExternalApi.label(), "External API error");
+        assert_eq!(Queue.label(), "Queue processing error");
+        assert_eq!(Cache.label(), "Cache error");
+    }
+
+    #[test]
+    fn display_all_variants() {
+        assert_eq!(NotFound.to_string(), NotFound.label());
+        assert_eq!(Validation.to_string(), Validation.label());
+        assert_eq!(Conflict.to_string(), Conflict.label());
+        assert_eq!(Unauthorized.to_string(), Unauthorized.label());
+        assert_eq!(Forbidden.to_string(), Forbidden.label());
+        assert_eq!(NotImplemented.to_string(), NotImplemented.label());
+        assert_eq!(Internal.to_string(), Internal.label());
+        assert_eq!(BadRequest.to_string(), BadRequest.label());
+        assert_eq!(TelegramAuth.to_string(), TelegramAuth.label());
+        assert_eq!(InvalidJwt.to_string(), InvalidJwt.label());
+        assert_eq!(Database.to_string(), Database.label());
+        assert_eq!(Service.to_string(), Service.label());
+        assert_eq!(Config.to_string(), Config.label());
+        assert_eq!(Turnkey.to_string(), Turnkey.label());
+        assert_eq!(Timeout.to_string(), Timeout.label());
+        assert_eq!(Network.to_string(), Network.label());
+        assert_eq!(RateLimited.to_string(), RateLimited.label());
+        assert_eq!(
+            DependencyUnavailable.to_string(),
+            DependencyUnavailable.label()
+        );
+        assert_eq!(Serialization.to_string(), Serialization.label());
+        assert_eq!(Deserialization.to_string(), Deserialization.label());
+        assert_eq!(ExternalApi.to_string(), ExternalApi.label());
+        assert_eq!(Queue.to_string(), Queue.label());
+        assert_eq!(Cache.to_string(), Cache.label());
+    }
+
+    #[test]
+    fn error_trait_impl() {
+        use core::error::Error;
+        let kind = Internal;
+        let err: &dyn Error = &kind;
+        assert!(err.source().is_none());
+    }
+
+    #[test]
+    fn clone_and_copy() {
+        let kind1 = Internal;
+        let kind2 = kind1;
+        let kind3 = kind1;
+        assert_eq!(kind1, kind2);
+        assert_eq!(kind2, kind3);
+    }
+
+    #[test]
+    fn debug_format() {
+        let debug_str = format!("{:?}", Internal);
+        assert_eq!(debug_str, "Internal");
+        let debug_str = format!("{:?}", NotFound);
+        assert_eq!(debug_str, "NotFound");
+    }
 }

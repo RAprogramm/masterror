@@ -124,6 +124,16 @@ mod tests {
         val: i32
     }
 
+    #[derive(Validate)]
+    struct MultiField {
+        #[validate(length(min = 5))]
+        name:  String,
+        #[validate(range(min = 0, max = 100))]
+        age:   i32,
+        #[validate(email)]
+        email: String
+    }
+
     #[test]
     fn validation_errors_map_to_validation_kind() {
         let bad = Payload {
@@ -136,5 +146,132 @@ mod tests {
             metadata.get("validation.field_count"),
             Some(&FieldValue::U64(1))
         );
+    }
+
+    #[test]
+    fn multiple_field_errors_captured() {
+        let bad = MultiField {
+            name:  "abc".into(),
+            age:   -1,
+            email: "not-an-email".into()
+        };
+        let validation_errors = bad.validate().unwrap_err();
+        let err: Error = validation_errors.into();
+        assert!(matches!(err.kind, AppErrorKind::Validation));
+        let metadata = err.metadata();
+        assert_eq!(
+            metadata.get("validation.field_count"),
+            Some(&FieldValue::U64(3))
+        );
+        assert_eq!(
+            metadata.get("validation.error_count"),
+            Some(&FieldValue::U64(3))
+        );
+    }
+
+    #[test]
+    fn validation_fields_metadata_present() {
+        let bad = MultiField {
+            name:  "ab".into(),
+            age:   200,
+            email: "bad".into()
+        };
+        let validation_errors = bad.validate().unwrap_err();
+        let err: Error = validation_errors.into();
+        let metadata = err.metadata();
+        let fields = metadata.get("validation.fields");
+        assert!(fields.is_some());
+        if let Some(FieldValue::Str(fields_str)) = fields {
+            assert!(
+                fields_str.contains("name")
+                    || fields_str.contains("age")
+                    || fields_str.contains("email")
+            );
+        }
+    }
+
+    #[test]
+    fn validation_codes_metadata_present() {
+        let bad = Payload {
+            val: -5
+        };
+        let validation_errors = bad.validate().unwrap_err();
+        let err: Error = validation_errors.into();
+        let metadata = err.metadata();
+        assert!(metadata.get("validation.codes").is_some());
+    }
+
+    #[test]
+    fn error_preserves_source() {
+        let bad = Payload {
+            val: 0
+        };
+        let validation_errors = bad.validate().unwrap_err();
+        let err: Error = validation_errors.into();
+        assert!(err.source_ref().is_some());
+    }
+
+    #[test]
+    fn single_field_error_has_correct_count() {
+        let bad = Payload {
+            val: 0
+        };
+        let validation_errors = bad.validate().unwrap_err();
+        let err: Error = validation_errors.into();
+        let metadata = err.metadata();
+        assert_eq!(
+            metadata.get("validation.error_count"),
+            Some(&FieldValue::U64(1))
+        );
+    }
+
+    #[test]
+    fn fields_truncated_to_three() {
+        use validator::{ValidationError, ValidationErrors};
+        let mut errors = ValidationErrors::new();
+        errors.add("field1", ValidationError::new("required"));
+        errors.add("field2", ValidationError::new("required"));
+        errors.add("field3", ValidationError::new("required"));
+        errors.add("field4", ValidationError::new("required"));
+        let err: Error = errors.into();
+        let metadata = err.metadata();
+        if let Some(FieldValue::Str(fields)) = metadata.get("validation.fields") {
+            let count = fields.split(',').count();
+            assert!(count <= 3);
+        }
+    }
+
+    #[test]
+    fn codes_truncated_to_three() {
+        use validator::{ValidationError, ValidationErrors};
+        let mut errors = ValidationErrors::new();
+        let err1 = ValidationError::new("code1");
+        let err2 = ValidationError::new("code2");
+        let err3 = ValidationError::new("code3");
+        let err4 = ValidationError::new("code4");
+        errors.add("field1", err1);
+        errors.add("field2", err2);
+        errors.add("field3", err3);
+        errors.add("field4", err4);
+        let app_err: Error = errors.into();
+        let metadata = app_err.metadata();
+        if let Some(FieldValue::Str(codes)) = metadata.get("validation.codes") {
+            let count = codes.split(',').count();
+            assert!(count <= 3);
+        }
+    }
+
+    #[test]
+    fn duplicate_codes_filtered() {
+        use validator::{ValidationError, ValidationErrors};
+        let mut errors = ValidationErrors::new();
+        errors.add("field1", ValidationError::new("required"));
+        errors.add("field2", ValidationError::new("required"));
+        errors.add("field3", ValidationError::new("required"));
+        let err: Error = errors.into();
+        let metadata = err.metadata();
+        if let Some(FieldValue::Str(codes)) = metadata.get("validation.codes") {
+            assert_eq!(codes.as_ref(), "required");
+        }
     }
 }

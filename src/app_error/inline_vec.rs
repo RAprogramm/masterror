@@ -533,4 +533,381 @@ mod tests {
         }
         assert_eq!(vec[0], 10);
     }
+
+    #[test]
+    fn test_get_three_elements() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        assert_eq!(vec.get(0), Some(&1));
+        assert_eq!(vec.get(1), Some(&2));
+        assert_eq!(vec.get(2), Some(&3));
+        assert_eq!(vec.get(3), None);
+    }
+
+    #[test]
+    fn test_get_four_elements() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        vec.push(4);
+        assert_eq!(vec.get(0), Some(&1));
+        assert_eq!(vec.get(3), Some(&4));
+        assert_eq!(vec.get(4), None);
+    }
+
+    #[test]
+    fn test_get_heap() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        for i in 1..=6 {
+            vec.push(i);
+        }
+        assert!(!vec.is_inline());
+        assert_eq!(vec.get(0), Some(&1));
+        assert_eq!(vec.get(5), Some(&6));
+        assert_eq!(vec.get(6), None);
+    }
+
+    #[test]
+    fn test_get_mut_three_elements() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        *vec.get_mut(2).unwrap() = 30;
+        assert_eq!(vec[2], 30);
+        assert!(vec.get_mut(3).is_none());
+    }
+
+    #[test]
+    fn test_get_mut_four_elements() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        vec.push(4);
+        *vec.get_mut(3).unwrap() = 40;
+        assert_eq!(vec[3], 40);
+        assert!(vec.get_mut(4).is_none());
+    }
+
+    #[test]
+    fn test_get_mut_heap() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        for i in 1..=6 {
+            vec.push(i);
+        }
+        *vec.get_mut(5).unwrap() = 60;
+        assert_eq!(vec[5], 60);
+        assert!(vec.get_mut(6).is_none());
+    }
+
+    #[test]
+    fn test_insert_empty() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.insert(0, 42);
+        assert_eq!(&*vec, &[42]);
+    }
+
+    #[test]
+    fn test_insert_three_all_positions() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(1);
+        vec.push(3);
+        vec.insert(1, 2);
+        assert_eq!(&*vec, &[1, 2, 3]);
+
+        let mut vec2: InlineVec<i32> = InlineVec::new();
+        vec2.push(2);
+        vec2.push(3);
+        vec2.insert(0, 1);
+        assert_eq!(&*vec2, &[1, 2, 3]);
+
+        let mut vec3: InlineVec<i32> = InlineVec::new();
+        vec3.push(1);
+        vec3.push(2);
+        vec3.insert(2, 3);
+        assert_eq!(&*vec3, &[1, 2, 3]);
+    }
+
+    #[test]
+    fn test_insert_four_all_positions() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(2);
+        vec.push(3);
+        vec.push(4);
+        vec.insert(0, 1);
+        assert_eq!(&*vec, &[1, 2, 3, 4]);
+
+        let mut vec2: InlineVec<i32> = InlineVec::new();
+        vec2.push(1);
+        vec2.push(3);
+        vec2.push(4);
+        vec2.insert(1, 2);
+        assert_eq!(&*vec2, &[1, 2, 3, 4]);
+
+        let mut vec3: InlineVec<i32> = InlineVec::new();
+        vec3.push(1);
+        vec3.push(2);
+        vec3.push(4);
+        vec3.insert(2, 3);
+        assert_eq!(&*vec3, &[1, 2, 3, 4]);
+
+        let mut vec4: InlineVec<i32> = InlineVec::new();
+        vec4.push(1);
+        vec4.push(2);
+        vec4.push(3);
+        vec4.insert(3, 4);
+        assert_eq!(&*vec4, &[1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_insert_heap() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        for i in 1..=6 {
+            vec.push(i);
+        }
+        vec.insert(3, 99);
+        assert_eq!(vec[3], 99);
+        assert_eq!(vec.len(), 7);
+    }
+
+    #[test]
+    fn test_into_iter_three() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        let collected: alloc::vec::Vec<_> = vec.into_iter().collect();
+        assert_eq!(collected, alloc::vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_into_iter_four() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        vec.push(4);
+        let collected: alloc::vec::Vec<_> = vec.into_iter().collect();
+        assert_eq!(collected, alloc::vec![1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_into_iter_heap() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        for i in 1..=6 {
+            vec.push(i);
+        }
+        let collected: alloc::vec::Vec<_> = vec.into_iter().collect();
+        assert_eq!(collected, alloc::vec![1, 2, 3, 4, 5, 6]);
+    }
+
+    #[test]
+    fn test_into_iter_empty_heap() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        for i in 1..=5 {
+            vec.push(i);
+        }
+        let mut iter = vec.into_iter();
+        for _ in 0..5 {
+            iter.next();
+        }
+        assert!(iter.next().is_none());
+    }
+
+    #[test]
+    fn test_binary_search_by_key() {
+        let mut vec: InlineVec<(i32, &str)> = InlineVec::new();
+        vec.push((1, "a"));
+        vec.push((3, "c"));
+        vec.push((5, "e"));
+        assert_eq!(vec.binary_search_by_key(&3, |&(k, _)| k), Ok(1));
+        assert_eq!(vec.binary_search_by_key(&2, |&(k, _)| k), Err(1));
+        assert_eq!(vec.binary_search_by_key(&6, |&(k, _)| k), Err(3));
+    }
+
+    #[test]
+    fn test_iter_mut() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        for val in vec.iter_mut() {
+            *val *= 10;
+        }
+        assert_eq!(&*vec, &[10, 20, 30]);
+    }
+
+    #[test]
+    fn test_iter_size_hint() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(1);
+        vec.push(2);
+        vec.push(3);
+        let mut iter = vec.iter();
+        assert_eq!(iter.size_hint(), (3, Some(3)));
+        iter.next();
+        assert_eq!(iter.size_hint(), (2, Some(2)));
+        iter.next();
+        iter.next();
+        assert_eq!(iter.size_hint(), (0, Some(0)));
+    }
+
+    #[test]
+    fn test_exact_size_iterator() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(1);
+        vec.push(2);
+        let iter = vec.iter();
+        assert_eq!(iter.len(), 2);
+    }
+
+    #[test]
+    fn test_into_iter_for_ref() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(1);
+        vec.push(2);
+        let collected: alloc::vec::Vec<_> = (&vec).into_iter().copied().collect();
+        assert_eq!(collected, alloc::vec![1, 2]);
+    }
+
+    #[test]
+    fn test_default() {
+        let vec: InlineVec<i32> = InlineVec::default();
+        assert!(vec.is_empty());
+    }
+
+    #[test]
+    fn test_as_slice() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(1);
+        vec.push(2);
+        let slice = vec.as_slice();
+        assert_eq!(slice, &[1, 2]);
+    }
+
+    #[test]
+    fn test_as_mut_slice() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(1);
+        vec.push(2);
+        let slice = vec.as_mut_slice();
+        slice[0] = 10;
+        assert_eq!(vec[0], 10);
+    }
+
+    #[test]
+    fn test_push_to_heap_then_more() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        for i in 1..=10 {
+            vec.push(i);
+        }
+        assert!(!vec.is_inline());
+        assert_eq!(vec.len(), 10);
+    }
+
+    #[test]
+    fn test_deref_empty() {
+        let vec: InlineVec<i32> = InlineVec::new();
+        let slice: &[i32] = &vec;
+        assert!(slice.is_empty());
+    }
+
+    #[test]
+    fn test_deref_mut_empty() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        let slice: &mut [i32] = &mut vec;
+        assert!(slice.is_empty());
+    }
+
+    #[test]
+    fn test_deref_one() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(42);
+        let slice: &[i32] = &vec;
+        assert_eq!(slice, &[42]);
+    }
+
+    #[test]
+    fn test_deref_mut_one() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(42);
+        let slice: &mut [i32] = &mut vec;
+        slice[0] = 99;
+        assert_eq!(vec[0], 99);
+    }
+
+    #[test]
+    fn test_deref_heap() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        for i in 1..=6 {
+            vec.push(i);
+        }
+        let slice: &[i32] = &vec;
+        assert_eq!(slice, &[1, 2, 3, 4, 5, 6]);
+    }
+
+    #[test]
+    fn test_deref_mut_heap() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        for i in 1..=6 {
+            vec.push(i);
+        }
+        let slice: &mut [i32] = &mut vec;
+        slice[5] = 60;
+        assert_eq!(vec[5], 60);
+    }
+
+    #[test]
+    fn test_get_empty() {
+        let vec: InlineVec<i32> = InlineVec::new();
+        assert!(vec.get(0).is_none());
+    }
+
+    #[test]
+    fn test_get_mut_empty() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        assert!(vec.get_mut(0).is_none());
+    }
+
+    #[test]
+    fn test_get_one_out_of_bounds() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(1);
+        assert!(vec.get(1).is_none());
+    }
+
+    #[test]
+    fn test_get_mut_one_out_of_bounds() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(1);
+        assert!(vec.get_mut(1).is_none());
+    }
+
+    #[test]
+    fn test_len_heap() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        for i in 1..=10 {
+            vec.push(i);
+        }
+        assert_eq!(vec.len(), 10);
+    }
+
+    #[test]
+    fn test_into_iter_one() {
+        let mut vec: InlineVec<i32> = InlineVec::new();
+        vec.push(42);
+        let collected: alloc::vec::Vec<_> = vec.into_iter().collect();
+        assert_eq!(collected, alloc::vec![42]);
+    }
+
+    #[test]
+    fn test_into_iter_empty() {
+        let vec: InlineVec<i32> = InlineVec::new();
+        let collected: alloc::vec::Vec<_> = vec.into_iter().collect();
+        assert!(collected.is_empty());
+    }
 }

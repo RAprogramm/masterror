@@ -149,4 +149,128 @@ mod tests {
         let app_err: Error = redis_err.into();
         assert!(matches!(app_err.kind, AppErrorKind::Cache));
     }
+
+    #[test]
+    fn io_error_maps_to_dependency_unavailable() {
+        let redis_err = RedisError::from((ErrorKind::Io, "connection timeout"));
+        let app_err: Error = redis_err.into();
+        assert!(matches!(app_err.kind, AppErrorKind::DependencyUnavailable));
+    }
+
+    #[test]
+    fn connection_refused_maps_to_dependency_unavailable() {
+        let redis_err = RedisError::from((ErrorKind::Io, "connection refused"));
+        let app_err: Error = redis_err.into();
+        assert!(matches!(app_err.kind, AppErrorKind::DependencyUnavailable));
+    }
+
+    #[test]
+    fn metadata_contains_category() {
+        let redis_err = RedisError::from((ErrorKind::Client, "test"));
+        let app_err: Error = redis_err.into();
+        let metadata = app_err.metadata();
+        assert!(metadata.get("redis.category").is_some());
+    }
+
+    #[test]
+    fn metadata_contains_timeout_flag() {
+        let redis_err = RedisError::from((ErrorKind::Client, "test"));
+        let app_err: Error = redis_err.into();
+        let metadata = app_err.metadata();
+        assert_eq!(
+            metadata.get("redis.is_timeout"),
+            Some(&FieldValue::Bool(false))
+        );
+    }
+
+    #[test]
+    fn metadata_contains_cluster_error_flag() {
+        let redis_err = RedisError::from((ErrorKind::Client, "test"));
+        let app_err: Error = redis_err.into();
+        let metadata = app_err.metadata();
+        assert_eq!(
+            metadata.get("redis.is_cluster_error"),
+            Some(&FieldValue::Bool(false))
+        );
+    }
+
+    #[test]
+    fn metadata_contains_connection_flags() {
+        let redis_err = RedisError::from((ErrorKind::Client, "test"));
+        let app_err: Error = redis_err.into();
+        let metadata = app_err.metadata();
+        assert!(metadata.get("redis.is_connection_refused").is_some());
+        assert!(metadata.get("redis.is_connection_dropped").is_some());
+    }
+
+    #[test]
+    fn retry_method_no_retry() {
+        let (label, after) = retry_method_details(RetryMethod::NoRetry);
+        assert_eq!(label, "NoRetry");
+        assert_eq!(after, None);
+    }
+
+    #[test]
+    fn retry_method_retry_immediately() {
+        let (label, after) = retry_method_details(RetryMethod::RetryImmediately);
+        assert_eq!(label, "RetryImmediately");
+        assert_eq!(after, Some(0));
+    }
+
+    #[test]
+    fn retry_method_ask_redirect() {
+        let (label, after) = retry_method_details(RetryMethod::AskRedirect);
+        assert_eq!(label, "AskRedirect");
+        assert_eq!(after, Some(0));
+    }
+
+    #[test]
+    fn retry_method_moved_redirect() {
+        let (label, after) = retry_method_details(RetryMethod::MovedRedirect);
+        assert_eq!(label, "MovedRedirect");
+        assert_eq!(after, Some(0));
+    }
+
+    #[test]
+    fn retry_method_reconnect() {
+        let (label, after) = retry_method_details(RetryMethod::Reconnect);
+        assert_eq!(label, "Reconnect");
+        assert_eq!(after, Some(1));
+    }
+
+    #[test]
+    fn retry_method_reconnect_from_initial() {
+        let (label, after) = retry_method_details(RetryMethod::ReconnectFromInitialConnections);
+        assert_eq!(label, "ReconnectFromInitialConnections");
+        assert_eq!(after, Some(1));
+    }
+
+    #[test]
+    fn retry_method_wait_and_retry() {
+        let (label, after) = retry_method_details(RetryMethod::WaitAndRetry);
+        assert_eq!(label, "WaitAndRetry");
+        assert_eq!(after, Some(2));
+    }
+
+    #[test]
+    fn error_preserves_source() {
+        let redis_err = RedisError::from((ErrorKind::Client, "test"));
+        let app_err: Error = redis_err.into();
+        assert!(app_err.source_ref().is_some());
+    }
+
+    #[test]
+    fn metadata_contains_retry_method() {
+        let redis_err = RedisError::from((ErrorKind::Client, "test"));
+        let app_err: Error = redis_err.into();
+        let metadata = app_err.metadata();
+        assert!(metadata.get("redis.retry_method").is_some());
+    }
+
+    #[test]
+    fn parse_error_maps_to_cache() {
+        let redis_err = RedisError::from((ErrorKind::Parse, "invalid response"));
+        let app_err: Error = redis_err.into();
+        assert!(matches!(app_err.kind, AppErrorKind::Cache));
+    }
 }

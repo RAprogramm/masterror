@@ -162,9 +162,9 @@ The build script keeps the full feature snippet below in sync with
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.27.2", default-features = false }
+masterror = { version = "0.28.0", default-features = false }
 # or with features:
-# masterror = { version = "0.27.2", features = [
+# masterror = { version = "0.28.0", features = [
 #   "std", "axum", "actix", "openapi",
 #   "serde_json", "tracing", "metrics", "backtrace",
 #   "colored", "sqlx", "sqlx-migrate", "reqwest",
@@ -643,7 +643,7 @@ Enable the `colored` feature for enhanced terminal output in local mode:
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.27.2", features = ["colored"] }
+masterror = { version = "0.28.0", features = ["colored"] }
 ~~~
 
 With `colored` enabled, errors display with syntax highlighting:
