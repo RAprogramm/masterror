@@ -169,7 +169,7 @@ masterror = { version = "0.27.2", default-features = false }
 #   "colored", "sqlx", "sqlx-migrate", "reqwest",
 #   "redis", "validator", "config", "tokio",
 #   "multipart", "teloxide", "init-data", "tonic",
-#   "frontend", "turnkey", "benchmarks"
+#   "frontend", "turnkey", "knowledge", "benchmarks"
 # ] }
 ~~~
 

@@ -42,6 +42,8 @@ include = [
 members = [
   "masterror-derive",
   "masterror-template",
+  "masterror-knowledge",
+  "masterror-cli",
   "examples/axum-rest-api",
   "examples/custom-domain-errors",
   "examples/sqlx-database",
@@ -87,6 +89,7 @@ turnkey = ["std"]
 tonic = ["dep:tonic", "std"]
 openapi = ["dep:utoipa", "std"]
 benchmarks = ["std"]
+knowledge = ["dep:masterror-knowledge"]
 
 [workspace.dependencies]
 masterror-derive = { version = "0.11" }
@@ -147,6 +150,7 @@ tonic = { version = "0.14", optional = true }
 owo-colors = { version = "4", optional = true, default-features = false, features = [
   "supports-colors",
 ] }
+masterror-knowledge = { path = "masterror-knowledge", optional = true }
 
 [dev-dependencies]
 anyhow = { version = "1", default-features = false, features = ["std"] }
@@ -200,6 +204,7 @@ feature_order = [
   "tonic",
   "frontend",
   "turnkey",
+  "knowledge",
   "benchmarks",
 ]
 feature_snippet_group = 4
@@ -282,6 +287,9 @@ description = "Log to the browser console and convert to JsValue on WASM"
 
 [package.metadata.masterror.readme.features.turnkey]
 description = "Ship Turnkey-specific error taxonomy and conversions"
+
+[package.metadata.masterror.readme.features.knowledge]
+description = "Rust compiler error explanations and best practices (en/ru/ko)"
 
 [package.metadata.masterror.readme.features.benchmarks]
 description = "Enable Criterion benchmarks and CI baseline tooling"

@@ -371,6 +371,14 @@ pub mod turnkey;
 #[cfg_attr(docsrs, doc(cfg(feature = "colored")))]
 pub mod colored;
 
+/// Rust compiler error explanations and best practices.
+///
+/// Provides structured knowledge base for understanding compiler errors
+/// with translations (en/ru/ko) and actionable fix suggestions.
+#[cfg(feature = "knowledge")]
+#[cfg_attr(docsrs, doc(cfg(feature = "knowledge")))]
+pub use masterror_knowledge as knowledge;
+
 /// Minimal prelude re-exporting core types for handler signatures.
 pub mod prelude;
 
