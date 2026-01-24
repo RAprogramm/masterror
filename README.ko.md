@@ -25,6 +25,8 @@ SPDX-License-Identifier: MIT
   > 🇬🇧 [Read README in English](README.md)
   > 🇷🇺 [Читайте README на русском языке](README.ru.md)
 
+  **참고:** [masterror-cli](https://github.com/RAprogramm/masterror-cli) — Rust 컴파일러 오류를 상세한 해결책, 모범 사례 및 다국어 지원과 함께 설명하는 CLI 도구입니다. `cargo install masterror-cli` 또는 [AUR](https://aur.archlinux.org/packages/masterror-cli)에서 설치하세요.
+
 </div>
 
 > [!IMPORTANT]

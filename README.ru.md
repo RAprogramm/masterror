@@ -25,6 +25,8 @@ SPDX-License-Identifier: MIT
   > 🇬🇧 [Read README in English](README.md)
   > 🇰🇷 [한국어 README](README.ko.md)
 
+  **См. также:** [masterror-cli](https://github.com/RAprogramm/masterror-cli) — CLI-инструмент для объяснения ошибок компилятора Rust с подробными решениями, лучшими практиками и поддержкой нескольких языков. Установка: `cargo install masterror-cli` или из [AUR](https://aur.archlinux.org/packages/masterror-cli).
+
 </div>
 
 > [!IMPORTANT]
