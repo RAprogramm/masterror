@@ -30,7 +30,7 @@ impl Lang {
     /// # Examples
     ///
     /// ```
-    /// use masterror::i18n::Lang;
+    /// use masterror_knowledge::Lang;
     ///
     /// assert_eq!(Lang::from_code("ru"), Lang::Ru);
     /// assert_eq!(Lang::from_code("unknown"), Lang::En);
