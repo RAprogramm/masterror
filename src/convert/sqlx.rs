@@ -419,4 +419,286 @@ mod tests_sqlx {
             }
         }
     }
+
+    #[test]
+    fn pool_timed_out_maps_to_timeout() {
+        let err: Error = SqlxError::PoolTimedOut.into();
+        assert_eq!(err.kind, AppErrorKind::Timeout);
+        assert_eq!(
+            err.metadata().get("db.reason"),
+            Some(&FieldValue::Str("pool_timeout".into()))
+        );
+        assert_eq!(err.retry.map(|r| r.after_seconds), Some(1));
+    }
+
+    #[test]
+    fn pool_closed_maps_to_dependency_unavailable() {
+        let err: Error = SqlxError::PoolClosed.into();
+        assert_eq!(err.kind, AppErrorKind::DependencyUnavailable);
+        assert_eq!(
+            err.metadata().get("db.reason"),
+            Some(&FieldValue::Str("pool_closed".into()))
+        );
+    }
+
+    #[test]
+    fn worker_crashed_maps_to_dependency_unavailable() {
+        let err: Error = SqlxError::WorkerCrashed.into();
+        assert_eq!(err.kind, AppErrorKind::DependencyUnavailable);
+        assert_eq!(
+            err.metadata().get("db.reason"),
+            Some(&FieldValue::Str("worker_crashed".into()))
+        );
+        assert_eq!(err.retry.map(|r| r.after_seconds), Some(1));
+    }
+
+    #[test]
+    fn configuration_maps_to_config() {
+        let err: Error =
+            SqlxError::Configuration(Box::new(std::io::Error::other("bad config"))).into();
+        assert_eq!(err.kind, AppErrorKind::Config);
+        assert_eq!(
+            err.metadata().get("db.reason"),
+            Some(&FieldValue::Str("configuration".into()))
+        );
+    }
+
+    #[test]
+    fn invalid_argument_maps_to_bad_request() {
+        let err: Error = SqlxError::InvalidArgument("wrong arg".into()).into();
+        assert_eq!(err.kind, AppErrorKind::BadRequest);
+        assert_eq!(
+            err.metadata().get("db.reason"),
+            Some(&FieldValue::Str("invalid_argument".into()))
+        );
+        assert_eq!(
+            err.metadata().get("db.argument"),
+            Some(&FieldValue::Str("wrong arg".into()))
+        );
+    }
+
+    #[test]
+    fn column_decode_maps_to_deserialization() {
+        let err: Error = SqlxError::ColumnDecode {
+            index:  "col1".into(),
+            source: Box::new(std::io::Error::other("decode failed"))
+        }
+        .into();
+        assert_eq!(err.kind, AppErrorKind::Deserialization);
+        assert_eq!(
+            err.metadata().get("db.reason"),
+            Some(&FieldValue::Str("column_decode".into()))
+        );
+        assert_eq!(
+            err.metadata().get("db.column"),
+            Some(&FieldValue::Str("col1".into()))
+        );
+    }
+
+    #[test]
+    fn column_not_found_maps_to_internal() {
+        let err: Error = SqlxError::ColumnNotFound("missing_col".into()).into();
+        assert_eq!(err.kind, AppErrorKind::Internal);
+        assert_eq!(
+            err.metadata().get("db.reason"),
+            Some(&FieldValue::Str("column_not_found".into()))
+        );
+        assert_eq!(
+            err.metadata().get("db.column"),
+            Some(&FieldValue::Str("missing_col".into()))
+        );
+    }
+
+    #[test]
+    fn column_index_out_of_bounds_maps_to_internal() {
+        let err: Error = SqlxError::ColumnIndexOutOfBounds {
+            index: 5, len: 3
+        }
+        .into();
+        assert_eq!(err.kind, AppErrorKind::Internal);
+        assert_eq!(
+            err.metadata().get("db.reason"),
+            Some(&FieldValue::Str("column_index_out_of_bounds".into()))
+        );
+        assert_eq!(err.metadata().get("db.index"), Some(&FieldValue::U64(5)));
+        assert_eq!(err.metadata().get("db.len"), Some(&FieldValue::U64(3)));
+    }
+
+    #[test]
+    fn type_not_found_maps_to_internal() {
+        let err: Error = SqlxError::TypeNotFound {
+            type_name: "custom_type".into()
+        }
+        .into();
+        assert_eq!(err.kind, AppErrorKind::Internal);
+        assert_eq!(
+            err.metadata().get("db.reason"),
+            Some(&FieldValue::Str("type_not_found".into()))
+        );
+        assert_eq!(
+            err.metadata().get("db.type"),
+            Some(&FieldValue::Str("custom_type".into()))
+        );
+    }
+
+    #[test]
+    fn encode_maps_to_serialization() {
+        let err: Error =
+            SqlxError::Encode(Box::new(std::io::Error::other("encode failed"))).into();
+        assert_eq!(err.kind, AppErrorKind::Serialization);
+        assert_eq!(
+            err.metadata().get("db.reason"),
+            Some(&FieldValue::Str("encode".into()))
+        );
+    }
+
+    #[test]
+    fn decode_maps_to_deserialization() {
+        let err: Error =
+            SqlxError::Decode(Box::new(std::io::Error::other("decode failed"))).into();
+        assert_eq!(err.kind, AppErrorKind::Deserialization);
+        assert_eq!(
+            err.metadata().get("db.reason"),
+            Some(&FieldValue::Str("decode".into()))
+        );
+    }
+
+    #[test]
+    fn protocol_maps_to_dependency_unavailable() {
+        let err: Error = SqlxError::Protocol("protocol error".into()).into();
+        assert_eq!(err.kind, AppErrorKind::DependencyUnavailable);
+        assert_eq!(
+            err.metadata().get("db.reason"),
+            Some(&FieldValue::Str("protocol".into()))
+        );
+        assert_eq!(err.retry.map(|r| r.after_seconds), Some(1));
+    }
+
+    #[test]
+    fn tls_maps_to_network() {
+        let err: Error = SqlxError::Tls(Box::new(std::io::Error::other("tls failed"))).into();
+        assert_eq!(err.kind, AppErrorKind::Network);
+        assert_eq!(
+            err.metadata().get("db.reason"),
+            Some(&FieldValue::Str("tls".into()))
+        );
+        assert_eq!(err.retry.map(|r| r.after_seconds), Some(1));
+    }
+
+    #[test]
+    fn any_driver_error_maps_to_database() {
+        let err: Error =
+            SqlxError::AnyDriverError(Box::new(std::io::Error::other("driver error"))).into();
+        assert_eq!(err.kind, AppErrorKind::Database);
+        assert_eq!(
+            err.metadata().get("db.reason"),
+            Some(&FieldValue::Str("driver_error".into()))
+        );
+    }
+
+    #[test]
+    fn invalid_savepoint_maps_to_internal() {
+        let err: Error = SqlxError::InvalidSavePointStatement.into();
+        assert_eq!(err.kind, AppErrorKind::Internal);
+        assert_eq!(
+            err.metadata().get("db.reason"),
+            Some(&FieldValue::Str("invalid_savepoint".into()))
+        );
+    }
+
+    #[test]
+    fn begin_failed_maps_to_dependency_unavailable() {
+        let err: Error = SqlxError::BeginFailed.into();
+        assert_eq!(err.kind, AppErrorKind::DependencyUnavailable);
+        assert_eq!(
+            err.metadata().get("db.reason"),
+            Some(&FieldValue::Str("begin_failed".into()))
+        );
+        assert_eq!(err.retry.map(|r| r.after_seconds), Some(1));
+    }
+
+    #[test]
+    fn foreign_key_violation_maps_to_conflict() {
+        let db_err = DummyDbError {
+            message:    "foreign key violation".into(),
+            code:       Some("23503".into()),
+            constraint: Some("fk_user".into()),
+            table:      Some("orders".into()),
+            kind:       SqlxErrorKind::ForeignKeyViolation
+        };
+        let err: Error = SqlxError::Database(Box::new(db_err)).into();
+        assert_eq!(err.kind, AppErrorKind::Conflict);
+        assert_eq!(err.code, AppCode::Conflict);
+    }
+
+    #[test]
+    fn not_null_violation_maps_to_validation() {
+        let db_err = DummyDbError {
+            message:    "not null violation".into(),
+            code:       Some("23502".into()),
+            constraint: None,
+            table:      None,
+            kind:       SqlxErrorKind::NotNullViolation
+        };
+        let err: Error = SqlxError::Database(Box::new(db_err)).into();
+        assert_eq!(err.kind, AppErrorKind::Validation);
+        assert_eq!(err.code, AppCode::Validation);
+    }
+
+    #[test]
+    fn check_violation_maps_to_validation() {
+        let db_err = DummyDbError {
+            message:    "check violation".into(),
+            code:       Some("23514".into()),
+            constraint: Some("positive_amount".into()),
+            table:      None,
+            kind:       SqlxErrorKind::CheckViolation
+        };
+        let err: Error = SqlxError::Database(Box::new(db_err)).into();
+        assert_eq!(err.kind, AppErrorKind::Validation);
+        assert_eq!(err.code, AppCode::Validation);
+    }
+
+    #[test]
+    fn lock_not_available_carries_retry_hint() {
+        let db_err = DummyDbError {
+            message:    "lock not available".into(),
+            code:       Some("55P03".into()),
+            constraint: None,
+            table:      None,
+            kind:       SqlxErrorKind::Other
+        };
+        let err: Error = SqlxError::Database(Box::new(db_err)).into();
+        assert_eq!(err.retry.map(|r| r.after_seconds), Some(1));
+    }
+
+    #[test]
+    fn database_error_without_code() {
+        let db_err = DummyDbError {
+            message:    "unknown error".into(),
+            code:       None,
+            constraint: None,
+            table:      None,
+            kind:       SqlxErrorKind::Other
+        };
+        let err: Error = SqlxError::Database(Box::new(db_err)).into();
+        assert_eq!(err.kind, AppErrorKind::Database);
+        assert!(err.metadata().get("db.code").is_none());
+    }
+
+    #[test]
+    fn database_error_captures_table() {
+        let db_err = DummyDbError {
+            message:    "error".into(),
+            code:       None,
+            constraint: None,
+            table:      Some("users".into()),
+            kind:       SqlxErrorKind::Other
+        };
+        let err: Error = SqlxError::Database(Box::new(db_err)).into();
+        assert_eq!(
+            err.metadata().get("db.table"),
+            Some(&FieldValue::Str("users".into()))
+        );
+    }
 }

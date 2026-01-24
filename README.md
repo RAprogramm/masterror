@@ -26,6 +26,8 @@ SPDX-License-Identifier: MIT
   > 🇷🇺 [Читайте README на русском языке](README.ru.md)
   > 🇰🇷 [한국어 README](README.ko.md)
 
+  **See also:** [masterror-cli](https://github.com/RAprogramm/masterror-cli) — CLI tool that explains Rust compiler errors with detailed solutions, best practices, and multi-language support. Install via `cargo install masterror-cli` or from [AUR](https://aur.archlinux.org/packages/masterror-cli).
+
 </div>
 
 ---
@@ -113,6 +115,7 @@ of redaction and metadata.
 | [`masterror`](https://crates.io/crates/masterror) | Core error types, metadata builders, transports, integrations and the prelude. | Application crates, services and libraries that want a stable error surface. |
 | [`masterror-derive`](masterror-derive/README.md) | Proc-macros backing `#[derive(Error)]`, `#[derive(Masterror)]`, `#[app_error]` and `#[provide]`. | Brought in automatically via `masterror`; depend directly only for macro hacking. |
 | [`masterror-template`](masterror-template/README.md) | Shared template parser used by the derive macros for formatter analysis. | Internal dependency; reuse when you need the template parser elsewhere. |
+| [`masterror-knowledge`](masterror-knowledge/README.md) | Knowledge base with 31+ error explanations and 15 best practices in 3 languages. | Used by [masterror-cli](https://github.com/RAprogramm/masterror-cli); depend directly for custom tooling. |
 
 <div align="right">
 
@@ -159,15 +162,15 @@ The build script keeps the full feature snippet below in sync with
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.27.2", default-features = false }
+masterror = { version = "0.28.0", default-features = false }
 # or with features:
-# masterror = { version = "0.27.2", features = [
+# masterror = { version = "0.28.0", features = [
 #   "std", "axum", "actix", "openapi",
 #   "serde_json", "tracing", "metrics", "backtrace",
 #   "colored", "sqlx", "sqlx-migrate", "reqwest",
 #   "redis", "validator", "config", "tokio",
 #   "multipart", "teloxide", "init-data", "tonic",
-#   "frontend", "turnkey", "benchmarks"
+#   "frontend", "turnkey", "knowledge", "benchmarks"
 # ] }
 ~~~
 
@@ -640,7 +643,7 @@ Enable the `colored` feature for enhanced terminal output in local mode:
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.27.2", features = ["colored"] }
+masterror = { version = "0.28.0", features = ["colored"] }
 ~~~
 
 With `colored` enabled, errors display with syntax highlighting:

@@ -638,4 +638,149 @@ mod tests {
         let text = duration_to_string(Duration::from_micros(1500));
         assert_eq!(text, "0.0015s");
     }
+
+    #[test]
+    fn duration_to_string_whole_seconds() {
+        let text = duration_to_string(Duration::from_secs(5));
+        assert_eq!(text, "5s");
+    }
+
+    #[test]
+    fn duration_to_string_with_nanos() {
+        let text = duration_to_string(Duration::new(1, 500_000_000));
+        assert_eq!(text, "1.5s");
+    }
+
+    #[test]
+    fn field_value_display_all_types() {
+        assert_eq!(FieldValue::Str(Cow::Borrowed("hello")).to_string(), "hello");
+        assert_eq!(FieldValue::I64(-42).to_string(), "-42");
+        assert_eq!(FieldValue::U64(100).to_string(), "100");
+        assert_eq!(FieldValue::F64(1.5).to_string(), "1.5");
+        assert_eq!(FieldValue::Bool(true).to_string(), "true");
+        assert_eq!(FieldValue::Bool(false).to_string(), "false");
+
+        let uuid = Uuid::nil();
+        assert_eq!(
+            FieldValue::Uuid(uuid).to_string(),
+            "00000000-0000-0000-0000-000000000000"
+        );
+
+        let dur = Duration::from_millis(1500);
+        assert_eq!(FieldValue::Duration(dur).to_string(), "1.5s");
+
+        let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
+        assert_eq!(FieldValue::Ip(ip).to_string(), "127.0.0.1");
+    }
+
+    #[cfg(feature = "serde_json")]
+    #[test]
+    fn field_value_display_json() {
+        let value = FieldValue::Json(json!({"key": "value"}));
+        assert!(value.to_string().contains("key"));
+    }
+
+    #[test]
+    fn metadata_extend() {
+        let mut meta = Metadata::new();
+        meta.extend([field::str("a", "1"), field::str("b", "2")]);
+        assert_eq!(meta.len(), 2);
+        assert_eq!(meta.get("a"), Some(&FieldValue::Str(Cow::Borrowed("1"))));
+        assert_eq!(meta.get("b"), Some(&FieldValue::Str(Cow::Borrowed("2"))));
+    }
+
+    #[test]
+    fn metadata_get_field() {
+        let meta = Metadata::from_fields([field::i64("count", 42)]);
+        let field = meta.get_field("count");
+        assert!(field.is_some());
+        let field = field.unwrap();
+        assert_eq!(field.name(), "count");
+        assert_eq!(field.value(), &FieldValue::I64(42));
+    }
+
+    #[test]
+    fn metadata_get_nonexistent() {
+        let meta = Metadata::new();
+        assert!(meta.get("missing").is_none());
+        assert!(meta.get_field("missing").is_none());
+        assert!(meta.redaction("missing").is_none());
+    }
+
+    #[test]
+    fn metadata_set_redaction() {
+        let mut meta = Metadata::from_fields([field::str("secret", "value")]);
+        meta.set_redaction("secret", FieldRedaction::Redact);
+        assert_eq!(meta.redaction("secret"), Some(FieldRedaction::Redact));
+    }
+
+    #[test]
+    fn metadata_set_redaction_nonexistent() {
+        let mut meta = Metadata::new();
+        meta.set_redaction("missing", FieldRedaction::Redact);
+        assert!(meta.redaction("missing").is_none());
+    }
+
+    #[test]
+    fn metadata_iter_with_redaction() {
+        let meta = Metadata::from_fields([
+            field::str("public", "value1"),
+            field::str("password", "secret")
+        ]);
+        let items: Vec<_> = meta.iter_with_redaction().collect();
+        assert_eq!(items.len(), 2);
+        let password_item = items.iter().find(|(n, _, _)| *n == "password").unwrap();
+        assert_eq!(password_item.2, FieldRedaction::Redact);
+    }
+
+    #[test]
+    fn metadata_into_iter() {
+        let meta = Metadata::from_fields([field::i64("a", 1), field::i64("b", 2)]);
+        let fields: Vec<_> = meta.into_iter().collect();
+        assert_eq!(fields.len(), 2);
+    }
+
+    #[test]
+    fn field_default_redaction_non_sensitive() {
+        let field = field::str("user_id", "abc123");
+        assert_eq!(field.redaction(), FieldRedaction::None);
+    }
+
+    #[test]
+    fn field_with_redaction() {
+        let field = field::str("public", "value").with_redaction(FieldRedaction::Hash);
+        assert_eq!(field.redaction(), FieldRedaction::Hash);
+    }
+
+    #[test]
+    fn field_redaction_default() {
+        assert_eq!(FieldRedaction::default(), FieldRedaction::None);
+    }
+
+    #[test]
+    fn field_value_partial_eq() {
+        let v1 = FieldValue::I64(42);
+        let v2 = FieldValue::I64(42);
+        let v3 = FieldValue::I64(43);
+        assert_eq!(v1, v2);
+        assert_ne!(v1, v3);
+    }
+
+    #[test]
+    fn metadata_len_and_is_empty() {
+        let empty = Metadata::new();
+        assert!(empty.is_empty());
+        assert_eq!(empty.len(), 0);
+
+        let meta = Metadata::from_fields([field::i64("x", 1)]);
+        assert!(!meta.is_empty());
+        assert_eq!(meta.len(), 1);
+    }
+
+    #[test]
+    fn field_into_value() {
+        let field = field::u64("count", 100);
+        let value = field.into_value();
+        assert_eq!(value, FieldValue::U64(100));
+    }
 }
