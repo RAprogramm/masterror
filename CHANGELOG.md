@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **deps:** Bump rsa from 0.9.9 to 0.9.10 by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#356](https://github.com/RAprogramm/masterror/pull/356)
 - **deps:** Bump the minor-and-patch group with 2 updates by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#354](https://github.com/RAprogramm/masterror/pull/354)
 - **deps:** Bump reqwest from 0.12.28 to 0.13.1 by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#355](https://github.com/RAprogramm/masterror/pull/355)
+
+### Fixed
+
+- Conditional clippy lint allows for lifetime generics by [@RAprogramm](https://github.com/RAprogramm) in [#361](https://github.com/RAprogramm/masterror/pull/361)
 ## [0.27.1](https://github.com/RAprogramm/masterror/releases/tag/v0.27.1) - 2025-12-30
 
 ### Miscellaneous
