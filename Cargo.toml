@@ -94,6 +94,7 @@ knowledge = ["dep:masterror-knowledge"]
 [workspace.dependencies]
 masterror-derive = { version = "0.11" }
 masterror-template = { version = "0.4" }
+masterror-knowledge = { version = "0.1" }
 
 [dependencies]
 masterror-derive = { version = "0.11" }

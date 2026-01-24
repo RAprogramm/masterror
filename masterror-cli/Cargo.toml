@@ -34,7 +34,7 @@ show-translation = []
 show-original = []
 
 [dependencies]
-masterror-knowledge = { path = "../masterror-knowledge" }
+masterror-knowledge = { version = "0.1", path = "../masterror-knowledge" }
 
 # CLI framework
 clap = { version = "4", features = ["derive", "env", "wrap_help"] }

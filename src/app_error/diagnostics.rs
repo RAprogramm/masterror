@@ -271,7 +271,7 @@ impl DocLink {
 ///
 /// # Memory Layout
 ///
-/// The structure uses [`InlineVec`] for hints and suggestions, which stores
+/// The structure uses `InlineVec` for hints and suggestions, which stores
 /// up to 4 elements inline without heap allocation. This optimizes for the
 /// common case of 1-2 hints/suggestions per error.
 ///
