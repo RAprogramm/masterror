@@ -45,6 +45,11 @@ fn display_mode_detect_auto_returns_prod_in_release() {
     }
 }
 
+// Note: Environment-based mode detection tests (MASTERROR_ENV,
+// KUBERNETES_SERVICE_HOST) cannot be tested without unsafe env var manipulation
+// which is forbidden by #![deny(unsafe_code)]. These code paths are tested via
+// integration tests and manual verification.
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Production format tests
 // ─────────────────────────────────────────────────────────────────────────────
@@ -250,6 +255,69 @@ fn fmt_local_with_deep_source_chain() {
     let output = format!("{}", error.fmt_local_wrapper());
     assert!(output.contains("Caused by"));
     assert!(output.contains("level 1"));
+}
+
+#[test]
+fn fmt_local_with_hints() {
+    let error = AppError::not_found("Resource missing")
+        .with_hint("Check the resource ID")
+        .with_hint("Verify permissions");
+    let output = format!("{}", error.fmt_local_wrapper());
+    assert!(output.contains("hint"));
+    assert!(output.contains("Check the resource ID"));
+}
+
+#[test]
+fn fmt_local_with_suggestions() {
+    let error = AppError::service("Service unavailable")
+        .with_suggestion("Retry the request")
+        .with_suggestion_cmd("Check service status", "systemctl status myservice");
+    let output = format!("{}", error.fmt_local_wrapper());
+    assert!(output.contains("suggestion"));
+    assert!(output.contains("Retry the request"));
+    assert!(output.contains("systemctl status myservice"));
+}
+
+#[test]
+fn fmt_local_with_doc_link() {
+    let error = AppError::unauthorized("Authentication required")
+        .with_docs("https://docs.example.com/auth");
+    let output = format!("{}", error.fmt_local_wrapper());
+    assert!(output.contains("docs"));
+    assert!(output.contains("https://docs.example.com/auth"));
+}
+
+#[test]
+fn fmt_local_with_doc_link_titled() {
+    let error = AppError::forbidden("Access denied")
+        .with_docs_titled("https://docs.example.com/rbac", "RBAC Guide");
+    let output = format!("{}", error.fmt_local_wrapper());
+    assert!(output.contains("docs"));
+    assert!(output.contains("RBAC Guide"));
+}
+
+#[test]
+fn fmt_local_with_related_codes() {
+    let error = AppError::database_with_message("Connection failed")
+        .with_related_code("DB_POOL_EXHAUSTED")
+        .with_related_code("DB_TIMEOUT");
+    let output = format!("{}", error.fmt_local_wrapper());
+    assert!(output.contains("see also"));
+    assert!(output.contains("DB_POOL_EXHAUSTED"));
+}
+
+#[test]
+fn fmt_local_with_all_diagnostics() {
+    let error = AppError::internal("Critical failure")
+        .with_hint("Check logs for details")
+        .with_suggestion_cmd("View logs", "journalctl -u myapp")
+        .with_docs_titled("https://docs.example.com/troubleshoot", "Troubleshooting")
+        .with_related_code("ERR_STARTUP_FAILED");
+    let output = format!("{}", error.fmt_local_wrapper());
+    assert!(output.contains("hint"));
+    assert!(output.contains("suggestion"));
+    assert!(output.contains("docs"));
+    assert!(output.contains("see also"));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
