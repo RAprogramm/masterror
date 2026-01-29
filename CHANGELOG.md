@@ -11,7 +11,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.27.1...HEAD)
+## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.27.2...HEAD)
+
+### Dependencies
+
+- **deps:** Bump the minor-and-patch group with 3 updates by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#363](https://github.com/RAprogramm/masterror/pull/363)
+- **deps:** Bump reqwest from 0.12.28 to 0.13.1 by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#364](https://github.com/RAprogramm/masterror/pull/364)
+## [0.27.2](https://github.com/RAprogramm/masterror/releases/tag/v0.27.2) - 2026-01-21
 
 ### Dependencies
 
@@ -26,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Conditional clippy lint allows for lifetime generics by [@RAprogramm](https://github.com/RAprogramm) in [#361](https://github.com/RAprogramm/masterror/pull/361)
+
+**Full Changelog**: [v0.27.1...v0.27.2](https://github.com/RAprogramm/masterror/compare/v0.27.1...v0.27.2)
 ## [0.27.1](https://github.com/RAprogramm/masterror/releases/tag/v0.27.1) - 2025-12-30
 
 ### Miscellaneous
