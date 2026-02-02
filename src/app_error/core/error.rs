@@ -134,6 +134,14 @@ impl Display for Error {
                     writeln!(f, "  {}: {}", style::metadata_key(key), value)?;
                 }
             }
+            #[cfg(feature = "backtrace")]
+            if let Some(bt) = self.backtrace_short() {
+                writeln!(f)?;
+                writeln!(f, "Backtrace:")?;
+                for line in bt.lines() {
+                    writeln!(f, "  {}", line)?;
+                }
+            }
             Ok(())
         }
     }
