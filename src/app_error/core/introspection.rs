@@ -70,6 +70,74 @@ impl Error {
             .map(Arc::clone)
     }
 
+    /// Returns a filtered, human-readable backtrace string.
+    ///
+    /// Filters out internal masterror frames and standard library runtime
+    /// frames, showing only application code.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "backtrace")]
+    /// # {
+    /// use masterror::AppError;
+    ///
+    /// let err = AppError::internal("test");
+    /// if let Some(bt) = err.backtrace_short() {
+    ///     println!("{}", bt);
+    /// }
+    /// # }
+    /// ```
+    #[cfg(feature = "backtrace")]
+    #[must_use]
+    pub fn backtrace_short(&self) -> Option<alloc::string::String> {
+        use alloc::vec::Vec;
+
+        let bt = self.backtrace()?;
+        let bt_str = alloc::format!("{}", bt);
+
+        let filtered: Vec<&str> = bt_str
+            .lines()
+            .filter(|line| {
+                // Skip empty lines
+                if line.trim().is_empty() {
+                    return false;
+                }
+                // Skip masterror internal frames
+                if line.contains("masterror::") {
+                    return false;
+                }
+                // Skip std runtime frames
+                if line.contains("std::rt::") || line.contains("std::panic") {
+                    return false;
+                }
+                // Skip core frames
+                if line.contains("core::ops::function") || line.contains("core::panicking") {
+                    return false;
+                }
+                // Skip backtrace internals
+                if line.contains("std::sys::backtrace") || line.contains("std::backtrace") {
+                    return false;
+                }
+                // Skip libc frames
+                if line.contains("__libc_") || line.contains("_start") {
+                    return false;
+                }
+                // Skip unknown frames
+                if line.contains("<unknown>") {
+                    return false;
+                }
+                true
+            })
+            .collect();
+
+        if filtered.is_empty() {
+            return None;
+        }
+
+        Some(filtered.join("\n"))
+    }
+
     /// Borrow the source if present.
     ///
     /// # Examples
