@@ -10,8 +10,8 @@ use core::{
     fmt::{Formatter, Result as FmtResult}
 };
 
-use super::helpers::{write_json_escaped, write_metadata_value};
-use crate::{FieldRedaction, MessageEditPolicy, app_error::core::error::Error};
+use super::helpers::{write_json_escaped, write_metadata_json};
+use crate::{MessageEditPolicy, app_error::core::error::Error};
 
 #[allow(dead_code)]
 impl Error {
@@ -51,7 +51,7 @@ impl Error {
             write!(f, "\"")?;
         }
         self.fmt_staging_source_chain(f)?;
-        self.fmt_staging_metadata(f)?;
+        write_metadata_json(f, &self.metadata)?;
         write!(f, "}}")
     }
 
@@ -77,32 +77,6 @@ impl Error {
                 }
             }
             write!(f, "]")?;
-        }
-        Ok(())
-    }
-
-    fn fmt_staging_metadata(&self, f: &mut Formatter<'_>) -> FmtResult {
-        if !self.metadata.is_empty() {
-            let has_public_fields = self
-                .metadata
-                .iter_with_redaction()
-                .any(|(_, _, redaction)| !matches!(redaction, FieldRedaction::Redact));
-            if has_public_fields {
-                write!(f, r#","metadata":{{"#)?;
-                let mut first = true;
-                for (name, value, redaction) in self.metadata.iter_with_redaction() {
-                    if matches!(redaction, FieldRedaction::Redact) {
-                        continue;
-                    }
-                    if !first {
-                        write!(f, ",")?;
-                    }
-                    first = false;
-                    write!(f, r#""{}":"#, name)?;
-                    write_metadata_value(f, value)?;
-                }
-                write!(f, "}}")?;
-            }
         }
         Ok(())
     }

@@ -58,3 +58,36 @@ pub(super) fn write_metadata_value(f: &mut Formatter<'_>, value: &FieldValue) ->
         FieldValue::Json(v) => write!(f, "{}", v)
     }
 }
+
+#[allow(dead_code)]
+/// Writes metadata as JSON object, respecting field redaction policies.
+pub(super) fn write_metadata_json(f: &mut Formatter<'_>, metadata: &crate::Metadata) -> FmtResult {
+    use crate::FieldRedaction;
+
+    if metadata.is_empty() {
+        return Ok(());
+    }
+
+    let has_public_fields = metadata
+        .iter_with_redaction()
+        .any(|(_, _, redaction)| !matches!(redaction, FieldRedaction::Redact));
+
+    if !has_public_fields {
+        return Ok(());
+    }
+
+    write!(f, r#","metadata":{{"#)?;
+    let mut first = true;
+    for (name, value, redaction) in metadata.iter_with_redaction() {
+        if matches!(redaction, FieldRedaction::Redact) {
+            continue;
+        }
+        if !first {
+            write!(f, ",")?;
+        }
+        first = false;
+        write!(f, r#""{}":"#, name)?;
+        write_metadata_value(f, value)?;
+    }
+    write!(f, "}}")
+}
