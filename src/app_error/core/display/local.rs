@@ -19,64 +19,30 @@ use crate::colored::style;
 mod style {
     use alloc::string::{String, ToString};
 
-    #[inline]
-    pub fn error_code(text: impl AsRef<str>) -> String {
-        text.as_ref().to_string()
+    macro_rules! identity_style {
+        ($($name:ident),* $(,)?) => {
+            $(
+                #[inline]
+                pub fn $name(text: impl AsRef<str>) -> String {
+                    text.as_ref().to_string()
+                }
+            )*
+        };
     }
 
-    #[inline]
-    pub fn error_message(text: impl AsRef<str>) -> String {
-        text.as_ref().to_string()
-    }
-
-    #[inline]
-    pub fn source_context(text: impl AsRef<str>) -> String {
-        text.as_ref().to_string()
-    }
-
-    #[inline]
-    pub fn metadata_key(text: impl AsRef<str>) -> String {
-        text.as_ref().to_string()
-    }
-
-    #[inline]
-    pub fn hint_label(text: impl AsRef<str>) -> String {
-        text.as_ref().to_string()
-    }
-
-    #[inline]
-    pub fn hint_text(text: impl AsRef<str>) -> String {
-        text.as_ref().to_string()
-    }
-
-    #[inline]
-    pub fn suggestion_label(text: impl AsRef<str>) -> String {
-        text.as_ref().to_string()
-    }
-
-    #[inline]
-    pub fn suggestion_text(text: impl AsRef<str>) -> String {
-        text.as_ref().to_string()
-    }
-
-    #[inline]
-    pub fn command(text: impl AsRef<str>) -> String {
-        text.as_ref().to_string()
-    }
-
-    #[inline]
-    pub fn docs_label(text: impl AsRef<str>) -> String {
-        text.as_ref().to_string()
-    }
-
-    #[inline]
-    pub fn url(text: impl AsRef<str>) -> String {
-        text.as_ref().to_string()
-    }
-
-    #[inline]
-    pub fn related_label(text: impl AsRef<str>) -> String {
-        text.as_ref().to_string()
+    identity_style! {
+        error_code,
+        error_message,
+        source_context,
+        metadata_key,
+        hint_label,
+        hint_text,
+        suggestion_label,
+        suggestion_text,
+        command,
+        docs_label,
+        url,
+        related_label,
     }
 }
 
