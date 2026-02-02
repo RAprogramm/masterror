@@ -267,3 +267,96 @@ pub fn related_label(text: impl AsRef<str>) -> String {
         .if_supports_color(Stream::Stderr, |t| t.dimmed())
         .to_string()
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Backtrace styling
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Style backtrace header label in dimmed text.
+///
+/// # Color Behavior
+///
+/// - TTY: Dimmed text
+/// - Non-TTY: Plain text
+pub fn backtrace_label(text: impl AsRef<str>) -> String {
+    text.as_ref()
+        .if_supports_color(Stream::Stderr, |t| t.dimmed())
+        .to_string()
+}
+
+/// Style backtrace arrow symbol in yellow.
+///
+/// # Color Behavior
+///
+/// - TTY: Yellow text
+/// - Non-TTY: Plain text
+pub fn backtrace_arrow(text: impl AsRef<str>) -> String {
+    text.as_ref()
+        .if_supports_color(Stream::Stderr, |t| t.yellow())
+        .to_string()
+}
+
+/// Style backtrace function name in bright cyan.
+///
+/// # Color Behavior
+///
+/// - TTY: Bright cyan text
+/// - Non-TTY: Plain text
+pub fn backtrace_function(text: impl AsRef<str>) -> String {
+    text.as_ref()
+        .if_supports_color(Stream::Stderr, |t| t.bright_cyan())
+        .to_string()
+}
+
+/// Style backtrace file location in dimmed text.
+///
+/// # Color Behavior
+///
+/// - TTY: Dimmed text
+/// - Non-TTY: Plain text
+pub fn backtrace_location(text: impl AsRef<str>) -> String {
+    text.as_ref()
+        .if_supports_color(Stream::Stderr, |t| t.dimmed())
+        .to_string()
+}
+
+/// Create a clickable hyperlink for file location in backtrace.
+///
+/// Uses OSC 8 escape sequences supported by modern terminals.
+/// Falls back to plain text if not a TTY.
+///
+/// # Arguments
+///
+/// * `display` - Text to display (e.g., "src/main.rs:16")
+/// * `absolute_path` - Absolute file path for the link
+/// * `line` - Line number (optional)
+///
+/// # Color Behavior
+///
+/// - TTY: Clickable hyperlink with dimmed text
+/// - Non-TTY: Plain text
+pub fn backtrace_link(display: &str, absolute_path: &str, line: Option<u32>) -> String {
+    use std::io::IsTerminal;
+
+    if !std::io::stderr().is_terminal() {
+        return display.to_string();
+    }
+
+    // Check NO_COLOR
+    if std::env::var_os("NO_COLOR").is_some() {
+        return display.to_string();
+    }
+
+    let url = if let Some(ln) = line {
+        format!("editor://open?path={}&line={}", absolute_path, ln)
+    } else {
+        format!("editor://open?path={}", absolute_path)
+    };
+
+    // OSC 8 hyperlink: \x1b]8;;URL\x07TEXT\x1b]8;;\x07
+    let styled = display
+        .if_supports_color(Stream::Stderr, |t| t.dimmed())
+        .to_string();
+
+    format!("\x1b]8;;{}\x07{}\x1b]8;;\x07", url, styled)
+}

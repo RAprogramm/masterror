@@ -43,6 +43,15 @@ mod style {
         docs_label,
         url,
         related_label,
+        backtrace_label,
+        backtrace_arrow,
+        backtrace_function,
+        backtrace_location,
+    }
+
+    #[inline]
+    pub fn backtrace_link(display: &str, _absolute_path: &str, _line: Option<u32>) -> String {
+        display.to_string()
     }
 }
 
@@ -83,6 +92,63 @@ impl Error {
         self.fmt_source_chain(f)?;
         self.fmt_metadata(f)?;
         self.fmt_diagnostics(f)?;
+        self.fmt_backtrace(f)?;
+        Ok(())
+    }
+
+    #[cfg(feature = "backtrace")]
+    fn fmt_backtrace(&self, f: &mut Formatter<'_>) -> FmtResult {
+        if let Some(bt) = self.backtrace_short() {
+            writeln!(f)?;
+            writeln!(f, "{}:", style::backtrace_label("Backtrace"))?;
+
+            #[cfg(feature = "std")]
+            let cwd = std::env::current_dir().ok();
+            #[cfg(not(feature = "std"))]
+            let cwd: Option<std::path::PathBuf> = None;
+
+            for line in bt.lines() {
+                // Parse "→ function at file:line" format
+                if let Some(rest) = line.strip_prefix("→ ")
+                    && let Some((func, loc)) = rest.split_once(" at ")
+                {
+                    // Parse file:line from location
+                    let (file, line_num) = if let Some((f, l)) = loc.rsplit_once(':') {
+                        (f, l.parse::<u32>().ok())
+                    } else {
+                        (loc, None)
+                    };
+
+                    // Resolve to absolute path
+                    #[cfg(feature = "std")]
+                    let location_styled = if let Some(ref cwd) = cwd {
+                        let abs_path = cwd.join(file);
+                        let abs_str = abs_path.to_string_lossy();
+                        style::backtrace_link(loc, &abs_str, line_num)
+                    } else {
+                        style::backtrace_location(loc)
+                    };
+                    #[cfg(not(feature = "std"))]
+                    let location_styled = style::backtrace_location(loc);
+
+                    writeln!(
+                        f,
+                        "  {} {} {} {}",
+                        style::backtrace_arrow("→"),
+                        style::backtrace_function(func),
+                        style::backtrace_label("at"),
+                        location_styled
+                    )?;
+                    continue;
+                }
+                writeln!(f, "  {}", line)?;
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(not(feature = "backtrace"))]
+    fn fmt_backtrace(&self, _f: &mut Formatter<'_>) -> FmtResult {
         Ok(())
     }
 

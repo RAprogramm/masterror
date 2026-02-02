@@ -654,31 +654,63 @@ let error = AppError::not_found("User not found")
     .with_field(field::str("user_id", "12345"))
     .with_field(field::str("request_id", "abc-def"));
 
-// Without 'colored': plain text
-// With 'colored': color-coded output in terminals
 println!("{}", error);
 ~~~
 
-**Production vs Development Output:**
+**Error Output:**
 
-Without `colored` feature, errors display their `AppErrorKind` label:
 ~~~
-NotFound
-~~~
-
-With `colored` feature, full multi-line format with context:
-~~~
-Error: NotFound
+Not found
 Code: NOT_FOUND
 Message: User not found
 
 Context:
   user_id: 12345
   request_id: abc-def
+
+Backtrace:
+  → divide at src/main.rs:16
+  → main at src/main.rs:4
 ~~~
 
-This separation keeps production logs clean while giving developers rich context
-during local debugging sessions.
+- `colored` — syntax highlighting in terminal
+- `backtrace` — automatic stack trace (filtered to your code only, clickable links in supported terminals)
+
+<details>
+<summary><b>WezTerm: clickable backtrace links</b></summary>
+
+Add to `~/.wezterm.lua` to open files in your `$EDITOR`:
+
+~~~lua
+wezterm.on('open-uri', function(window, pane, uri)
+  if uri:find('^editor://') then
+    local path = uri:match('path=([^&]+)')
+    local line = uri:match('line=(%d+)')
+    local editor = os.getenv('EDITOR') or 'hx'
+    local args = { editor }
+
+    if path then
+      if line and (editor:find('hx') or editor:find('helix')) then
+        table.insert(args, path .. ':' .. line)
+      elseif line and (editor:find('vim') or editor:find('nvim')) then
+        table.insert(args, '+' .. line)
+        table.insert(args, path)
+      else
+        table.insert(args, path)
+      end
+
+      window:perform_action(
+        wezterm.action.SpawnCommandInNewTab { args = args },
+        pane
+      )
+    end
+    return false
+  end
+  return true
+end)
+~~~
+
+</details>
 
 </details>
 

@@ -51,4 +51,18 @@ identity_style! {
     url,
     /// Style "see also" label (no-op in no-std).
     related_label,
+    /// Style backtrace header label (no-op in no-std).
+    backtrace_label,
+    /// Style backtrace arrow symbol (no-op in no-std).
+    backtrace_arrow,
+    /// Style backtrace function name (no-op in no-std).
+    backtrace_function,
+    /// Style backtrace file location (no-op in no-std).
+    backtrace_location,
+}
+
+/// Create a clickable hyperlink (no-op in no-std).
+#[inline]
+pub fn backtrace_link(display: &str, _absolute_path: &str, _line: Option<u32>) -> String {
+    display.to_string()
 }

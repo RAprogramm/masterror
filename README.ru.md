@@ -587,25 +587,60 @@ let error = AppError::not_found("Пользователь не найден")
 println!("{}", error);
 ~~~
 
-**Вывод в Production vs Development:**
+**Вывод ошибок:**
 
-Без функции `colored` ошибки отображают метку `AppErrorKind`:
 ~~~
-NotFound
-~~~
-
-С функцией `colored` полный многострочный формат с контекстом:
-~~~
-Error: NotFound
+Not found
 Code: NOT_FOUND
 Message: Пользователь не найден
 
 Context:
   user_id: 12345
   request_id: abc-def
+
+Backtrace:
+  → divide at src/main.rs:16
+  → main at src/main.rs:4
 ~~~
 
-Такое разделение сохраняет production логи чистыми, предоставляя разработчикам богатый контекст во время локальных сессий отладки.
+- `colored` — подсветка синтаксиса в терминале
+- `backtrace` — автоматический стек вызовов (фильтруется до вашего кода, кликабельные ссылки в поддерживаемых терминалах)
+
+<details>
+<summary><b>WezTerm: кликабельные ссылки в backtrace</b></summary>
+
+Добавьте в `~/.wezterm.lua` для открытия файлов в `$EDITOR`:
+
+~~~lua
+wezterm.on('open-uri', function(window, pane, uri)
+  if uri:find('^editor://') then
+    local path = uri:match('path=([^&]+)')
+    local line = uri:match('line=(%d+)')
+    local editor = os.getenv('EDITOR') or 'hx'
+    local args = { editor }
+
+    if path then
+      if line and (editor:find('hx') or editor:find('helix')) then
+        table.insert(args, path .. ':' .. line)
+      elseif line and (editor:find('vim') or editor:find('nvim')) then
+        table.insert(args, '+' .. line)
+        table.insert(args, path)
+      else
+        table.insert(args, path)
+      end
+
+      window:perform_action(
+        wezterm.action.SpawnCommandInNewTab { args = args },
+        pane
+      )
+    end
+    return false
+  end
+  return true
+end)
+~~~
+
+</details>
 
 </details>
 
