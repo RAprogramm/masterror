@@ -730,3 +730,171 @@ fn from_borrowed_app_error_redacts_message() {
     assert!(!resp.message.contains("secret123"));
     assert_eq!(err.message.as_deref(), Some("database password: secret123"));
 }
+
+// --- ProblemJson tests -------------------------------------------------------
+
+#[test]
+fn problem_json_from_error_response_empty_message() {
+    let resp = ErrorResponse::new(500, AppCode::Internal, "").expect("status");
+    let problem = ProblemJson::from_error_response(resp);
+    assert!(problem.detail.is_none());
+}
+
+#[test]
+fn problem_json_from_error_response_with_message() {
+    let resp = ErrorResponse::new(404, AppCode::NotFound, "user not found").expect("status");
+    let problem = ProblemJson::from_error_response(resp);
+    assert_eq!(problem.detail.as_deref(), Some("user not found"));
+}
+
+#[test]
+fn problem_json_status_code_valid() {
+    let problem = ProblemJson::from_app_error(AppError::not_found("missing"));
+    assert_eq!(problem.status_code(), http::StatusCode::NOT_FOUND);
+}
+
+#[test]
+fn problem_json_grpc_code() {
+    let problem = ProblemJson::from_app_error(AppError::not_found("missing"));
+    assert!(problem.grpc.is_some());
+    let grpc = problem.grpc.unwrap();
+    assert_eq!(grpc.name, "NOT_FOUND");
+    assert_eq!(grpc.value, 5);
+}
+
+#[test]
+fn problem_json_type_uri() {
+    let problem = ProblemJson::from_app_error(AppError::not_found("missing"));
+    assert!(problem.type_uri.is_some());
+    assert!(problem.type_uri.unwrap().contains("not-found"));
+}
+
+#[test]
+fn problem_json_with_metadata() {
+    use crate::field;
+    let err = AppError::service("failed").with_field(field::u64("attempt", 3));
+    let problem = ProblemJson::from_app_error(err);
+    assert!(problem.metadata.is_some());
+}
+
+#[test]
+fn problem_json_with_redacted_metadata() {
+    use crate::field;
+    let err = AppError::internal("error")
+        .with_field(field::str("password", "secret"))
+        .with_field(field::str("user", "john"));
+    let problem = ProblemJson::from_app_error(err);
+    assert!(problem.metadata.is_some());
+}
+
+#[test]
+fn problem_json_redacts_metadata_when_redactable() {
+    use crate::field;
+    let err = AppError::internal("error")
+        .with_field(field::str("data", "value"))
+        .redactable();
+    let problem = ProblemJson::from_app_error(err);
+    assert!(problem.metadata.is_none());
+    assert!(problem.detail.is_none());
+}
+
+#[test]
+fn problem_json_from_ref_with_retry() {
+    let err = AppError::rate_limited("slow down").with_retry_after_secs(60);
+    let problem = ProblemJson::from_ref(&err);
+    assert_eq!(problem.retry_after, Some(60));
+}
+
+#[test]
+fn problem_json_from_ref_with_www_authenticate() {
+    let err = AppError::unauthorized("need auth").with_www_authenticate("Bearer");
+    let problem = ProblemJson::from_ref(&err);
+    assert_eq!(problem.www_authenticate.as_deref(), Some("Bearer"));
+}
+
+#[test]
+fn problem_json_metadata_hash_redaction() {
+    use crate::field;
+    let mut err = AppError::service("test");
+    err = err.with_field(field::str("api_token", "secret_token_value"));
+    let problem = ProblemJson::from_app_error(err);
+    let metadata = problem.metadata.expect("metadata");
+    let serialized = serde_json::to_string(&metadata).expect("serialize");
+    assert!(!serialized.contains("secret_token_value"));
+}
+
+#[test]
+fn problem_json_metadata_last4_redaction() {
+    use crate::field;
+    let err = AppError::service("test").with_field(field::str("card_number", "4111111111111111"));
+    let problem = ProblemJson::from_app_error(err);
+    let metadata = problem.metadata.expect("metadata");
+    let serialized = serde_json::to_string(&metadata).expect("serialize");
+    assert!(serialized.contains("1111"));
+    assert!(!serialized.contains("4111111111111111"));
+}
+
+#[test]
+fn problem_json_internal_formatter() {
+    let problem = ProblemJson::from_app_error(AppError::not_found("user"));
+    let internal = problem.internal();
+    let debug = format!("{:?}", internal);
+    assert!(debug.contains("ProblemJson"));
+}
+
+#[test]
+fn problem_metadata_value_from_field_value() {
+    use std::{borrow::Cow, net::IpAddr, time::Duration};
+
+    use uuid::Uuid;
+
+    use crate::{FieldValue, ProblemMetadataValue};
+
+    let str_val = ProblemMetadataValue::from(FieldValue::Str(Cow::Borrowed("test")));
+    assert!(matches!(str_val, ProblemMetadataValue::String(_)));
+
+    let i64_val = ProblemMetadataValue::from(FieldValue::I64(-42));
+    assert!(matches!(i64_val, ProblemMetadataValue::I64(-42)));
+
+    let u64_val = ProblemMetadataValue::from(FieldValue::U64(100));
+    assert!(matches!(u64_val, ProblemMetadataValue::U64(100)));
+
+    let f64_val = ProblemMetadataValue::from(FieldValue::F64(1.5));
+    assert!(matches!(f64_val, ProblemMetadataValue::F64(_)));
+
+    let bool_val = ProblemMetadataValue::from(FieldValue::Bool(true));
+    assert!(matches!(bool_val, ProblemMetadataValue::Bool(true)));
+
+    let uuid = Uuid::nil();
+    let uuid_val = ProblemMetadataValue::from(FieldValue::Uuid(uuid));
+    assert!(matches!(uuid_val, ProblemMetadataValue::String(_)));
+
+    let dur_val = ProblemMetadataValue::from(FieldValue::Duration(Duration::from_secs(5)));
+    assert!(matches!(dur_val, ProblemMetadataValue::Duration { .. }));
+
+    let ip: IpAddr = "127.0.0.1".parse().unwrap();
+    let ip_val = ProblemMetadataValue::from(FieldValue::Ip(ip));
+    assert!(matches!(ip_val, ProblemMetadataValue::Ip(_)));
+}
+
+#[cfg(feature = "serde_json")]
+#[test]
+fn problem_metadata_value_from_json() {
+    use serde_json::json;
+
+    use crate::{FieldValue, ProblemMetadataValue};
+
+    let json_val = ProblemMetadataValue::from(FieldValue::Json(json!({"key": "value"})));
+    assert!(matches!(json_val, ProblemMetadataValue::Json(_)));
+}
+
+#[test]
+fn code_mapping_accessors() {
+    use crate::mapping_for_code;
+    let mapping = mapping_for_code(&AppCode::NotFound);
+    assert_eq!(mapping.http_status(), 404);
+    assert_eq!(mapping.kind(), AppErrorKind::NotFound);
+    assert!(mapping.problem_type().contains("not-found"));
+    let grpc = mapping.grpc();
+    assert_eq!(grpc.name, "NOT_FOUND");
+}

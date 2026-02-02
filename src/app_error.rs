@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -69,6 +69,7 @@
 mod constructors;
 mod context;
 mod core;
+pub mod diagnostics;
 mod inline_vec;
 mod metadata;
 
@@ -77,6 +78,7 @@ pub use core::{AppError, AppResult, DisplayMode, Error, ErrorChain, MessageEditP
 pub(crate) use core::{reset_backtrace_preference, set_backtrace_preference_override};
 
 pub use context::Context;
+pub use diagnostics::{DiagnosticVisibility, Diagnostics, DocLink, Hint, Suggestion};
 pub(crate) use metadata::duration_to_string;
 pub use metadata::{Field, FieldRedaction, FieldValue, Metadata, field};
 

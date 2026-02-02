@@ -455,78 +455,13 @@ impl TemplateFormatter {
             Self::Display {
                 spec
             } => spec.as_deref().map(Cow::Borrowed),
-            Self::Debug {
-                alternate
-            } => {
-                if *alternate {
-                    Some(Cow::Borrowed("#?"))
+            _ => self.kind().specifier().map(|spec| {
+                if self.is_alternate() {
+                    Cow::Owned(format!("#{}", spec))
                 } else {
-                    Some(Cow::Borrowed("?"))
+                    Cow::Owned(spec.to_string())
                 }
-            }
-            Self::LowerHex {
-                alternate
-            } => {
-                if *alternate {
-                    Some(Cow::Borrowed("#x"))
-                } else {
-                    Some(Cow::Borrowed("x"))
-                }
-            }
-            Self::UpperHex {
-                alternate
-            } => {
-                if *alternate {
-                    Some(Cow::Borrowed("#X"))
-                } else {
-                    Some(Cow::Borrowed("X"))
-                }
-            }
-            Self::Pointer {
-                alternate
-            } => {
-                if *alternate {
-                    Some(Cow::Borrowed("#p"))
-                } else {
-                    Some(Cow::Borrowed("p"))
-                }
-            }
-            Self::Binary {
-                alternate
-            } => {
-                if *alternate {
-                    Some(Cow::Borrowed("#b"))
-                } else {
-                    Some(Cow::Borrowed("b"))
-                }
-            }
-            Self::Octal {
-                alternate
-            } => {
-                if *alternate {
-                    Some(Cow::Borrowed("#o"))
-                } else {
-                    Some(Cow::Borrowed("o"))
-                }
-            }
-            Self::LowerExp {
-                alternate
-            } => {
-                if *alternate {
-                    Some(Cow::Borrowed("#e"))
-                } else {
-                    Some(Cow::Borrowed("e"))
-                }
-            }
-            Self::UpperExp {
-                alternate
-            } => {
-                if *alternate {
-                    Some(Cow::Borrowed("#E"))
-                } else {
-                    Some(Cow::Borrowed("E"))
-                }
-            }
+            })
         }
     }
 

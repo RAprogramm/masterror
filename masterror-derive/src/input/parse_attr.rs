@@ -25,26 +25,28 @@ use super::{
 };
 use crate::template_support::parse_display_template;
 
-/// Extracts masterror specification from attributes.
-pub(crate) fn extract_masterror_spec(
+/// Generic attribute extraction with duplicate detection.
+fn extract_single_attr<T>(
     attrs: &[Attribute],
+    attr_name: &str,
+    parse_fn: impl Fn(&Attribute) -> syn::Result<T>,
     errors: &mut Vec<Error>
-) -> Result<Option<MasterrorSpec>, ()> {
+) -> Result<Option<T>, ()> {
     let mut spec = None;
     let mut had_error = false;
     for attr in attrs {
-        if !path_is(attr, "masterror") {
+        if !path_is(attr, attr_name) {
             continue;
         }
         if spec.is_some() {
             errors.push(Error::new_spanned(
                 attr,
-                "duplicate #[masterror(...)] attribute"
+                format!("duplicate #[{attr_name}(...)] attribute")
             ));
             had_error = true;
             continue;
         }
-        match parse_masterror_attribute(attr) {
+        match parse_fn(attr) {
             Ok(parsed) => spec = Some(parsed),
             Err(err) => {
                 errors.push(err);
@@ -55,34 +57,20 @@ pub(crate) fn extract_masterror_spec(
     if had_error { Err(()) } else { Ok(spec) }
 }
 
+/// Extracts masterror specification from attributes.
+pub(crate) fn extract_masterror_spec(
+    attrs: &[Attribute],
+    errors: &mut Vec<Error>
+) -> Result<Option<MasterrorSpec>, ()> {
+    extract_single_attr(attrs, "masterror", parse_masterror_attribute, errors)
+}
+
 /// Extracts app_error specification from attributes.
 pub(crate) fn extract_app_error_spec(
     attrs: &[Attribute],
     errors: &mut Vec<Error>
 ) -> Result<Option<AppErrorSpec>, ()> {
-    let mut spec = None;
-    let mut had_error = false;
-    for attr in attrs {
-        if !path_is(attr, "app_error") {
-            continue;
-        }
-        if spec.is_some() {
-            errors.push(Error::new_spanned(
-                attr,
-                "duplicate #[app_error(...)] attribute"
-            ));
-            had_error = true;
-            continue;
-        }
-        match parse_app_error_attribute(attr) {
-            Ok(parsed) => spec = Some(parsed),
-            Err(err) => {
-                errors.push(err);
-                had_error = true;
-            }
-        }
-    }
-    if had_error { Err(()) } else { Ok(spec) }
+    extract_single_attr(attrs, "app_error", parse_app_error_attribute, errors)
 }
 
 /// Extracts display specification from error attributes.

@@ -66,12 +66,12 @@ impl ErrorResponse {
     where
         T: Serialize
     {
-        let details = to_value(payload).map_err(|e| AppError::bad_request(e.to_string()))?;
+        let Ok(details) = to_value(payload) else {
+            return Err(AppError::bad_request("failed to serialize details"));
+        };
         Ok(self.with_details_json(details))
     }
 }
-#[cfg(feature = "serde_json")]
-use alloc::string::ToString;
 
 #[cfg(test)]
 mod tests {

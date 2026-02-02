@@ -25,6 +25,8 @@ SPDX-License-Identifier: MIT
   > 🇬🇧 [Read README in English](README.md)
   > 🇷🇺 [Читайте README на русском языке](README.ru.md)
 
+  **참고:** [masterror-cli](https://github.com/RAprogramm/masterror-cli) — Rust 컴파일러 오류를 상세한 해결책, 모범 사례 및 다국어 지원과 함께 설명하는 CLI 도구입니다. `cargo install masterror-cli` 또는 [AUR](https://aur.archlinux.org/packages/masterror-cli)에서 설치하세요.
+
 </div>
 
 > [!IMPORTANT]
@@ -584,25 +586,60 @@ let error = AppError::not_found("사용자를 찾을 수 없음")
 println!("{}", error);
 ~~~
 
-**프로덕션 vs 개발 출력:**
+**오류 출력:**
 
-`colored` 기능 없이 오류는 `AppErrorKind` 레이블을 표시합니다:
 ~~~
-NotFound
-~~~
-
-`colored` 기능 사용 시 컨텍스트가 포함된 전체 여러 줄 형식:
-~~~
-Error: NotFound
+Not found
 Code: NOT_FOUND
 Message: 사용자를 찾을 수 없음
 
 Context:
   user_id: 12345
   request_id: abc-def
+
+Backtrace:
+  → divide at src/main.rs:16
+  → main at src/main.rs:4
 ~~~
 
-이러한 구분은 프로덕션 로그를 깔끔하게 유지하면서 로컬 디버깅 세션 중에 개발자에게 풍부한 컨텍스트를 제공합니다.
+- `colored` — 터미널에서 구문 강조
+- `backtrace` — 자동 스택 추적 (사용자 코드만 필터링, 지원되는 터미널에서 클릭 가능한 링크)
+
+<details>
+<summary><b>WezTerm: 클릭 가능한 backtrace 링크</b></summary>
+
+`$EDITOR`에서 파일을 열려면 `~/.wezterm.lua`에 추가하세요:
+
+~~~lua
+wezterm.on('open-uri', function(window, pane, uri)
+  if uri:find('^editor://') then
+    local path = uri:match('path=([^&]+)')
+    local line = uri:match('line=(%d+)')
+    local editor = os.getenv('EDITOR') or 'hx'
+    local args = { editor }
+
+    if path then
+      if line and (editor:find('hx') or editor:find('helix')) then
+        table.insert(args, path .. ':' .. line)
+      elseif line and (editor:find('vim') or editor:find('nvim')) then
+        table.insert(args, '+' .. line)
+        table.insert(args, path)
+      else
+        table.insert(args, path)
+      end
+
+      window:perform_action(
+        wezterm.action.SpawnCommandInNewTab { args = args },
+        pane
+      )
+    end
+    return false
+  end
+  return true
+end)
+~~~
+
+</details>
 
 </details>
 

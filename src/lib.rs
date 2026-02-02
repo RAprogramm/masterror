@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -371,6 +371,14 @@ pub mod turnkey;
 #[cfg_attr(docsrs, doc(cfg(feature = "colored")))]
 pub mod colored;
 
+/// Rust compiler error explanations and best practices.
+///
+/// Provides structured knowledge base for understanding compiler errors
+/// with translations (en/ru/ko) and actionable fix suggestions.
+#[cfg(feature = "knowledge")]
+#[cfg_attr(docsrs, doc(cfg(feature = "knowledge")))]
+pub use masterror_knowledge as knowledge;
+
 /// Minimal prelude re-exporting core types for handler signatures.
 pub mod prelude;
 
@@ -378,9 +386,14 @@ pub mod prelude;
 pub mod mapping;
 
 pub use app_error::{
-    AppError, AppResult, Context, DisplayMode, Error, ErrorChain, Field, FieldRedaction,
-    FieldValue, MessageEditPolicy, Metadata, field
+    AppError, AppResult, Context, DiagnosticVisibility, Diagnostics, DisplayMode, DocLink, Error,
+    ErrorChain, Field, FieldRedaction, FieldValue, Hint, MessageEditPolicy, Metadata, Suggestion,
+    field
 };
+/// Diagnostic types for enhanced error reporting.
+pub mod diagnostics {
+    pub use crate::app_error::diagnostics::*;
+}
 pub use code::{AppCode, ParseAppCodeError};
 pub use kind::AppErrorKind;
 /// Re-export derive macros so users only depend on this crate.
@@ -409,6 +422,8 @@ pub use kind::AppErrorKind;
 /// .into();
 /// assert_eq!(code, AppCode::BadRequest);
 /// ```
+#[cfg(feature = "derive")]
+#[cfg_attr(docsrs, doc(cfg(feature = "derive")))]
 pub use masterror_derive::{Error, Masterror};
 pub use response::{
     ErrorResponse, ProblemJson, RetryAdvice,

@@ -70,6 +70,124 @@ impl Error {
             .map(Arc::clone)
     }
 
+    /// Returns a filtered, human-readable backtrace string.
+    ///
+    /// Filters out internal masterror frames and standard library runtime
+    /// frames, showing only application code.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "backtrace")]
+    /// # {
+    /// use masterror::AppError;
+    ///
+    /// let err = AppError::internal("test");
+    /// if let Some(bt) = err.backtrace_short() {
+    ///     println!("{}", bt);
+    /// }
+    /// # }
+    /// ```
+    #[cfg(feature = "backtrace")]
+    #[must_use]
+    pub fn backtrace_short(&self) -> Option<alloc::string::String> {
+        use alloc::{string::String, vec::Vec};
+
+        let bt = self.backtrace()?;
+        let bt_str = alloc::format!("{}", bt);
+
+        let mut frames: Vec<(String, String)> = Vec::new();
+        let mut current_fn: Option<String> = None;
+
+        for line in bt_str.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+
+            // Skip internal frames
+            if Self::is_internal_frame(trimmed) {
+                current_fn = None;
+                continue;
+            }
+
+            // Function line: "   4: crate::module::function"
+            if let Some(fn_name) = Self::parse_function_line(trimmed) {
+                current_fn = Some(fn_name);
+            }
+            // Location line: "             at ./src/main.rs:16:13"
+            else if let Some(location) = Self::parse_location_line(trimmed)
+                && let Some(fn_name) = current_fn.take()
+            {
+                frames.push((fn_name, location));
+            }
+        }
+
+        if frames.is_empty() {
+            return None;
+        }
+
+        let result: Vec<String> = frames
+            .into_iter()
+            .map(|(func, loc)| alloc::format!("→ {} at {}", func, loc))
+            .collect();
+
+        Some(result.join("\n"))
+    }
+
+    #[cfg(feature = "backtrace")]
+    fn is_internal_frame(line: &str) -> bool {
+        line.contains("masterror::")
+            || line.contains("/masterror/src/")
+            || line.contains("std::rt::")
+            || line.contains("std::panic")
+            || line.contains("core::ops::function")
+            || line.contains("core::panicking")
+            || line.contains("std::sys::backtrace")
+            || line.contains("std::backtrace")
+            || line.contains("__libc_")
+            || line.contains("_start")
+            || line.contains("<unknown>")
+            || line.contains("/rustc/")
+            || line.contains("/rustlib/src/rust/library/")
+            || line.ends_with(": main")
+            || line == "main"
+    }
+
+    #[cfg(feature = "backtrace")]
+    fn parse_function_line(line: &str) -> Option<alloc::string::String> {
+        // Format: "   4: crate::module::function" or "   4: function"
+        let colon_pos = line.find(':')?;
+        let prefix = &line[..colon_pos];
+        if !prefix.trim().chars().all(|c| c.is_ascii_digit()) {
+            return None;
+        }
+        let fn_full = line[colon_pos + 1..].trim();
+        if fn_full.is_empty() {
+            return None;
+        }
+        // Extract just the function name (last segment after ::)
+        let fn_name = fn_full.rsplit("::").next().unwrap_or(fn_full);
+        Some(fn_name.into())
+    }
+
+    #[cfg(feature = "backtrace")]
+    fn parse_location_line(line: &str) -> Option<alloc::string::String> {
+        // Format: "             at ./src/main.rs:16:13"
+        let at_pos = line.find("at ")?;
+        let location = line[at_pos + 3..].trim();
+        // Simplify path: remove ./ prefix
+        let location = location.strip_prefix("./").unwrap_or(location);
+        // Remove column number (keep only file:line)
+        if let Some((file_line, _col)) = location.rsplit_once(':')
+            && file_line.rsplit_once(':').is_some()
+        {
+            // file:line format
+            return Some(file_line.into());
+        }
+        Some(location.into())
+    }
+
     /// Borrow the source if present.
     ///
     /// # Examples

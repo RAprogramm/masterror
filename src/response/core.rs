@@ -68,8 +68,11 @@ impl ErrorResponse {
     /// Returns [`AppError`] if `status` is not a valid HTTP status code.
     #[allow(clippy::result_large_err)]
     pub fn new(status: u16, code: AppCode, message: impl Into<String>) -> AppResult<Self> {
-        StatusCode::from_u16(status)
-            .map_err(|_| AppError::bad_request(format!("invalid HTTP status: {status}")))?;
+        let Ok(_) = StatusCode::from_u16(status) else {
+            return Err(AppError::bad_request(format!(
+                "invalid HTTP status: {status}"
+            )));
+        };
         Ok(Self {
             status,
             code,

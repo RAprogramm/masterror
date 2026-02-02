@@ -4,7 +4,7 @@
 
 [package]
 name = "masterror"
-version = "0.27.2"
+version = "0.28.0"
 rust-version = "1.92"
 edition = "2024"
 license = "MIT"
@@ -42,6 +42,9 @@ include = [
 members = [
   "masterror-derive",
   "masterror-template",
+  "masterror-knowledge",
+  "masterror-cli",
+  "masterror-rustc",
   "examples/axum-rest-api",
   "examples/custom-domain-errors",
   "examples/sqlx-database",
@@ -60,8 +63,9 @@ readme = "README.md"
 
 
 [features]
-default = ["std"]
+default = ["std", "derive"]
 std = ["uuid/std", "serde/std"]
+derive = ["dep:masterror-derive", "dep:masterror-template"]
 tracing = ["dep:tracing", "dep:log", "dep:log-mdc", "std"]
 metrics = ["dep:metrics", "std"]
 backtrace = ["std"]
@@ -82,19 +86,22 @@ tokio = ["dep:tokio", "std"]
 reqwest = ["dep:reqwest", "std"]
 teloxide = ["dep:teloxide-core", "std"]
 init-data = ["dep:init-data-rs", "std"]
+phf = ["dep:phf"]
 frontend = ["dep:wasm-bindgen", "dep:js-sys", "dep:serde-wasm-bindgen", "std"]
 turnkey = ["std"]
 tonic = ["dep:tonic", "std"]
 openapi = ["dep:utoipa", "std"]
 benchmarks = ["std"]
+knowledge = ["dep:masterror-knowledge"]
 
 [workspace.dependencies]
 masterror-derive = { version = "0.11" }
 masterror-template = { version = "0.4" }
+masterror-knowledge = { version = "0.1" }
 
 [dependencies]
-masterror-derive = { version = "0.11" }
-masterror-template = { workspace = true }
+masterror-derive = { version = "0.11", optional = true }
+masterror-template = { workspace = true, optional = true }
 tracing = { version = "0.1", optional = true, default-features = false, features = [
   "attributes",
   "std",
@@ -147,6 +154,8 @@ tonic = { version = "0.14", optional = true }
 owo-colors = { version = "4", optional = true, default-features = false, features = [
   "supports-colors",
 ] }
+masterror-knowledge = { path = "masterror-knowledge", optional = true }
+phf = { version = "0.11", optional = true, features = ["macros"] }
 
 [dev-dependencies]
 anyhow = { version = "1", default-features = false, features = ["std"] }
@@ -158,6 +167,7 @@ tokio = { version = "1", features = [
   "rt-multi-thread",
   "net",
   "time",
+  "io-util",
 ], default-features = false }
 trybuild = "1"
 toml = "0.9"
@@ -179,6 +189,7 @@ toml = "0.9"
 [package.metadata.masterror.readme]
 feature_order = [
   "std",
+  "derive",
   "axum",
   "actix",
   "openapi",
@@ -189,6 +200,7 @@ feature_order = [
   "colored",
   "sqlx",
   "sqlx-migrate",
+  "phf",
   "reqwest",
   "redis",
   "validator",
@@ -200,6 +212,7 @@ feature_order = [
   "tonic",
   "frontend",
   "turnkey",
+  "knowledge",
   "benchmarks",
 ]
 feature_snippet_group = 4
@@ -225,6 +238,9 @@ description = "Actix Web ResponseError and Responder implementations"
 
 [package.metadata.masterror.readme.features.std]
 description = "Enable std support (default); required for runtime integrations"
+
+[package.metadata.masterror.readme.features.derive]
+description = "Enable #[derive(Error, Masterror)] proc-macros (default)"
 
 [package.metadata.masterror.readme.features.openapi]
 description = "Generate utoipa OpenAPI schema for ErrorResponse"
@@ -282,6 +298,12 @@ description = "Log to the browser console and convert to JsValue on WASM"
 
 [package.metadata.masterror.readme.features.turnkey]
 description = "Ship Turnkey-specific error taxonomy and conversions"
+
+[package.metadata.masterror.readme.features.knowledge]
+description = "Rust compiler error explanations and best practices (en/ru/ko)"
+
+[package.metadata.masterror.readme.features.phf]
+description = "Use compile-time perfect hash maps for O(1) SQLSTATE lookups"
 
 [package.metadata.masterror.readme.features.benchmarks]
 description = "Enable Criterion benchmarks and CI baseline tooling"

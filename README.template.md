@@ -26,6 +26,8 @@ SPDX-License-Identifier: MIT
   > 🇷🇺 [Читайте README на русском языке](README.ru.md)
   > 🇰🇷 [한국어 README](README.ko.md)
 
+  **See also:** [masterror-cli](https://github.com/RAprogramm/masterror-cli) — CLI tool that explains Rust compiler errors with detailed solutions, best practices, and multi-language support. Install via `cargo install masterror-cli` or from [AUR](https://aur.archlinux.org/packages/masterror-cli).
+
 </div>
 
 ---
@@ -113,6 +115,7 @@ of redaction and metadata.
 | [`masterror`](https://crates.io/crates/masterror) | Core error types, metadata builders, transports, integrations and the prelude. | Application crates, services and libraries that want a stable error surface. |
 | [`masterror-derive`](masterror-derive/README.md) | Proc-macros backing `#[derive(Error)]`, `#[derive(Masterror)]`, `#[app_error]` and `#[provide]`. | Brought in automatically via `masterror`; depend directly only for macro hacking. |
 | [`masterror-template`](masterror-template/README.md) | Shared template parser used by the derive macros for formatter analysis. | Internal dependency; reuse when you need the template parser elsewhere. |
+| [`masterror-knowledge`](masterror-knowledge/README.md) | Knowledge base with 31+ error explanations and 15 best practices in 3 languages. | Used by [masterror-cli](https://github.com/RAprogramm/masterror-cli); depend directly for custom tooling. |
 
 <div align="right">
 
@@ -135,6 +138,7 @@ Pick only what you need; everything is off by default.
   colored terminal output.
 - **Async & IO integrations:** `tokio`, `reqwest`, `sqlx`, `sqlx-migrate`,
   `redis`, `validator`, `config`.
+- **Performance:** `phf` for O(1) compile-time perfect hash SQLSTATE lookups.
 - **Messaging & bots:** `teloxide`, `telegram-webapp-sdk`.
 - **Front-end tooling:** `frontend` for WASM/browser console logging.
 - **gRPC:** `tonic` to emit `tonic::Status` responses.
@@ -651,31 +655,63 @@ let error = AppError::not_found("User not found")
     .with_field(field::str("user_id", "12345"))
     .with_field(field::str("request_id", "abc-def"));
 
-// Without 'colored': plain text
-// With 'colored': color-coded output in terminals
 println!("{}", error);
 ~~~
 
-**Production vs Development Output:**
+**Error Output:**
 
-Without `colored` feature, errors display their `AppErrorKind` label:
 ~~~
-NotFound
-~~~
-
-With `colored` feature, full multi-line format with context:
-~~~
-Error: NotFound
+Not found
 Code: NOT_FOUND
 Message: User not found
 
 Context:
   user_id: 12345
   request_id: abc-def
+
+Backtrace:
+  → divide at src/main.rs:16
+  → main at src/main.rs:4
 ~~~
 
-This separation keeps production logs clean while giving developers rich context
-during local debugging sessions.
+- `colored` — syntax highlighting in terminal
+- `backtrace` — automatic stack trace (filtered to your code only, clickable links in supported terminals)
+
+<details>
+<summary><b>WezTerm: clickable backtrace links</b></summary>
+
+Add to `~/.wezterm.lua` to open files in your `$EDITOR`:
+
+~~~lua
+wezterm.on('open-uri', function(window, pane, uri)
+  if uri:find('^editor://') then
+    local path = uri:match('path=([^&]+)')
+    local line = uri:match('line=(%d+)')
+    local editor = os.getenv('EDITOR') or 'hx'
+    local args = { editor }
+
+    if path then
+      if line and (editor:find('hx') or editor:find('helix')) then
+        table.insert(args, path .. ':' .. line)
+      elseif line and (editor:find('vim') or editor:find('nvim')) then
+        table.insert(args, '+' .. line)
+        table.insert(args, path)
+      else
+        table.insert(args, path)
+      end
+
+      window:perform_action(
+        wezterm.action.SpawnCommandInNewTab { args = args },
+        pane
+      )
+    end
+    return false
+  end
+  return true
+end)
+~~~
+
+</details>
 
 </details>
 
