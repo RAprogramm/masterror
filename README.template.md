@@ -138,6 +138,7 @@ Pick only what you need; everything is off by default.
   colored terminal output.
 - **Async & IO integrations:** `tokio`, `reqwest`, `sqlx`, `sqlx-migrate`,
   `redis`, `validator`, `config`.
+- **Performance:** `phf` for O(1) compile-time perfect hash SQLSTATE lookups.
 - **Messaging & bots:** `teloxide`, `telegram-webapp-sdk`.
 - **Front-end tooling:** `frontend` for WASM/browser console logging.
 - **gRPC:** `tonic` to emit `tonic::Status` responses.
