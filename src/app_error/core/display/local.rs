@@ -16,6 +16,7 @@ use crate::app_error::core::error::Error;
 use crate::colored::style;
 
 #[cfg(not(feature = "colored"))]
+#[allow(dead_code)]
 mod style {
     use alloc::string::{String, ToString};
 
