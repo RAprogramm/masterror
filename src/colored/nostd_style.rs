@@ -10,72 +10,45 @@
 
 use alloc::string::{String, ToString};
 
-/// Style critical error kind text in red.
-pub fn error_kind_critical(text: impl AsRef<str>) -> String {
-    text.as_ref().to_string()
+macro_rules! identity_style {
+    ($($(#[$meta:meta])* $name:ident),* $(,)?) => {
+        $(
+            $(#[$meta])*
+            #[inline]
+            pub fn $name(text: impl AsRef<str>) -> String {
+                text.as_ref().to_string()
+            }
+        )*
+    };
 }
 
-/// Style warning-level error kind text in yellow.
-pub fn error_kind_warning(text: impl AsRef<str>) -> String {
-    text.as_ref().to_string()
-}
-
-/// Style error code text in cyan for easy visual scanning.
-pub fn error_code(text: impl AsRef<str>) -> String {
-    text.as_ref().to_string()
-}
-
-/// Style error message text in bright white for maximum readability.
-pub fn error_message(text: impl AsRef<str>) -> String {
-    text.as_ref().to_string()
-}
-
-/// Style source context text with dimmed appearance.
-pub fn source_context(text: impl AsRef<str>) -> String {
-    text.as_ref().to_string()
-}
-
-/// Style metadata key text in green.
-pub fn metadata_key(text: impl AsRef<str>) -> String {
-    text.as_ref().to_string()
-}
-
-/// Style hint label.
-pub fn hint_label(text: impl AsRef<str>) -> String {
-    text.as_ref().to_string()
-}
-
-/// Style hint message.
-pub fn hint_text(text: impl AsRef<str>) -> String {
-    text.as_ref().to_string()
-}
-
-/// Style suggestion label.
-pub fn suggestion_label(text: impl AsRef<str>) -> String {
-    text.as_ref().to_string()
-}
-
-/// Style suggestion message.
-pub fn suggestion_text(text: impl AsRef<str>) -> String {
-    text.as_ref().to_string()
-}
-
-/// Style command/code snippet.
-pub fn command(text: impl AsRef<str>) -> String {
-    text.as_ref().to_string()
-}
-
-/// Style documentation link label.
-pub fn docs_label(text: impl AsRef<str>) -> String {
-    text.as_ref().to_string()
-}
-
-/// Style URL.
-pub fn url(text: impl AsRef<str>) -> String {
-    text.as_ref().to_string()
-}
-
-/// Style "see also" label.
-pub fn related_label(text: impl AsRef<str>) -> String {
-    text.as_ref().to_string()
+identity_style! {
+    /// Style critical error kind text (no-op in no-std).
+    error_kind_critical,
+    /// Style warning-level error kind text (no-op in no-std).
+    error_kind_warning,
+    /// Style error code text (no-op in no-std).
+    error_code,
+    /// Style error message text (no-op in no-std).
+    error_message,
+    /// Style source context text (no-op in no-std).
+    source_context,
+    /// Style metadata key text (no-op in no-std).
+    metadata_key,
+    /// Style hint label (no-op in no-std).
+    hint_label,
+    /// Style hint message (no-op in no-std).
+    hint_text,
+    /// Style suggestion label (no-op in no-std).
+    suggestion_label,
+    /// Style suggestion message (no-op in no-std).
+    suggestion_text,
+    /// Style command/code snippet (no-op in no-std).
+    command,
+    /// Style documentation link label (no-op in no-std).
+    docs_label,
+    /// Style URL (no-op in no-std).
+    url,
+    /// Style "see also" label (no-op in no-std).
+    related_label,
 }
