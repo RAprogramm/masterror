@@ -107,7 +107,7 @@ impl Display for Error {
         #[cfg(feature = "colored")]
         {
             use crate::colored::style;
-            writeln!(f, "Error: {}", self.kind)?;
+            writeln!(f, "{}", self.kind)?;
             writeln!(f, "Code: {}", style::error_code(self.code.to_string()))?;
             if let Some(msg) = &self.message {
                 writeln!(f, "Message: {}", style::error_message(msg))?;
