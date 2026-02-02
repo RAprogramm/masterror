@@ -9,6 +9,55 @@ use owo_colors::OwoColorize;
 
 use crate::{options::DisplayOptions, parser::CargoMessage, sections};
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Colored output helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Print text as bold title.
+pub fn print_title(text: &str, colored: bool) {
+    if colored {
+        println!("{}", text.bold());
+    } else {
+        println!("{text}");
+    }
+}
+
+/// Print category header (yellow bold).
+pub fn print_category_header(text: &str, colored: bool) {
+    if colored {
+        println!("  {}", text.yellow().bold());
+    } else {
+        println!("  {text}");
+    }
+}
+
+/// Print code with title (code in cyan).
+pub fn print_code_title(code: &str, title: &str, colored: bool) {
+    if colored {
+        println!("    {} - {title}", code.cyan());
+    } else {
+        println!("    {code} - {title}");
+    }
+}
+
+/// Print section label (green bold).
+pub fn print_label(label: &str, colored: bool) {
+    if colored {
+        println!("{}", label.green().bold());
+    } else {
+        println!("{label}");
+    }
+}
+
+/// Print dimmed text.
+pub fn print_dimmed(text: &str, colored: bool) {
+    if colored {
+        println!("{}", text.dimmed());
+    } else {
+        println!("{text}");
+    }
+}
+
 const SEPARATOR: &str = "--- masterror ----------------------------------------";
 const SEPARATOR_END: &str = "------------------------------------------------------";
 
@@ -42,23 +91,14 @@ pub fn print_error(lang: Lang, msg: &CargoMessage, opts: &DisplayOptions) {
 }
 
 fn print_block(lang: Lang, entry: &ErrorEntry, rendered: Option<&str>, opts: &DisplayOptions) {
-    if opts.colored {
-        println!("{}", SEPARATOR.dimmed());
-    } else {
-        println!("{SEPARATOR}");
-    }
+    print_dimmed(SEPARATOR, opts.colored);
 
     if opts.show_translation {
         sections::translation::print(lang, rendered, opts.colored);
     }
 
     if opts.show_why {
-        let label = UiMsg::LabelWhy.get(lang);
-        if opts.colored {
-            println!("{}", label.green().bold());
-        } else {
-            println!("{label}");
-        }
+        print_label(UiMsg::LabelWhy.get(lang), opts.colored);
         println!("{}", entry.explanation.get(lang.code()));
     }
 
@@ -70,9 +110,5 @@ fn print_block(lang: Lang, entry: &ErrorEntry, rendered: Option<&str>, opts: &Di
         sections::link::print(lang, entry.links, opts.colored);
     }
 
-    if opts.colored {
-        println!("{}", SEPARATOR_END.dimmed());
-    } else {
-        println!("{SEPARATOR_END}");
-    }
+    print_dimmed(SEPARATOR_END, opts.colored);
 }

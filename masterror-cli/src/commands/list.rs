@@ -5,11 +5,11 @@
 //! List command - list all known error codes.
 
 use masterror_knowledge::{Category, ErrorRegistry, Lang};
-use owo_colors::OwoColorize;
 
 use crate::{
     error::{AppError, Result},
-    options::DisplayOptions
+    options::DisplayOptions,
+    output::{print_category_header, print_code_title, print_title}
 };
 
 /// List all known error codes.
@@ -17,11 +17,7 @@ pub fn run(lang: Lang, category: Option<&str>, opts: &DisplayOptions) -> Result<
     let registry = ErrorRegistry::new();
 
     println!();
-    if opts.colored {
-        println!("{}", "Known Rust Compiler Errors".bold());
-    } else {
-        println!("Known Rust Compiler Errors");
-    }
+    print_title("Known Rust Compiler Errors", opts.colored);
     println!();
 
     let mut entries: Vec<_> = if let Some(cat) = category {
@@ -49,21 +45,10 @@ pub fn run(lang: Lang, category: Option<&str>, opts: &DisplayOptions) -> Result<
         if current_cat != Some(entry.category) {
             current_cat = Some(entry.category);
             println!();
-            let cat_name = entry.category.name(lang.code());
-            if opts.colored {
-                println!("  {}", cat_name.yellow().bold());
-            } else {
-                println!("  {cat_name}");
-            }
+            print_category_header(entry.category.name(lang.code()), opts.colored);
             println!();
         }
-
-        let title = entry.title.get(lang.code());
-        if opts.colored {
-            println!("    {} - {title}", entry.code.cyan());
-        } else {
-            println!("    {} - {title}", entry.code);
-        }
+        print_code_title(entry.code, entry.title.get(lang.code()), opts.colored);
     }
 
     println!();

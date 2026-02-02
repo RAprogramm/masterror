@@ -5,12 +5,12 @@
 //! Practice command - show best practices from RustManifest.
 
 use masterror_knowledge::{Lang, PracticeCategory, PracticeRegistry};
-use owo_colors::OwoColorize;
 
 use super::explain::print_practice;
 use crate::{
     error::{AppError, Result},
-    options::DisplayOptions
+    options::DisplayOptions,
+    output::{print_category_header, print_code_title, print_title}
 };
 
 /// List all best practices or filter by category.
@@ -18,11 +18,7 @@ pub fn list(lang: Lang, category: Option<&str>, opts: &DisplayOptions) -> Result
     let registry = PracticeRegistry::new();
 
     println!();
-    if opts.colored {
-        println!("{}", "RustManifest Best Practices".bold());
-    } else {
-        println!("RustManifest Best Practices");
-    }
+    print_title("RustManifest Best Practices", opts.colored);
     println!();
 
     let practices: Vec<_> = if let Some(cat) = category {
@@ -51,20 +47,10 @@ pub fn list(lang: Lang, category: Option<&str>, opts: &DisplayOptions) -> Result
         if current_cat != Some(practice.category) {
             current_cat = Some(practice.category);
             println!();
-            if opts.colored {
-                println!("  {}", practice.category.name(lang.code()).yellow().bold());
-            } else {
-                println!("  {}", practice.category.name(lang.code()));
-            }
+            print_category_header(practice.category.name(lang.code()), opts.colored);
             println!();
         }
-
-        let title = practice.title.get(lang.code());
-        if opts.colored {
-            println!("    {} - {title}", practice.code.cyan());
-        } else {
-            println!("    {} - {title}", practice.code);
-        }
+        print_code_title(practice.code, practice.title.get(lang.code()), opts.colored);
     }
 
     println!();
