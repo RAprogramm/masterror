@@ -60,6 +60,26 @@ pub(super) fn write_metadata_value(f: &mut Formatter<'_>, value: &FieldValue) ->
 }
 
 #[allow(dead_code)]
+/// Writes the JSON header with kind, code, and optional message.
+pub(super) fn write_json_header(
+    f: &mut Formatter<'_>,
+    kind: &crate::AppErrorKind,
+    code: &crate::AppCode,
+    message: Option<&str>,
+    edit_policy: crate::MessageEditPolicy
+) -> FmtResult {
+    write!(f, r#"{{"kind":"{:?}","code":"{}""#, kind, code)?;
+    if !matches!(edit_policy, crate::MessageEditPolicy::Redact)
+        && let Some(msg) = message
+    {
+        write!(f, ",\"message\":\"")?;
+        write_json_escaped(f, msg)?;
+        write!(f, "\"")?;
+    }
+    Ok(())
+}
+
+#[allow(dead_code)]
 /// Writes metadata as JSON object, respecting field redaction policies.
 pub(super) fn write_metadata_json(f: &mut Formatter<'_>, metadata: &crate::Metadata) -> FmtResult {
     use crate::FieldRedaction;

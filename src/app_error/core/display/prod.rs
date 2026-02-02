@@ -6,8 +6,8 @@
 
 use core::fmt::{Formatter, Result as FmtResult};
 
-use super::helpers::{write_json_escaped, write_metadata_json};
-use crate::{MessageEditPolicy, app_error::core::error::Error};
+use super::helpers::{write_json_header, write_metadata_json};
+use crate::app_error::core::error::Error;
 
 #[allow(dead_code)]
 impl Error {
@@ -38,14 +38,13 @@ impl Error {
     }
 
     pub(super) fn fmt_prod_impl(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, r#"{{"kind":"{:?}","code":"{}""#, self.kind, self.code)?;
-        if !matches!(self.edit_policy, MessageEditPolicy::Redact)
-            && let Some(msg) = &self.message
-        {
-            write!(f, ",\"message\":\"")?;
-            write_json_escaped(f, msg.as_ref())?;
-            write!(f, "\"")?;
-        }
+        write_json_header(
+            f,
+            &self.kind,
+            &self.code,
+            self.message.as_deref(),
+            self.edit_policy
+        )?;
         write_metadata_json(f, &self.metadata)?;
         write!(f, "}}")
     }
