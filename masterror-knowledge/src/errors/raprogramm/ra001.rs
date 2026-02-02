@@ -16,21 +16,17 @@ pub static ENTRY: BestPractice = BestPractice {
     category:     PracticeCategory::ErrorHandling,
     explanation:  LocalizedText::new(
         "\
-The Cloudflare November 2025 outage affected 330+ datacenters due to a single
-.unwrap(). Configuration change exposed an error case that was never handled.
-Result: ChatGPT, X, Canva offline for ~3 hours.
-
-Always use proper error propagation with Result and the ? operator.
-Implement detailed error messages with map_err().",
+unwrap() calls panic!() if the value is None or Err.
+In production this crashes the entire service.
+Use ? operator to propagate errors or handle them explicitly with match/map_err.",
         "\
-Сбой Cloudflare в ноябре 2025 затронул 330+ дата-центров из-за одного .unwrap().
-Изменение конфигурации обнажило случай ошибки, который не был обработан.
-Результат: ChatGPT, X, Canva недоступны ~3 часа.
-
-Всегда используйте правильное распространение ошибок с Result и оператором ?.",
+unwrap() вызывает panic!() если значение None или Err.
+В продакшене это приводит к падению всего сервиса.
+Используйте оператор ? для пробрасывания ошибок или обрабатывайте явно через match/map_err.",
         "\
-2025년 11월 Cloudflare 장애는 단일 .unwrap()으로 인해 330개 이상의 데이터센터에
-영향을 미쳤습니다. 구성 변경으로 처리되지 않은 오류 케이스가 노출되었습니다."
+unwrap()은 값이 None이거나 Err이면 panic!()을 호출합니다.
+프로덕션에서는 전체 서비스가 중단됩니다.
+? 연산자로 에러를 전파하거나 match/map_err로 명시적으로 처리하세요."
     ),
     good_example: r#"let config = Config::from_file("config.toml")
     .map_err(|e| format!("Failed to load config: {}", e))?;"#,

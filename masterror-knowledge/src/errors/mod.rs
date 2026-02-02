@@ -4,13 +4,26 @@
 
 //! Rust compiler error explanations organized by category.
 
+pub mod abi;
+pub mod attributes;
 pub mod borrowing;
+pub mod const_eval;
+pub mod consts;
+pub mod features;
+pub mod generics;
 pub mod lifetimes;
+pub mod linking;
 pub mod ownership;
+pub mod patterns;
 pub mod raprogramm;
 pub mod resolution;
+pub mod simd;
+pub mod structs;
+pub mod syntax;
 pub mod traits;
 pub mod types;
+pub mod unsafe_code;
+pub mod visibility;
 
 use std::{collections::HashMap, sync::LazyLock};
 
@@ -76,7 +89,19 @@ pub enum Category {
     Lifetimes,
     Types,
     Traits,
-    Resolution
+    Resolution,
+    Generics,
+    Syntax,
+    Patterns,
+    UnsafeCode,
+    Abi,
+    Structs,
+    Simd,
+    Consts,
+    Attributes,
+    ConstEval,
+    Linking,
+    Visibility
 }
 
 impl Category {
@@ -104,7 +129,55 @@ impl Category {
 
             (Self::Resolution, "ru") => "Разрешение имён",
             (Self::Resolution, "ko") => "이름 확인",
-            (Self::Resolution, _) => "Name Resolution"
+            (Self::Resolution, _) => "Name Resolution",
+
+            (Self::Generics, "ru") => "Обобщения",
+            (Self::Generics, "ko") => "제네릭",
+            (Self::Generics, _) => "Generics",
+
+            (Self::Syntax, "ru") => "Синтаксис",
+            (Self::Syntax, "ko") => "문법",
+            (Self::Syntax, _) => "Syntax",
+
+            (Self::Patterns, "ru") => "Паттерны",
+            (Self::Patterns, "ko") => "패턴",
+            (Self::Patterns, _) => "Patterns",
+
+            (Self::UnsafeCode, "ru") => "Небезопасный код",
+            (Self::UnsafeCode, "ko") => "unsafe 코드",
+            (Self::UnsafeCode, _) => "Unsafe Code",
+
+            (Self::Abi, "ru") => "ABI",
+            (Self::Abi, "ko") => "ABI",
+            (Self::Abi, _) => "ABI",
+
+            (Self::Structs, "ru") => "Структуры",
+            (Self::Structs, "ko") => "구조체",
+            (Self::Structs, _) => "Structs",
+
+            (Self::Simd, "ru") => "SIMD",
+            (Self::Simd, "ko") => "SIMD",
+            (Self::Simd, _) => "SIMD",
+
+            (Self::Consts, "ru") => "Константы",
+            (Self::Consts, "ko") => "상수",
+            (Self::Consts, _) => "Constants",
+
+            (Self::Attributes, "ru") => "Атрибуты",
+            (Self::Attributes, "ko") => "속성",
+            (Self::Attributes, _) => "Attributes",
+
+            (Self::ConstEval, "ru") => "Вычисление констант",
+            (Self::ConstEval, "ko") => "상수 평가",
+            (Self::ConstEval, _) => "Const Evaluation",
+
+            (Self::Linking, "ru") => "Связывание",
+            (Self::Linking, "ko") => "링킹",
+            (Self::Linking, _) => "Linking",
+
+            (Self::Visibility, "ru") => "Видимость",
+            (Self::Visibility, "ko") => "가시성",
+            (Self::Visibility, _) => "Visibility"
         }
     }
 }
@@ -141,24 +214,63 @@ impl ErrorRegistry {
 
     /// Build registry from all modules.
     fn build() -> Self {
-        let mut errors = HashMap::with_capacity(34);
+        let mut errors = HashMap::with_capacity(400);
 
-        for entry in ownership::entries() {
+        for entry in abi::entries() {
             errors.insert(entry.code, *entry);
         }
         for entry in borrowing::entries() {
             errors.insert(entry.code, *entry);
         }
+        for entry in consts::entries() {
+            errors.insert(entry.code, *entry);
+        }
+        for entry in features::entries() {
+            errors.insert(entry.code, *entry);
+        }
+        for entry in generics::entries() {
+            errors.insert(entry.code, *entry);
+        }
         for entry in lifetimes::entries() {
             errors.insert(entry.code, *entry);
         }
-        for entry in types::entries() {
+        for entry in ownership::entries() {
+            errors.insert(entry.code, *entry);
+        }
+        for entry in patterns::entries() {
+            errors.insert(entry.code, *entry);
+        }
+        for entry in resolution::entries() {
+            errors.insert(entry.code, *entry);
+        }
+        for entry in simd::entries() {
+            errors.insert(entry.code, *entry);
+        }
+        for entry in structs::entries() {
+            errors.insert(entry.code, *entry);
+        }
+        for entry in syntax::entries() {
             errors.insert(entry.code, *entry);
         }
         for entry in traits::entries() {
             errors.insert(entry.code, *entry);
         }
-        for entry in resolution::entries() {
+        for entry in types::entries() {
+            errors.insert(entry.code, *entry);
+        }
+        for entry in unsafe_code::entries() {
+            errors.insert(entry.code, *entry);
+        }
+        for entry in attributes::entries() {
+            errors.insert(entry.code, *entry);
+        }
+        for entry in const_eval::entries() {
+            errors.insert(entry.code, *entry);
+        }
+        for entry in linking::entries() {
+            errors.insert(entry.code, *entry);
+        }
+        for entry in visibility::entries() {
             errors.insert(entry.code, *entry);
         }
 

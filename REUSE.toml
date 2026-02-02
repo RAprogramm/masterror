@@ -10,6 +10,6 @@ SPDX-FileCopyrightText = "2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>"
 SPDX-License-Identifier = "MIT"
 
 [[annotations]]
-path = ["masterror-knowledge/src/errors/ownership/e0382.rs", "masterror-knowledge/src/errors/ownership/e0384.rs"]
+path = ["masterror-knowledge/src/errors/**"]
 SPDX-FileCopyrightText = "2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>"
 SPDX-License-Identifier = "MIT"

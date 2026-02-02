@@ -22,6 +22,12 @@ mod ra012;
 mod ra013;
 mod ra014;
 mod ra015;
+mod ra016;
+mod ra017;
+mod ra018;
+mod ra019;
+mod ra020;
+mod ra021;
 
 use std::{collections::HashMap, sync::LazyLock};
 
@@ -41,7 +47,10 @@ pub enum PracticeCategory {
     Documentation,
     Design,
     Testing,
-    Security
+    Security,
+    Safety,
+    Memory,
+    Idiomatic
 }
 
 impl PracticeCategory {
@@ -73,7 +82,19 @@ impl PracticeCategory {
 
             (Self::Security, "ru") => "Безопасность",
             (Self::Security, "ko") => "보안",
-            (Self::Security, _) => "Security"
+            (Self::Security, _) => "Security",
+
+            (Self::Safety, "ru") => "Безопасность памяти",
+            (Self::Safety, "ko") => "메모리 안전",
+            (Self::Safety, _) => "Memory Safety",
+
+            (Self::Memory, "ru") => "Управление памятью",
+            (Self::Memory, "ko") => "메모리 관리",
+            (Self::Memory, _) => "Memory Management",
+
+            (Self::Idiomatic, "ru") => "Идиоматичность",
+            (Self::Idiomatic, "ko") => "관용적 코드",
+            (Self::Idiomatic, _) => "Idiomatic Code"
         }
     }
 }
@@ -105,7 +126,13 @@ static ENTRIES: &[&BestPractice] = &[
     &ra012::ENTRY,
     &ra013::ENTRY,
     &ra014::ENTRY,
-    &ra015::ENTRY
+    &ra015::ENTRY,
+    &ra016::ENTRY,
+    &ra017::ENTRY,
+    &ra018::ENTRY,
+    &ra019::ENTRY,
+    &ra020::ENTRY,
+    &ra021::ENTRY
 ];
 
 pub fn entries() -> &'static [&'static BestPractice] {
@@ -125,7 +152,7 @@ impl PracticeRegistry {
 
     /// Build registry from all practices.
     fn build() -> Self {
-        let mut practices = HashMap::with_capacity(15);
+        let mut practices = HashMap::with_capacity(21);
         for entry in entries() {
             practices.insert(entry.code, *entry);
         }

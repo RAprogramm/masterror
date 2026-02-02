@@ -4,6 +4,7 @@
 
 //! Ownership-related errors.
 
+mod e0373;
 mod e0381;
 mod e0382;
 mod e0383;
@@ -15,6 +16,7 @@ mod e0509;
 use super::ErrorEntry;
 
 static ENTRIES: &[&ErrorEntry] = &[
+    &e0373::ENTRY,
     &e0381::ENTRY,
     &e0382::ENTRY,
     &e0383::ENTRY,
