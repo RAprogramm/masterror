@@ -46,7 +46,15 @@ use sqlx_core::error::{DatabaseError, Error as SqlxError, ErrorKind as SqlxError
 #[cfg(any(feature = "sqlx", feature = "sqlx-migrate"))]
 use crate::{AppCode, AppErrorKind, Context, Error, field};
 
-#[cfg(feature = "sqlx")]
+#[cfg(all(feature = "sqlx", feature = "phf"))]
+static SQLSTATE_CODE_OVERRIDES: phf::Map<&'static str, AppCode> = phf::phf_map! {
+    "23505" => AppCode::UserAlreadyExists,
+    "23503" => AppCode::Conflict,
+    "23502" => AppCode::Validation,
+    "23514" => AppCode::Validation,
+};
+
+#[cfg(all(feature = "sqlx", not(feature = "phf")))]
 const SQLSTATE_CODE_OVERRIDES: &[(&str, AppCode)] = &[
     ("23505", AppCode::UserAlreadyExists),
     ("23503", AppCode::Conflict),
@@ -54,7 +62,13 @@ const SQLSTATE_CODE_OVERRIDES: &[(&str, AppCode)] = &[
     ("23514", AppCode::Validation)
 ];
 
-#[cfg(feature = "sqlx")]
+#[cfg(all(feature = "sqlx", feature = "phf"))]
+static SQLSTATE_RETRY_HINTS: phf::Map<&'static str, u64> = phf::phf_map! {
+    "40001" => 1,
+    "55P03" => 1,
+};
+
+#[cfg(all(feature = "sqlx", not(feature = "phf")))]
 const SQLSTATE_RETRY_HINTS: &[(&str, u64)] = &[("40001", 1), ("55P03", 1)];
 
 /// Map a `sqlx_core::error::Error` into [`struct@crate::Error`].
@@ -220,17 +234,29 @@ fn classify_database_error(error: &(dyn DatabaseError + 'static)) -> (Context, O
     let code = error.code().map(|code| code.into_owned());
     if let Some(ref sqlstate) = code {
         context = context.with(field::str("db.code", sqlstate.clone()));
-        if let Some((_, secs)) = SQLSTATE_RETRY_HINTS
-            .iter()
-            .find(|(state, _)| *state == sqlstate.as_str())
+        #[cfg(feature = "phf")]
         {
-            retry_after = Some(*secs);
+            if let Some(&secs) = SQLSTATE_RETRY_HINTS.get(sqlstate.as_str()) {
+                retry_after = Some(secs);
+            }
+            if let Some(app_code) = SQLSTATE_CODE_OVERRIDES.get(sqlstate.as_str()) {
+                code_override = Some(app_code.clone());
+            }
         }
-        if let Some((_, app_code)) = SQLSTATE_CODE_OVERRIDES
-            .iter()
-            .find(|(state, _)| *state == sqlstate.as_str())
+        #[cfg(not(feature = "phf"))]
         {
-            code_override = Some(app_code.clone());
+            if let Some((_, secs)) = SQLSTATE_RETRY_HINTS
+                .iter()
+                .find(|(state, _)| *state == sqlstate.as_str())
+            {
+                retry_after = Some(*secs);
+            }
+            if let Some((_, app_code)) = SQLSTATE_CODE_OVERRIDES
+                .iter()
+                .find(|(state, _)| *state == sqlstate.as_str())
+            {
+                code_override = Some(app_code.clone());
+            }
         }
     }
     let category = match error.kind() {

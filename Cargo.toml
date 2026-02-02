@@ -85,6 +85,7 @@ tokio = ["dep:tokio", "std"]
 reqwest = ["dep:reqwest", "std"]
 teloxide = ["dep:teloxide-core", "std"]
 init-data = ["dep:init-data-rs", "std"]
+phf = ["dep:phf"]
 frontend = ["dep:wasm-bindgen", "dep:js-sys", "dep:serde-wasm-bindgen", "std"]
 turnkey = ["std"]
 tonic = ["dep:tonic", "std"]
@@ -153,6 +154,7 @@ owo-colors = { version = "4", optional = true, default-features = false, feature
   "supports-colors",
 ] }
 masterror-knowledge = { path = "masterror-knowledge", optional = true }
+phf = { version = "0.11", optional = true, features = ["macros"] }
 
 [dev-dependencies]
 anyhow = { version = "1", default-features = false, features = ["std"] }
@@ -196,6 +198,7 @@ feature_order = [
   "colored",
   "sqlx",
   "sqlx-migrate",
+  "phf",
   "reqwest",
   "redis",
   "validator",
@@ -293,6 +296,9 @@ description = "Ship Turnkey-specific error taxonomy and conversions"
 
 [package.metadata.masterror.readme.features.knowledge]
 description = "Rust compiler error explanations and best practices (en/ru/ko)"
+
+[package.metadata.masterror.readme.features.phf]
+description = "Use compile-time perfect hash maps for O(1) SQLSTATE lookups"
 
 [package.metadata.masterror.readme.features.benchmarks]
 description = "Enable Criterion benchmarks and CI baseline tooling"

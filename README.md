@@ -167,10 +167,11 @@ masterror = { version = "0.28.0", default-features = false }
 # masterror = { version = "0.28.0", features = [
 #   "std", "axum", "actix", "openapi",
 #   "serde_json", "tracing", "metrics", "backtrace",
-#   "colored", "sqlx", "sqlx-migrate", "reqwest",
-#   "redis", "validator", "config", "tokio",
-#   "multipart", "teloxide", "init-data", "tonic",
-#   "frontend", "turnkey", "knowledge", "benchmarks"
+#   "colored", "sqlx", "sqlx-migrate", "phf",
+#   "reqwest", "redis", "validator", "config",
+#   "tokio", "multipart", "teloxide", "init-data",
+#   "tonic", "frontend", "turnkey", "knowledge",
+#   "benchmarks"
 # ] }
 ~~~
 
