@@ -113,4 +113,6 @@
 //! ```
 
 /// Parser and formatter helpers for `#[error("...")]` templates.
+#[cfg(feature = "derive")]
+#[cfg_attr(docsrs, doc(cfg(feature = "derive")))]
 pub mod template;

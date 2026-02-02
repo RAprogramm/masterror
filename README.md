@@ -166,13 +166,13 @@ The build script keeps the full feature snippet below in sync with
 masterror = { version = "0.28.0", default-features = false }
 # or with features:
 # masterror = { version = "0.28.0", features = [
-#   "std", "axum", "actix", "openapi",
-#   "serde_json", "tracing", "metrics", "backtrace",
-#   "colored", "sqlx", "sqlx-migrate", "phf",
-#   "reqwest", "redis", "validator", "config",
-#   "tokio", "multipart", "teloxide", "init-data",
-#   "tonic", "frontend", "turnkey", "knowledge",
-#   "benchmarks"
+#   "std", "derive", "axum", "actix",
+#   "openapi", "serde_json", "tracing", "metrics",
+#   "backtrace", "colored", "sqlx", "sqlx-migrate",
+#   "phf", "reqwest", "redis", "validator",
+#   "config", "tokio", "multipart", "teloxide",
+#   "init-data", "tonic", "frontend", "turnkey",
+#   "knowledge", "benchmarks"
 # ] }
 ~~~
 

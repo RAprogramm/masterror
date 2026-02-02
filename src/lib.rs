@@ -422,6 +422,8 @@ pub use kind::AppErrorKind;
 /// .into();
 /// assert_eq!(code, AppCode::BadRequest);
 /// ```
+#[cfg(feature = "derive")]
+#[cfg_attr(docsrs, doc(cfg(feature = "derive")))]
 pub use masterror_derive::{Error, Masterror};
 pub use response::{
     ErrorResponse, ProblemJson, RetryAdvice,

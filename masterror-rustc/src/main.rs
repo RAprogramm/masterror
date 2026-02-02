@@ -100,7 +100,7 @@ fn main() {
     exit(status.code().unwrap_or(1));
 }
 
-/// Extract error code from line like "error[E0308]: mismatched types"
+/// Extract error code from line like `error[E0308]: mismatched types`
 fn extract_error_code(line: &str) -> Option<String> {
     let start = line.find("error[E")?;
     let code_start = start + 6; // skip "error["
