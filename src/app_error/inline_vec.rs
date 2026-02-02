@@ -286,8 +286,16 @@ impl<T> IntoIterator for InlineVec<T> {
     type IntoIter = IntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
+        let vec: Vec<T> = match self.storage {
+            Storage::Empty => Vec::new(),
+            Storage::One(a) => alloc::vec![a],
+            Storage::Two([a, b]) => alloc::vec![a, b],
+            Storage::Three([a, b, c]) => alloc::vec![a, b, c],
+            Storage::Four([a, b, c, d]) => alloc::vec![a, b, c, d],
+            Storage::Heap(vec) => vec
+        };
         IntoIter {
-            storage: self.storage
+            inner: vec.into_iter()
         }
     }
 }
@@ -330,38 +338,29 @@ impl<T> ExactSizeIterator for Iter<'_, T> {}
 /// Owning iterator for [`InlineVec`].
 #[derive(Debug)]
 pub struct IntoIter<T> {
-    storage: Storage<T>
+    inner: alloc::vec::IntoIter<T>
 }
 
 impl<T> Iterator for IntoIter<T> {
     type Item = T;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        match &mut self.storage {
-            Storage::Empty => None,
-            Storage::One(_) => match core::mem::take(&mut self.storage) {
-                Storage::One(a) => Some(a),
-                _ => unreachable!()
-            },
-            Storage::Two(_) | Storage::Three(_) | Storage::Four(_) => {
-                // Convert to heap storage for easier iteration
-                let items: Vec<T> = match core::mem::take(&mut self.storage) {
-                    Storage::Two([a, b]) => alloc::vec![a, b],
-                    Storage::Three([a, b, c]) => alloc::vec![a, b, c],
-                    Storage::Four([a, b, c, d]) => alloc::vec![a, b, c, d],
-                    _ => unreachable!()
-                };
-                self.storage = Storage::Heap(items);
-                self.next()
-            }
-            Storage::Heap(vec) => {
-                if vec.is_empty() {
-                    None
-                } else {
-                    Some(vec.remove(0))
-                }
-            }
-        }
+        self.inner.next()
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+}
+
+impl<T> ExactSizeIterator for IntoIter<T> {}
+
+impl<T> DoubleEndedIterator for IntoIter<T> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner.next_back()
     }
 }
 

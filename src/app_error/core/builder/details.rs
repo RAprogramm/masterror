@@ -73,7 +73,9 @@ impl Error {
     where
         T: Serialize
     {
-        let details = to_value(payload).map_err(|err| Self::bad_request(err.to_string()))?;
+        let Ok(details) = to_value(payload) else {
+            return Err(Self::bad_request("failed to serialize details"));
+        };
         Ok(self.with_details_json(details))
     }
 
