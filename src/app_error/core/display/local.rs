@@ -56,7 +56,7 @@ impl Error {
     fn fmt_local_colored(&self, f: &mut Formatter<'_>) -> FmtResult {
         use crate::colored::style;
 
-        writeln!(f, "Error: {}", self.kind)?;
+        writeln!(f, "{}", self.kind)?;
         writeln!(f, "Code: {}", style::error_code(self.code.to_string()))?;
         if let Some(msg) = &self.message {
             writeln!(f, "Message: {}", style::error_message(msg))?;
@@ -184,7 +184,7 @@ impl Error {
 
     #[cfg(not(feature = "colored"))]
     fn fmt_local_plain(&self, f: &mut Formatter<'_>) -> FmtResult {
-        writeln!(f, "Error: {}", self.kind)?;
+        writeln!(f, "{}", self.kind)?;
         writeln!(f, "Code: {}", self.code)?;
         if let Some(msg) = &self.message {
             writeln!(f, "Message: {}", msg)?;

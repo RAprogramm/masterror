@@ -210,7 +210,7 @@ fn fmt_prod_escapes_tab_and_carriage_return() {
 fn fmt_local_outputs_human_readable() {
     let error = AppError::not_found("User not found");
     let output = format!("{}", error.fmt_local_wrapper());
-    assert!(output.contains("Error:"));
+    assert!(output.contains("Not found"));
     assert!(output.contains("Code: NOT_FOUND") || output.contains("Code:"));
     assert!(output.contains("Message: User not found") || output.contains("Message:"));
 }
@@ -230,7 +230,7 @@ fn fmt_local_includes_source_chain() {
 fn fmt_local_without_message() {
     let error = AppError::bare(crate::AppErrorKind::BadRequest);
     let output = format!("{}", error.fmt_local_wrapper());
-    assert!(output.contains("Error:"));
+    assert!(output.contains("Bad request"));
     assert!(!output.contains("Message:"));
 }
 
