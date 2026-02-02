@@ -203,7 +203,7 @@ impl Error {
                 source: None,
                 diagnostics: None,
                 #[cfg(feature = "backtrace")]
-                backtrace: None,
+                backtrace: super::backtrace::capture_backtrace_snapshot(),
                 #[cfg(feature = "backtrace")]
                 captured_backtrace: OnceLock::new(),
                 telemetry_dirty: AtomicBool::new(true),
