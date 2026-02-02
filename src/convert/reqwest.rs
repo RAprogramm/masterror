@@ -153,191 +153,191 @@ fn classify_reqwest_error(err: &ReqwestError) -> (Context, Option<u64>) {
 
 #[cfg(all(test, feature = "reqwest", feature = "tokio"))]
 mod tests {
-    use std::time::Duration;
+    use std::{net::SocketAddr, time::Duration};
 
     use reqwest::Client;
-    use tokio::{net::TcpListener, time::sleep};
+    use tokio::{net::TcpListener, task::JoinHandle, time::sleep};
 
     use super::*;
     use crate::{AppCode, AppErrorKind, FieldRedaction, FieldValue};
 
+    /// Mock HTTP server that returns a fixed response.
+    struct MockServer {
+        addr:   SocketAddr,
+        handle: JoinHandle<()>
+    }
+
+    impl MockServer {
+        /// Start server that returns the given HTTP response.
+        async fn with_response(response: &'static [u8]) -> Self {
+            use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+            let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+            let addr = listener.local_addr().expect("addr");
+            let handle = tokio::spawn(async move {
+                let (mut socket, _) = listener.accept().await.expect("accept");
+                let mut buf = [0_u8; 1024];
+                let _ = socket.read(&mut buf).await;
+                let _ = socket.write_all(response).await;
+            });
+            Self {
+                addr,
+                handle
+            }
+        }
+
+        /// Start server that delays indefinitely (for timeout tests).
+        async fn delayed() -> Self {
+            let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+            let addr = listener.local_addr().expect("addr");
+            let handle = tokio::spawn(async move {
+                let (_socket, _) = listener.accept().await.expect("accept");
+                sleep(Duration::from_secs(60)).await;
+            });
+            Self {
+                addr,
+                handle
+            }
+        }
+
+        fn url(&self) -> String {
+            format!("http://{}", self.addr)
+        }
+
+        fn url_with_path(&self, path: &str) -> String {
+            format!("http://{}{}", self.addr, path)
+        }
+    }
+
+    impl Drop for MockServer {
+        fn drop(&mut self) {
+            self.handle.abort();
+        }
+    }
+
+    /// Get status error from mock server response.
+    async fn status_error_from(server: &MockServer) -> Error {
+        let response = Client::new().get(server.url()).send().await.expect("send");
+        response
+            .error_for_status()
+            .expect_err("status error")
+            .into()
+    }
+
     #[tokio::test]
     async fn timeout_sets_category_and_metadata() {
-        let listener = TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("bind listener");
-        let addr = listener.local_addr().expect("listener addr");
-        let server = tokio::spawn(async move {
-            let (_socket, _) = listener.accept().await.expect("accept");
-            sleep(Duration::from_secs(5)).await;
-        });
+        let server = MockServer::delayed().await;
         let client = Client::builder()
             .timeout(Duration::from_millis(50))
             .build()
             .expect("client");
         let err = client
-            .get(format!("http://{addr}"))
+            .get(server.url())
             .send()
             .await
             .expect_err("expected timeout");
         let app_err: Error = err.into();
         assert_eq!(app_err.kind, AppErrorKind::Timeout);
-        let metadata = app_err.metadata();
         assert_eq!(
-            metadata.get("reqwest.is_timeout"),
+            app_err.metadata().get("reqwest.is_timeout"),
             Some(&FieldValue::Bool(true))
         );
-        assert_eq!(metadata.redaction("http.url"), Some(FieldRedaction::Hash));
-        server.abort();
+        assert_eq!(
+            app_err.metadata().redaction("http.url"),
+            Some(FieldRedaction::Hash)
+        );
     }
 
     #[tokio::test]
     async fn status_error_maps_retry_and_rate_limit() {
-        use tokio::io::{AsyncReadExt, AsyncWriteExt};
-        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
-        let addr = listener.local_addr().expect("addr");
-        let server = tokio::spawn(async move {
-            let (mut socket, _) = listener.accept().await.expect("accept");
-            let mut buf = [0_u8; 1024];
-            let _ = socket.read(&mut buf).await;
-            let response = b"HTTP/1.1 429 Too Many Requests\r\ncontent-length: 0\r\n\r\n";
-            let _ = socket.write_all(response).await;
-        });
-        let client = Client::new();
-        let response = client
-            .get(format!("http://{addr}"))
-            .send()
-            .await
-            .expect("send");
-        let err = response.error_for_status().expect_err("status error");
-        let app_err: Error = err.into();
+        let server = MockServer::with_response(
+            b"HTTP/1.1 429 Too Many Requests\r\ncontent-length: 0\r\n\r\n"
+        )
+        .await;
+        let app_err = status_error_from(&server).await;
         assert_eq!(app_err.kind, AppErrorKind::RateLimited);
         assert_eq!(app_err.code, AppCode::RateLimited);
         assert_eq!(app_err.retry.map(|r| r.after_seconds), Some(1));
-        let metadata = app_err.metadata();
-        assert_eq!(metadata.get("http.status"), Some(&FieldValue::U64(429)));
         assert_eq!(
-            metadata.get("http.port"),
-            Some(&FieldValue::U64(u64::from(addr.port())))
+            app_err.metadata().get("http.status"),
+            Some(&FieldValue::U64(429))
         );
-        server.abort();
+        assert_eq!(
+            app_err.metadata().get("http.port"),
+            Some(&FieldValue::U64(u64::from(server.addr.port())))
+        );
     }
 
     #[tokio::test]
     async fn server_error_maps_to_dependency_unavailable() {
-        use tokio::io::{AsyncReadExt, AsyncWriteExt};
-        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
-        let addr = listener.local_addr().expect("addr");
-        let server = tokio::spawn(async move {
-            let (mut socket, _) = listener.accept().await.expect("accept");
-            let mut buf = [0_u8; 1024];
-            let _ = socket.read(&mut buf).await;
-            let response = b"HTTP/1.1 500 Internal Server Error\r\ncontent-length: 0\r\n\r\n";
-            let _ = socket.write_all(response).await;
-        });
-        let client = Client::new();
-        let response = client
-            .get(format!("http://{addr}"))
-            .send()
-            .await
-            .expect("send");
-        let err = response.error_for_status().expect_err("status error");
-        let app_err: Error = err.into();
+        let server = MockServer::with_response(
+            b"HTTP/1.1 500 Internal Server Error\r\ncontent-length: 0\r\n\r\n"
+        )
+        .await;
+        let app_err = status_error_from(&server).await;
         assert_eq!(app_err.kind, AppErrorKind::DependencyUnavailable);
-        let metadata = app_err.metadata();
-        assert_eq!(metadata.get("http.status"), Some(&FieldValue::U64(500)));
-        server.abort();
+        assert_eq!(
+            app_err.metadata().get("http.status"),
+            Some(&FieldValue::U64(500))
+        );
     }
 
     #[tokio::test]
     async fn request_timeout_status_maps_to_timeout() {
-        use tokio::io::{AsyncReadExt, AsyncWriteExt};
-        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
-        let addr = listener.local_addr().expect("addr");
-        let server = tokio::spawn(async move {
-            let (mut socket, _) = listener.accept().await.expect("accept");
-            let mut buf = [0_u8; 1024];
-            let _ = socket.read(&mut buf).await;
-            let response = b"HTTP/1.1 408 Request Timeout\r\ncontent-length: 0\r\n\r\n";
-            let _ = socket.write_all(response).await;
-        });
-        let client = Client::new();
-        let response = client
-            .get(format!("http://{addr}"))
-            .send()
-            .await
-            .expect("send");
-        let err = response.error_for_status().expect_err("status error");
-        let app_err: Error = err.into();
+        let server = MockServer::with_response(
+            b"HTTP/1.1 408 Request Timeout\r\ncontent-length: 0\r\n\r\n"
+        )
+        .await;
+        let app_err = status_error_from(&server).await;
         assert_eq!(app_err.kind, AppErrorKind::Timeout);
-        let metadata = app_err.metadata();
-        assert_eq!(metadata.get("http.status"), Some(&FieldValue::U64(408)));
-        server.abort();
+        assert_eq!(
+            app_err.metadata().get("http.status"),
+            Some(&FieldValue::U64(408))
+        );
     }
 
     #[tokio::test]
     async fn client_error_maps_to_external_api() {
-        use tokio::io::{AsyncReadExt, AsyncWriteExt};
-        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
-        let addr = listener.local_addr().expect("addr");
-        let server = tokio::spawn(async move {
-            let (mut socket, _) = listener.accept().await.expect("accept");
-            let mut buf = [0_u8; 1024];
-            let _ = socket.read(&mut buf).await;
-            let response = b"HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n";
-            let _ = socket.write_all(response).await;
-        });
-        let client = Client::new();
-        let response = client
-            .get(format!("http://{addr}"))
-            .send()
-            .await
-            .expect("send");
-        let err = response.error_for_status().expect_err("status error");
-        let app_err: Error = err.into();
+        let server =
+            MockServer::with_response(b"HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n")
+                .await;
+        let app_err = status_error_from(&server).await;
         assert_eq!(app_err.kind, AppErrorKind::ExternalApi);
-        let metadata = app_err.metadata();
-        assert_eq!(metadata.get("http.status"), Some(&FieldValue::U64(400)));
-        server.abort();
+        assert_eq!(
+            app_err.metadata().get("http.status"),
+            Some(&FieldValue::U64(400))
+        );
     }
 
     #[tokio::test]
     async fn connect_error_maps_to_network() {
-        let client = Client::new();
-        let err = client
+        let err = Client::new()
             .get("http://127.0.0.1:1")
             .send()
             .await
             .expect_err("connection refused");
         let app_err: Error = err.into();
         assert_eq!(app_err.kind, AppErrorKind::Network);
-        let metadata = app_err.metadata();
         assert_eq!(
-            metadata.get("reqwest.is_connect"),
+            app_err.metadata().get("reqwest.is_connect"),
             Some(&FieldValue::Bool(true))
         );
     }
 
     #[tokio::test]
     async fn url_metadata_is_captured() {
-        use tokio::io::{AsyncReadExt, AsyncWriteExt};
-        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
-        let addr = listener.local_addr().expect("addr");
-        let server = tokio::spawn(async move {
-            let (mut socket, _) = listener.accept().await.expect("accept");
-            let mut buf = [0_u8; 1024];
-            let _ = socket.read(&mut buf).await;
-            let response = b"HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\n\r\n";
-            let _ = socket.write_all(response).await;
-        });
-        let client = Client::new();
-        let response = client
-            .get(format!("http://{addr}/api/v1/test"))
+        let server =
+            MockServer::with_response(b"HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\n\r\n")
+                .await;
+        let response = Client::new()
+            .get(server.url_with_path("/api/v1/test"))
             .send()
             .await
             .expect("send");
-        let err = response.error_for_status().expect_err("status error");
-        let app_err: Error = err.into();
+        let app_err: Error = response
+            .error_for_status()
+            .expect_err("status error")
+            .into();
         let metadata = app_err.metadata();
         assert_eq!(
             metadata.get("http.host"),
@@ -345,7 +345,7 @@ mod tests {
         );
         assert_eq!(
             metadata.get("http.port"),
-            Some(&FieldValue::U64(u64::from(addr.port())))
+            Some(&FieldValue::U64(u64::from(server.addr.port())))
         );
         assert_eq!(
             metadata.get("http.path"),
@@ -356,41 +356,23 @@ mod tests {
             Some(&FieldValue::Str("http".into()))
         );
         assert_eq!(metadata.redaction("http.url"), Some(FieldRedaction::Hash));
-        server.abort();
     }
 
     #[tokio::test]
     async fn status_reason_is_captured() {
-        use tokio::io::{AsyncReadExt, AsyncWriteExt};
-        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
-        let addr = listener.local_addr().expect("addr");
-        let server = tokio::spawn(async move {
-            let (mut socket, _) = listener.accept().await.expect("accept");
-            let mut buf = [0_u8; 1024];
-            let _ = socket.read(&mut buf).await;
-            let response = b"HTTP/1.1 403 Forbidden\r\ncontent-length: 0\r\n\r\n";
-            let _ = socket.write_all(response).await;
-        });
-        let client = Client::new();
-        let response = client
-            .get(format!("http://{addr}"))
-            .send()
-            .await
-            .expect("send");
-        let err = response.error_for_status().expect_err("status error");
-        let app_err: Error = err.into();
-        let metadata = app_err.metadata();
+        let server =
+            MockServer::with_response(b"HTTP/1.1 403 Forbidden\r\ncontent-length: 0\r\n\r\n")
+                .await;
+        let app_err = status_error_from(&server).await;
         assert_eq!(
-            metadata.get("http.status_reason"),
+            app_err.metadata().get("http.status_reason"),
             Some(&FieldValue::Str("Forbidden".into()))
         );
-        server.abort();
     }
 
     #[tokio::test]
     async fn all_reqwest_flags_are_captured() {
-        let client = Client::new();
-        let err = client
+        let err = Client::new()
             .get("http://127.0.0.1:1")
             .send()
             .await
@@ -408,25 +390,11 @@ mod tests {
 
     #[tokio::test]
     async fn service_unavailable_maps_correctly() {
-        use tokio::io::{AsyncReadExt, AsyncWriteExt};
-        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
-        let addr = listener.local_addr().expect("addr");
-        let server = tokio::spawn(async move {
-            let (mut socket, _) = listener.accept().await.expect("accept");
-            let mut buf = [0_u8; 1024];
-            let _ = socket.read(&mut buf).await;
-            let response = b"HTTP/1.1 503 Service Unavailable\r\ncontent-length: 0\r\n\r\n";
-            let _ = socket.write_all(response).await;
-        });
-        let client = Client::new();
-        let response = client
-            .get(format!("http://{addr}"))
-            .send()
-            .await
-            .expect("send");
-        let err = response.error_for_status().expect_err("status error");
-        let app_err: Error = err.into();
+        let server = MockServer::with_response(
+            b"HTTP/1.1 503 Service Unavailable\r\ncontent-length: 0\r\n\r\n"
+        )
+        .await;
+        let app_err = status_error_from(&server).await;
         assert_eq!(app_err.kind, AppErrorKind::DependencyUnavailable);
-        server.abort();
     }
 }

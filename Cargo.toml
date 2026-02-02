@@ -164,6 +164,7 @@ tokio = { version = "1", features = [
   "rt-multi-thread",
   "net",
   "time",
+  "io-util",
 ], default-features = false }
 trybuild = "1"
 toml = "0.9"

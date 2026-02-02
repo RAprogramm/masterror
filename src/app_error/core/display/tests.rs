@@ -407,25 +407,23 @@ fn fmt_staging_with_redacted_and_public_metadata() {
 use crate::app_error::core::error::Error;
 
 impl Error {
-    fn fmt_prod_wrapper(&self) -> FormatterWrapper<'_> {
+    fn fmt_wrapper(&self, mode: FormatterMode) -> FormatterWrapper<'_> {
         FormatterWrapper {
             error: self,
-            mode:  FormatterMode::Prod
+            mode
         }
+    }
+
+    fn fmt_prod_wrapper(&self) -> FormatterWrapper<'_> {
+        self.fmt_wrapper(FormatterMode::Prod)
     }
 
     fn fmt_local_wrapper(&self) -> FormatterWrapper<'_> {
-        FormatterWrapper {
-            error: self,
-            mode:  FormatterMode::Local
-        }
+        self.fmt_wrapper(FormatterMode::Local)
     }
 
     fn fmt_staging_wrapper(&self) -> FormatterWrapper<'_> {
-        FormatterWrapper {
-            error: self,
-            mode:  FormatterMode::Staging
-        }
+        self.fmt_wrapper(FormatterMode::Staging)
     }
 }
 

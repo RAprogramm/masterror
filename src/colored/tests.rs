@@ -8,110 +8,34 @@
 mod std_tests {
     use crate::colored::style::*;
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Basic error styling tests
-    // ─────────────────────────────────────────────────────────────────────────
-
-    #[test]
-    fn error_kind_critical_produces_output() {
-        let result = error_kind_critical("ServiceUnavailable");
-        assert!(!result.is_empty());
-        assert!(result.contains("ServiceUnavailable"));
+    macro_rules! test_style_produces_output {
+        ($($name:ident($func:ident, $input:expr)),* $(,)?) => {
+            $(
+                #[test]
+                fn $name() {
+                    let result = $func($input);
+                    assert!(!result.is_empty());
+                    assert!(result.contains($input));
+                }
+            )*
+        };
     }
 
-    #[test]
-    fn error_kind_warning_produces_output() {
-        let result = error_kind_warning("BadRequest");
-        assert!(!result.is_empty());
-        assert!(result.contains("BadRequest"));
-    }
-
-    #[test]
-    fn error_code_produces_output() {
-        let result = error_code("ERR_001");
-        assert!(!result.is_empty());
-        assert!(result.contains("ERR_001"));
-    }
-
-    #[test]
-    fn error_message_produces_output() {
-        let result = error_message("Connection failed");
-        assert!(!result.is_empty());
-        assert!(result.contains("Connection failed"));
-    }
-
-    #[test]
-    fn source_context_produces_output() {
-        let result = source_context("Caused by: timeout");
-        assert!(!result.is_empty());
-        assert!(result.contains("Caused by: timeout"));
-    }
-
-    #[test]
-    fn metadata_key_produces_output() {
-        let result = metadata_key("request_id");
-        assert!(!result.is_empty());
-        assert!(result.contains("request_id"));
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Diagnostic styling tests
-    // ─────────────────────────────────────────────────────────────────────────
-
-    #[test]
-    fn hint_label_produces_output() {
-        let result = hint_label("hint");
-        assert!(!result.is_empty());
-        assert!(result.contains("hint"));
-    }
-
-    #[test]
-    fn hint_text_produces_output() {
-        let result = hint_text("Try restarting the service");
-        assert!(!result.is_empty());
-        assert!(result.contains("Try restarting the service"));
-    }
-
-    #[test]
-    fn suggestion_label_produces_output() {
-        let result = suggestion_label("suggestion");
-        assert!(!result.is_empty());
-        assert!(result.contains("suggestion"));
-    }
-
-    #[test]
-    fn suggestion_text_produces_output() {
-        let result = suggestion_text("Run cargo clean");
-        assert!(!result.is_empty());
-        assert!(result.contains("Run cargo clean"));
-    }
-
-    #[test]
-    fn command_produces_output() {
-        let result = command("cargo build --release");
-        assert!(!result.is_empty());
-        assert!(result.contains("cargo build --release"));
-    }
-
-    #[test]
-    fn docs_label_produces_output() {
-        let result = docs_label("docs");
-        assert!(!result.is_empty());
-        assert!(result.contains("docs"));
-    }
-
-    #[test]
-    fn url_produces_output() {
-        let result = url("https://docs.rs/masterror");
-        assert!(!result.is_empty());
-        assert!(result.contains("https://docs.rs/masterror"));
-    }
-
-    #[test]
-    fn related_label_produces_output() {
-        let result = related_label("see also");
-        assert!(!result.is_empty());
-        assert!(result.contains("see also"));
+    test_style_produces_output! {
+        error_kind_critical_produces_output(error_kind_critical, "ServiceUnavailable"),
+        error_kind_warning_produces_output(error_kind_warning, "BadRequest"),
+        error_code_produces_output(error_code, "ERR_001"),
+        error_message_produces_output(error_message, "Connection failed"),
+        source_context_produces_output(source_context, "Caused by: timeout"),
+        metadata_key_produces_output(metadata_key, "request_id"),
+        hint_label_produces_output(hint_label, "hint"),
+        hint_text_produces_output(hint_text, "Try restarting the service"),
+        suggestion_label_produces_output(suggestion_label, "suggestion"),
+        suggestion_text_produces_output(suggestion_text, "Run cargo clean"),
+        command_produces_output(command, "cargo build --release"),
+        docs_label_produces_output(docs_label, "docs"),
+        url_produces_output(url, "https://docs.rs/masterror"),
+        related_label_produces_output(related_label, "see also"),
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -186,106 +110,38 @@ mod std_tests {
 mod nostd_tests {
     use crate::colored::style::*;
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Basic styling returns plain text
-    // ─────────────────────────────────────────────────────────────────────────
-
-    #[test]
-    fn error_kind_critical_returns_plain_text() {
-        assert_eq!(error_kind_critical("test"), "test");
+    macro_rules! test_style_returns_plain {
+        ($($name:ident($func:ident, $input:expr)),* $(,)?) => {
+            $(
+                #[test]
+                fn $name() {
+                    assert_eq!($func($input), $input);
+                }
+            )*
+        };
     }
 
-    #[test]
-    fn error_kind_warning_returns_plain_text() {
-        assert_eq!(error_kind_warning("test"), "test");
-    }
-
-    #[test]
-    fn error_code_returns_plain_text() {
-        assert_eq!(error_code("ERR_001"), "ERR_001");
-    }
-
-    #[test]
-    fn error_message_returns_plain_text() {
-        assert_eq!(error_message("message"), "message");
-    }
-
-    #[test]
-    fn source_context_returns_plain_text() {
-        assert_eq!(source_context("context"), "context");
-    }
-
-    #[test]
-    fn metadata_key_returns_plain_text() {
-        assert_eq!(metadata_key("key"), "key");
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Diagnostic styling returns plain text
-    // ─────────────────────────────────────────────────────────────────────────
-
-    #[test]
-    fn hint_label_returns_plain_text() {
-        assert_eq!(hint_label("hint"), "hint");
-    }
-
-    #[test]
-    fn hint_text_returns_plain_text() {
-        assert_eq!(hint_text("help text"), "help text");
-    }
-
-    #[test]
-    fn suggestion_label_returns_plain_text() {
-        assert_eq!(suggestion_label("suggestion"), "suggestion");
-    }
-
-    #[test]
-    fn suggestion_text_returns_plain_text() {
-        assert_eq!(suggestion_text("try this"), "try this");
-    }
-
-    #[test]
-    fn command_returns_plain_text() {
-        assert_eq!(command("cargo build"), "cargo build");
-    }
-
-    #[test]
-    fn docs_label_returns_plain_text() {
-        assert_eq!(docs_label("docs"), "docs");
-    }
-
-    #[test]
-    fn url_returns_plain_text() {
-        assert_eq!(url("https://example.com"), "https://example.com");
-    }
-
-    #[test]
-    fn related_label_returns_plain_text() {
-        assert_eq!(related_label("see also"), "see also");
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Edge cases
-    // ─────────────────────────────────────────────────────────────────────────
-
-    #[test]
-    fn empty_string_returns_empty() {
-        assert_eq!(error_kind_critical(""), "");
-        assert_eq!(error_code(""), "");
-        assert_eq!(command(""), "");
-    }
-
-    #[test]
-    fn unicode_preserved() {
-        let input = "エラー: 日本語テスト";
-        assert_eq!(error_message(input), input);
-        assert_eq!(hint_text(input), input);
-    }
-
-    #[test]
-    fn special_chars_preserved() {
-        let input = "file.rs:42:13 -> error";
-        assert_eq!(source_context(input), input);
-        assert_eq!(suggestion_text(input), input);
+    test_style_returns_plain! {
+        error_kind_critical_returns_plain_text(error_kind_critical, "test"),
+        error_kind_warning_returns_plain_text(error_kind_warning, "test"),
+        error_code_returns_plain_text(error_code, "ERR_001"),
+        error_message_returns_plain_text(error_message, "message"),
+        source_context_returns_plain_text(source_context, "context"),
+        metadata_key_returns_plain_text(metadata_key, "key"),
+        hint_label_returns_plain_text(hint_label, "hint"),
+        hint_text_returns_plain_text(hint_text, "help text"),
+        suggestion_label_returns_plain_text(suggestion_label, "suggestion"),
+        suggestion_text_returns_plain_text(suggestion_text, "try this"),
+        command_returns_plain_text(command, "cargo build"),
+        docs_label_returns_plain_text(docs_label, "docs"),
+        url_returns_plain_text(url, "https://example.com"),
+        related_label_returns_plain_text(related_label, "see also"),
+        empty_error_kind_critical(error_kind_critical, ""),
+        empty_error_code(error_code, ""),
+        empty_command(command, ""),
+        unicode_error_message(error_message, "エラー: 日本語テスト"),
+        unicode_hint_text(hint_text, "エラー: 日本語テスト"),
+        special_chars_source_context(source_context, "file.rs:42:13 -> error"),
+        special_chars_suggestion_text(suggestion_text, "file.rs:42:13 -> error"),
     }
 }
