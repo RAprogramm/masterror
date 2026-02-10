@@ -21,16 +21,17 @@ const BACKTRACE_STATE_DISABLED: u8 = 2;
 #[cfg(feature = "backtrace")]
 static BACKTRACE_STATE: AtomicU8 = AtomicU8::new(BACKTRACE_STATE_UNSET);
 
-/// Captures a backtrace snapshot if enabled by environment configuration.
+/// Captures a backtrace snapshot when the feature is enabled.
 ///
-/// Returns `Some(Arc<Backtrace>)` if backtrace capture is enabled via
-/// `RUST_BACKTRACE`, otherwise returns `None`.
+/// Returns `Some(Arc<Backtrace>)` if backtrace capture is enabled,
+/// otherwise returns `None`. Uses `force_capture()` to always record
+/// stack frames regardless of `RUST_BACKTRACE` environment variable.
 ///
 /// Internal function used for lazy backtrace capture in errors.
 #[cfg(feature = "backtrace")]
 pub(crate) fn capture_backtrace_snapshot() -> Option<Arc<Backtrace>> {
     if should_capture_backtrace() {
-        Some(Arc::new(Backtrace::capture()))
+        Some(Arc::new(Backtrace::force_capture()))
     } else {
         None
     }
@@ -42,6 +43,12 @@ pub(crate) fn capture_backtrace_snapshot() -> Option<Arc<Backtrace>> {
 /// The first call reads `RUST_BACKTRACE` and caches the result.
 #[cfg(feature = "backtrace")]
 fn should_capture_backtrace() -> bool {
+    // In tests, always check override first (bypasses cache for test control)
+    #[cfg(test)]
+    if let Some(value) = test_backtrace_override::get() {
+        return value;
+    }
+
     match BACKTRACE_STATE.load(AtomicOrdering::Acquire) {
         BACKTRACE_STATE_ENABLED => true,
         BACKTRACE_STATE_DISABLED => false,
@@ -62,11 +69,10 @@ fn should_capture_backtrace() -> bool {
 
 /// Detects backtrace preference from environment or test override.
 ///
-/// Checks test override first (in test builds), then reads `RUST_BACKTRACE`.
-/// Returns `true` if backtrace capture is enabled.
+/// When the `backtrace` feature is enabled, backtraces are captured by default.
+/// Set `RUST_BACKTRACE=0` to disable capture.
 ///
-/// Valid values for `RUST_BACKTRACE`: any non-empty value except `0`, `off`,
-/// or `false`.
+/// Checks test override first (in test builds), then reads `RUST_BACKTRACE`.
 #[cfg(feature = "backtrace")]
 fn detect_backtrace_preference() -> bool {
     #[cfg(all(test, feature = "backtrace"))]
@@ -74,15 +80,16 @@ fn detect_backtrace_preference() -> bool {
         return value;
     }
     match env::var_os("RUST_BACKTRACE") {
-        None => false,
+        None => true, // Default: capture when feature enabled
         Some(value) => {
             let value = value.to_string_lossy();
             let trimmed = value.trim();
             if trimmed.is_empty() {
-                return false;
+                return true;
             }
             let lowered = trimmed.to_ascii_lowercase();
-            !(matches!(lowered.as_str(), "0" | "off" | "false"))
+            // Only disable if explicitly set to 0/off/false
+            !matches!(lowered.as_str(), "0" | "off" | "false")
         }
     }
 }
@@ -194,14 +201,15 @@ mod tests {
     }
 
     #[test]
-    fn should_capture_caches_enabled_state() {
+    fn override_bypasses_cache_in_tests() {
         reset_backtrace_preference();
         set_backtrace_preference_override(Some(true));
-        should_capture_backtrace();
+        assert!(should_capture_backtrace());
+        // Override should take priority over any cached state
         set_backtrace_preference_override(Some(false));
         assert!(
-            should_capture_backtrace(),
-            "should use cached enabled state"
+            !should_capture_backtrace(),
+            "override should bypass cache in tests"
         );
         reset_backtrace_preference();
     }
@@ -217,12 +225,15 @@ mod tests {
     }
 
     #[test]
-    fn detect_preference_returns_false_by_default() {
+    fn detect_preference_returns_true_by_default() {
         reset_backtrace_preference();
         set_backtrace_preference_override(None);
         let result = detect_backtrace_preference();
         reset_backtrace_preference();
-        let _ = result;
+        assert!(
+            result,
+            "backtrace should be enabled by default when feature is on"
+        );
     }
 
     #[test]

@@ -83,13 +83,17 @@ mod tests {
     use super::*;
     use crate::{AppErrorKind, FieldValue};
 
+    async fn make_timeout_error() -> Error {
+        let fut = sleep(Duration::from_millis(20));
+        timeout(Duration::from_millis(1), fut)
+            .await
+            .expect_err("expect timeout")
+            .into()
+    }
+
     #[tokio::test]
     async fn elapsed_maps_to_timeout() {
-        let fut = sleep(Duration::from_millis(20));
-        let err = timeout(Duration::from_millis(1), fut)
-            .await
-            .expect_err("expect timeout");
-        let app_err: Error = err.into();
+        let app_err = make_timeout_error().await;
         assert!(matches!(app_err.kind, AppErrorKind::Timeout));
         assert_eq!(
             app_err.metadata().get("timeout.source"),
@@ -99,62 +103,37 @@ mod tests {
 
     #[tokio::test]
     async fn elapsed_conversion_preserves_source() {
-        let fut = sleep(Duration::from_millis(20));
-        let err = timeout(Duration::from_millis(1), fut)
-            .await
-            .expect_err("expect timeout");
-        let app_err: Error = err.into();
+        let app_err = make_timeout_error().await;
         assert!(app_err.source().is_some());
     }
 
     #[tokio::test]
     async fn elapsed_error_display() {
-        let fut = sleep(Duration::from_millis(20));
-        let err = timeout(Duration::from_millis(1), fut)
-            .await
-            .expect_err("expect timeout");
-        let app_err: Error = err.into();
+        let app_err = make_timeout_error().await;
         let display = format!("{}", app_err);
         assert!(!display.is_empty());
     }
 
     #[tokio::test]
     async fn elapsed_error_debug() {
-        let fut = sleep(Duration::from_millis(20));
-        let err = timeout(Duration::from_millis(1), fut)
-            .await
-            .expect_err("expect timeout");
-        let app_err: Error = err.into();
+        let app_err = make_timeout_error().await;
         let debug = format!("{:?}", app_err);
         assert!(debug.contains("Timeout"));
     }
 
     #[tokio::test]
     async fn elapsed_metadata_contains_source_field() {
-        let fut = sleep(Duration::from_millis(20));
-        let err = timeout(Duration::from_millis(1), fut)
-            .await
-            .expect_err("expect timeout");
-        let app_err: Error = err.into();
-        let metadata = app_err.metadata();
+        let app_err = make_timeout_error().await;
         assert_eq!(
-            metadata.get("timeout.source"),
+            app_err.metadata().get("timeout.source"),
             Some(&FieldValue::Str("tokio::time::timeout".into()))
         );
     }
 
     #[tokio::test]
     async fn multiple_elapsed_errors_convert_consistently() {
-        let fut1 = sleep(Duration::from_millis(20));
-        let err1 = timeout(Duration::from_millis(1), fut1)
-            .await
-            .expect_err("expect timeout");
-        let app_err1: Error = err1.into();
-        let fut2 = sleep(Duration::from_millis(30));
-        let err2 = timeout(Duration::from_millis(1), fut2)
-            .await
-            .expect_err("expect timeout");
-        let app_err2: Error = err2.into();
+        let app_err1 = make_timeout_error().await;
+        let app_err2 = make_timeout_error().await;
         assert!(matches!(app_err1.kind, AppErrorKind::Timeout));
         assert!(matches!(app_err2.kind, AppErrorKind::Timeout));
         assert_eq!(
@@ -165,21 +144,13 @@ mod tests {
 
     #[tokio::test]
     async fn elapsed_kind_is_exactly_timeout() {
-        let fut = sleep(Duration::from_millis(20));
-        let err = timeout(Duration::from_millis(1), fut)
-            .await
-            .expect_err("expect timeout");
-        let app_err: Error = err.into();
+        let app_err = make_timeout_error().await;
         assert_eq!(app_err.kind, AppErrorKind::Timeout);
     }
 
     #[tokio::test]
     async fn elapsed_source_is_elapsed_type() {
-        let fut = sleep(Duration::from_millis(20));
-        let err = timeout(Duration::from_millis(1), fut)
-            .await
-            .expect_err("expect timeout");
-        let app_err: Error = err.into();
+        let app_err = make_timeout_error().await;
         let source = app_err.source().expect("source should exist");
         assert!(source.is::<Elapsed>());
     }
@@ -196,11 +167,7 @@ mod tests {
 
     #[tokio::test]
     async fn elapsed_error_implements_std_error() {
-        let fut = sleep(Duration::from_millis(20));
-        let err = timeout(Duration::from_millis(1), fut)
-            .await
-            .expect_err("expect timeout");
-        let app_err: Error = err.into();
+        let app_err = make_timeout_error().await;
         let _: &dyn StdError = &app_err;
     }
 
@@ -216,11 +183,7 @@ mod tests {
 
     #[tokio::test]
     async fn elapsed_metadata_is_not_empty() {
-        let fut = sleep(Duration::from_millis(20));
-        let err = timeout(Duration::from_millis(1), fut)
-            .await
-            .expect_err("expect timeout");
-        let app_err: Error = err.into();
+        let app_err = make_timeout_error().await;
         assert!(!app_err.metadata().is_empty());
     }
 }

@@ -170,20 +170,26 @@ fn enum_app_code_impl(input: &ErrorInput, variants: &[VariantData]) -> TokenStre
     }
 }
 
-fn variant_app_error_pattern(enum_ident: &syn::Ident, variant: &VariantData) -> TokenStream {
+fn variant_pattern(
+    enum_ident: &syn::Ident,
+    variant: &VariantData,
+    with_binding: bool
+) -> TokenStream {
     let ident = &variant.ident;
-    match &variant.fields {
-        Fields::Unit => quote! { err @ #enum_ident::#ident },
-        Fields::Named(_) => quote! { err @ #enum_ident::#ident { .. } },
-        Fields::Unnamed(_) => quote! { err @ #enum_ident::#ident(..) }
+    match (&variant.fields, with_binding) {
+        (Fields::Unit, true) => quote! { err @ #enum_ident::#ident },
+        (Fields::Unit, false) => quote! { #enum_ident::#ident },
+        (Fields::Named(_), true) => quote! { err @ #enum_ident::#ident { .. } },
+        (Fields::Named(_), false) => quote! { #enum_ident::#ident { .. } },
+        (Fields::Unnamed(_), true) => quote! { err @ #enum_ident::#ident(..) },
+        (Fields::Unnamed(_), false) => quote! { #enum_ident::#ident(..) }
     }
 }
 
+fn variant_app_error_pattern(enum_ident: &syn::Ident, variant: &VariantData) -> TokenStream {
+    variant_pattern(enum_ident, variant, true)
+}
+
 fn variant_app_code_pattern(enum_ident: &syn::Ident, variant: &VariantData) -> TokenStream {
-    let ident = &variant.ident;
-    match &variant.fields {
-        Fields::Unit => quote! { #enum_ident::#ident },
-        Fields::Named(_) => quote! { #enum_ident::#ident { .. } },
-        Fields::Unnamed(_) => quote! { #enum_ident::#ident(..) }
-    }
+    variant_pattern(enum_ident, variant, false)
 }

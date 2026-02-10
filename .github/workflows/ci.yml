@@ -36,7 +36,8 @@ env:
   RUST_BACKTRACE: short
   RUSTFLAGS: -D warnings
   # Crate publish order (dependencies first)
-  CRATES: "masterror-template masterror-derive masterror"
+  # template → derive → knowledge → masterror → cli
+  CRATES: "masterror-template masterror-derive masterror-knowledge masterror masterror-cli"
 
 jobs:
   # ════════════════════════════════════════════════════════════════════════════
@@ -59,12 +60,159 @@ jobs:
           echo "MSRV: $MSRV"
 
   # ════════════════════════════════════════════════════════════════════════════
+  # Detect changed crates (dependency-aware)
+  # ════════════════════════════════════════════════════════════════════════════
+
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      # Individual crate changes
+      template: ${{ steps.filter.outputs.template }}
+      derive: ${{ steps.filter.outputs.derive }}
+      knowledge: ${{ steps.filter.outputs.knowledge }}
+      masterror: ${{ steps.filter.outputs.masterror }}
+      cli: ${{ steps.filter.outputs.cli }}
+      # Dependency-aware: need to rebuild these
+      need-template: ${{ steps.deps.outputs.need-template }}
+      need-derive: ${{ steps.deps.outputs.need-derive }}
+      need-knowledge: ${{ steps.deps.outputs.need-knowledge }}
+      need-masterror: ${{ steps.deps.outputs.need-masterror }}
+      need-cli: ${{ steps.deps.outputs.need-cli }}
+      # Any library changed (for full workspace checks)
+      any-lib: ${{ steps.deps.outputs.any-lib }}
+      # CI/config changed (force full rebuild)
+      ci: ${{ steps.filter.outputs.ci }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Detect file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            template:
+              - 'masterror-template/**'
+            derive:
+              - 'masterror-derive/**'
+            knowledge:
+              - 'masterror-knowledge/**'
+            masterror:
+              - 'src/**'
+              - 'Cargo.toml'
+              - 'build.rs'
+            cli:
+              - 'masterror-cli/**'
+            ci:
+              - '.github/workflows/**'
+              - 'Cargo.lock'
+              - 'deny.toml'
+              - 'cliff.toml'
+              - '.cargo/**'
+
+      - name: Compute dependency graph
+        id: deps
+        run: |
+          # Dependency graph:
+          # template ← derive ← masterror
+          #                   ↗
+          # knowledge ← cli
+          #          ↘ masterror (optional feature)
+
+          TEMPLATE="${{ steps.filter.outputs.template }}"
+          DERIVE="${{ steps.filter.outputs.derive }}"
+          KNOWLEDGE="${{ steps.filter.outputs.knowledge }}"
+          MASTERROR="${{ steps.filter.outputs.masterror }}"
+          CLI="${{ steps.filter.outputs.cli }}"
+          CI="${{ steps.filter.outputs.ci }}"
+
+          # Force all if CI config changed or workflow_dispatch
+          if [[ "$CI" == "true" ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "CI config changed or manual trigger - rebuilding all"
+            echo "need-template=true" >> "$GITHUB_OUTPUT"
+            echo "need-derive=true" >> "$GITHUB_OUTPUT"
+            echo "need-knowledge=true" >> "$GITHUB_OUTPUT"
+            echo "need-masterror=true" >> "$GITHUB_OUTPUT"
+            echo "need-cli=true" >> "$GITHUB_OUTPUT"
+            echo "any-lib=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # template: standalone
+          NEED_TEMPLATE="$TEMPLATE"
+
+          # derive: depends on template
+          if [[ "$DERIVE" == "true" ]] || [[ "$TEMPLATE" == "true" ]]; then
+            NEED_DERIVE=true
+          else
+            NEED_DERIVE=false
+          fi
+
+          # knowledge: standalone
+          NEED_KNOWLEDGE="$KNOWLEDGE"
+
+          # masterror: depends on template, derive, optionally knowledge
+          if [[ "$MASTERROR" == "true" ]] || [[ "$TEMPLATE" == "true" ]] || \
+             [[ "$DERIVE" == "true" ]] || [[ "$KNOWLEDGE" == "true" ]]; then
+            NEED_MASTERROR=true
+          else
+            NEED_MASTERROR=false
+          fi
+
+          # cli: depends on knowledge
+          if [[ "$CLI" == "true" ]] || [[ "$KNOWLEDGE" == "true" ]]; then
+            NEED_CLI=true
+          else
+            NEED_CLI=false
+          fi
+
+          # Any library changed?
+          if [[ "$NEED_TEMPLATE" == "true" ]] || [[ "$NEED_DERIVE" == "true" ]] || \
+             [[ "$NEED_KNOWLEDGE" == "true" ]] || [[ "$NEED_MASTERROR" == "true" ]] || \
+             [[ "$NEED_CLI" == "true" ]]; then
+            ANY_LIB=true
+          else
+            ANY_LIB=false
+          fi
+
+          echo "need-template=$NEED_TEMPLATE" >> "$GITHUB_OUTPUT"
+          echo "need-derive=$NEED_DERIVE" >> "$GITHUB_OUTPUT"
+          echo "need-knowledge=$NEED_KNOWLEDGE" >> "$GITHUB_OUTPUT"
+          echo "need-masterror=$NEED_MASTERROR" >> "$GITHUB_OUTPUT"
+          echo "need-cli=$NEED_CLI" >> "$GITHUB_OUTPUT"
+          echo "any-lib=$ANY_LIB" >> "$GITHUB_OUTPUT"
+
+          echo "Summary:"
+          echo "  template: $TEMPLATE → need: $NEED_TEMPLATE"
+          echo "  derive: $DERIVE → need: $NEED_DERIVE"
+          echo "  knowledge: $KNOWLEDGE → need: $NEED_KNOWLEDGE"
+          echo "  masterror: $MASTERROR → need: $NEED_MASTERROR"
+          echo "  cli: $CLI → need: $NEED_CLI"
+          echo "  any-lib: $ANY_LIB"
+
+          # GitHub Step Summary
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 🔍 Change Detection
+
+          | Crate | Changed | Rebuild |
+          |-------|---------|---------|
+          | masterror-template | $([[ "$TEMPLATE" == "true" ]] && echo "✅" || echo "—") | $([[ "$NEED_TEMPLATE" == "true" ]] && echo "🔨" || echo "⏭️") |
+          | masterror-derive | $([[ "$DERIVE" == "true" ]] && echo "✅" || echo "—") | $([[ "$NEED_DERIVE" == "true" ]] && echo "🔨" || echo "⏭️") |
+          | masterror-knowledge | $([[ "$KNOWLEDGE" == "true" ]] && echo "✅" || echo "—") | $([[ "$NEED_KNOWLEDGE" == "true" ]] && echo "🔨" || echo "⏭️") |
+          | masterror | $([[ "$MASTERROR" == "true" ]] && echo "✅" || echo "—") | $([[ "$NEED_MASTERROR" == "true" ]] && echo "🔨" || echo "⏭️") |
+          | masterror-cli | $([[ "$CLI" == "true" ]] && echo "✅" || echo "—") | $([[ "$NEED_CLI" == "true" ]] && echo "🔨" || echo "⏭️") |
+
+          **Legend:** ✅ = changed, 🔨 = will rebuild, ⏭️ = skipped, — = no changes
+          EOF
+
+  # ════════════════════════════════════════════════════════════════════════════
   # STAGE 1: CHECKS (parallel matrix)
   # ════════════════════════════════════════════════════════════════════════════
 
   check:
     name: Check (${{ matrix.rust }} / ${{ matrix.os }})
-    needs: msrv
+    needs: [msrv, changes]
+    if: needs.changes.outputs.any-lib == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -124,6 +272,8 @@ jobs:
 
   fmt:
     name: Format
+    needs: changes
+    if: needs.changes.outputs.any-lib == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -138,6 +288,8 @@ jobs:
 
   docs:
     name: Documentation
+    needs: changes
+    if: needs.changes.outputs.any-lib == 'true'
     runs-on: ubuntu-latest
     env:
       RUSTDOCFLAGS: -D warnings
@@ -155,6 +307,8 @@ jobs:
 
   no-std:
     name: no_std (${{ matrix.name }})
+    needs: changes
+    if: needs.changes.outputs.need-masterror == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -185,7 +339,7 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Check ${{ matrix.name }}
-        run: cargo check ${{ matrix.args }}
+        run: cargo check -p masterror ${{ matrix.args }}
 
   security:
     name: Security Audit
@@ -225,8 +379,16 @@ jobs:
 
   test:
     name: Test Suite
-    needs: [check, fmt, no-std, security, reuse]
-    if: ${{ !inputs.skip_tests }}
+    needs: [changes, check, fmt, no-std, security, reuse]
+    if: |
+      always() &&
+      !inputs.skip_tests &&
+      needs.changes.outputs.any-lib == 'true' &&
+      (needs.check.result == 'success' || needs.check.result == 'skipped') &&
+      (needs.fmt.result == 'success' || needs.fmt.result == 'skipped') &&
+      (needs['no-std'].result == 'success' || needs['no-std'].result == 'skipped') &&
+      needs.security.result == 'success' &&
+      needs.reuse.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -262,7 +424,11 @@ jobs:
 
   coverage:
     name: Coverage
-    needs: test
+    needs: [changes, test]
+    if: |
+      always() &&
+      needs.changes.outputs.any-lib == 'true' &&
+      needs.test.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -309,9 +475,13 @@ jobs:
 
   benchmarks:
     name: Benchmarks
-    needs: test
+    needs: [changes, test]
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    if: |
+      always() &&
+      needs.changes.outputs.need-masterror == 'true' &&
+      needs.test.result == 'success' &&
+      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
     steps:
       - uses: actions/checkout@v5
 
@@ -340,12 +510,18 @@ jobs:
 
   changelog:
     name: Update Changelog
-    needs: [check, fmt, no-std, security, reuse]
+    needs: [changes, check, fmt, no-std, security, reuse]
     runs-on: ubuntu-latest
     if: |
+      always() &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       github.ref == 'refs/heads/main' &&
-      !contains(github.event.head_commit.message || '', '[skip ci]')
+      !contains(github.event.head_commit.message || '', '[skip ci]') &&
+      (needs.check.result == 'success' || needs.check.result == 'skipped') &&
+      (needs.fmt.result == 'success' || needs.fmt.result == 'skipped') &&
+      (needs['no-std'].result == 'success' || needs['no-std'].result == 'skipped') &&
+      needs.security.result == 'success' &&
+      needs.reuse.result == 'success'
     steps:
       - uses: actions/checkout@v5
         with:
@@ -412,10 +588,12 @@ jobs:
 
   release:
     name: Release
-    needs: [test, changelog]
+    needs: [changes, test, changelog]
     if: |
       always() &&
+      needs.changes.outputs.any-lib == 'true' &&
       (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+      (needs.changelog.result == 'success' || needs.changelog.result == 'skipped') &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       github.ref == 'refs/heads/main' &&
       !contains(github.event.head_commit.message || '', '[skip ci]')
@@ -508,7 +686,7 @@ jobs:
           declare -A LOCAL REMOTE NEEDS_PUBLISH
           PUBLISHED_ANY=false
 
-          for crate in masterror-template masterror-derive masterror; do
+          for crate in $CRATES; do
             LOCAL[$crate]=$(get_local_version "$crate")
             REMOTE[$crate]=$(get_remote_version "$crate")
 
@@ -527,16 +705,21 @@ jobs:
           # Dependency-aware publishing
           # ══════════════════════════════════════════════════════════════════
 
-          # If derive changes, masterror should also be republished
-          # (it depends on derive, users need consistent versions)
+          # Dependency consistency warnings
           if [[ "${NEEDS_PUBLISH[masterror-derive]}" == "true" ]] && \
              [[ "${NEEDS_PUBLISH[masterror]}" == "false" ]]; then
             warn "masterror-derive changed but masterror version unchanged"
             warn "Consider bumping masterror version for dependency consistency"
           fi
 
-          # Publish in order: template → derive → masterror
-          for crate in masterror-template masterror-derive masterror; do
+          if [[ "${NEEDS_PUBLISH[masterror-knowledge]}" == "true" ]] && \
+             [[ "${NEEDS_PUBLISH[masterror-cli]}" == "false" ]]; then
+            warn "masterror-knowledge changed but masterror-cli version unchanged"
+            warn "Consider bumping masterror-cli version for dependency consistency"
+          fi
+
+          # Publish in order: template → derive → knowledge → masterror → cli
+          for crate in $CRATES; do
             if [[ "${NEEDS_PUBLISH[$crate]}" == "true" ]]; then
               if publish_crate "$crate"; then
                 PUBLISHED_ANY=true
@@ -605,7 +788,9 @@ jobs:
           |-------|--------|
           | masterror-template | ${{ steps.publish.outputs.published == 'true' && '✅ Published' || '⏭️ Skipped' }} |
           | masterror-derive | ${{ steps.publish.outputs.published == 'true' && '✅ Published' || '⏭️ Skipped' }} |
+          | masterror-knowledge | ${{ steps.publish.outputs.published == 'true' && '✅ Published' || '⏭️ Skipped' }} |
           | masterror | ${{ steps.publish.outputs.published == 'true' && '✅ Published' || '⏭️ Skipped' }} |
+          | masterror-cli | ${{ steps.publish.outputs.published == 'true' && '✅ Published' || '⏭️ Skipped' }} |
 
           **Version:** `${{ steps.publish.outputs.version }}`
           EOF
@@ -681,19 +866,48 @@ jobs:
 
   ci-success:
     name: CI Success
-    needs: [check, fmt, docs, no-std, security, reuse, test]
+    needs: [changes, check, fmt, docs, no-std, security, reuse, test]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Check all jobs
         run: |
-          results="${{ needs.check.result }} ${{ needs.fmt.result }} ${{ needs.docs.result }} ${{ needs.no-std.result }} ${{ needs.security.result }} ${{ needs.reuse.result }} ${{ needs.test.result }}"
+          echo "Job results:"
+          echo "  changes: ${{ needs.changes.result }}"
+          echo "  check: ${{ needs.check.result }}"
+          echo "  fmt: ${{ needs.fmt.result }}"
+          echo "  docs: ${{ needs.docs.result }}"
+          echo "  no-std: ${{ needs['no-std'].result }}"
+          echo "  security: ${{ needs.security.result }}"
+          echo "  reuse: ${{ needs.reuse.result }}"
+          echo "  test: ${{ needs.test.result }}"
 
-          for r in $results; do
-            if [[ "$r" == "failure" ]]; then
-              echo "::error::One or more required jobs failed"
-              exit 1
-            fi
-          done
+          FAILED=false
 
-          echo "✅ All CI checks passed!"
+          # Changes detection must succeed
+          [[ "${{ needs.changes.result }}" != "success" ]] && \
+            echo "::error::Changes detection failed" && FAILED=true
+
+          # Security and REUSE must always pass
+          [[ "${{ needs.security.result }}" == "failure" ]] && \
+            echo "::error::Security audit failed" && FAILED=true
+          [[ "${{ needs.reuse.result }}" == "failure" ]] && \
+            echo "::error::REUSE compliance failed" && FAILED=true
+
+          # Other jobs: failure is not OK (skipped is fine)
+          [[ "${{ needs.check.result }}" == "failure" ]] && \
+            echo "::error::Check job failed" && FAILED=true
+          [[ "${{ needs.fmt.result }}" == "failure" ]] && \
+            echo "::error::Format job failed" && FAILED=true
+          [[ "${{ needs.docs.result }}" == "failure" ]] && \
+            echo "::error::Docs job failed" && FAILED=true
+          [[ "${{ needs['no-std'].result }}" == "failure" ]] && \
+            echo "::error::no-std job failed" && FAILED=true
+          [[ "${{ needs.test.result }}" == "failure" ]] && \
+            echo "::error::Test job failed" && FAILED=true
+
+          if [[ "$FAILED" == "true" ]]; then
+            exit 1
+          fi
+
+          echo "✅ All CI checks passed (some may have been skipped due to no changes)"

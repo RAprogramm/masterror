@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -18,7 +18,10 @@ use serde_json::Value as JsonValue;
 #[cfg(not(feature = "backtrace"))]
 use super::types::CapturedBacktrace;
 use super::types::MessageEditPolicy;
-use crate::{AppCode, AppErrorKind, RetryAdvice, app_error::metadata::Metadata};
+use crate::{
+    AppCode, AppErrorKind, RetryAdvice,
+    app_error::{diagnostics::Diagnostics, metadata::Metadata}
+};
 
 /// Internal representation of error state.
 ///
@@ -49,6 +52,10 @@ pub struct ErrorInner {
     #[cfg(not(feature = "serde_json"))]
     pub details:                Option<String>,
     pub source:                 Option<Arc<dyn CoreError + Send + Sync + 'static>>,
+    /// Diagnostic information (hints, suggestions, documentation).
+    ///
+    /// Stored as `Option<Box<...>>` for zero-cost when not used.
+    pub diagnostics:            Option<Box<Diagnostics>>,
     #[cfg(feature = "backtrace")]
     pub backtrace:              Option<Arc<Backtrace>>,
     #[cfg(feature = "backtrace")]
@@ -93,42 +100,7 @@ impl DerefMut for Error {
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        #[cfg(not(feature = "colored"))]
-        {
-            Display::fmt(&self.kind, f)
-        }
-        #[cfg(feature = "colored")]
-        {
-            use crate::colored::style;
-            writeln!(f, "Error: {}", self.kind)?;
-            writeln!(f, "Code: {}", style::error_code(self.code.to_string()))?;
-            if let Some(msg) = &self.message {
-                writeln!(f, "Message: {}", style::error_message(msg))?;
-            }
-            if let Some(source) = &self.source {
-                writeln!(f)?;
-                let mut current: &dyn CoreError = source.as_ref();
-                let mut depth = 0;
-                while depth < 10 {
-                    write!(f, "  {}: ", style::source_context("Caused by"))?;
-                    writeln!(f, "{}", style::source_context(current.to_string()))?;
-                    if let Some(next) = current.source() {
-                        current = next;
-                        depth += 1;
-                    } else {
-                        break;
-                    }
-                }
-            }
-            if !self.metadata.is_empty() {
-                writeln!(f)?;
-                writeln!(f, "Context:")?;
-                for (key, value) in self.metadata.iter() {
-                    writeln!(f, "  {}: {}", style::metadata_key(key), value)?;
-                }
-            }
-            Ok(())
-        }
+        self.fmt_local(f)
     }
 }
 
@@ -194,8 +166,9 @@ impl Error {
                 www_authenticate: None,
                 details: None,
                 source: None,
+                diagnostics: None,
                 #[cfg(feature = "backtrace")]
-                backtrace: None,
+                backtrace: super::backtrace::capture_backtrace_snapshot(),
                 #[cfg(feature = "backtrace")]
                 captured_backtrace: OnceLock::new(),
                 telemetry_dirty: AtomicBool::new(true),

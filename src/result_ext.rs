@@ -312,4 +312,64 @@ mod tests {
         assert_eq!(source.kind, AppErrorKind::BadRequest);
         assert_eq!(source.message.as_deref(), Some("missing flag"));
     }
+
+    #[test]
+    fn context_with_owned_string() {
+        let result: Result<(), DummyError> = Err(DummyError);
+        let err = result
+            .context(String::from("owned message"))
+            .expect_err("err");
+        assert_eq!(err.message.as_deref(), Some("owned message"));
+    }
+
+    #[test]
+    fn context_preserves_www_authenticate() {
+        let base = Error::unauthorized("need auth").with_www_authenticate("Bearer realm=\"api\"");
+        let err = Result::<(), Error>::Err(base)
+            .context("auth context")
+            .expect_err("err");
+        assert_eq!(
+            err.www_authenticate.as_deref(),
+            Some("Bearer realm=\"api\"")
+        );
+    }
+
+    #[test]
+    fn context_preserves_retry() {
+        let base = Error::service("retry later").with_retry_after_secs(30);
+        let err = Result::<(), Error>::Err(base)
+            .context("wrapped")
+            .expect_err("err");
+        assert!(err.retry.is_some());
+        assert_eq!(err.retry.unwrap().after_seconds, 30);
+    }
+
+    #[cfg(feature = "serde_json")]
+    #[test]
+    fn context_preserves_details() {
+        let base = Error::internal("error").with_details_json(serde_json::json!({"key": "value"}));
+        let err = Result::<(), Error>::Err(base)
+            .context("wrapped")
+            .expect_err("err");
+        assert!(err.details.is_some());
+    }
+
+    #[test]
+    fn ctx_with_custom_code() {
+        let result: Result<(), DummyError> = Err(DummyError);
+        let err = result
+            .ctx(|| Context::new(AppErrorKind::NotFound).code(AppCode::NotFound))
+            .expect_err("err");
+        assert_eq!(err.kind, AppErrorKind::NotFound);
+        assert_eq!(err.code, AppCode::NotFound);
+    }
+
+    #[test]
+    fn ctx_with_category_change() {
+        let result: Result<(), DummyError> = Err(DummyError);
+        let err = result
+            .ctx(|| Context::new(AppErrorKind::Internal).category(AppErrorKind::Service))
+            .expect_err("err");
+        assert_eq!(err.kind, AppErrorKind::Service);
+    }
 }

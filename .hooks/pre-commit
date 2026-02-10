@@ -20,6 +20,25 @@ else
     echo "   - pip:        pip install reuse"
 fi
 
+echo "🔧 Linting GitHub Actions..."
+if command -v actionlint &> /dev/null; then
+    actionlint
+else
+    echo "⚠️  Warning: actionlint not installed, skipping Actions linting"
+    echo "   Install with:"
+    echo "   - Arch Linux: paru -S actionlint"
+    echo "   - Go:         go install github.com/rhysd/actionlint/cmd/actionlint@latest"
+    echo "   - Homebrew:   brew install actionlint"
+fi
+
+echo "🔒 Checking no_std compatibility..."
+cargo check --no-default-features -q
+cargo check --features std -q
+cargo check --no-default-features --features tracing -q
+cargo check --no-default-features --features metrics -q
+cargo check --no-default-features --features colored -q
+cargo check --all-features -q
+
 echo "🔍 Running clippy (all features, all targets)..."
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 
