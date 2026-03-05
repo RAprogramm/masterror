@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 
+- **deps:** Bump bytes from 1.11.0 to 1.11.1 by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#422](https://github.com/RAprogramm/masterror/pull/422)
 - **deps:** Bump the minor-and-patch group with 4 updates by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#420](https://github.com/RAprogramm/masterror/pull/420)
 - **deps:** Bump reqwest from 0.12.28 to 0.13.1 by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#421](https://github.com/RAprogramm/masterror/pull/421)
 - **deps:** Bump the minor-and-patch group with 3 updates by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#363](https://github.com/RAprogramm/masterror/pull/363)
