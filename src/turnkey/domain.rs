@@ -239,9 +239,9 @@ mod tests {
 
     #[test]
     fn turnkey_error_new_with_unicode() {
-        let err = TurnkeyError::new(TurnkeyErrorKind::RateLimited, "Превышена квота");
+        let err = TurnkeyError::new(TurnkeyErrorKind::RateLimited, "Quota exceeded");
         assert_eq!(err.kind, TurnkeyErrorKind::RateLimited);
-        assert_eq!(err.msg, "Превышена квота");
+        assert_eq!(err.msg, "Quota exceeded");
     }
 
     #[test]

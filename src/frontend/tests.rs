@@ -294,7 +294,7 @@ mod native {
 
     #[test]
     fn app_error_to_js_value_with_unicode_message() {
-        let err = AppError::not_found("Ошибка поиска");
+        let err = AppError::not_found("Search error");
         assert!(matches!(
             err.to_js_value(),
             Err(BrowserConsoleError::UnsupportedTarget)

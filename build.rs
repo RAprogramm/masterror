@@ -59,7 +59,7 @@ struct ErrorGenericSupport {
     requires_feature_attr: bool
 }
 
-// Твоя прежняя эвристика: target/package/... => packaged
+// Your previous heuristic: target/package/... => packaged
 fn is_packaged_manifest(manifest_dir: &Path) -> bool {
     let mut seen_target = false;
     for comp in manifest_dir.components() {
@@ -78,8 +78,8 @@ fn is_packaged_manifest(manifest_dir: &Path) -> bool {
     false
 }
 
-// Проверяем .git по цепочке вверх (workspace корень часто выше
-// crate-директории)
+// Check .git up the chain (workspace root is often above
+// the crate directory)
 fn has_git_anywhere(mut dir: &Path) -> bool {
     loop {
         if dir.join(".git").exists() {

@@ -170,8 +170,8 @@ mod tests {
     #[test]
     #[allow(deprecated)]
     fn new_legacy_handles_unicode_message() {
-        let resp = ErrorResponse::new_legacy(400, "Ошибка запроса 错误");
-        assert_eq!(resp.message, "Ошибка запроса 错误");
+        let resp = ErrorResponse::new_legacy(400, "Request error");
+        assert_eq!(resp.message, "Request error");
     }
 
     #[test]

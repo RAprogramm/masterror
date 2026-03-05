@@ -169,12 +169,13 @@ mod tests {
     #[cfg(feature = "reqwest")]
     #[test]
     fn network_detail_is_hashed() {
+        // Use reqwest 0.12 for compatibility with teloxide-core
         let runtime = Builder::new_current_thread()
             .enable_all()
             .build()
             .expect("runtime");
         let reqwest_err = runtime.block_on(async {
-            reqwest::Client::builder()
+            reqwest_012::Client::builder()
                 .timeout(Duration::from_millis(10))
                 .build()
                 .expect("client")
@@ -183,6 +184,7 @@ mod tests {
                 .await
                 .expect_err("expected failure")
         });
+
         let err = RequestError::Network(Arc::new(reqwest_err));
         let app_err: Error = err.into();
         let metadata = app_err.metadata();

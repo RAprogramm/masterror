@@ -26,7 +26,7 @@ fn create_test_router() -> Router {
 #[tokio::test]
 async fn health_check_returns_ok() {
     let app = Router::new().route("/health", get(|| async { "OK" }));
-    let server = TestServer::new(app).unwrap();
+    let server = TestServer::new(app);
     let response = server.get("/health").await;
     assert_eq!(response.status_code(), StatusCode::OK);
     assert_eq!(response.text(), "OK");
@@ -34,7 +34,7 @@ async fn health_check_returns_ok() {
 
 #[tokio::test]
 async fn create_user_returns_201() {
-    let server = TestServer::new(create_test_router()).unwrap();
+    let server = TestServer::new(create_test_router());
     let response = server
         .post("/users")
         .json(&json!({
@@ -50,8 +50,8 @@ async fn create_user_returns_201() {
 
 #[tokio::test]
 async fn create_user_with_invalid_email_returns_422() {
-    let server = TestServer::new(create_test_router()).unwrap();
-    let response = server
+    let server = TestServer::new(create_test_router());
+    let response: axum_test::TestResponse = server
         .post("/users")
         .json(&json!({
             "name": "Bob",
@@ -66,8 +66,8 @@ async fn create_user_with_invalid_email_returns_422() {
 
 #[tokio::test]
 async fn create_user_with_short_name_returns_422() {
-    let server = TestServer::new(create_test_router()).unwrap();
-    let response = server
+    let server = TestServer::new(create_test_router());
+    let response: axum_test::TestResponse = server
         .post("/users")
         .json(&json!({
             "name": "A",
@@ -86,7 +86,7 @@ async fn create_user_with_short_name_returns_422() {
 
 #[tokio::test]
 async fn create_duplicate_email_returns_409() {
-    let server = TestServer::new(create_test_router()).unwrap();
+    let server = TestServer::new(create_test_router());
     server
         .post("/users")
         .json(&json!({
@@ -94,7 +94,7 @@ async fn create_duplicate_email_returns_409() {
             "email": "alice@example.com"
         }))
         .await;
-    let response = server
+    let response: axum_test::TestResponse = server
         .post("/users")
         .json(&json!({
             "name": "Bob",
@@ -109,8 +109,8 @@ async fn create_duplicate_email_returns_409() {
 
 #[tokio::test]
 async fn get_user_returns_200() {
-    let server = TestServer::new(create_test_router()).unwrap();
-    let create_response = server
+    let server = TestServer::new(create_test_router());
+    let create_response: axum_test::TestResponse = server
         .post("/users")
         .json(&json!({
             "name": "Charlie",
@@ -118,7 +118,8 @@ async fn get_user_returns_200() {
         }))
         .await;
     let created_user: User = create_response.json();
-    let response = server.get(&format!("/users/{}", created_user.id)).await;
+    let response: axum_test::TestResponse =
+        server.get(&format!("/users/{}", created_user.id)).await;
     assert_eq!(response.status_code(), StatusCode::OK);
     let user: User = response.json();
     assert_eq!(user.id, created_user.id);
@@ -127,9 +128,9 @@ async fn get_user_returns_200() {
 
 #[tokio::test]
 async fn get_nonexistent_user_returns_404() {
-    let server = TestServer::new(create_test_router()).unwrap();
+    let server = TestServer::new(create_test_router());
     let fake_id = Uuid::new_v4();
-    let response = server.get(&format!("/users/{}", fake_id)).await;
+    let response: axum_test::TestResponse = server.get(&format!("/users/{}", fake_id)).await;
     assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
     let body: serde_json::Value = response.json();
     assert_eq!(body["status"], 404);
@@ -138,8 +139,8 @@ async fn get_nonexistent_user_returns_404() {
 
 #[tokio::test]
 async fn update_user_returns_200() {
-    let server = TestServer::new(create_test_router()).unwrap();
-    let create_response = server
+    let server = TestServer::new(create_test_router());
+    let create_response: axum_test::TestResponse = server
         .post("/users")
         .json(&json!({
             "name": "Dave",
@@ -147,7 +148,7 @@ async fn update_user_returns_200() {
         }))
         .await;
     let created_user: User = create_response.json();
-    let response = server
+    let response: axum_test::TestResponse = server
         .put(&format!("/users/{}", created_user.id))
         .json(&json!({
             "name": "Dave Updated",
@@ -162,9 +163,9 @@ async fn update_user_returns_200() {
 
 #[tokio::test]
 async fn update_nonexistent_user_returns_404() {
-    let server = TestServer::new(create_test_router()).unwrap();
+    let server = TestServer::new(create_test_router());
     let fake_id = Uuid::new_v4();
-    let response = server
+    let response: axum_test::TestResponse = server
         .put(&format!("/users/{}", fake_id))
         .json(&json!({
             "name": "Ghost",
@@ -176,8 +177,8 @@ async fn update_nonexistent_user_returns_404() {
 
 #[tokio::test]
 async fn delete_user_returns_204() {
-    let server = TestServer::new(create_test_router()).unwrap();
-    let create_response = server
+    let server = TestServer::new(create_test_router());
+    let create_response: axum_test::TestResponse = server
         .post("/users")
         .json(&json!({
             "name": "Eve",
@@ -185,16 +186,18 @@ async fn delete_user_returns_204() {
         }))
         .await;
     let created_user: User = create_response.json();
-    let response = server.delete(&format!("/users/{}", created_user.id)).await;
+    let response: axum_test::TestResponse =
+        server.delete(&format!("/users/{}", created_user.id)).await;
     assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
-    let get_response = server.get(&format!("/users/{}", created_user.id)).await;
+    let get_response: axum_test::TestResponse =
+        server.get(&format!("/users/{}", created_user.id)).await;
     assert_eq!(get_response.status_code(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
 async fn delete_nonexistent_user_returns_404() {
-    let server = TestServer::new(create_test_router()).unwrap();
+    let server = TestServer::new(create_test_router());
     let fake_id = Uuid::new_v4();
-    let response = server.delete(&format!("/users/{}", fake_id)).await;
+    let response: axum_test::TestResponse = server.delete(&format!("/users/{}", fake_id)).await;
     assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
 }

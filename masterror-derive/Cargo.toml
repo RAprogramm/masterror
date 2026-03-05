@@ -1,11 +1,11 @@
-# SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+# SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 #
 # SPDX-License-Identifier: MIT
 
 [package]
 name = "masterror-derive"
-rust-version = "1.92"
-version = "0.11.2"
+rust-version = "1.93"
+version = "0.11.3"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/RAprogramm/masterror"

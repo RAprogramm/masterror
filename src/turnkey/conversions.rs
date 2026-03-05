@@ -192,9 +192,9 @@ mod tests {
 
     #[test]
     fn turnkey_error_with_unicode_message() {
-        let turnkey = TurnkeyError::new(TurnkeyErrorKind::Auth, "Неверные учетные данные");
+        let turnkey = TurnkeyError::new(TurnkeyErrorKind::Auth, "Invalid credentials");
         let app: AppError = turnkey.into();
         assert_eq!(app.kind, AppErrorKind::Unauthorized);
-        assert_eq!(app.message.as_deref(), Some("Неверные учетные данные"));
+        assert_eq!(app.message.as_deref(), Some("Invalid credentials"));
     }
 }

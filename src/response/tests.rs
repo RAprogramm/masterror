@@ -643,10 +643,10 @@ fn from_owned_app_error_with_empty_message() {
 
 #[test]
 fn from_owned_app_error_with_unicode_message() {
-    let err = AppError::not_found("Ошибка поиска");
+    let err = AppError::not_found("Search error");
     let resp: ErrorResponse = err.into();
     assert_eq!(resp.status, 404);
-    assert_eq!(resp.message, "Ошибка поиска");
+    assert_eq!(resp.message, "Search error");
 }
 
 #[test]

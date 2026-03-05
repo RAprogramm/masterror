@@ -1,11 +1,11 @@
-# SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+# SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 #
 # SPDX-License-Identifier: MIT
 
 [package]
 name = "masterror-template"
-version = "0.4.1"
-rust-version = "1.92"
+version = "0.4.2"
+rust-version = "1.93"
 edition = "2024"
 repository = "https://github.com/RAprogramm/masterror"
 readme = "README.md"

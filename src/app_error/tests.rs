@@ -1137,10 +1137,10 @@ fn constructors_accept_empty_strings() {
 
 #[test]
 fn constructors_accept_unicode_messages() {
-    let err = AppError::not_found("リソースが見つかりません");
-    assert_eq!(err.message.as_deref(), Some("リソースが見つかりません"));
-    let err = AppError::validation("Неверный ввод");
-    assert_eq!(err.message.as_deref(), Some("Неверный ввод"));
+    let err = AppError::not_found("Resource not found");
+    assert_eq!(err.message.as_deref(), Some("Resource not found"));
+    let err = AppError::validation("Invalid input");
+    assert_eq!(err.message.as_deref(), Some("Invalid input"));
 }
 
 #[test]

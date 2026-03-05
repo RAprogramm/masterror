@@ -118,7 +118,7 @@ mod actix_tests {
         assert_eq!(e.status_code().as_u16(), 422);
     }
 
-    #[actix_web::test] // ← вот это
+    #[actix_web::test]
     async fn error_response_sets_body_and_headers() -> AppResult<(), Box<dyn std::error::Error>> {
         let err = AppError::unauthorized("no token")
             .with_retry_after_secs(7)
