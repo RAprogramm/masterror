@@ -1,5 +1,4 @@
-# SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
-#
+# SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 # SPDX-License-Identifier: MIT
 
 [package]
@@ -22,4 +21,4 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 
 [dev-dependencies]
-axum-test = "19"
+axum-test = "20"
