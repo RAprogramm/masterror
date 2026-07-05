@@ -12,7 +12,7 @@ use {alloc::sync::Arc, std::backtrace::Backtrace};
 use super::backtrace::capture_backtrace_snapshot;
 use super::{
     error::Error,
-    types::{CapturedBacktrace, ErrorChain}
+    types::{CapturedBacktrace, ErrorChain, StoredSource}
 };
 use crate::app_error::metadata::Metadata;
 
@@ -85,7 +85,7 @@ impl Error {
     /// ```
     #[must_use]
     pub fn source_ref(&self) -> Option<&(dyn CoreError + Send + Sync + 'static)> {
-        self.source.as_deref()
+        self.source.as_ref().map(StoredSource::as_dyn)
     }
 
     /// Human-readable message or the kind fallback.
@@ -217,10 +217,23 @@ impl Error {
 
     /// Attempt to take ownership of the source error as a concrete type.
     ///
-    /// **Note:** This method is currently a stub and always returns
-    /// `Err(Self)`.
+    /// Succeeds when the immediate source (not this error itself, and not the
+    /// entire chain) is of type `E` and the error owns it exclusively, i.e.
+    /// the source was attached from an owned value via
+    /// [`with_source`](Self::with_source) or
+    /// [`with_context`](Self::with_context).
     ///
-    /// Use [`downcast_ref`](Self::downcast_ref) for inspecting error sources.
+    /// Sources attached as a shared [`Arc`](alloc::sync::Arc) via
+    /// [`with_source_arc`](Self::with_source_arc) are never extracted by
+    /// value, even when the `Arc` is uniquely referenced, because exclusive
+    /// ownership of an unsized `Arc` cannot be reclaimed without unsafe code.
+    /// Use [`downcast_ref`](Self::downcast_ref) to borrow such sources.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err(self)` with the error (including its source) intact when
+    /// no source is attached, the source is not of type `E`, or the source is
+    /// shared.
     ///
     /// # Examples
     ///
@@ -233,14 +246,44 @@ impl Error {
     /// let io_err = IoError::other("disk offline");
     /// let err = AppError::internal("boom").with_context(io_err);
     ///
-    /// assert!(err.downcast::<IoError>().is_err());
+    /// let io = err.downcast::<IoError>().expect("owned io source");
+    /// assert_eq!(io.to_string(), "disk offline");
     /// # }
     /// ```
-    pub fn downcast<E>(self) -> Result<Box<E>, Self>
+    ///
+    /// A failed downcast returns the original error unchanged:
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "std")] {
+    /// use std::{fmt::Error as FmtError, io::Error as IoError};
+    ///
+    /// use masterror::AppError;
+    ///
+    /// let err = AppError::internal("boom").with_context(IoError::other("disk offline"));
+    ///
+    /// let err = err
+    ///     .downcast::<FmtError>()
+    ///     .expect_err("source is not FmtError");
+    /// assert!(err.is::<IoError>());
+    /// # }
+    /// ```
+    pub fn downcast<E>(mut self) -> Result<Box<E>, Self>
     where
         E: CoreError + 'static
     {
-        Err(self)
+        match self.source.take() {
+            Some(StoredSource::Owned(source)) => match source.downcast::<E>() {
+                Ok(source) => Ok(source),
+                Err(source) => {
+                    self.source = Some(StoredSource::Owned(source));
+                    Err(self)
+                }
+            },
+            other => {
+                self.source = other;
+                Err(self)
+            }
+        }
     }
 
     /// Attempt to downcast the attached source error to a concrete type by
@@ -276,9 +319,15 @@ impl Error {
     /// Attempt to downcast the attached source error to a concrete type by
     /// mutable reference.
     ///
-    /// **Note:** This method is currently a stub and always returns `None`.
+    /// Returns `Some(&mut E)` when the immediate source (not this error
+    /// itself, and not the entire chain) is of type `E` and mutable access is
+    /// possible: the source was attached from an owned value, or it was
+    /// attached as a shared [`Arc`](alloc::sync::Arc) that is currently
+    /// uniquely referenced.
     ///
-    /// Use [`downcast_ref`](Self::downcast_ref) for inspecting error sources.
+    /// Returns `None` when no source is attached, the source is not of type
+    /// `E`, or the source is a shared `Arc` with other strong or weak
+    /// references, since handing out `&mut E` would alias the other holders.
     ///
     /// # Examples
     ///
@@ -291,7 +340,14 @@ impl Error {
     /// let io_err = IoError::other("disk offline");
     /// let mut err = AppError::internal("boom").with_context(io_err);
     ///
-    /// assert!(err.downcast_mut::<IoError>().is_none());
+    /// let io = err.downcast_mut::<IoError>().expect("owned io source");
+    /// *io = IoError::other("disk replaced");
+    /// assert_eq!(
+    ///     err.downcast_ref::<IoError>()
+    ///         .expect("io source")
+    ///         .to_string(),
+    ///     "disk replaced"
+    /// );
     /// # }
     /// ```
     #[must_use]
@@ -299,6 +355,6 @@ impl Error {
     where
         E: CoreError + 'static
     {
-        None
+        self.source.as_mut()?.as_dyn_mut()?.downcast_mut::<E>()
     }
 }

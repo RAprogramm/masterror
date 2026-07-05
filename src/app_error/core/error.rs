@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: MIT
 
-use alloc::{borrow::Cow, boxed::Box, string::String, sync::Arc};
+#[cfg(feature = "backtrace")]
+use alloc::sync::Arc;
+use alloc::{borrow::Cow, boxed::Box, string::String};
 use core::{
     error::Error as CoreError,
     fmt::{Display, Formatter, Result as FmtResult},
@@ -17,7 +19,7 @@ use serde_json::Value as JsonValue;
 
 #[cfg(not(feature = "backtrace"))]
 use super::types::CapturedBacktrace;
-use super::types::MessageEditPolicy;
+use super::types::{MessageEditPolicy, StoredSource};
 use crate::{AppCode, AppErrorKind, RetryAdvice, app_error::metadata::Metadata};
 
 /// Internal representation of error state.
@@ -48,7 +50,7 @@ pub struct ErrorInner {
     /// Optional textual details when JSON is unavailable.
     #[cfg(not(feature = "serde_json"))]
     pub details:                Option<String>,
-    pub source:                 Option<Arc<dyn CoreError + Send + Sync + 'static>>,
+    pub source:                 Option<StoredSource>,
     #[cfg(feature = "backtrace")]
     pub backtrace:              Option<Arc<Backtrace>>,
     #[cfg(feature = "backtrace")]
@@ -107,7 +109,7 @@ impl Display for Error {
             }
             if let Some(source) = &self.source {
                 writeln!(f)?;
-                let mut current: &dyn CoreError = source.as_ref();
+                let mut current: &dyn CoreError = source.as_dyn();
                 let mut depth = 0;
                 while depth < 10 {
                     write!(f, "  {}: ", style::source_context("Caused by"))?;
@@ -135,8 +137,8 @@ impl Display for Error {
 impl CoreError for Error {
     fn source(&self) -> Option<&(dyn CoreError + 'static)> {
         self.source
-            .as_deref()
-            .map(|source| source as &(dyn CoreError + 'static))
+            .as_ref()
+            .map(|source| source.as_dyn() as &(dyn CoreError + 'static))
     }
 }
 

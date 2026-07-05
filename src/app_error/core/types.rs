@@ -32,6 +32,40 @@ where
     }
 }
 
+/// Storage for an attached source error.
+///
+/// Sources attached from owned values keep the `Owned` variant so that
+/// [`Error::downcast`](super::error::Error::downcast) can recover the concrete
+/// error by value. Sources attached from an existing [`Arc`] keep the `Shared`
+/// variant, which supports borrowing but never yields exclusive ownership.
+#[derive(Debug)]
+#[doc(hidden)]
+pub enum StoredSource {
+    Owned(Box<dyn CoreError + Send + Sync + 'static>),
+    Shared(Arc<dyn CoreError + Send + Sync + 'static>)
+}
+
+impl StoredSource {
+    /// Borrow the stored source as a trait object.
+    pub(crate) fn as_dyn(&self) -> &(dyn CoreError + Send + Sync + 'static) {
+        match self {
+            Self::Owned(source) => source.as_ref(),
+            Self::Shared(source) => source.as_ref()
+        }
+    }
+
+    /// Mutably borrow the stored source when ownership is exclusive.
+    ///
+    /// Returns `None` for a `Shared` source whose [`Arc`] has other strong or
+    /// weak references.
+    pub(crate) fn as_dyn_mut(&mut self) -> Option<&mut (dyn CoreError + Send + Sync + 'static)> {
+        match self {
+            Self::Owned(source) => Some(source.as_mut()),
+            Self::Shared(source) => Arc::get_mut(source)
+        }
+    }
+}
+
 #[cfg(feature = "std")]
 pub type CapturedBacktrace = std::backtrace::Backtrace;
 
