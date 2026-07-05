@@ -10,7 +10,10 @@
 //!   status.
 //! - Adds `Retry-After` if retry advice is present.
 //! - Adds `WWW-Authenticate` if an authentication challenge is present.
-//! - Redacts the message and metadata when the error is marked as private.
+//! - Redaction itself happens earlier, in
+//!   [`ProblemJson::from_app_error`](crate::ProblemJson::from_app_error), which
+//!   applies the error's message and metadata redaction policies before the
+//!   payload reaches this adapter.
 
 use axum::{
     Json,

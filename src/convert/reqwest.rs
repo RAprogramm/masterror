@@ -62,7 +62,8 @@ use crate::{AppErrorKind, Context, Error, FieldRedaction, field};
 ///
 /// - Timeout → `Timeout`
 /// - Connect or request build error → `Network`
-/// - Upstream returned HTTP error status → `ExternalApi`
+/// - Upstream HTTP error status: `429` → `RateLimited`, `408` → `Timeout`,
+///   `5xx` → `DependencyUnavailable`, others → `ExternalApi`
 /// - Fallback for other cases → `ExternalApi`
 ///
 /// # Example

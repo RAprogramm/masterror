@@ -52,12 +52,13 @@ pub mod telemetry;
 /// - `CapturedBacktrace` type alias
 pub mod types;
 
-/// Display formatting and environment-based output modes.
+/// Environment detection and alternative formatting helpers.
 ///
-/// Provides environment-aware error formatting with three modes:
-/// - Production: lightweight JSON, minimal fields
-/// - Local: human-readable with full context
-/// - Staging: JSON with additional context
+/// Provides [`DisplayMode`], which detects the deployment environment from
+/// `MASTERROR_ENV`, `KUBERNETES_SERVICE_HOST` or build configuration and
+/// caches the result. The `Display` implementation for `Error` does not
+/// consult this mode; it is a detection API for callers to choose their own
+/// formatting.
 pub mod display;
 
 #[cfg(all(test, feature = "backtrace"))]

@@ -9,10 +9,11 @@
 //! the crate’s [`AppError`]. It also conditionally enables transport adapters
 //! (Axum/Actix) to turn [`AppError`] into HTTP responses.  
 //!
-//! ## Always-on mappings
+//! ## Base mappings
 //!
-//! - [`std::io::Error`] → `AppErrorKind::Internal`   Infrastructure-level
-//!   failure; message preserved for logs only.
+//! - [`std::io::Error`] → `AppErrorKind::Internal` (requires the default `std`
+//!   feature)   Infrastructure-level failure; the error text becomes the public
+//!   message.
 //! - [`String`] → `AppErrorKind::BadRequest`   Lightweight validation helper
 //!   when you don’t pull in `validator`.
 //!
@@ -24,12 +25,15 @@
 //! - `axum` + `multipart`: Axum multipart parsing errors
 //! - `actix`: Actix `ResponseError` integration (not a mapping, but transport)
 //! - `config`: configuration loader errors
+//! - `init-data`: Telegram Mini Apps init-data validation errors
 //! - `redis`: Redis client errors
 //! - `reqwest`: HTTP client errors
-//! - `serde_json`: JSON conversion helpers (if you attach JSON details
-//!   manually)
-//! - `sqlx`: database driver errors
+//! - `serde_json`: `serde_json::Error` classification into
+//!   `Serialization`/`Deserialization`
+//! - `sqlx`: database driver errors (`sqlx-core`)
+//! - `sqlx-migrate`: `sqlx::migrate::MigrateError` mapping
 //! - `tokio`: timeouts from `tokio::time::error::Elapsed`
+//! - `tonic`: conversions between [`struct@crate::Error`] and `tonic::Status`
 //! - `teloxide`: Telegram request errors
 //! - `validator`: input DTO validation errors
 //!
@@ -144,9 +148,10 @@ pub use self::tonic::StatusConversionError;
 
 /// Map `std::io::Error` to an internal application error.
 ///
-/// Rationale: I/O failures are infrastructure-level and should not leak
-/// driver-specific details to clients. The message is preserved for
-/// observability, but the public-facing kind is always `Internal`.
+/// Rationale: I/O failures are infrastructure-level, so the public-facing
+/// kind is always `Internal`. The error text becomes the public message, so
+/// avoid embedding sensitive details in I/O error messages that cross this
+/// boundary.
 ///
 /// ```rust
 /// use std::io::{self, ErrorKind};

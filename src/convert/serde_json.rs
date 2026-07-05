@@ -10,8 +10,9 @@
 //!
 //! Errors are classified using [`serde_json::Error::classify`]. I/O failures
 //! are mapped to [`AppErrorKind::Serialization`]; syntax, data and EOF errors
-//! map to [`AppErrorKind::Deserialization`]. The original error string is
-//! preserved in `message` for observability.
+//! map to [`AppErrorKind::Deserialization`]. The public message is left unset;
+//! category and position details are captured as `serde_json.*` metadata
+//! fields and the original error is retained in the source chain.
 //!
 //! ## Rationale
 //!
@@ -46,8 +47,8 @@ use crate::{AppErrorKind, Context, Error, field};
 /// Map a [`serde_json::Error`] into an [`crate::AppError`].
 ///
 /// Errors are classified to `Serialization` or `Deserialization` using
-/// [`serde_json::Error::classify`]. The original error string is preserved for
-/// logs and optional JSON payloads.
+/// [`serde_json::Error::classify`]. Category and position details go into
+/// metadata; the original error stays available via the source chain.
 #[cfg(feature = "serde_json")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_json")))]
 impl From<SjError> for Error {

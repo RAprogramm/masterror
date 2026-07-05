@@ -149,8 +149,9 @@ impl AppCode {
     ///
     /// # Errors
     ///
-    /// Returns [`ParseAppCodeError`] when the string is empty or contains
-    /// characters outside of `A-Z`, `0-9`, and `_`.
+    /// Returns [`ParseAppCodeError`] when the string is empty, contains
+    /// characters outside of `A-Z`, `0-9`, and `_`, or has leading, trailing
+    /// or consecutive underscores.
     ///
     /// # Examples
     /// ```

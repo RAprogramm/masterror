@@ -12,7 +12,7 @@
 //!
 //! - canonical problem `type` URIs derived from [`AppCode`]
 //! - a `title` computed from [`AppErrorKind`]
-//! - the stable machine code plus optional gRPC mapping (`grpc.code`,
+//! - the stable machine code plus optional gRPC mapping (`grpc.name`,
 //!   `grpc.value`)
 //! - retry/authentication hints surfaced via the `Retry-After` and
 //!   `WWW-Authenticate` headers

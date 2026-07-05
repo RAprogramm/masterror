@@ -10,26 +10,23 @@
 //! - Implements `actix_web::ResponseError` for [`AppError`].
 //!   - This lets you `return AppResult<_>` from Actix handlers.
 //!   - On error, Actix automatically builds an `HttpResponse` with the right
-//!     status code and RFC7807 JSON body (when the `serde_json` feature is
-//!     enabled).
+//!     status code and an RFC7807 JSON body.
 //! - Provides stable mapping from [`AppErrorKind`] to
 //!   `actix_web::http::StatusCode`.
 //! - Ensures that only safe, public-facing fields are returned to the client
-//!   (`type`, `title`, `status`, `detail?`, `metadata?`).
+//!   (`type`, `title`, `status`, `code`, `detail?`, `metadata?`, `grpc?`).
 //!
 //! ## Wire payload
 //!
-//! When the `serde_json` feature is enabled, the body is [`ProblemJson`] with:
+//! The body is always [`ProblemJson`] with:
 //! - `type`: canonical URI describing the problem class
 //! - `title`: short summary derived from [`AppErrorKind`]
 //! - `status`: numeric HTTP status (e.g. 404, 422, 500)
+//! - `code`: stable machine-readable [`AppCode`](crate::AppCode)
 //! - `detail?`: public message (redacted when the error is private)
 //! - `metadata?`: sanitized structured fields carried from
 //!   [`Metadata`](crate::Metadata)
 //! - `grpc?`: optional gRPC mapping for multi-protocol clients
-//!
-//! Without `serde_json`, Actix still returns a response with the correct status
-//! but with an empty body.
 //!
 //! ## Example
 //!
@@ -70,10 +67,9 @@
 //! - Do not duplicate this `ResponseError` implementation elsewhere.
 //! - Internal error sources (`std::error::Error` chain) are logged only; they
 //!   are never leaked to the HTTP response.
-//! - You typically want both `actix` and `serde_json` features enabled for
-//!   proper JSON payloads.
 //!
-//! See also: Axum integration in [`convert::axum`].
+//! See also: the Axum integration provided by the `axum` feature
+//! (`convert/axum.rs`).
 
 #[cfg(feature = "actix")]
 use actix_web::{HttpResponse, ResponseError, http::StatusCode as ActixStatus};

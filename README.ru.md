@@ -14,12 +14,13 @@ SPDX-License-Identifier: MIT
   [![Crates.io](https://img.shields.io/crates/v/masterror)](https://crates.io/crates/masterror)
   [![docs.rs](https://img.shields.io/docsrs/masterror)](https://docs.rs/masterror)
   [![Downloads](https://img.shields.io/crates/d/masterror)](https://crates.io/crates/masterror)
-  ![MSRV](https://img.shields.io/badge/MSRV-1.90-blue)
-  ![License](https://img.shields.io/badge/License-MIT%20or%20Apache--2.0-informational)
+  ![MSRV](https://img.shields.io/badge/MSRV-1.96-blue)
+  ![License](https://img.shields.io/badge/License-MIT-informational)
+  [![REUSE status](https://api.reuse.software/badge/github.com/RAprogramm/masterror)](https://api.reuse.software/info/github.com/RAprogramm/masterror)
   [![codecov](https://codecov.io/gh/RAprogramm/masterror/graph/badge.svg?token=V9JQDTZLXH)](https://codecov.io/gh/RAprogramm/masterror)
 
   [![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
-  [![Hits-of-Code](https://hitsofcode.com/github/RAprogramm/masterror?branch=main)](https://hitsofcode.com/github/RAprogramm/masterror/view?branch=main)
+  [![Hits-of-Code](https://hitsofcode.com/github/RAprogramm/masterror?branch=main&exclude=Cargo.lock,.gitignore,CHANGELOG.md)](https://hitsofcode.com/github/RAprogramm/masterror/view?branch=main&exclude=Cargo.lock,.gitignore,CHANGELOG.md)
   [![IMIR](https://raw.githubusercontent.com/RAprogramm/infra-metrics-insight-renderer/main/assets/badges/imir-badge-simple-public.svg)](https://github.com/RAprogramm/infra-metrics-insight-renderer)
 
   > 🇬🇧 [Read README in English](README.md)
@@ -43,6 +44,7 @@ SPDX-License-Identifier: MIT
 - [Покрытие кода](#покрытие-кода)
 - [Быстрый старт](#быстрый-старт)
 - [Расширенное использование](#расширенное-использование)
+- [Примеры](#примеры)
 - [Ресурсы](#ресурсы)
 - [Метрики](#метрики)
 - [Лицензия](#лицензия)
@@ -67,12 +69,12 @@ SPDX-License-Identifier: MIT
 
 ## Особенности
 
-- **Унифицированная таксономия.** `AppError`, `AppErrorKind` и `AppCode` моделируют доменные и транспортные задачи с консервативными отображениями HTTP/gRPC, готовыми подсказками для повторных попыток и аутентификации, а также вывода RFC7807 через `ProblemJson`.
-- **Нативные derive-макросы.** `#[derive(Error)]`, `#[derive(Masterror)]`, `#[app_error]`, `#[masterror(...)]` и `#[provide]` встраивают пользовательские типы в `AppError`, передавая источники, бэктрейсы, провайдеры телеметрии и политики редактирования.
+- **Унифицированная таксономия.** `AppError`, `AppErrorKind` и `AppCode` моделируют доменные и транспортные задачи с консервативными отображениями HTTP/gRPC, готовыми подсказками для повторных попыток и аутентификации, а также выводом RFC7807 через `ProblemJson`.
+- **Нативные derive-макросы.** `#[derive(Error)]` и `#[derive(Masterror)]` встраивают пользовательские типы в типы времени выполнения. `#[derive(Masterror)]` с `#[masterror(...)]` пробрасывает источники, бэктрейсы, поля телеметрии и политику редактирования; `#[app_error]` отображает произведенную ошибку в `AppErrorKind`/`AppCode` (опционально раскрывая её сообщение `Display`), а `#[provide]` регистрирует типизированные провайдеры телеметрии на самой доменной ошибке.
 - **Типизированная телеметрия.** `Metadata` хранит структурированный контекст в формате ключ/значение (строки, целые числа, числа с плавающей точкой, длительности, IP-адреса и опциональный JSON) с контролем редактирования для каждого поля и конструкторами в `field::*`, чтобы логи оставались структурированными без ручного создания `String`-карт.
 - **Транспортные адаптеры.** Опциональные функции предоставляют респондеры Actix/Axum, конверсии в `tonic::Status`, логирование WASM/браузера и генерацию схемы OpenAPI без загрязнения компактной сборки по умолчанию.
-- **Проверенные интеграции.** Включите точечные отображения для `sqlx`, `reqwest`, `redis`, `validator`, `config`, `tokio`, `teloxide`, `multipart`, Telegram WebApp SDK и других — каждое из них транслирует библиотечные ошибки в таксономию с присоединенной телеметрией.
-- **Готовые значения по умолчанию.** Модуль `turnkey` поставляет готовый к использованию каталог ошибок, вспомогательные конструкторы и инструментарий трассировки для команд, которые хотят получить согласованную базовую линию из коробки.
+- **Проверенные интеграции.** Включите точечные отображения для `sqlx`, `reqwest`, `redis`, `validator`, `config`, `tokio`, `teloxide`, `multipart`, валидации Telegram init-data и других — каждое из них транслирует библиотечные ошибки в таксономию с присоединенной телеметрией.
+- **Готовые значения по умолчанию.** Модуль `turnkey` поставляет готовый к использованию каталог ошибок, эвристический классификатор и консервативные отображения в каноническую таксономию для команд, которые хотят получить согласованную базовую линию из коробки.
 - **Типизированные макросы управления потоком.** `ensure!` и `fail!` прерывают выполнение функций с доменными ошибками без выделения памяти или форматирования на успешном пути.
 
 <div align="right">
@@ -109,13 +111,13 @@ SPDX-License-Identifier: MIT
 
 ## Флаги функций
 
-Выбирайте только то, что вам нужно; по умолчанию все отключено.
+Выбирайте только то, что вам нужно; по умолчанию включён только `std`, всё остальное подключается явно.
 
 - **Веб-транспорты:** `axum`, `actix`, `multipart`, `openapi`, `serde_json`.
 - **Телеметрия и наблюдаемость:** `tracing`, `metrics`, `backtrace`, `colored` для
   цветного вывода в терминале.
 - **Асинхронные интеграции и ввод/вывод:** `tokio`, `reqwest`, `sqlx`, `sqlx-migrate`, `redis`, `validator`, `config`.
-- **Обмен сообщениями и боты:** `teloxide`, `telegram-webapp-sdk`.
+- **Обмен сообщениями и боты:** `teloxide`, `init-data` для валидации init-data Telegram Mini App через `init-data-rs`.
 - **Инструменты фронтенда:** `frontend` для логирования WASM/консоли браузера.
 - **gRPC:** `tonic` для отправки ответов `tonic::Status`.
 - **Всё включено:** `turnkey` для принятия готовой таксономии и вспомогательных функций.
@@ -138,15 +140,15 @@ SPDX-License-Identifier: MIT
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.24.19", default-features = false }
-# или с функциями:
-# masterror = { version = "0.24.19", features = [
+masterror = { version = "0.28.0", default-features = false }
+# or with features:
+# masterror = { version = "0.28.0", features = [
 #   "std", "axum", "actix", "openapi",
 #   "serde_json", "tracing", "metrics", "backtrace",
-#   "sqlx", "sqlx-migrate", "reqwest", "redis",
-#   "validator", "config", "tokio", "multipart",
-#   "teloxide", "telegram-webapp-sdk", "tonic", "frontend",
-#   "turnkey", "benchmarks"
+#   "colored", "sqlx", "sqlx-migrate", "reqwest",
+#   "redis", "validator", "config", "tokio",
+#   "multipart", "teloxide", "init-data", "tonic",
+#   "frontend", "turnkey", "benchmarks"
 # ] }
 ~~~
 
@@ -172,7 +174,7 @@ cargo bench -F benchmarks --bench error_paths
 
 Набор тестов выдает две группы:
 
-- `context_into_error/*` продвигает фиктивную исходную ошибку с репрезентативными метаданными (строки, счетчики, длительности, IP-адреса) через `Context::into_error` в режимах с редактированием и без редактирования.
+- `context_into_error/*` продвигает фиктивную исходную ошибку с репрезентативными метаданными (строки, счетчики, длительности, IP-адреса) через `ResultExt::ctx` в режимах с редактированием и без редактирования.
 - `problem_json_from_app_error/*` использует результирующие значения `AppError` для построения полезных нагрузок RFC 7807 через `ProblemJson::from_app_error`, показывая, как редактирование сообщений и политики полей влияют на сериализацию.
 
 Настройте флаги командной строки Criterion (например, `--sample-size 200` или `--save-baseline local`) после `--` для обмена пропускной способности на более точные доверительные интервалы при исследовании изменений.
@@ -412,7 +414,9 @@ assert_eq!(
 <details>
   <summary><b>Структурированные провайдеры телеметрии и отображения AppError</b></summary>
 
-`#[provide(...)]` предоставляет типизированный контекст через `std::error::Request`, в то время как `#[app_error(...)]` записывает, как ваша доменная ошибка транслируется в `AppError` и `AppCode`. Derive отражает синтаксис `thiserror` и расширяет его опциональным распространением телеметрии и прямыми конверсиями в типы времени выполнения `masterror`.
+`#[provide(...)]` предоставляет типизированный контекст через `std::error::Request`, в то время как `#[app_error(...)]` записывает, как ваша доменная ошибка транслируется в `AppError` и `AppCode`. Derive отражает синтаксис `thiserror`. Обратите внимание, что сгенерированные конверсии `From` создают `AppError`, несущий только отображенные kind и code (плюс вывод `Display` как публичное сообщение, если установлен флаг `message`) — исходная доменная ошибка отбрасывается, поэтому её источники и провайдеры телеметрии не пробрасываются. Запрашивайте телеметрию у доменной ошибки до конверсии.
+
+`request_ref`/`request_value` и механизм `std::error::Request` требуют nightly-тулчейна (`error_generic_member_access`); крейт определяет поддержку компилятора во время сборки и включает интеграцию провайдеров только когда она доступна.
 
 ~~~rust
 use std::error::request_ref;
@@ -444,8 +448,7 @@ let snapshot = request_ref::<TelemetrySnapshot>(&err).expect("telemetry");
 assert_eq!(snapshot.value, 42);
 
 let app: AppError = err.into();
-let via_app = request_ref::<TelemetrySnapshot>(&app).expect("telemetry");
-assert_eq!(via_app.name, "db.query");
+assert!(matches!(app.kind, AppErrorKind::Service));
 ~~~
 
 Опциональная телеметрия появляется только когда присутствует, поэтому `None` не регистрирует провайдера. Собственные снимки все еще могут быть предоставлены как значения, когда вызывающая сторона запрашивает владение:
@@ -510,11 +513,10 @@ assert!(matches!(app.kind, AppErrorKind::Service));
 
 ~~~rust
 use masterror::{AppError, AppErrorKind, ProblemJson};
-use std::time::Duration;
 
 let problem = ProblemJson::from_app_error(
     AppError::new(AppErrorKind::Unauthorized, "Token expired")
-        .with_retry_after_duration(Duration::from_secs(30))
+        .with_retry_after_secs(30)
         .with_www_authenticate(r#"Bearer realm="api", error="invalid_token""#)
 );
 
@@ -526,86 +528,84 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 </details>
 
 <details>
-  <summary><b>Форматирование ошибок с учётом окружения через DisplayMode</b></summary>
+  <summary><b>Определение окружения через DisplayMode</b></summary>
 
-API `DisplayMode` позволяет контролировать форматирование вывода ошибок в зависимости от окружения развертывания без изменения кода обработки ошибок. Доступны три режима:
+`DisplayMode` определяет окружение развертывания (`Prod`, `Local` или
+`Staging`), чтобы ваш код мог ветвиться по нему. `DisplayMode::current()`
+разрешает режим в следующем порядке и кэширует результат при первом обращении:
 
-- **`DisplayMode::Prod`** — Компактный JSON-вывод с минимальным набором полей, оптимизированный для production логов. Включает только `kind`, `code` и `message` (если не скрыто). Автоматически фильтрует чувствительные метаданные.
-
-- **`DisplayMode::Local`** — Человекочитаемый многострочный вывод с полным контекстом. Показывает детали ошибки, полную цепочку источников, все метаданные и бэктрейс (если включен). Лучший вариант для локальной разработки и отладки.
-
-- **`DisplayMode::Staging`** — JSON-вывод с дополнительным контекстом. Включает `kind`, `code`, `message`, ограниченную `source_chain` и отфильтрованные метаданные. Полезен для staging окружений, где нужны структурированные логи с большей детализацией.
-
-**Автоматическое определение окружения:**
-
-Режим определяется автоматически в следующем порядке:
 1. Переменная окружения `MASTERROR_ENV` (`prod`, `local` или `staging`)
-2. Наличие `KUBERNETES_SERVICE_HOST` (активирует режим `Prod`)
+2. Наличие `KUBERNETES_SERVICE_HOST` (выбирает `Prod`)
 3. Конфигурация сборки (`debug_assertions` → `Local`, release → `Prod`)
-
-Результат кэшируется при первом обращении для нулевой стоимости последующих вызовов.
 
 ~~~rust
 use masterror::DisplayMode;
 
-// Запрос текущего режима (кэшируется после первого вызова)
 let mode = DisplayMode::current();
 
 match mode {
-    DisplayMode::Prod => println!("Работа в production режиме"),
-    DisplayMode::Local => println!("Работа в режиме локальной разработки"),
-    DisplayMode::Staging => println!("Работа в staging режиме"),
+    DisplayMode::Prod => println!("Running in production mode"),
+    DisplayMode::Local => println!("Running in local development mode"),
+    DisplayMode::Staging => println!("Running in staging mode"),
 }
 ~~~
 
+Примечание: `Display` для `AppError` пока не учитывает `DisplayMode` — вывод
+идентичен во всех режимах. Единственная ветка форматирования сегодня — функция
+`colored`, описанная ниже; форматирование с учётом режима не подключено.
+
 **Цветной вывод в терминале:**
 
-Включите функцию `colored` для улучшенного вывода в терминале в локальном режиме:
+Включите функцию `colored` для улучшенного вывода в терминале. Она применяется
+всегда, когда функция включена, независимо от определённого режима:
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.24.19", features = ["colored"] }
+masterror = { version = "0.28.0", features = ["colored"] }
 ~~~
-
-С включённой `colored`, ошибки отображаются с подсветкой синтаксиса:
-- Тип и код ошибки выделены жирным шрифтом
-- Сообщения об ошибках в цвете
-- Цепочка источников с отступами
-- Выделенные ключи метаданных
-
-~~~rust
-use masterror::{AppError, field};
-
-let error = AppError::not_found("Пользователь не найден")
-    .with_field(field::str("user_id", "12345"))
-    .with_field(field::str("request_id", "abc-def"));
-
-// Без 'colored': обычный текст
-// С 'colored': цветной вывод в терминалах
-println!("{}", error);
-~~~
-
-**Вывод в Production vs Development:**
 
 Без функции `colored` ошибки отображают метку `AppErrorKind`:
 ~~~
 NotFound
 ~~~
 
-С функцией `colored` полный многострочный формат с контекстом:
+С функцией `colored` — полный многострочный формат с контекстом:
 ~~~
 Error: NotFound
 Code: NOT_FOUND
-Message: Пользователь не найден
+Message: User not found
 
 Context:
   user_id: 12345
   request_id: abc-def
 ~~~
 
-Такое разделение сохраняет production логи чистыми, предоставляя разработчикам богатый контекст во время локальных сессий отладки.
-
 </details>
+
+<div align="right">
+
+<div align="right">
+  <a href="#содержание">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="Go to top" width="50"/>
+  </a>
+</div>
+
+</div>
+
+---
+
+## Примеры
+
+Полноценные примеры из реальной практики, демонстрирующие интеграцию masterror с популярными фреймворками:
+
+| Пример | Описание | Возможности |
+|---------|-------------|----------|
+| [**axum-rest-api**](examples/axum-rest-api/) | REST API с RFC 7807 Problem Details | HTTP-эндпоинты, доменные ошибки, интеграционные тесты |
+| [**sqlx-database**](examples/sqlx-database/) | Обработка ошибок базы данных с SQLx | Ошибки подключения, нарушения ограничений, транзакции |
+| [**custom-domain-errors**](examples/custom-domain-errors/) | Доменные ошибки обработки платежей | Derive-макрос, конверсия ошибок, структурированные ошибки |
+| [**basic-async**](examples/basic-async/) | Асинхронная обработка ошибок с tokio | Распространение ошибок, обработка таймаутов, типы Result |
+
+Все примеры запускаемы; пример axum-rest-api дополнительно поставляется с интеграционными тестами. Смотрите директорию [`examples/`](examples/) для полного исходного кода и документации.
 
 <div align="right">
 
@@ -656,5 +656,4 @@ Context:
 
 ## Лицензия
 
-MSRV: **1.90** · Лицензия: **MIT OR Apache-2.0** · Без `unsafe`
-
+MSRV: **1.96** · Лицензия: **MIT** · Без `unsafe`

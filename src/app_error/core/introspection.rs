@@ -185,10 +185,10 @@ impl Error {
             .expect("chain always has at least one error")
     }
 
-    /// Attempts to downcast the error source to a concrete type.
+    /// Check whether the attached source error is of a concrete type.
     ///
-    /// Returns `true` if the error source is of type `E`, `false` otherwise.
-    /// This only checks the immediate source, not the entire chain.
+    /// Returns `true` if the immediate source (not this error itself, and not
+    /// the entire chain) is of type `E`, `false` otherwise.
     ///
     /// # Examples
     ///
@@ -215,7 +215,7 @@ impl Error {
         self.source_ref().is_some_and(|source| source.is::<E>())
     }
 
-    /// Attempt to downcast the error source to a concrete type by value.
+    /// Attempt to take ownership of the source error as a concrete type.
     ///
     /// **Note:** This method is currently a stub and always returns
     /// `Err(Self)`.
@@ -243,10 +243,11 @@ impl Error {
         Err(self)
     }
 
-    /// Attempt to downcast the error to a concrete type by immutable
-    /// reference.
+    /// Attempt to downcast the attached source error to a concrete type by
+    /// immutable reference.
     ///
-    /// Returns `Some(&E)` if this error is of type `E`, `None` otherwise.
+    /// Returns `Some(&E)` if the immediate source is of type `E`, `None`
+    /// otherwise (including when no source is attached).
     ///
     /// # Examples
     ///
@@ -272,9 +273,12 @@ impl Error {
         self.source_ref()?.downcast_ref::<E>()
     }
 
-    /// Attempt to downcast the error to a concrete type by mutable reference.
+    /// Attempt to downcast the attached source error to a concrete type by
+    /// mutable reference.
     ///
-    /// Returns `Some(&mut E)` if this error is of type `E`, `None` otherwise.
+    /// **Note:** This method is currently a stub and always returns `None`.
+    ///
+    /// Use [`downcast_ref`](Self::downcast_ref) for inspecting error sources.
     ///
     /// # Examples
     ///
@@ -287,9 +291,7 @@ impl Error {
     /// let io_err = IoError::other("disk offline");
     /// let mut err = AppError::internal("boom").with_context(io_err);
     ///
-    /// if let Some(_io) = err.downcast_mut::<IoError>() {
-    ///     // Can modify the IoError if needed
-    /// }
+    /// assert!(err.downcast_mut::<IoError>().is_none());
     /// # }
     /// ```
     #[must_use]

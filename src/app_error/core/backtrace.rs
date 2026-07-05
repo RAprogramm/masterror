@@ -91,18 +91,8 @@ fn detect_backtrace_preference() -> bool {
 ///
 /// This function is only available in test builds with the `backtrace` feature.
 /// It clears both the global state and test override, forcing the next
-/// backtrace capture to re-read configuration.
-///
-/// # Examples
-///
-/// ```rust
-/// # #[cfg(all(test, feature = "backtrace"))]
-/// # {
-/// use masterror::app_error::core::backtrace::reset_backtrace_preference;
-///
-/// reset_backtrace_preference();
-/// # }
-/// ```
+/// backtrace capture to re-read configuration. Tests call it directly before
+/// and after overriding the preference.
 #[cfg(all(test, feature = "backtrace"))]
 pub fn reset_backtrace_preference() {
     BACKTRACE_STATE.store(BACKTRACE_STATE_UNSET, AtomicOrdering::Release);
@@ -119,17 +109,6 @@ pub fn reset_backtrace_preference() {
 ///
 /// * `value` - `Some(true)` to force enable, `Some(false)` to force disable,
 ///   `None` to clear override
-///
-/// # Examples
-///
-/// ```rust
-/// # #[cfg(all(test, feature = "backtrace"))]
-/// # {
-/// use masterror::app_error::core::backtrace::set_backtrace_preference_override;
-///
-/// set_backtrace_preference_override(Some(true));
-/// # }
-/// ```
 #[cfg(all(test, feature = "backtrace"))]
 pub fn set_backtrace_preference_override(value: Option<bool>) {
     test_backtrace_override::set(value);

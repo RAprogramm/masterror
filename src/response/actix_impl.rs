@@ -9,7 +9,10 @@
 //! - Serializes the response as RFC7807 `application/problem+json`.
 //! - Adds `Retry-After` when retry advice is present.
 //! - Adds `WWW-Authenticate` when an authentication challenge is provided.
-//! - Redacts message and metadata when the error is marked private.
+//! - Redaction itself happens earlier, in
+//!   [`ProblemJson::from_app_error`](crate::ProblemJson::from_app_error), which
+//!   applies the error's message and metadata redaction policies before the
+//!   payload reaches this adapter.
 
 use actix_web::{
     HttpRequest, HttpResponse, Responder,
