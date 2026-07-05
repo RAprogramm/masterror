@@ -11,11 +11,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.27.3...HEAD)
+## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.28.0...HEAD)
+## [0.28.0](https://github.com/RAprogramm/masterror/releases/tag/v0.28.0) - 2026-07-05
 
 ### Fixed
 
 - Ver by [@RAprogramm](https://github.com/RAprogramm) in [#443](https://github.com/RAprogramm/masterror/pull/443)
+
+**Full Changelog**: [v0.27.3...v0.28.0](https://github.com/RAprogramm/masterror/compare/v0.27.3...v0.28.0)
 ## [0.27.3](https://github.com/RAprogramm/masterror/releases/tag/v0.27.3) - 2026-03-05
 
 ### Dependencies
