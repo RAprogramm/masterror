@@ -79,7 +79,8 @@
 //!   but not this feature — enable it explicitly to get the JSON-gated APIs
 //! - `multipart` — `From<axum::extract::multipart::MultipartError>` mapping to
 //!   `BadRequest` (implies `axum`)
-//! - `colored` — colored, multi-line `Display` output for [`struct@Error`]
+//! - `colored` — ANSI styling for the `Local` `Display` layout of
+//!   [`struct@Error`] (see [`DisplayMode`])
 //! - `tracing` — emit structured `tracing` events when errors are constructed
 //! - `metrics` — increment an `error_total{code,category}` counter per error
 //! - `backtrace` — capture backtraces (controlled by `RUST_BACKTRACE`)

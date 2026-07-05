@@ -52,13 +52,14 @@ pub mod telemetry;
 /// - `CapturedBacktrace` type alias
 pub mod types;
 
-/// Environment detection and alternative formatting helpers.
+/// Environment detection and mode-aware `Display` layouts.
 ///
 /// Provides [`DisplayMode`], which detects the deployment environment from
 /// `MASTERROR_ENV`, `KUBERNETES_SERVICE_HOST` or build configuration and
-/// caches the result. The `Display` implementation for `Error` does not
-/// consult this mode; it is a detection API for callers to choose their own
-/// formatting.
+/// caches the result once per process. The `Display` implementation for
+/// `Error` dispatches on this mode: `Local` renders a multi-line
+/// human-readable report, while `Prod` and `Staging` render compact JSON
+/// with redaction-aware metadata.
 pub mod display;
 
 #[cfg(all(test, feature = "backtrace"))]
@@ -183,9 +184,12 @@ mod tests {
 
     #[test]
     fn error_display_shows_kind() {
+        let _guard = display::force_display_mode(DisplayMode::Local);
         let err = Error::new(AppErrorKind::Internal, "test");
         let display = format!("{}", err);
-        assert!(!display.is_empty());
+        assert!(display.contains("Error: Internal server error"));
+        assert!(display.contains("Code: INTERNAL"));
+        assert!(display.contains("Message: test"));
     }
 
     #[cfg(feature = "std")]

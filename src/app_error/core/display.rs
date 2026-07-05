@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-use alloc::string::ToString;
+use alloc::string::{String, ToString};
 use core::{
     error::Error as CoreError,
     fmt::{Formatter, Result as FmtResult},
@@ -10,17 +10,29 @@ use core::{
 };
 
 use super::error::Error;
-use crate::{FieldRedaction, FieldValue, MessageEditPolicy};
+use crate::{
+    FieldRedaction, FieldValue, MessageEditPolicy, Metadata,
+    app_error::redaction::{REDACTED_PLACEHOLDER, hash_field_value, mask_last4_field_value}
+};
 
-/// Detected deployment environment.
+/// Sentinel stored in [`CACHED_MODE`] while no mode has been detected yet.
+const MODE_CACHE_UNSET: u8 = 255;
+
+/// Process-wide cache holding the detected [`DisplayMode`] discriminant.
+static CACHED_MODE: AtomicU8 = AtomicU8::new(MODE_CACHE_UNSET);
+
+/// Detected deployment environment driving the `Display` layout of
+/// [`struct@crate::Error`].
 ///
 /// [`DisplayMode::current`] identifies the environment the process runs in,
 /// based on the `MASTERROR_ENV` environment variable, Kubernetes detection
 /// (`KUBERNETES_SERVICE_HOST`) or build configuration, and caches the result.
 ///
-/// Note: the `Display` implementation for [`struct@crate::Error`] does not
-/// currently switch its output based on this mode; the mode is a detection
-/// API that callers can consult to choose their own formatting.
+/// The `Display` implementation for [`struct@crate::Error`] dispatches on
+/// this mode: `Local` renders a multi-line human-readable report, while
+/// `Prod` and `Staging` render compact single-line JSON. Set
+/// `MASTERROR_ENV=local` to force the human-readable layout in any
+/// environment.
 ///
 /// # Examples
 ///
@@ -40,17 +52,21 @@ pub enum DisplayMode {
     ///
     /// Selected when `MASTERROR_ENV` is `prod`/`production`, when
     /// `KUBERNETES_SERVICE_HOST` is set, or for release builds by default.
+    /// Errors render as compact JSON without a source chain.
     Prod = 0,
 
     /// Local development environment.
     ///
     /// Selected when `MASTERROR_ENV` is `local`/`dev`/`development`, or for
-    /// debug builds by default.
+    /// debug builds by default. Errors render as a multi-line
+    /// human-readable report; the `colored` feature adds ANSI styling to
+    /// this layout only.
     Local = 1,
 
     /// Staging environment.
     ///
-    /// Selected when `MASTERROR_ENV` is `staging`/`stage`.
+    /// Selected when `MASTERROR_ENV` is `staging`/`stage`. Errors render as
+    /// compact JSON extended with the source chain.
     Staging = 2
 }
 
@@ -62,7 +78,9 @@ impl DisplayMode {
     /// 2. Kubernetes environment detection (`KUBERNETES_SERVICE_HOST`)
     /// 3. Build configuration (`cfg!(debug_assertions)`)
     ///
-    /// The result is cached for performance.
+    /// Without the `std` feature only step 3 applies. The result is cached
+    /// on first access, so the environment is read once per process and
+    /// later changes to the variables have no effect.
     ///
     /// # Examples
     ///
@@ -77,19 +95,26 @@ impl DisplayMode {
     /// ```
     #[must_use]
     pub fn current() -> Self {
-        static CACHED_MODE: AtomicU8 = AtomicU8::new(255);
+        #[cfg(test)]
+        if let Some(mode) = test_display_mode_override::get() {
+            return mode;
+        }
         let cached = CACHED_MODE.load(Ordering::Relaxed);
-        if cached != 255 {
-            return match cached {
-                0 => Self::Prod,
-                1 => Self::Local,
-                2 => Self::Staging,
-                _ => unreachable!()
-            };
+        if cached != MODE_CACHE_UNSET {
+            return Self::from_discriminant(cached);
         }
         let mode = Self::detect();
         CACHED_MODE.store(mode as u8, Ordering::Relaxed);
         mode
+    }
+
+    /// Converts a cached discriminant back into a mode.
+    fn from_discriminant(value: u8) -> Self {
+        match value {
+            0 => Self::Prod,
+            2 => Self::Staging,
+            _ => Self::Local
+        }
     }
 
     /// Detects the appropriate display mode from environment.
@@ -124,29 +149,108 @@ impl DisplayMode {
     }
 }
 
-#[allow(dead_code)]
+/// Overrides the detected display mode for testing purposes.
+///
+/// Setting an override clears the process-wide cache so the next
+/// [`DisplayMode::current`] call observes the new value. Overridden modes are
+/// consulted before the cache and never stored in it, keeping detection
+/// deterministic for tests that do not override.
+///
+/// # Arguments
+///
+/// * `mode` - `Some(mode)` to force a mode, `None` to clear the override
+#[cfg(test)]
+pub(crate) fn set_display_mode_override(mode: Option<DisplayMode>) {
+    test_display_mode_override::set(mode);
+    CACHED_MODE.store(MODE_CACHE_UNSET, Ordering::Relaxed);
+}
+
+/// Resets the display mode cache and override to the uninitialized state.
+///
+/// Forces the next [`DisplayMode::current`] call to re-run detection. Tests
+/// call it after overriding the mode, mirroring
+/// `reset_backtrace_preference`.
+#[cfg(test)]
+pub(crate) fn reset_display_mode() {
+    test_display_mode_override::set(None);
+    CACHED_MODE.store(MODE_CACHE_UNSET, Ordering::Relaxed);
+}
+
+#[cfg(test)]
+mod test_display_mode_override {
+    use core::sync::atomic::{AtomicU8, Ordering};
+
+    use super::DisplayMode;
+
+    const OVERRIDE_UNSET: u8 = 255;
+
+    static OVERRIDE_STATE: AtomicU8 = AtomicU8::new(OVERRIDE_UNSET);
+
+    pub(super) fn set(mode: Option<DisplayMode>) {
+        let state = match mode {
+            Some(mode) => mode as u8,
+            None => OVERRIDE_UNSET
+        };
+        OVERRIDE_STATE.store(state, Ordering::Release);
+    }
+
+    pub(super) fn get() -> Option<DisplayMode> {
+        match OVERRIDE_STATE.load(Ordering::Acquire) {
+            OVERRIDE_UNSET => None,
+            value => Some(DisplayMode::from_discriminant(value))
+        }
+    }
+}
+
+#[cfg(test)]
+pub(crate) use test_support::force_display_mode;
+
+#[cfg(test)]
+mod test_support {
+    use std::sync::{Mutex, MutexGuard, PoisonError};
+
+    use super::{DisplayMode, reset_display_mode, set_display_mode_override};
+
+    static DISPLAY_MODE_LOCK: Mutex<()> = Mutex::new(());
+
+    /// Guard restoring the default display mode detection on drop.
+    pub(crate) struct DisplayModeGuard {
+        _lock: MutexGuard<'static, ()>
+    }
+
+    impl Drop for DisplayModeGuard {
+        fn drop(&mut self) {
+            reset_display_mode();
+        }
+    }
+
+    /// Forces the display mode for the lifetime of the returned guard.
+    ///
+    /// Serializes tests that override the mode so concurrent overrides do
+    /// not observe each other.
+    pub(crate) fn force_display_mode(mode: DisplayMode) -> DisplayModeGuard {
+        let lock = DISPLAY_MODE_LOCK
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        set_display_mode_override(Some(mode));
+        DisplayModeGuard {
+            _lock: lock
+        }
+    }
+}
+
 impl Error {
     /// Formats the error as compact JSON (`kind`, `code`, optional `message`,
-    /// public metadata).
+    /// redaction-aware metadata).
     ///
-    /// Not wired into the `Display` implementation; callers that want this
-    /// layout must invoke it explicitly.
+    /// Selected by the `Display` implementation when [`DisplayMode::current`]
+    /// returns [`DisplayMode::Prod`]. The output never contains ANSI escape
+    /// sequences.
     ///
     /// # Arguments
     ///
     /// * `f` - Formatter to write output to
-    #[cfg(not(test))]
     pub(crate) fn fmt_prod(&self, f: &mut Formatter<'_>) -> FmtResult {
-        self.fmt_prod_impl(f)
-    }
-
-    #[cfg(test)]
-    #[allow(missing_docs)]
-    pub fn fmt_prod(&self, f: &mut Formatter<'_>) -> FmtResult {
-        self.fmt_prod_impl(f)
-    }
-
-    fn fmt_prod_impl(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, r#"{{"kind":"{:?}","code":"{}""#, self.kind, self.code)?;
         if !matches!(self.edit_policy, MessageEditPolicy::Redact)
             && let Some(msg) = &self.message
@@ -155,141 +259,73 @@ impl Error {
             write_json_escaped(f, msg.as_ref())?;
             write!(f, "\"")?;
         }
-        if !self.metadata.is_empty() {
-            let has_public_fields = self
-                .metadata
-                .iter_with_redaction()
-                .any(|(_, _, redaction)| !matches!(redaction, FieldRedaction::Redact));
-            if has_public_fields {
-                write!(f, r#","metadata":{{"#)?;
-                let mut first = true;
-                for (name, value, redaction) in self.metadata.iter_with_redaction() {
-                    if matches!(redaction, FieldRedaction::Redact) {
-                        continue;
-                    }
-                    if !first {
-                        write!(f, ",")?;
-                    }
-                    first = false;
-                    write!(f, r#""{}":"#, name)?;
-                    write_metadata_value(f, value)?;
-                }
-                write!(f, "}}")?;
-            }
-        }
+        write_json_metadata_section(f, &self.metadata)?;
         write!(f, "}}")
     }
 
     /// Formats the error as a multi-line human-readable report (kind, code,
-    /// message, source chain, metadata).
+    /// message, source chain, redaction-aware metadata).
     ///
-    /// Not wired into the `Display` implementation; callers that want this
-    /// layout must invoke it explicitly.
+    /// Selected by the `Display` implementation when [`DisplayMode::current`]
+    /// returns [`DisplayMode::Local`]. The `colored` feature applies ANSI
+    /// styling to this layout when the terminal supports it.
     ///
     /// # Arguments
     ///
     /// * `f` - Formatter to write output to
-    #[cfg(not(test))]
     pub(crate) fn fmt_local(&self, f: &mut Formatter<'_>) -> FmtResult {
-        self.fmt_local_impl(f)
-    }
-
-    #[cfg(test)]
-    #[allow(missing_docs)]
-    pub fn fmt_local(&self, f: &mut Formatter<'_>) -> FmtResult {
-        self.fmt_local_impl(f)
-    }
-
-    fn fmt_local_impl(&self, f: &mut Formatter<'_>) -> FmtResult {
         #[cfg(feature = "colored")]
-        {
-            use crate::colored::style;
-            writeln!(f, "Error: {}", self.kind)?;
-            writeln!(f, "Code: {}", style::error_code(self.code.to_string()))?;
-            if let Some(msg) = &self.message {
-                writeln!(f, "Message: {}", style::error_message(msg))?;
-            }
-            if let Some(source) = &self.source {
-                writeln!(f)?;
-                let mut current: &dyn CoreError = source.as_dyn();
-                let mut depth = 0;
-                while depth < 10 {
-                    writeln!(
-                        f,
-                        "  {}: {}",
-                        style::source_context("Caused by"),
-                        style::source_context(current.to_string())
-                    )?;
-                    if let Some(next) = current.source() {
-                        current = next;
-                        depth += 1;
-                    } else {
-                        break;
-                    }
-                }
-            }
-            if !self.metadata.is_empty() {
-                writeln!(f)?;
-                writeln!(f, "Context:")?;
-                for (key, value) in self.metadata.iter() {
-                    writeln!(f, "  {}: {}", style::metadata_key(key), value)?;
-                }
-            }
-            Ok(())
-        }
+        use crate::colored::style;
+
+        writeln!(f, "Error: {}", self.kind)?;
+        #[cfg(feature = "colored")]
+        writeln!(f, "Code: {}", style::error_code(self.code.to_string()))?;
         #[cfg(not(feature = "colored"))]
+        writeln!(f, "Code: {}", self.code)?;
+        if !matches!(self.edit_policy, MessageEditPolicy::Redact)
+            && let Some(msg) = &self.message
         {
-            writeln!(f, "Error: {}", self.kind)?;
-            writeln!(f, "Code: {}", self.code)?;
-            if let Some(msg) = &self.message {
-                writeln!(f, "Message: {}", msg)?;
-            }
-            if let Some(source) = &self.source {
-                writeln!(f)?;
-                let mut current: &dyn CoreError = source.as_dyn();
-                let mut depth = 0;
-                while depth < 10 {
-                    writeln!(f, "  Caused by: {}", current)?;
-                    if let Some(next) = current.source() {
-                        current = next;
-                        depth += 1;
-                    } else {
-                        break;
-                    }
-                }
-            }
-            if !self.metadata.is_empty() {
-                writeln!(f)?;
-                writeln!(f, "Context:")?;
-                for (key, value) in self.metadata.iter() {
-                    writeln!(f, "  {}: {}", key, value)?;
-                }
-            }
-            Ok(())
+            #[cfg(feature = "colored")]
+            writeln!(f, "Message: {}", style::error_message(msg))?;
+            #[cfg(not(feature = "colored"))]
+            writeln!(f, "Message: {}", msg)?;
         }
+        if let Some(source) = &self.source {
+            writeln!(f)?;
+            let mut current: &dyn CoreError = source.as_dyn();
+            let mut depth = 0;
+            while depth < 10 {
+                #[cfg(feature = "colored")]
+                writeln!(
+                    f,
+                    "  {}: {}",
+                    style::source_context("Caused by"),
+                    style::source_context(current.to_string())
+                )?;
+                #[cfg(not(feature = "colored"))]
+                writeln!(f, "  Caused by: {}", current)?;
+                if let Some(next) = current.source() {
+                    current = next;
+                    depth += 1;
+                } else {
+                    break;
+                }
+            }
+        }
+        write_local_metadata_section(f, &self.metadata)
     }
 
     /// Formats the error as JSON with additional context (`source_chain` and
-    /// public metadata).
+    /// redaction-aware metadata).
     ///
-    /// Not wired into the `Display` implementation; callers that want this
-    /// layout must invoke it explicitly.
+    /// Selected by the `Display` implementation when [`DisplayMode::current`]
+    /// returns [`DisplayMode::Staging`]. The output never contains ANSI
+    /// escape sequences.
     ///
     /// # Arguments
     ///
     /// * `f` - Formatter to write output to
-    #[cfg(not(test))]
     pub(crate) fn fmt_staging(&self, f: &mut Formatter<'_>) -> FmtResult {
-        self.fmt_staging_impl(f)
-    }
-
-    #[cfg(test)]
-    #[allow(missing_docs)]
-    pub fn fmt_staging(&self, f: &mut Formatter<'_>) -> FmtResult {
-        self.fmt_staging_impl(f)
-    }
-
-    fn fmt_staging_impl(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, r#"{{"kind":"{:?}","code":"{}""#, self.kind, self.code)?;
         if !matches!(self.edit_policy, MessageEditPolicy::Redact)
             && let Some(msg) = &self.message
@@ -320,34 +356,97 @@ impl Error {
             }
             write!(f, "]")?;
         }
-        if !self.metadata.is_empty() {
-            let has_public_fields = self
-                .metadata
-                .iter_with_redaction()
-                .any(|(_, _, redaction)| !matches!(redaction, FieldRedaction::Redact));
-            if has_public_fields {
-                write!(f, r#","metadata":{{"#)?;
-                let mut first = true;
-                for (name, value, redaction) in self.metadata.iter_with_redaction() {
-                    if matches!(redaction, FieldRedaction::Redact) {
-                        continue;
-                    }
-                    if !first {
-                        write!(f, ",")?;
-                    }
-                    first = false;
-                    write!(f, r#""{}":"#, name)?;
-                    write_metadata_value(f, value)?;
-                }
-                write!(f, "}}")?;
-            }
-        }
+        write_json_metadata_section(f, &self.metadata)?;
         write!(f, "}}")
     }
 }
 
+/// Metadata value prepared for the local layout after applying redaction.
+enum LocalFieldValue<'a> {
+    /// Public value rendered as-is.
+    Raw(&'a FieldValue),
+    /// Value replaced by the redaction placeholder.
+    Placeholder,
+    /// Hashed or masked textual representation.
+    Owned(String)
+}
+
+/// Writes the `,"metadata":{...}` JSON section applying field redaction.
+///
+/// Fields marked [`FieldRedaction::Redact`] render as the placeholder,
+/// [`FieldRedaction::Hash`] as a SHA-256 hex digest and
+/// [`FieldRedaction::Last4`] as a masked value. Fields whose masking yields
+/// no value are omitted; if nothing remains, the section is skipped
+/// entirely.
+fn write_json_metadata_section(f: &mut Formatter<'_>, metadata: &Metadata) -> FmtResult {
+    let mut wrote_any = false;
+    for (name, value, redaction) in metadata.iter_with_redaction() {
+        let masked = match redaction {
+            FieldRedaction::Last4 => match mask_last4_field_value(value) {
+                Some(masked) => Some(masked),
+                None => continue
+            },
+            _ => None
+        };
+        if wrote_any {
+            write!(f, ",")?;
+        } else {
+            write!(f, r#","metadata":{{"#)?;
+            wrote_any = true;
+        }
+        write!(f, r#""{}":"#, name)?;
+        match redaction {
+            FieldRedaction::None => write_metadata_value(f, value)?,
+            FieldRedaction::Redact => write!(f, "\"{}\"", REDACTED_PLACEHOLDER)?,
+            FieldRedaction::Hash => write!(f, "\"{}\"", hash_field_value(value))?,
+            FieldRedaction::Last4 => {
+                write!(f, "\"")?;
+                write_json_escaped(f, masked.as_deref().unwrap_or_default())?;
+                write!(f, "\"")?;
+            }
+        }
+    }
+    if wrote_any {
+        write!(f, "}}")?;
+    }
+    Ok(())
+}
+
+/// Writes the `Context:` block of the local layout applying field redaction.
+///
+/// Applies the same policies as [`write_json_metadata_section`]; the header
+/// is skipped when every field is omitted.
+fn write_local_metadata_section(f: &mut Formatter<'_>, metadata: &Metadata) -> FmtResult {
+    let mut wrote_header = false;
+    for (name, value, redaction) in metadata.iter_with_redaction() {
+        let rendered = match redaction {
+            FieldRedaction::None => LocalFieldValue::Raw(value),
+            FieldRedaction::Redact => LocalFieldValue::Placeholder,
+            FieldRedaction::Hash => LocalFieldValue::Owned(hash_field_value(value)),
+            FieldRedaction::Last4 => match mask_last4_field_value(value) {
+                Some(masked) => LocalFieldValue::Owned(masked),
+                None => continue
+            }
+        };
+        if !wrote_header {
+            writeln!(f)?;
+            writeln!(f, "Context:")?;
+            wrote_header = true;
+        }
+        #[cfg(feature = "colored")]
+        write!(f, "  {}: ", crate::colored::style::metadata_key(name))?;
+        #[cfg(not(feature = "colored"))]
+        write!(f, "  {}: ", name)?;
+        match rendered {
+            LocalFieldValue::Raw(value) => writeln!(f, "{}", value)?,
+            LocalFieldValue::Placeholder => writeln!(f, "{}", REDACTED_PLACEHOLDER)?,
+            LocalFieldValue::Owned(text) => writeln!(f, "{}", text)?
+        }
+    }
+    Ok(())
+}
+
 /// Writes a string with JSON escaping.
-#[allow(dead_code)]
 fn write_json_escaped(f: &mut Formatter<'_>, s: &str) -> FmtResult {
     for ch in s.chars() {
         match ch {
@@ -364,7 +463,6 @@ fn write_json_escaped(f: &mut Formatter<'_>, s: &str) -> FmtResult {
 }
 
 /// Writes a metadata field value in JSON format.
-#[allow(dead_code)]
 fn write_metadata_value(f: &mut Formatter<'_>, value: &FieldValue) -> FmtResult {
     use crate::app_error::metadata::FieldValue;
     match value {
@@ -400,8 +498,24 @@ fn write_metadata_value(f: &mut Formatter<'_>, value: &FieldValue) -> FmtResult 
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Write as _;
+
+    use sha2::{Digest, Sha256};
+
     use super::*;
     use crate::{AppError, field};
+
+    fn sha256_hex(input: &[u8]) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(input);
+        hasher
+            .finalize()
+            .iter()
+            .fold(String::with_capacity(64), |mut acc, byte| {
+                let _ = write!(&mut acc, "{:02x}", byte);
+                acc
+            })
+    }
 
     #[test]
     fn display_mode_current_returns_valid_mode() {
@@ -419,6 +533,45 @@ mod tests {
         } else {
             assert_eq!(DisplayMode::detect_auto(), DisplayMode::Prod);
         }
+    }
+
+    #[test]
+    fn display_mode_override_takes_priority() {
+        let _guard = force_display_mode(DisplayMode::Staging);
+        assert_eq!(DisplayMode::current(), DisplayMode::Staging);
+    }
+
+    #[test]
+    fn display_dispatches_prod_layout() {
+        let _guard = force_display_mode(DisplayMode::Prod);
+        let error = AppError::not_found("missing user");
+        let output = format!("{}", error);
+        assert!(output.starts_with(r#"{"kind":"NotFound""#), "{output}");
+        assert!(output.contains(r#""code":"NOT_FOUND""#));
+        assert!(output.contains(r#""message":"missing user""#));
+        assert!(!output.contains('\u{1b}'));
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn display_dispatches_staging_layout() {
+        use std::io::Error as IoError;
+        let _guard = force_display_mode(DisplayMode::Staging);
+        let error = AppError::network("upstream down").with_source(IoError::other("timeout"));
+        let output = format!("{}", error);
+        assert!(output.starts_with(r#"{"kind":"Network""#), "{output}");
+        assert!(output.contains(r#""source_chain":["timeout"]"#));
+        assert!(!output.contains('\u{1b}'));
+    }
+
+    #[test]
+    fn display_dispatches_local_layout() {
+        let _guard = force_display_mode(DisplayMode::Local);
+        let error = AppError::not_found("missing user");
+        let output = format!("{}", error);
+        assert!(output.contains("Error:"));
+        assert!(output.contains("Code: NOT_FOUND"));
+        assert!(output.contains("missing user"));
     }
 
     #[test]
@@ -450,6 +603,70 @@ mod tests {
         let error = AppError::internal("Error").with_field(field::str("password", "secret"));
         let output = format!("{}", error.fmt_prod_wrapper());
         assert!(!output.contains("secret"));
+        assert!(output.contains(r#""password":"[REDACTED]""#));
+    }
+
+    #[test]
+    fn hash_redaction_renders_hex_digest_in_all_modes() {
+        let expected = sha256_hex(b"super-secret");
+        let error = AppError::internal("Error").with_field(
+            field::str("fingerprint", "super-secret").with_redaction(FieldRedaction::Hash)
+        );
+        let prod = format!("{}", error.fmt_prod_wrapper());
+        let staging = format!("{}", error.fmt_staging_wrapper());
+        let local = format!("{}", error.fmt_local_wrapper());
+        for output in [&prod, &staging, &local] {
+            assert!(output.contains(&expected), "{output}");
+            assert!(!output.contains("super-secret"), "{output}");
+        }
+        assert!(prod.contains(&format!(r#""fingerprint":"{}""#, expected)));
+        assert!(staging.contains(&format!(r#""fingerprint":"{}""#, expected)));
+        assert!(local.contains(&format!("fingerprint: {}", expected)));
+    }
+
+    #[test]
+    fn last4_redaction_masks_value_in_all_modes() {
+        let error = AppError::internal("Error").with_field(
+            field::str("card_number", "4111111111111111").with_redaction(FieldRedaction::Last4)
+        );
+        let prod = format!("{}", error.fmt_prod_wrapper());
+        let staging = format!("{}", error.fmt_staging_wrapper());
+        let local = format!("{}", error.fmt_local_wrapper());
+        for output in [&prod, &staging, &local] {
+            assert!(output.contains("************1111"), "{output}");
+            assert!(!output.contains("4111111111111111"), "{output}");
+        }
+    }
+
+    #[test]
+    fn last4_redaction_omits_unmaskable_field() {
+        let error = AppError::internal("Error")
+            .with_field(field::bool("consent", true).with_redaction(FieldRedaction::Last4));
+        let prod = format!("{}", error.fmt_prod_wrapper());
+        let staging = format!("{}", error.fmt_staging_wrapper());
+        let local = format!("{}", error.fmt_local_wrapper());
+        assert!(!prod.contains("metadata"), "{prod}");
+        assert!(!staging.contains("metadata"), "{staging}");
+        assert!(!local.contains("Context:"), "{local}");
+        for output in [&prod, &staging, &local] {
+            assert!(!output.contains("consent"), "{output}");
+        }
+    }
+
+    #[test]
+    fn redact_policy_uses_placeholder_in_local_layout() {
+        let error = AppError::internal("Error").with_field(field::str("password", "hunter2"));
+        let output = format!("{}", error.fmt_local_wrapper());
+        assert!(output.contains("password: [REDACTED]"), "{output}");
+        assert!(!output.contains("hunter2"));
+    }
+
+    #[test]
+    fn fmt_local_hides_redacted_message() {
+        let error = AppError::internal("sensitive data").redactable();
+        let output = format!("{}", error.fmt_local_wrapper());
+        assert!(!output.contains("sensitive data"));
+        assert!(!output.contains("Message:"));
     }
 
     #[test]
@@ -570,11 +787,11 @@ mod tests {
     #[test]
     fn fmt_local_with_metadata() {
         let error = AppError::internal("Error")
-            .with_field(field::str("key", "value"))
+            .with_field(field::str("region", "value"))
             .with_field(field::i64("count", -42));
         let output = format!("{}", error.fmt_local_wrapper());
         assert!(output.contains("Context:"));
-        assert!(output.contains("key: value"));
+        assert!(output.contains("region: value"));
         assert!(output.contains("count: -42"));
     }
 
@@ -619,7 +836,11 @@ mod tests {
 
     #[test]
     fn display_mode_current_caches_result() {
+        let _guard = force_display_mode(DisplayMode::Staging);
+        reset_display_mode();
+        assert_eq!(CACHED_MODE.load(Ordering::Relaxed), MODE_CACHE_UNSET);
         let first = DisplayMode::current();
+        assert_eq!(CACHED_MODE.load(Ordering::Relaxed), first as u8);
         let second = DisplayMode::current();
         assert_eq!(first, second);
     }
@@ -664,7 +885,7 @@ mod tests {
         assert!(output.contains(r#""name":"value""#));
     }
 
-    #[cfg(feature = "colored")]
+    #[cfg(feature = "std")]
     #[test]
     fn fmt_local_with_deep_source_chain() {
         use std::io::{Error as IoError, ErrorKind};
@@ -706,6 +927,7 @@ mod tests {
             .with_field(field::str("password", "secret"));
         let output = format!("{}", error.fmt_staging_wrapper());
         assert!(output.contains(r#""public":"visible""#));
+        assert!(output.contains(r#""password":"[REDACTED]""#));
         assert!(!output.contains("secret"));
     }
 

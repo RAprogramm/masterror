@@ -628,12 +628,15 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
   <summary><b>Environment detection with DisplayMode</b></summary>
 
 `DisplayMode` detects the deployment environment (`Prod`, `Local` or
-`Staging`) so your code can branch on it. `DisplayMode::current()` resolves
-the mode in this order and caches the result on first access:
+`Staging`) and drives the `Display` output of `AppError`.
+`DisplayMode::current()` resolves the mode in this order and caches the
+result on first access (the environment is read once per process):
 
-1. `MASTERROR_ENV` environment variable (`prod`, `local`, or `staging`)
+1. `MASTERROR_ENV` environment variable (`prod`/`production`,
+   `local`/`dev`/`development`, or `staging`/`stage`)
 2. `KUBERNETES_SERVICE_HOST` presence (selects `Prod`)
-3. Build configuration (`debug_assertions` → `Local`, release → `Prod`)
+3. Build configuration (`debug_assertions` → `Local`, release → `Prod`;
+   the only detection step available without the `std` feature)
 
 ~~~rust
 use masterror::DisplayMode;
@@ -647,34 +650,47 @@ match mode {
 }
 ~~~
 
-Note: `Display` for `AppError` does not consult `DisplayMode` yet — the
-output is identical in all modes. The only formatting branch today is the
-`colored` feature described below; mode-aware formatting is not wired up.
+`Display` for `AppError` dispatches on the detected mode:
 
-**Colored Terminal Output:**
+| Mode | Layout |
+|------|--------|
+| `Local` | Multi-line human-readable report: kind, code, message, source chain, metadata |
+| `Prod` | Compact single-line JSON: `kind`, `code`, optional `message`, metadata |
+| `Staging` | Same JSON as `Prod` plus a `source_chain` array |
 
-Enable the `colored` feature for enhanced terminal output. It applies
-whenever the feature is enabled, regardless of the detected mode:
+All layouts apply per-field redaction policies: `Redact` renders the
+`[REDACTED]` placeholder, `Hash` renders a SHA-256 hex digest, `Last4`
+keeps only the trailing characters (fields that cannot be masked are
+omitted). Set `MASTERROR_ENV=local` on any host to force the
+human-readable layout, e.g. when debugging inside Kubernetes.
 
-~~~toml
-[dependencies]
-masterror = { version = "0.28.0", features = ["colored"] }
+In `Local` mode the output looks like:
+
 ~~~
-
-Without the `colored` feature, errors display their `AppErrorKind` label:
-~~~
-NotFound
-~~~
-
-With `colored`, a full multi-line format with context:
-~~~
-Error: NotFound
+Error: Not found
 Code: NOT_FOUND
 Message: User not found
 
 Context:
   user_id: 12345
   request_id: abc-def
+~~~
+
+In `Prod` mode the same error renders as:
+
+~~~
+{"kind":"NotFound","code":"NOT_FOUND","message":"User not found","metadata":{"request_id":"abc-def","user_id":12345}}
+~~~
+
+**Colored Terminal Output:**
+
+Enable the `colored` feature for ANSI styling with automatic TTY
+detection. It affects only the `Local` layout; `Prod` and `Staging` JSON
+never contains escape sequences:
+
+~~~toml
+[dependencies]
+masterror = { version = "0.28.0", features = ["colored"] }
 ~~~
 
 </details>

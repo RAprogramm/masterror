@@ -33,6 +33,7 @@ impl StdError for AnyhowSource {
     }
 }
 
+use super::core::{DisplayMode, display::force_display_mode};
 #[cfg(feature = "backtrace")]
 use super::core::{reset_backtrace_preference, set_backtrace_preference_override};
 
@@ -731,36 +732,29 @@ fn app_error_fits_result_budget() {
 #[test]
 #[cfg(feature = "std")]
 fn error_chain_iterates_through_sources() {
+    let _guard = force_display_mode(DisplayMode::Local);
     let io_err = IoError::other("disk offline");
     let app_err = AppError::internal("db down").with_context(io_err);
     let chain: Vec<_> = app_err.chain().collect();
     assert_eq!(chain.len(), 2);
     let first_err = chain[0].to_string();
-    assert!(
-        first_err.contains("Internal")
-            || first_err.contains("INTERNAL")
-            || first_err.contains("Error:")
-    );
-    #[cfg(feature = "colored")]
+    assert!(first_err.contains("Error: Internal server error"));
+    assert!(first_err.contains("Code: INTERNAL"));
     assert!(first_err.contains("db down"));
-    #[cfg(not(feature = "colored"))]
-    assert!(first_err.contains("Internal"));
     assert_eq!(chain[1].to_string(), "disk offline");
 }
 
 #[test]
 #[cfg(feature = "std")]
 fn error_chain_single_error() {
+    let _guard = force_display_mode(DisplayMode::Local);
     let err = AppError::bad_request("missing field");
     let chain: Vec<_> = err.chain().collect();
     assert_eq!(chain.len(), 1);
     let err_str = chain[0].to_string();
-    assert!(err_str.contains("Bad") || err_str.contains("BAD"));
-    #[cfg(feature = "colored")]
-    {
-        assert!(chain[0].to_string().contains("Bad request"));
-        assert!(chain[0].to_string().contains("missing field"));
-    }
+    assert!(err_str.contains("Bad request"));
+    assert!(err_str.contains("Code: BAD_REQUEST"));
+    assert!(err_str.contains("missing field"));
 }
 
 #[test]
@@ -785,18 +779,12 @@ fn root_cause_returns_deepest_error() {
 #[test]
 #[cfg(feature = "std")]
 fn root_cause_returns_self_when_no_source() {
+    let _guard = force_display_mode(DisplayMode::Local);
     let err = AppError::timeout("operation timed out");
     let root = err.root_cause();
     let root_str = root.to_string();
-    assert!(
-        root_str.contains("timed out")
-            || root_str.contains("TIMEOUT")
-            || root_str.contains("Timeout")
-    );
-    #[cfg(feature = "colored")]
-    assert!(root_str.contains("operation"));
-    #[cfg(not(feature = "colored"))]
-    assert!(root_str.contains("Timeout") || root_str.contains("timed out"));
+    assert!(root_str.contains("Code: TIMEOUT"));
+    assert!(root_str.contains("operation timed out"));
 }
 
 #[test]
@@ -893,18 +881,19 @@ fn downcast_mut_returns_none_for_shared_arc_attached_via_with_context() {
 }
 
 #[test]
-#[cfg(feature = "colored")]
-fn colored_display_bare_error_without_message() {
+fn local_display_bare_error_without_message() {
+    let _guard = force_display_mode(DisplayMode::Local);
     let err = AppError::bare(AppErrorKind::Internal);
     let output = format!("{}", err);
     assert!(output.contains("Internal server error"));
     assert!(output.contains("Code:"));
     assert!(output.contains("INTERNAL"));
+    assert!(!output.contains("Message:"));
 }
 
 #[test]
-#[cfg(feature = "colored")]
-fn colored_display_deep_error_chain() {
+#[cfg(feature = "std")]
+fn local_display_deep_error_chain() {
     use crate::field;
     #[derive(Debug)]
     struct CustomError {
@@ -921,6 +910,7 @@ fn colored_display_deep_error_chain() {
             self.source.as_ref().map(|e| e as &(dyn StdError + 'static))
         }
     }
+    let _guard = force_display_mode(DisplayMode::Local);
     let root = IoError::other("disk full");
     let mid = CustomError {
         msg:    "write failed".to_string(),
