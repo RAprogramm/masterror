@@ -170,9 +170,9 @@ The build script keeps the full feature snippet below in sync with
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.28.0", default-features = false }
+masterror = { version = "0.29.0", default-features = false }
 # or with features:
-# masterror = { version = "0.28.0", features = [
+# masterror = { version = "0.29.0", features = [
 #   "std", "axum", "actix", "openapi",
 #   "serde_json", "tracing", "metrics", "backtrace",
 #   "colored", "sqlx", "sqlx-migrate", "reqwest",
@@ -697,7 +697,7 @@ never contains escape sequences:
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.28.0", features = ["colored"] }
+masterror = { version = "0.29.0", features = ["colored"] }
 ~~~
 
 </details>
