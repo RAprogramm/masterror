@@ -20,7 +20,8 @@
 //! enabling flexible message construction from string literals, owned strings,
 //! or pre-built `Cow` instances.
 
-use alloc::borrow::Cow;
+use alloc::{borrow::Cow, boxed::Box};
+use core::error::Error as CoreError;
 
 use super::core::AppError;
 use crate::AppErrorKind;
@@ -322,5 +323,35 @@ impl AppError {
     /// ```
     pub fn cache(msg: impl Into<Cow<'static, str>>) -> Self {
         Self::with(AppErrorKind::Cache, msg)
+    }
+
+    /// Build a message-less error with the given kind from an already boxed
+    /// source error, without re-boxing the allocation.
+    ///
+    /// The source is stored as an owned attachment, so it stays recoverable by
+    /// value via [`downcast`](Self::downcast) and borrowable via
+    /// [`downcast_ref`](Self::downcast_ref). This mirrors
+    /// `anyhow::Error::from_boxed` (available since anyhow 1.0.95) and forms a
+    /// round-trip with [`into_boxed_dyn_error`](Self::into_boxed_dyn_error).
+    ///
+    /// ```rust
+    /// use core::error::Error;
+    ///
+    /// use masterror::{AppError, AppErrorKind};
+    ///
+    /// let source: Box<dyn Error + Send + Sync> = "disk offline".into();
+    /// let err = AppError::from_boxed(AppErrorKind::Internal, source);
+    /// assert!(err.message.is_none());
+    /// assert_eq!(
+    ///     err.source_ref().expect("source").to_string(),
+    ///     "disk offline"
+    /// );
+    /// ```
+    #[must_use]
+    pub fn from_boxed(
+        kind: AppErrorKind,
+        source: Box<dyn CoreError + Send + Sync + 'static>
+    ) -> Self {
+        Self::bare(kind).with_boxed_source(source)
     }
 }

@@ -85,11 +85,12 @@
 //! assert!(matches!(err.kind, AppErrorKind::BadRequest));
 //! ```
 
-use alloc::string::String;
+use alloc::{boxed::Box, string::String};
+use core::error::Error as CoreError;
 #[cfg(feature = "std")]
 use std::io::Error as IoError;
 
-use crate::AppError;
+use crate::{AppError, AppErrorKind};
 
 #[cfg(feature = "axum")]
 #[cfg_attr(docsrs, doc(cfg(feature = "axum")))]
@@ -190,6 +191,29 @@ impl From<IoError> for AppError {
 impl From<String> for AppError {
     fn from(value: String) -> Self {
         AppError::bad_request(value)
+    }
+}
+
+/// Map an already boxed error to an internal application error.
+///
+/// The box is stored as the owned source without re-boxing, so the concrete
+/// error stays recoverable via [`AppError::downcast`] and
+/// [`AppError::downcast_ref`]. Equivalent to
+/// [`AppError::from_boxed`] with [`AppErrorKind::Internal`].
+///
+/// ```rust
+/// use core::error::Error;
+///
+/// use masterror::{AppError, AppErrorKind};
+///
+/// let source: Box<dyn Error + Send + Sync> = "boom".into();
+/// let err: AppError = source.into();
+/// assert!(matches!(err.kind, AppErrorKind::Internal));
+/// assert_eq!(err.source_ref().expect("source").to_string(), "boom");
+/// ```
+impl From<Box<dyn CoreError + Send + Sync + 'static>> for AppError {
+    fn from(source: Box<dyn CoreError + Send + Sync + 'static>) -> Self {
+        AppError::from_boxed(AppErrorKind::Internal, source)
     }
 }
 

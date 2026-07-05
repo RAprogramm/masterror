@@ -881,6 +881,65 @@ fn downcast_mut_returns_none_for_shared_arc_attached_via_with_context() {
 }
 
 #[test]
+fn from_boxed_preserves_kind_and_source_without_message() {
+    let source: Box<dyn StdError + Send + Sync> = Box::new(IoError::other("disk offline"));
+    let err = AppError::from_boxed(AppErrorKind::Service, source);
+    assert!(matches!(err.kind, AppErrorKind::Service));
+    assert!(err.message.is_none());
+    assert_eq!(
+        err.source_ref().expect("source").to_string(),
+        "disk offline"
+    );
+}
+
+#[test]
+fn from_boxed_source_downcasts_to_concrete_type() {
+    let source: Box<dyn StdError + Send + Sync> = Box::new(IoError::other("disk offline"));
+    let err = AppError::from_boxed(AppErrorKind::Internal, source);
+    let io = err.downcast_ref::<IoError>().expect("io source");
+    assert_eq!(io.to_string(), "disk offline");
+    let io = err.downcast::<IoError>().expect("owned source");
+    assert_eq!(io.to_string(), "disk offline");
+}
+
+#[test]
+fn into_boxed_dyn_error_preserves_display_and_chain() {
+    let io_err = IoError::other("disk offline");
+    let err = AppError::internal("db down").with_source(io_err);
+    let display = err.to_string();
+    let boxed = err.into_boxed_dyn_error();
+    assert_eq!(boxed.to_string(), display);
+    let source = boxed.source().expect("io source");
+    assert_eq!(source.to_string(), "disk offline");
+    assert!(source.source().is_none());
+}
+
+#[test]
+fn boxed_round_trip_keeps_chain_and_downcasts() {
+    let io_err = IoError::other("disk offline");
+    let err = AppError::internal("db down").with_source(io_err);
+    let restored = AppError::from_boxed(AppErrorKind::Internal, err.into_boxed_dyn_error());
+    let chain: Vec<_> = restored.chain().collect();
+    assert_eq!(chain.len(), 3);
+    assert_eq!(restored.root_cause().to_string(), "disk offline");
+    let inner = restored
+        .downcast_ref::<AppError>()
+        .expect("inner app error");
+    assert_eq!(inner.message.as_deref(), Some("db down"));
+    let inner = restored.downcast::<AppError>().expect("owned inner");
+    assert!(matches!(inner.kind, AppErrorKind::Internal));
+}
+
+#[test]
+fn boxed_error_converts_to_internal_app_error() {
+    let source: Box<dyn StdError + Send + Sync> = Box::new(IoError::other("boom"));
+    let err: AppError = source.into();
+    assert!(matches!(err.kind, AppErrorKind::Internal));
+    assert!(err.message.is_none());
+    assert_eq!(err.source_ref().expect("source").to_string(), "boom");
+}
+
+#[test]
 fn local_display_bare_error_without_message() {
     let _guard = force_display_mode(DisplayMode::Local);
     let err = AppError::bare(AppErrorKind::Internal);

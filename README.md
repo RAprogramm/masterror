@@ -94,6 +94,10 @@ of redaction and metadata.
 - **Turnkey defaults.** The `turnkey` module ships a ready-to-use error catalog,
   a heuristic classifier and conservative mappings into the canonical taxonomy
   for teams that want a consistent baseline out of the box.
+- **Boxed error interop.** `AppError::from_boxed` adopts any
+  `Box<dyn Error + Send + Sync>` without re-boxing and `into_boxed_dyn_error`
+  converts back, matching `anyhow`'s round-trip API while keeping the source
+  chain intact and downcastable.
 - **Typed control-flow macros.** `ensure!` and `fail!` short-circuit functions
   with your domain errors without allocating or formatting on the happy path,
   while `app_error!` builds ad-hoc `AppError` values with `format!`-style
