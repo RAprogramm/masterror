@@ -6,10 +6,10 @@
 //!
 //! [`AppError`] is a thin, framework-agnostic wrapper around a canonical
 //! error taxonomy [`AppErrorKind`] plus an optional public-facing message.
-//! Without the `colored` feature, the `Display` for `AppError` prints only
-//! the kind, not the message, to keep logs and errors concise by default.
-//! With `colored` enabled, `Display` renders a multi-line report (kind, code,
-//! message, source chain, metadata).
+//! The `Display` implementation dispatches on [`DisplayMode::current`]:
+//! `Local` renders a multi-line human-readable report (kind, code, message,
+//! source chain, metadata), while `Prod` and `Staging` render compact JSON.
+//! The `colored` feature adds ANSI styling to the `Local` layout only.
 //!
 //! ## Design
 //!
@@ -75,6 +75,7 @@ mod context;
 mod core;
 mod inline_vec;
 mod metadata;
+pub(crate) mod redaction;
 
 pub use core::{AppError, AppResult, DisplayMode, Error, ErrorChain, MessageEditPolicy};
 #[cfg(all(test, feature = "backtrace"))]
