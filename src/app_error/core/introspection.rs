@@ -357,4 +357,40 @@ impl Error {
     {
         self.source.as_mut()?.as_dyn_mut()?.downcast_mut::<E>()
     }
+
+    /// Convert the error into a boxed trait object.
+    ///
+    /// The error is always boxed as-is, never unwrapped to its source, so the
+    /// returned trait object keeps the full `Display` output, the kind, the
+    /// metadata and the entire [`source()`](CoreError::source) chain of this
+    /// error. This mirrors `anyhow::Error::into_boxed_dyn_error` (available
+    /// since anyhow 1.0.98) and forms a round-trip with
+    /// [`from_boxed`](Self::from_boxed).
+    ///
+    /// ```rust
+    /// use masterror::AppError;
+    ///
+    /// let err = AppError::internal("db down");
+    /// let display = err.to_string();
+    /// let boxed = err.into_boxed_dyn_error();
+    /// assert_eq!(boxed.to_string(), display);
+    /// ```
+    ///
+    /// Round-trip through [`from_boxed`](Self::from_boxed) keeps the chain:
+    ///
+    /// ```rust
+    /// use core::error::Error;
+    ///
+    /// use masterror::{AppError, AppErrorKind};
+    ///
+    /// let source: Box<dyn Error + Send + Sync> = "root cause".into();
+    /// let err = AppError::from_boxed(AppErrorKind::Internal, source);
+    /// let restored = AppError::from_boxed(AppErrorKind::Internal, err.into_boxed_dyn_error());
+    /// assert_eq!(restored.chain().count(), 3);
+    /// assert_eq!(restored.root_cause().to_string(), "root cause");
+    /// ```
+    #[must_use]
+    pub fn into_boxed_dyn_error(self) -> Box<dyn CoreError + Send + Sync + 'static> {
+        Box::new(self)
+    }
 }
