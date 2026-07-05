@@ -170,3 +170,114 @@ pub(crate) fn mask_last4(value: &str) -> String {
     masked.extend(chars.skip(mask_len));
     masked
 }
+
+#[cfg(test)]
+mod tests {
+    use core::{net::IpAddr, time::Duration};
+
+    use super::*;
+
+    fn assert_hex_digest(digest: &str) {
+        assert_eq!(digest.len(), 64);
+        assert!(digest.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn hash_covers_all_scalar_variants() {
+        assert_hex_digest(&hash_field_value(&FieldValue::Str("secret".into())));
+        assert_hex_digest(&hash_field_value(&FieldValue::I64(-42)));
+        assert_hex_digest(&hash_field_value(&FieldValue::U64(42)));
+        assert_hex_digest(&hash_field_value(&FieldValue::F64(1.5)));
+        assert_hex_digest(&hash_field_value(&FieldValue::Bool(true)));
+        assert_hex_digest(&hash_field_value(&FieldValue::Bool(false)));
+        assert_hex_digest(&hash_field_value(&FieldValue::Duration(
+            Duration::from_millis(1500)
+        )));
+    }
+
+    #[test]
+    fn hash_is_deterministic_per_value() {
+        let first = hash_field_value(&FieldValue::I64(7));
+        let second = hash_field_value(&FieldValue::I64(7));
+        let other = hash_field_value(&FieldValue::I64(8));
+        assert_eq!(first, second);
+        assert_ne!(first, other);
+    }
+
+    #[test]
+    fn hash_covers_uuid_and_ip() {
+        let uuid = uuid::Uuid::nil();
+        assert_hex_digest(&hash_field_value(&FieldValue::Uuid(uuid)));
+        let ip: IpAddr = "192.168.0.1".parse().expect("ipv4");
+        assert_hex_digest(&hash_field_value(&FieldValue::Ip(ip)));
+        let ip6: IpAddr = "::1".parse().expect("ipv6");
+        assert_hex_digest(&hash_field_value(&FieldValue::Ip(ip6)));
+    }
+
+    #[cfg(feature = "serde_json")]
+    #[test]
+    fn hash_covers_json() {
+        let value = serde_json::json!({"card": "4111"});
+        assert_hex_digest(&hash_field_value(&FieldValue::Json(value)));
+    }
+
+    #[test]
+    fn mask_covers_all_scalar_variants() {
+        assert_eq!(
+            mask_last4_field_value(&FieldValue::Str("4111111111111111".into()))
+                .expect("string masks"),
+            "************1111"
+        );
+        assert_eq!(
+            mask_last4_field_value(&FieldValue::I64(-123_456)).expect("i64 masks"),
+            "***3456"
+        );
+        assert_eq!(
+            mask_last4_field_value(&FieldValue::U64(123_456)).expect("u64 masks"),
+            "**3456"
+        );
+        let masked_float = mask_last4_field_value(&FieldValue::F64(1234.5)).expect("f64 masks");
+        assert!(masked_float.starts_with('*'));
+        let duration = Duration::from_secs(90);
+        assert_eq!(
+            mask_last4_field_value(&FieldValue::Duration(duration)).expect("duration masks"),
+            mask_last4(&duration_to_string(duration))
+        );
+        assert!(mask_last4_field_value(&FieldValue::Bool(true)).is_none());
+    }
+
+    #[test]
+    fn mask_covers_uuid_and_ip() {
+        let uuid = uuid::Uuid::nil();
+        let masked = mask_last4_field_value(&FieldValue::Uuid(uuid)).expect("uuid masks");
+        assert!(masked.ends_with("0000"));
+        assert!(masked.starts_with('*'));
+        let ip: IpAddr = "10.0.0.15".parse().expect("ipv4");
+        let masked_ip = mask_last4_field_value(&FieldValue::Ip(ip)).expect("ip masks");
+        assert!(masked_ip.ends_with("0.15"));
+    }
+
+    #[cfg(feature = "serde_json")]
+    #[test]
+    fn mask_covers_json() {
+        let value = serde_json::json!("tok_123456");
+        let masked = mask_last4_field_value(&FieldValue::Json(value)).expect("json masks");
+        assert!(masked.ends_with("456\""));
+    }
+
+    #[test]
+    fn mask_last4_handles_empty_and_short_values() {
+        assert_eq!(mask_last4(""), "");
+        assert_eq!(mask_last4("a"), "a");
+        assert_eq!(mask_last4("abcd"), "***d");
+        assert_eq!(mask_last4("abcde"), "*bcde");
+    }
+
+    #[test]
+    fn stack_buffer_rejects_overflow() {
+        let mut buffer = StackBuffer::<4>::new();
+        assert!(write!(&mut buffer, "hello").is_err());
+        assert!(write!(&mut buffer, "hi").is_ok());
+        assert_eq!(buffer.as_str(), Some("hi"));
+    }
+}
