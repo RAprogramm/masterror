@@ -364,6 +364,12 @@ mod macros;
 #[cfg(masterror_has_error_generic_member_access)]
 #[doc(hidden)]
 pub mod provide;
+
+/// Implementation detail of exported macros. Not part of the public API.
+#[doc(hidden)]
+pub mod __private {
+    pub use alloc::format;
+}
 mod response;
 mod result_ext;
 

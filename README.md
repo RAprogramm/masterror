@@ -95,7 +95,9 @@ of redaction and metadata.
   a heuristic classifier and conservative mappings into the canonical taxonomy
   for teams that want a consistent baseline out of the box.
 - **Typed control-flow macros.** `ensure!` and `fail!` short-circuit functions
-  with your domain errors without allocating or formatting on the happy path.
+  with your domain errors without allocating or formatting on the happy path,
+  while `app_error!` builds ad-hoc `AppError` values with `format!`-style
+  messages in expression position.
 
 <div align="right">
 
@@ -331,6 +333,23 @@ fn bail() -> AppResult<()> {
 assert!(guard(true).is_ok());
 assert!(matches!(guard(false).unwrap_err().kind, AppErrorKind::BadRequest));
 assert!(matches!(bail().unwrap_err().kind, AppErrorKind::Unauthorized));
+~~~
+
+`app_error!` is the `anyhow::anyhow!` counterpart: an expression macro that
+builds an `AppError` from a kind and an optional `format!`-style message with
+implicit capture. The kind-only form performs no allocation; the message form
+allocates exactly once.
+
+~~~rust
+use masterror::{AppErrorKind, AppResult, app_error};
+
+fn find(id: u64) -> AppResult<u64> {
+    None::<u64>.ok_or_else(|| app_error!(AppErrorKind::NotFound, "no entity {id}"))
+}
+
+let bare = app_error!(AppErrorKind::Timeout);
+assert!(bare.message.is_none());
+assert!(matches!(find(7).unwrap_err().kind, AppErrorKind::NotFound));
 ~~~
 
 </details>

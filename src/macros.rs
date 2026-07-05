@@ -2,14 +2,20 @@
 //
 // SPDX-License-Identifier: MIT
 
-//! Control-flow macros for early returns with typed errors.
+//! Control-flow and construction macros for typed errors.
 //!
-//! These macros complement the typed [`AppError`](crate::AppError) APIs by
-//! providing a lightweight, allocation-free way to short-circuit functions when
-//! invariants are violated. Unlike the dynamic formatting helpers offered by
-//! `anyhow` or `eyre`, the macros operate on pre-constructed error values so
-//! the compiler keeps strong typing guarantees and no formatting work happens
-//! on the success path.
+//! The control-flow macros ([`ensure!`](crate::ensure) and
+//! [`fail!`](crate::fail)) complement the typed [`AppError`](crate::AppError)
+//! APIs by providing a lightweight, allocation-free way to short-circuit
+//! functions when invariants are violated. Unlike the dynamic formatting
+//! helpers offered by `anyhow` or `eyre`, they operate on pre-constructed
+//! error values so the compiler keeps strong typing guarantees and no
+//! formatting work happens on the success path.
+//!
+//! The expression macro [`app_error!`](crate::app_error) covers the ad-hoc
+//! construction side: it builds an [`AppError`](crate::AppError) from a kind
+//! and an optional format-style message, mirroring `anyhow::anyhow!` while
+//! staying inside the typed taxonomy.
 //!
 //! ```rust
 //! use masterror::{AppError, AppErrorKind, AppResult};
@@ -100,5 +106,76 @@ macro_rules! ensure {
 macro_rules! fail {
     ($err:expr $(,)?) => {
         return Err($err);
+    };
+}
+
+/// Construct an [`AppError`](crate::AppError) expression from a kind and an
+/// optional format-style message.
+///
+/// This macro is the typed counterpart of `anyhow::anyhow!`. It evaluates to
+/// an [`AppError`](crate::AppError) value, so it can be used anywhere an
+/// expression is expected: `ok_or_else`, `map_err`, `return Err(...)` or as
+/// the argument to [`fail!`](crate::fail).
+///
+/// Two forms are supported:
+///
+/// - `app_error!(kind)` expands to [`AppError::bare`](crate::AppError::bare)
+///   and performs no allocation.
+/// - `app_error!(kind, "format {args}")` expands to
+///   [`AppError::with`](crate::AppError::with) with a message built by
+///   [`format!`](alloc::format), including implicit named-argument capture.
+///   Exactly one allocation happens, driven by `format_args!`.
+///
+/// # Examples
+///
+/// Kind-only, allocation-free:
+///
+/// ```rust
+/// use masterror::{AppErrorKind, app_error};
+///
+/// let err = app_error!(AppErrorKind::Timeout);
+/// assert!(matches!(err.kind, AppErrorKind::Timeout));
+/// assert!(err.message.is_none());
+/// ```
+///
+/// Formatted message with implicit capture:
+///
+/// ```rust
+/// use masterror::{AppErrorKind, app_error};
+///
+/// let value = 42;
+/// let err = app_error!(AppErrorKind::Validation, "bad value: {value}");
+/// assert!(matches!(err.kind, AppErrorKind::Validation));
+/// assert_eq!(err.message.as_deref(), Some("bad value: 42"));
+/// ```
+///
+/// Expression position and composition with [`fail!`](crate::fail):
+///
+/// ```rust
+/// use masterror::{AppErrorKind, AppResult, app_error};
+///
+/// fn find(id: u64) -> AppResult<u64> {
+///     let found = None::<u64>;
+///     let value = found.ok_or_else(|| app_error!(AppErrorKind::NotFound, "no entity {id}"))?;
+///     Ok(value)
+/// }
+///
+/// fn reject() -> AppResult<()> {
+///     masterror::fail!(app_error!(AppErrorKind::Unauthorized, "token expired"));
+/// }
+///
+/// assert!(matches!(find(7).unwrap_err().kind, AppErrorKind::NotFound));
+/// assert!(matches!(
+///     reject().unwrap_err().kind,
+///     AppErrorKind::Unauthorized
+/// ));
+/// ```
+#[macro_export]
+macro_rules! app_error {
+    ($kind:expr $(,)?) => {
+        $crate::AppError::bare($kind)
+    };
+    ($kind:expr, $($fmt:tt)+) => {
+        $crate::AppError::with($kind, $crate::__private::format!($($fmt)+))
     };
 }
