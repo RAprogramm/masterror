@@ -1,0 +1,5 @@
+error: enum-level #[error] attributes support only `fmt = ...`
+ --> tests/ui/formatter/fail/enum_level_template.rs:8:1
+  |
+8 | #[error("enum-level template")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

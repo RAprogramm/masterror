@@ -91,6 +91,23 @@ pub(crate) fn extract_display_spec(
     missing_span: Span,
     errors: &mut Vec<Error>
 ) -> Result<DisplaySpec, ()> {
+    match extract_display_spec_optional(attrs, errors)? {
+        Some(spec) => Ok(spec),
+        None => {
+            errors.push(Error::new(missing_span, "missing #[error(...)] attribute"));
+            Err(())
+        }
+    }
+}
+
+/// Extracts display specification when the `#[error]` attribute is optional.
+///
+/// Returns `Ok(None)` when no `#[error]` attribute is present, allowing the
+/// caller to fall back to an enum-level formatter.
+pub(crate) fn extract_display_spec_optional(
+    attrs: &[Attribute],
+    errors: &mut Vec<Error>
+) -> Result<Option<DisplaySpec>, ()> {
     let mut display = None;
     let mut saw_error_attribute = false;
     for attr in attrs {
@@ -108,14 +125,63 @@ pub(crate) fn extract_display_spec(
         }
     }
     match display {
-        Some(spec) => Ok(spec),
-        None => {
-            if !saw_error_attribute {
-                errors.push(Error::new(missing_span, "missing #[error(...)] attribute"));
+        Some(spec) => Ok(Some(spec)),
+        None if saw_error_attribute => Err(()),
+        None => Ok(None)
+    }
+}
+
+/// Extracts an enum-level `#[error(fmt = ...)]` formatter path.
+///
+/// The enum-level attribute serves as a shared formatter for variants that
+/// do not carry their own `#[error]` attribute. Any other enum-level display
+/// form (template or `transparent`) is rejected.
+pub(crate) fn extract_enum_fmt_spec(
+    attrs: &[Attribute],
+    errors: &mut Vec<Error>
+) -> Result<Option<ExprPath>, ()> {
+    let mut fmt = None;
+    let mut had_error = false;
+    for attr in attrs {
+        if !path_is(attr, "error") {
+            continue;
+        }
+        if fmt.is_some() {
+            errors.push(Error::new_spanned(
+                attr,
+                "duplicate enum-level #[error] attribute"
+            ));
+            had_error = true;
+            continue;
+        }
+        match parse_error_attribute(attr) {
+            Ok(DisplaySpec::FormatterPath {
+                path,
+                args
+            }) if args.args.is_empty() => fmt = Some(path),
+            Ok(DisplaySpec::FormatterPath {
+                ..
+            }) => {
+                errors.push(Error::new_spanned(
+                    attr,
+                    "enum-level #[error(fmt = ...)] does not accept format arguments"
+                ));
+                had_error = true;
             }
-            Err(())
+            Ok(_) => {
+                errors.push(Error::new_spanned(
+                    attr,
+                    "enum-level #[error] attributes support only `fmt = ...`"
+                ));
+                had_error = true;
+            }
+            Err(err) => {
+                errors.push(err);
+                had_error = true;
+            }
         }
     }
+    if had_error { Err(()) } else { Ok(fmt) }
 }
 
 /// Parses #[app_error(...)] attribute contents.
@@ -1231,6 +1297,80 @@ mod tests {
         let mut errors = Vec::new();
         let result = extract_display_spec(&attrs, Span::call_site(), &mut errors);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn extract_display_spec_optional_missing() {
+        let attrs: Vec<Attribute> = vec![parse_quote! { #[derive(Debug)] }];
+        let mut errors = Vec::new();
+        let result = extract_display_spec_optional(&attrs, &mut errors);
+        assert!(matches!(result, Ok(None)));
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn extract_display_spec_optional_present() {
+        let attrs: Vec<Attribute> = vec![parse_quote! { #[error("message")] }];
+        let mut errors = Vec::new();
+        let result = extract_display_spec_optional(&attrs, &mut errors);
+        assert!(matches!(result, Ok(Some(_))));
+    }
+
+    #[test]
+    fn extract_enum_fmt_spec_valid() {
+        let attrs: Vec<Attribute> = vec![parse_quote! { #[error(fmt = crate::render)] }];
+        let mut errors = Vec::new();
+        let result = extract_enum_fmt_spec(&attrs, &mut errors);
+        assert!(matches!(result, Ok(Some(_))));
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn extract_enum_fmt_spec_missing() {
+        let attrs: Vec<Attribute> = vec![parse_quote! { #[derive(Debug)] }];
+        let mut errors = Vec::new();
+        let result = extract_enum_fmt_spec(&attrs, &mut errors);
+        assert!(matches!(result, Ok(None)));
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn extract_enum_fmt_spec_rejects_template() {
+        let attrs: Vec<Attribute> = vec![parse_quote! { #[error("template")] }];
+        let mut errors = Vec::new();
+        let result = extract_enum_fmt_spec(&attrs, &mut errors);
+        assert!(result.is_err());
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn extract_enum_fmt_spec_rejects_transparent() {
+        let attrs: Vec<Attribute> = vec![parse_quote! { #[error(transparent)] }];
+        let mut errors = Vec::new();
+        let result = extract_enum_fmt_spec(&attrs, &mut errors);
+        assert!(result.is_err());
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn extract_enum_fmt_spec_rejects_arguments() {
+        let attrs: Vec<Attribute> = vec![parse_quote! { #[error(fmt = render, arg)] }];
+        let mut errors = Vec::new();
+        let result = extract_enum_fmt_spec(&attrs, &mut errors);
+        assert!(result.is_err());
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn extract_enum_fmt_spec_rejects_duplicate() {
+        let attrs: Vec<Attribute> = vec![
+            parse_quote! { #[error(fmt = first)] },
+            parse_quote! { #[error(fmt = second)] },
+        ];
+        let mut errors = Vec::new();
+        let result = extract_enum_fmt_spec(&attrs, &mut errors);
+        assert!(result.is_err());
+        assert!(!errors.is_empty());
     }
 
     #[test]

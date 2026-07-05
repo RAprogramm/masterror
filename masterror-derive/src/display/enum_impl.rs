@@ -11,7 +11,7 @@
 
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
-use syn::Error;
+use syn::{Error, ext::IdentExt};
 
 use super::{
     format_args::FormatArgumentsEnv,
@@ -392,10 +392,12 @@ pub fn variant_named_placeholder(
     }
     match &placeholder.identifier {
         TemplateIdentifierSpec::Named(name) => {
-            if let Some(index) = fields
-                .iter()
-                .position(|field| field.ident.as_ref().is_some_and(|ident| ident == name))
-            {
+            if let Some(index) = fields.iter().position(|field| {
+                field
+                    .ident
+                    .as_ref()
+                    .is_some_and(|ident| ident.unraw() == name.as_str())
+            }) {
                 let binding = &bindings[index];
                 Ok(ResolvedPlaceholderExpr::with(
                     quote!(#binding),
