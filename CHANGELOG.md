@@ -11,7 +11,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.27.2...HEAD)
+## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.27.3...HEAD)
+
+### Fixed
+
+- Ver by [@RAprogramm](https://github.com/RAprogramm) in [#443](https://github.com/RAprogramm/masterror/pull/443)
+## [0.27.3](https://github.com/RAprogramm/masterror/releases/tag/v0.27.3) - 2026-03-05
 
 ### Dependencies
 
@@ -20,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **deps:** Bump reqwest from 0.12.28 to 0.13.1 by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#421](https://github.com/RAprogramm/masterror/pull/421)
 - **deps:** Bump the minor-and-patch group with 3 updates by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#363](https://github.com/RAprogramm/masterror/pull/363)
 - **deps:** Bump reqwest from 0.12.28 to 0.13.1 by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#364](https://github.com/RAprogramm/masterror/pull/364)
+
+**Full Changelog**: [v0.27.2...v0.27.3](https://github.com/RAprogramm/masterror/compare/v0.27.2...v0.27.3)
 ## [0.27.2](https://github.com/RAprogramm/masterror/releases/tag/v0.27.2) - 2026-01-21
 
 ### Dependencies
