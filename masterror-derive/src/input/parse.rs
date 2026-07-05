@@ -7,11 +7,16 @@
 //! Handles top-level parsing of struct and enum error definitions,
 //! coordinating attribute extraction and validation.
 
-use syn::{Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Ident, spanned::Spanned};
+use syn::{
+    Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, ExprPath, Ident, spanned::Spanned
+};
 
 use super::{
-    parse_attr::{extract_app_error_spec, extract_display_spec, extract_masterror_spec},
-    types::{ErrorData, ErrorInput, Fields, FormatArgsSpec, StructData, VariantData},
+    parse_attr::{
+        extract_app_error_spec, extract_display_spec, extract_display_spec_optional,
+        extract_enum_fmt_spec, extract_masterror_spec
+    },
+    types::{DisplaySpec, ErrorData, ErrorInput, Fields, FormatArgsSpec, StructData, VariantData},
     utils::{
         collect_errors, path_is, validate_backtrace_usage, validate_from_usage,
         validate_transparent
@@ -77,28 +82,28 @@ fn parse_struct(
 }
 
 /// Parses enum error definition.
+///
+/// An enum-level `#[error(fmt = ...)]` attribute provides a shared formatter
+/// for variants that do not declare their own `#[error]` attribute.
 fn parse_enum(
     attrs: &[Attribute],
     data: DataEnum,
     errors: &mut Vec<Error>
 ) -> Result<ErrorData, ()> {
-    for attr in attrs {
-        if path_is(attr, "error") {
-            errors.push(Error::new_spanned(
-                attr,
-                "type-level #[error] attributes are not supported"
-            ));
-        }
-    }
+    let shared_fmt = extract_enum_fmt_spec(attrs, errors)?;
     let mut variants = Vec::new();
     for variant in data.variants {
-        variants.push(parse_variant(variant, errors)?);
+        variants.push(parse_variant(variant, shared_fmt.as_ref(), errors)?);
     }
     Ok(ErrorData::Enum(variants))
 }
 
 /// Parses single enum variant.
-fn parse_variant(variant: syn::Variant, errors: &mut Vec<Error>) -> Result<VariantData, ()> {
+fn parse_variant(
+    variant: syn::Variant,
+    shared_fmt: Option<&ExprPath>,
+    errors: &mut Vec<Error>
+) -> Result<VariantData, ()> {
     let span = variant.span();
     for attr in &variant.attrs {
         if path_is(attr, "from") {
@@ -108,7 +113,19 @@ fn parse_variant(variant: syn::Variant, errors: &mut Vec<Error>) -> Result<Varia
             ));
         }
     }
-    let display = extract_display_spec(&variant.attrs, span, errors)?;
+    let display = match extract_display_spec_optional(&variant.attrs, errors)? {
+        Some(spec) => spec,
+        None => match shared_fmt {
+            Some(path) => DisplaySpec::FormatterPath {
+                path: path.clone(),
+                args: FormatArgsSpec::default()
+            },
+            None => {
+                errors.push(Error::new(span, "missing #[error(...)] attribute"));
+                return Err(());
+            }
+        }
+    };
     let app_error = extract_app_error_spec(&variant.attrs, errors)?;
     let masterror = extract_masterror_spec(&variant.attrs, errors)?;
     let fields = Fields::from_syn(&variant.fields, errors);
@@ -175,6 +192,42 @@ mod tests {
             #[error("not allowed")]
             enum TestError {
                 #[error("variant")]
+                A
+            }
+        };
+        let result = parse_input(input);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_enum_level_fmt_fallback() {
+        let input: DeriveInput = parse_quote! {
+            #[error(fmt = crate::render)]
+            enum TestError {
+                A,
+                #[error("explicit")]
+                B
+            }
+        };
+        let result = parse_input(input);
+        let parsed = result.expect("enum-level fmt fallback");
+        let ErrorData::Enum(variants) = parsed.data else {
+            panic!("expected enum data");
+        };
+        assert!(matches!(
+            variants[0].display,
+            super::super::types::DisplaySpec::FormatterPath { .. }
+        ));
+        assert!(matches!(
+            variants[1].display,
+            super::super::types::DisplaySpec::Template(_)
+        ));
+    }
+
+    #[test]
+    fn parse_enum_variant_missing_error_without_fallback() {
+        let input: DeriveInput = parse_quote! {
+            enum TestError {
                 A
             }
         };

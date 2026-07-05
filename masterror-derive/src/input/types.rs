@@ -11,8 +11,8 @@
 use proc_macro2::Span;
 use syn::{
     AngleBracketedGenericArguments, Attribute, Error, Expr, ExprPath, Field as SynField,
-    Fields as SynFields, Ident, LitStr, Token, TypePath, punctuated::Punctuated, spanned::Spanned,
-    token::Paren
+    Fields as SynFields, Ident, LitStr, Token, TypePath, ext::IdentExt, punctuated::Punctuated,
+    spanned::Spanned, token::Paren
 };
 
 use super::{parse_attr::parse_provide_attribute, utils::is_backtrace_storage};
@@ -138,11 +138,17 @@ impl Fields {
     }
 
     /// Finds a named field by identifier.
+    ///
+    /// Raw identifiers are matched by their unraw form, so a template
+    /// placeholder `{source}` resolves a field named `r#source`.
     pub fn get_named(&self, name: &str) -> Option<&Field> {
         match self {
-            Self::Named(fields) => fields
-                .iter()
-                .find(|field| field.ident.as_ref().is_some_and(|ident| ident == name)),
+            Self::Named(fields) => fields.iter().find(|field| {
+                field
+                    .ident
+                    .as_ref()
+                    .is_some_and(|ident| ident.unraw() == name)
+            }),
             _ => None
         }
     }
@@ -568,6 +574,14 @@ mod tests {
     }
 
     #[test]
+    fn fields_get_named_raw_ident_unraw_match() {
+        let fields: syn::FieldsNamed = parse_quote! { { r#source: String } };
+        let mut errors = Vec::new();
+        let parsed = Fields::from_syn(&syn::Fields::Named(fields), &mut errors);
+        assert!(parsed.get_named("source").is_some());
+    }
+
+    #[test]
     fn fields_get_named_not_found() {
         let fields: syn::FieldsNamed = parse_quote! { { x: i32 } };
         let mut errors = Vec::new();
@@ -701,6 +715,22 @@ mod tests {
     #[test]
     fn field_attrs_has_source_inferred() {
         let field: SynField = parse_quote! { source: io::Error };
+        let mut errors = Vec::new();
+        let parsed = Field::from_syn(&field, 0, &mut errors);
+        assert!(parsed.attrs.has_source());
+    }
+
+    #[test]
+    fn field_attrs_raw_source_not_inferred() {
+        let field: SynField = parse_quote! { r#source: String };
+        let mut errors = Vec::new();
+        let parsed = Field::from_syn(&field, 0, &mut errors);
+        assert!(!parsed.attrs.has_source());
+    }
+
+    #[test]
+    fn field_attrs_raw_source_explicit_attribute() {
+        let field: SynField = parse_quote! { #[source] r#source: io::Error };
         let mut errors = Vec::new();
         let parsed = Field::from_syn(&field, 0, &mut errors);
         assert!(parsed.attrs.has_source());
