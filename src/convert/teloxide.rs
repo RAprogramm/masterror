@@ -16,7 +16,9 @@
 //! - [`RequestError::InvalidJson`] → `AppErrorKind::Deserialization`
 //! - [`RequestError::Io`] → `AppErrorKind::Internal`
 //!
-//! The original error string is preserved in the `message` for observability.
+//! The public message is left unset; error details are captured as
+//! `telegram.*` metadata fields and the original error is retained in the
+//! source chain for observability.
 //!
 //! ## Example
 //!

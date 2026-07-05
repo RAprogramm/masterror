@@ -8,8 +8,10 @@
 //!
 //! ## Mapping
 //!
-//! All [`InitDataError`] variants are mapped to `AppErrorKind::TelegramAuth`
-//! and the original error text is preserved in the message.
+//! All [`InitDataError`] variants are mapped to `AppErrorKind::TelegramAuth`.
+//! The public message is left unset; the failure reason and details are
+//! captured as `telegram_init_data.*` metadata fields and the original error
+//! is retained in the source chain.
 //!
 //! ## Rationale
 //!
@@ -20,10 +22,9 @@
 //!
 //! ## Example
 //!
-//! '''rust
+//! ```rust
 //! # #[cfg(feature = "init-data")]
 //! # {
-//! '''rust,ignore
 //! use init_data_rs::InitDataError;
 //! use masterror::{AppErrorKind, Error};
 //!
@@ -34,7 +35,7 @@
 //! let e = convert(InitDataError::HashMissing);
 //! assert!(matches!(e.kind, AppErrorKind::TelegramAuth));
 //! # }
-//! '''
+//! ```
 
 #[cfg(feature = "init-data")]
 use init_data_rs::InitDataError;

@@ -8,8 +8,10 @@
 //!
 //! ## Mapping
 //!
-//! All elapsed-time errors are mapped to `AppErrorKind::Timeout` with a fixed,
-//! public-facing message `"Operation timed out"`.
+//! All elapsed-time errors are mapped to `AppErrorKind::Timeout`. The
+//! conversion sets no public message, so clients see the kind's fallback
+//! title; a `timeout.source` metadata field records the timeout origin and
+//! the original error is retained in the source chain.
 //!
 //! ## Rationale
 //!
@@ -45,7 +47,8 @@ use crate::{AppErrorKind, Context, Error, field};
 /// Map a [`tokio::time::error::Elapsed`] into an [`crate::AppError`] with kind
 /// `Timeout`.
 ///
-/// Message is fixed to avoid leaking timing specifics to the client.
+/// No public message is set, which avoids leaking timing specifics to the
+/// client; a `timeout.source` metadata field is attached instead.
 ///
 /// # Example
 ///

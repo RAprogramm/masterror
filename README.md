@@ -74,9 +74,12 @@ of redaction and metadata.
 - **Unified taxonomy.** `AppError`, `AppErrorKind` and `AppCode` model domain and
   transport concerns with conservative HTTP/gRPC mappings, turnkey retry/auth
   hints and RFC7807 output via `ProblemJson`.
-- **Native derives.** `#[derive(Error)]`, `#[derive(Masterror)]`, `#[app_error]`,
-  `#[masterror(...)]` and `#[provide]` wire custom types into `AppError` while
-  forwarding sources, backtraces, telemetry providers and redaction policy.
+- **Native derives.** `#[derive(Error)]` and `#[derive(Masterror)]` wire custom
+  types into the runtime types. `#[derive(Masterror)]` with `#[masterror(...)]`
+  forwards sources, backtraces, telemetry fields and redaction policy;
+  `#[app_error]` maps a derived error to an `AppErrorKind`/`AppCode` (optionally
+  exposing its `Display` message) and `#[provide]` registers typed telemetry
+  providers on the domain error itself.
 - **Typed telemetry.** `Metadata` stores structured key/value context (strings,
   integers, floats, durations, IP addresses and optional JSON) with per-field
   redaction controls and builders in `field::*`, so logs stay structured without
@@ -86,11 +89,11 @@ of redaction and metadata.
   generation without contaminating the lean default build.
 - **Battle-tested integrations.** Enable focused mappings for `sqlx`,
   `reqwest`, `redis`, `validator`, `config`, `tokio`, `teloxide`, `multipart`,
-  Telegram WebApp SDK and more — each translating library errors into the
-  taxonomy with telemetry attached.
+  Telegram init-data validation and more — each translating library errors into
+  the taxonomy with telemetry attached.
 - **Turnkey defaults.** The `turnkey` module ships a ready-to-use error catalog,
-  helper builders and tracing instrumentation for teams that want a consistent
-  baseline out of the box.
+  a heuristic classifier and conservative mappings into the canonical taxonomy
+  for teams that want a consistent baseline out of the box.
 - **Typed control-flow macros.** `ensure!` and `fail!` short-circuit functions
   with your domain errors without allocating or formatting on the happy path.
 
@@ -128,14 +131,16 @@ of redaction and metadata.
 
 ## Feature Flags
 
-Pick only what you need; everything is off by default.
+Pick only what you need; the default feature set is just `std`, everything
+else is opt-in.
 
 - **Web transports:** `axum`, `actix`, `multipart`, `openapi`, `serde_json`.
 - **Telemetry & observability:** `tracing`, `metrics`, `backtrace`, `colored` for
   colored terminal output.
 - **Async & IO integrations:** `tokio`, `reqwest`, `sqlx`, `sqlx-migrate`,
   `redis`, `validator`, `config`.
-- **Messaging & bots:** `teloxide`, `telegram-webapp-sdk`.
+- **Messaging & bots:** `teloxide`, `init-data` for Telegram Mini App
+  init-data validation via `init-data-rs`.
 - **Front-end tooling:** `frontend` for WASM/browser console logging.
 - **gRPC:** `tonic` to emit `tonic::Status` responses.
 - **Batteries included:** `turnkey` to adopt the pre-built taxonomy and helpers.
@@ -195,7 +200,7 @@ cargo bench -F benchmarks --bench error_paths
 The suite emits two groups:
 
 - `context_into_error/*` promotes a dummy source error with representative
-  metadata (strings, counters, durations, IPs) through `Context::into_error` in
+  metadata (strings, counters, durations, IPs) through `ResultExt::ctx` in
   both redacted and non-redacted modes.
 - `problem_json_from_app_error/*` consumes the resulting `AppError` values to
   build RFC 7807 payloads via `ProblemJson::from_app_error`, showing how message
@@ -473,9 +478,17 @@ generated [`masterror::Error`].
 
 `#[provide(...)]` exposes typed context through `std::error::Request`, while
 `#[app_error(...)]` records how your domain error translates into `AppError`
-and `AppCode`. The derive mirrors `thiserror`'s syntax and extends it with
-optional telemetry propagation and direct conversions into the `masterror`
-runtime types.
+and `AppCode`. The derive mirrors `thiserror`'s syntax. Note that the
+generated `From` conversions produce an `AppError` carrying only the mapped
+kind and code (plus the `Display` output as public message when the `message`
+flag is set) — the original domain error is dropped, so its sources and
+telemetry providers are not forwarded. Request telemetry from the domain
+error before converting.
+
+`request_ref`/`request_value` and the `std::error::Request` machinery require
+a nightly toolchain (`error_generic_member_access`); the crate detects
+compiler support at build time and only enables provider integration when
+available.
 
 ~~~rust
 use std::error::request_ref;
@@ -507,8 +520,7 @@ let snapshot = request_ref::<TelemetrySnapshot>(&err).expect("telemetry");
 assert_eq!(snapshot.value, 42);
 
 let app: AppError = err.into();
-let via_app = request_ref::<TelemetrySnapshot>(&app).expect("telemetry");
-assert_eq!(via_app.name, "db.query");
+assert!(matches!(app.kind, AppErrorKind::Service));
 ~~~
 
 Optional telemetry only surfaces when present, so `None` does not register a
@@ -579,11 +591,10 @@ structured telemetry (`#[provide]`) and first-class conversions into
 
 ~~~rust
 use masterror::{AppError, AppErrorKind, ProblemJson};
-use std::time::Duration;
 
 let problem = ProblemJson::from_app_error(
     AppError::new(AppErrorKind::Unauthorized, "Token expired")
-        .with_retry_after_duration(Duration::from_secs(30))
+        .with_retry_after_secs(30)
         .with_www_authenticate(r#"Bearer realm="api", error="invalid_token""#)
 );
 
@@ -595,36 +606,19 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 </details>
 
 <details>
-  <summary><b>Environment-aware error formatting with DisplayMode</b></summary>
+  <summary><b>Environment detection with DisplayMode</b></summary>
 
-The `DisplayMode` API lets you control error output formatting based on deployment
-environment without changing your error handling code. Three modes are available:
+`DisplayMode` detects the deployment environment (`Prod`, `Local` or
+`Staging`) so your code can branch on it. `DisplayMode::current()` resolves
+the mode in this order and caches the result on first access:
 
-- **`DisplayMode::Prod`** — Lightweight JSON output with minimal fields, optimized
-  for production logs. Only includes `kind`, `code`, and `message` (if not redacted).
-  Filters sensitive metadata automatically.
-
-- **`DisplayMode::Local`** — Human-readable multi-line output with full context.
-  Shows error details, complete source chain, all metadata, and backtrace (if enabled).
-  Best for local development and debugging.
-
-- **`DisplayMode::Staging`** — JSON output with additional context. Includes
-  `kind`, `code`, `message`, limited `source_chain`, and filtered metadata.
-  Useful for staging environments where you need structured logs with more detail.
-
-**Automatic Environment Detection:**
-
-The mode is auto-detected in this order:
 1. `MASTERROR_ENV` environment variable (`prod`, `local`, or `staging`)
-2. `KUBERNETES_SERVICE_HOST` presence (triggers `Prod` mode)
+2. `KUBERNETES_SERVICE_HOST` presence (selects `Prod`)
 3. Build configuration (`debug_assertions` → `Local`, release → `Prod`)
-
-The result is cached on first access for zero-cost subsequent calls.
 
 ~~~rust
 use masterror::DisplayMode;
 
-// Query the current mode (cached after first call)
 let mode = DisplayMode::current();
 
 match mode {
@@ -634,41 +628,26 @@ match mode {
 }
 ~~~
 
+Note: `Display` for `AppError` does not consult `DisplayMode` yet — the
+output is identical in all modes. The only formatting branch today is the
+`colored` feature described below; mode-aware formatting is not wired up.
+
 **Colored Terminal Output:**
 
-Enable the `colored` feature for enhanced terminal output in local mode:
+Enable the `colored` feature for enhanced terminal output. It applies
+whenever the feature is enabled, regardless of the detected mode:
 
 ~~~toml
 [dependencies]
 masterror = { version = "0.28.0", features = ["colored"] }
 ~~~
 
-With `colored` enabled, errors display with syntax highlighting:
-- Error kind and code in bold
-- Error messages in color
-- Source chain with indentation
-- Metadata keys highlighted
-
-~~~rust
-use masterror::{AppError, field};
-
-let error = AppError::not_found("User not found")
-    .with_field(field::str("user_id", "12345"))
-    .with_field(field::str("request_id", "abc-def"));
-
-// Without 'colored': plain text
-// With 'colored': color-coded output in terminals
-println!("{}", error);
-~~~
-
-**Production vs Development Output:**
-
-Without `colored` feature, errors display their `AppErrorKind` label:
+Without the `colored` feature, errors display their `AppErrorKind` label:
 ~~~
 NotFound
 ~~~
 
-With `colored` feature, full multi-line format with context:
+With `colored`, a full multi-line format with context:
 ~~~
 Error: NotFound
 Code: NOT_FOUND
@@ -678,9 +657,6 @@ Context:
   user_id: 12345
   request_id: abc-def
 ~~~
-
-This separation keeps production logs clean while giving developers rich context
-during local debugging sessions.
 
 </details>
 
@@ -707,7 +683,7 @@ Comprehensive real-world examples demonstrating masterror integration with popul
 | [**custom-domain-errors**](examples/custom-domain-errors/) | Payment processing domain errors | Derive macro, error conversion, structured errors |
 | [**basic-async**](examples/basic-async/) | Async error handling with tokio | Error propagation, timeout handling, Result types |
 
-All examples are runnable and include comprehensive tests. See the [`examples/`](examples/) directory for complete source code and documentation.
+All examples are runnable; the axum-rest-api example additionally ships integration tests. See the [`examples/`](examples/) directory for complete source code and documentation.
 
 <div align="right">
 

@@ -46,7 +46,7 @@
 //!
 //! # Minimum Supported Rust Version (MSRV)
 //!
-//! MSRV is **1.90**. New minor releases may increase MSRV with a changelog
+//! MSRV is **1.96**. New minor releases may increase MSRV with a changelog
 //! note, but never in a patch release.
 //!
 //! # Feature flags
@@ -60,21 +60,29 @@
 //! - `tonic` — converts [`struct@Error`] into `tonic::Status` with sanitized
 //!   metadata
 //! - `openapi` — derives an OpenAPI schema for [`ErrorResponse`] (via `utoipa`)
-//! - `sqlx` — `From<sqlx::Error>` mapping
+//! - `sqlx` — `From<sqlx_core::Error>` mapping (pulls only `sqlx-core`)
+//! - `sqlx-migrate` — `From<sqlx::migrate::MigrateError>` mapping (pulls full
+//!   `sqlx`)
 //! - `redis` — `From<redis::RedisError>` mapping
 //! - `validator` — `From<validator::ValidationErrors>` mapping
 //! - `config` — `From<config::ConfigError>` mapping
 //! - `tokio` — `From<tokio::time::error::Elapsed>` mapping
 //! - `reqwest` — `From<reqwest::Error>` mapping
 //! - `teloxide` — `From<teloxide_core::RequestError>` mapping
-//! - `telegram-webapp-sdk` —
-//!   `From<telegram_webapp_sdk::utils::validate_init_data::ValidationError>`
-//!   mapping
+//! - `init-data` — `From<init_data_rs::InitDataError>` mapping for Telegram
+//!   Mini Apps init-data validation
 //! - `frontend` — convert errors into `wasm_bindgen::JsValue` and emit
 //!   `console.error` logs in WASM/browser contexts
 //! - `serde_json` — support for structured JSON details in [`ErrorResponse`]
-//!   and [`ProblemJson`]; also pulled transitively by `axum`
-//! - `multipart` — compatibility flag for Axum multipart
+//!   and [`ProblemJson`] plus a `From<serde_json::Error>` mapping. Note:
+//!   `axum`/`actix` enable the `serde_json` *dependency* for their own bodies,
+//!   but not this feature — enable it explicitly to get the JSON-gated APIs
+//! - `multipart` — `From<axum::extract::multipart::MultipartError>` mapping to
+//!   `BadRequest` (implies `axum`)
+//! - `colored` — colored, multi-line `Display` output for [`struct@Error`]
+//! - `tracing` — emit structured `tracing` events when errors are constructed
+//! - `metrics` — increment an `error_total{code,category}` counter per error
+//! - `backtrace` — capture backtraces (controlled by `RUST_BACKTRACE`)
 //! - `turnkey` — domain taxonomy and conversions for Turnkey errors, exposed in
 //!   the `turnkey` module
 //!

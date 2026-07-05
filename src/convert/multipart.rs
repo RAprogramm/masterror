@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 //! Maps [`MultipartError`] into [`Error`] with
-//! [`AppErrorKind::BadRequest`], preserving the original message.
+//! [`AppErrorKind::BadRequest`]. The public message is left unset; the
+//! multipart body text and HTTP status are captured as metadata fields
+//! (`multipart.reason`, `http.*`) and the original error is retained in the
+//! source chain.
 //!
 //! Intended for Axum multipart form parsing so that client mistakes are
 //! surfaced as bad requests.

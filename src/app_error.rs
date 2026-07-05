@@ -6,8 +6,10 @@
 //!
 //! [`AppError`] is a thin, framework-agnostic wrapper around a canonical
 //! error taxonomy [`AppErrorKind`] plus an optional public-facing message.
-//! The `Display` for `AppError` prints only the kind, not the message, to keep
-//! logs and errors concise by default.
+//! Without the `colored` feature, the `Display` for `AppError` prints only
+//! the kind, not the message, to keep logs and errors concise by default.
+//! With `colored` enabled, `Display` renders a multi-line report (kind, code,
+//! message, source chain, metadata).
 //!
 //! ## Design
 //!
@@ -17,7 +19,9 @@
 //!   secrets here.
 //! - **Structured metadata:** attach typed key/value pairs for diagnostics via
 //!   [`Metadata`].
-//! - **No panics:** all helpers avoid `unwrap/expect`.
+//! - **No panics on user input:** helpers never panic on caller-provided data;
+//!   the only internal `expect` relies on the invariant that an error chain
+//!   always contains at least one element.
 //! - **Transport-agnostic:** mapping to HTTP lives in `kind.rs` and
 //!   `convert/*`.
 //!

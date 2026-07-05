@@ -40,8 +40,12 @@ pub trait ResultExt<T, E> {
 
     /// Wrap the error with a simple context message.
     ///
-    /// This is a convenience method equivalent to anyhow's `.context()`.
-    /// For more control, use [`ctx`](ResultExt::ctx).
+    /// This is a convenience method in the spirit of anyhow's `.context()`,
+    /// with one difference: when the source is not already a masterror
+    /// [`Error`], the result is classified as `Internal` (whereas anyhow
+    /// keeps errors unclassified). If the source is already an [`Error`],
+    /// its kind, code and metadata are preserved and only the message is
+    /// replaced. For control over the category, use [`ctx`](ResultExt::ctx).
     ///
     /// # Examples
     ///

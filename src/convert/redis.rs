@@ -21,19 +21,19 @@
 //!
 //! ## Example
 //!
-//! ```rust,ignore
+//! An IO-level failure is promoted from `Cache` to `DependencyUnavailable`:
+//!
+//! ```rust
+//! # #[cfg(feature = "redis")]
+//! # {
 //! use masterror::{AppErrorKind, Error};
 //! use redis::RedisError;
 //!
-//! fn handle_cache_error(e: RedisError) -> Error {
-//!     e.into()
-//! }
+//! let err = RedisError::from((redis::ErrorKind::Io, "connection lost"));
+//! let app_err: Error = err.into();
 //!
-//! // In production code, this would come from a Redis client operation
-//! let dummy = RedisError::from((redis::ErrorKind::Io, "connection lost"));
-//! let app_err = handle_cache_error(dummy);
-//!
-//! assert!(matches!(app_err.kind, AppErrorKind::Cache));
+//! assert!(matches!(app_err.kind, AppErrorKind::DependencyUnavailable));
+//! # }
 //! ```
 
 #[cfg(feature = "redis")]
@@ -42,10 +42,14 @@ use redis::{ErrorKind, RedisError, RetryMethod, ServerErrorKind};
 #[cfg(feature = "redis")]
 use crate::{AppErrorKind, Context, Error, field};
 
-/// Map any [`redis::RedisError`] into an [`crate::AppError`] with kind `Cache`.
+/// Map a [`redis::RedisError`] into an [`crate::AppError`].
 ///
-/// Rationale: Redis is treated as a backend cache dependency.
-/// Detailed driver errors are kept in the message for diagnostics.
+/// Rationale: Redis is treated as a backend cache dependency, so the default
+/// kind is `Cache`. Timeouts are promoted to `Timeout`; IO, connection,
+/// cluster and busy-loading failures are promoted to `DependencyUnavailable`.
+/// The public message is left unset; driver details are captured as structured
+/// metadata fields (`redis.*`) and the original error is retained in the
+/// source chain for diagnostics.
 #[cfg(feature = "redis")]
 #[cfg_attr(docsrs, doc(cfg(feature = "redis")))]
 impl From<RedisError> for Error {

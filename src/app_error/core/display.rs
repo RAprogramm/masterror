@@ -12,12 +12,15 @@ use core::{
 use super::error::Error;
 use crate::{FieldRedaction, FieldValue, MessageEditPolicy};
 
-/// Display mode for error output.
+/// Detected deployment environment.
 ///
-/// Controls the structure and verbosity of error messages based on
-/// the deployment environment. The mode is determined by the
-/// `MASTERROR_ENV` environment variable or auto-detected based on
-/// build configuration and runtime environment.
+/// [`DisplayMode::current`] identifies the environment the process runs in,
+/// based on the `MASTERROR_ENV` environment variable, Kubernetes detection
+/// (`KUBERNETES_SERVICE_HOST`) or build configuration, and caches the result.
+///
+/// Note: the `Display` implementation for [`struct@crate::Error`] does not
+/// currently switch its output based on this mode; the mode is a detection
+/// API that callers can consult to choose their own formatting.
 ///
 /// # Examples
 ///
@@ -26,62 +29,33 @@ use crate::{FieldRedaction, FieldValue, MessageEditPolicy};
 ///
 /// let mode = DisplayMode::current();
 /// match mode {
-///     DisplayMode::Prod => println!("Production mode: JSON output"),
-///     DisplayMode::Local => println!("Local mode: Human-readable output"),
-///     DisplayMode::Staging => println!("Staging mode: JSON with context")
+///     DisplayMode::Prod => println!("Production environment"),
+///     DisplayMode::Local => println!("Local development environment"),
+///     DisplayMode::Staging => println!("Staging environment")
 /// }
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DisplayMode {
-    /// Production mode: lightweight JSON, minimal fields, no sensitive data.
+    /// Production environment.
     ///
-    /// Output includes only: `kind`, `code`, `message` (if not redacted).
-    /// Metadata is filtered to exclude sensitive fields.
-    /// Source chain and backtrace are excluded.
-    ///
-    /// # Example Output
-    ///
-    /// ```json
-    /// {"kind":"NotFound","code":"NOT_FOUND","message":"User not found"}
-    /// ```
+    /// Selected when `MASTERROR_ENV` is `prod`/`production`, when
+    /// `KUBERNETES_SERVICE_HOST` is set, or for release builds by default.
     Prod = 0,
 
-    /// Development mode: human-readable, full context.
+    /// Local development environment.
     ///
-    /// Output includes: error details, full source chain, complete metadata,
-    /// and backtrace (if enabled). Supports colored output when the `colored`
-    /// feature is enabled and output is a TTY.
-    ///
-    /// # Example Output
-    ///
-    /// ```text
-    /// Error: NotFound
-    /// Code: NOT_FOUND
-    /// Message: User not found
-    ///
-    ///   Caused by: database query failed
-    ///   Caused by: connection timeout
-    ///
-    /// Context:
-    ///   user_id: 12345
-    /// ```
+    /// Selected when `MASTERROR_ENV` is `local`/`dev`/`development`, or for
+    /// debug builds by default.
     Local = 1,
 
-    /// Staging mode: JSON with additional context.
+    /// Staging environment.
     ///
-    /// Output includes: `kind`, `code`, `message`, limited `source_chain`,
-    /// and filtered metadata. No backtrace.
-    ///
-    /// # Example Output
-    ///
-    /// ```json
-    /// {"kind":"NotFound","code":"NOT_FOUND","message":"User not found","source_chain":["database error"],"metadata":{"user_id":12345}}
-    /// ```
+    /// Selected when `MASTERROR_ENV` is `staging`/`stage`.
     Staging = 2
 }
 
 impl DisplayMode {
-    /// Returns the current display mode based on environment configuration.
+    /// Returns the detected environment based on configuration.
     ///
     /// The mode is determined by checking (in order):
     /// 1. `MASTERROR_ENV` environment variable (`prod`, `local`, or `staging`)
@@ -152,21 +126,15 @@ impl DisplayMode {
 
 #[allow(dead_code)]
 impl Error {
-    /// Formats error in production mode (compact JSON).
+    /// Formats the error as compact JSON (`kind`, `code`, optional `message`,
+    /// public metadata).
+    ///
+    /// Not wired into the `Display` implementation; callers that want this
+    /// layout must invoke it explicitly.
     ///
     /// # Arguments
     ///
     /// * `f` - Formatter to write output to
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use masterror::AppError;
-    ///
-    /// let error = AppError::not_found("User not found");
-    /// let output = format!("{}", error);
-    /// // In prod mode: {"kind":"NotFound","code":"NOT_FOUND","message":"User not found"}
-    /// ```
     #[cfg(not(test))]
     pub(crate) fn fmt_prod(&self, f: &mut Formatter<'_>) -> FmtResult {
         self.fmt_prod_impl(f)
@@ -212,21 +180,15 @@ impl Error {
         write!(f, "}}")
     }
 
-    /// Formats error in local/development mode (human-readable).
+    /// Formats the error as a multi-line human-readable report (kind, code,
+    /// message, source chain, metadata).
+    ///
+    /// Not wired into the `Display` implementation; callers that want this
+    /// layout must invoke it explicitly.
     ///
     /// # Arguments
     ///
     /// * `f` - Formatter to write output to
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use masterror::AppError;
-    ///
-    /// let error = AppError::internal("Database error");
-    /// let output = format!("{}", error);
-    /// // In local mode: multi-line human-readable format with full context
-    /// ```
     #[cfg(not(test))]
     pub(crate) fn fmt_local(&self, f: &mut Formatter<'_>) -> FmtResult {
         self.fmt_local_impl(f)
@@ -307,21 +269,15 @@ impl Error {
         }
     }
 
-    /// Formats error in staging mode (JSON with context).
+    /// Formats the error as JSON with additional context (`source_chain` and
+    /// public metadata).
+    ///
+    /// Not wired into the `Display` implementation; callers that want this
+    /// layout must invoke it explicitly.
     ///
     /// # Arguments
     ///
     /// * `f` - Formatter to write output to
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use masterror::AppError;
-    ///
-    /// let error = AppError::service("Service unavailable");
-    /// let output = format!("{}", error);
-    /// // In staging mode: JSON with source_chain and metadata
-    /// ```
     #[cfg(not(test))]
     pub(crate) fn fmt_staging(&self, f: &mut Formatter<'_>) -> FmtResult {
         self.fmt_staging_impl(f)
