@@ -14,12 +14,13 @@ SPDX-License-Identifier: MIT
   [![Crates.io](https://img.shields.io/crates/v/masterror)](https://crates.io/crates/masterror)
   [![docs.rs](https://img.shields.io/docsrs/masterror)](https://docs.rs/masterror)
   [![Downloads](https://img.shields.io/crates/d/masterror)](https://crates.io/crates/masterror)
-  ![MSRV](https://img.shields.io/badge/MSRV-1.90-blue)
-  ![License](https://img.shields.io/badge/License-MIT%20or%20Apache--2.0-informational)
+  ![MSRV](https://img.shields.io/badge/MSRV-1.96-blue)
+  ![License](https://img.shields.io/badge/License-MIT-informational)
+  [![REUSE status](https://api.reuse.software/badge/github.com/RAprogramm/masterror)](https://api.reuse.software/info/github.com/RAprogramm/masterror)
   [![codecov](https://codecov.io/gh/RAprogramm/masterror/graph/badge.svg?token=V9JQDTZLXH)](https://codecov.io/gh/RAprogramm/masterror)
 
   [![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
-  [![Hits-of-Code](https://hitsofcode.com/github/RAprogramm/masterror?branch=main)](https://hitsofcode.com/github/RAprogramm/masterror/view?branch=main)
+  [![Hits-of-Code](https://hitsofcode.com/github/RAprogramm/masterror?branch=main&exclude=Cargo.lock,.gitignore,CHANGELOG.md)](https://hitsofcode.com/github/RAprogramm/masterror/view?branch=main&exclude=Cargo.lock,.gitignore,CHANGELOG.md)
   [![IMIR](https://raw.githubusercontent.com/RAprogramm/infra-metrics-insight-renderer/main/assets/badges/imir-badge-simple-public.svg)](https://github.com/RAprogramm/infra-metrics-insight-renderer)
 
   > 🇬🇧 [Read README in English](README.md)
@@ -43,6 +44,7 @@ SPDX-License-Identifier: MIT
 - [코드 커버리지](#코드-커버리지)
 - [빠른 시작](#빠른-시작)
 - [고급 사용법](#고급-사용법)
+- [예제](#예제)
 - [리소스](#리소스)
 - [메트릭](#메트릭)
 - [라이선스](#라이선스)
@@ -68,11 +70,11 @@ SPDX-License-Identifier: MIT
 ## 주요 특징
 
 - **통합된 분류 체계.** `AppError`, `AppErrorKind` 및 `AppCode`는 보수적인 HTTP/gRPC 매핑, 즉시 사용 가능한 재시도/인증 힌트 및 `ProblemJson`을 통한 RFC7807 출력과 함께 도메인 및 전송 관련 사항을 모델링합니다.
-- **네이티브 파생.** `#[derive(Error)]`, `#[derive(Masterror)]`, `#[app_error]`, `#[masterror(...)]` 및 `#[provide]`는 소스, 백트레이스, 텔레메트리 프로바이더 및 리덕션 정책을 전달하면서 커스텀 타입을 `AppError`에 연결합니다.
+- **네이티브 파생.** `#[derive(Error)]` 및 `#[derive(Masterror)]`는 커스텀 타입을 런타임 타입에 연결합니다. `#[masterror(...)]`와 함께 사용하는 `#[derive(Masterror)]`는 소스, 백트레이스, 텔레메트리 필드 및 리덕션 정책을 전달하고, `#[app_error]`는 파생된 오류를 `AppErrorKind`/`AppCode`에 매핑하며(선택적으로 해당 `Display` 메시지를 노출), `#[provide]`는 도메인 오류 자체에 타입 기반 텔레메트리 프로바이더를 등록합니다.
 - **타입 기반 텔레메트리.** `Metadata`는 필드별 리덕션 제어 및 `field::*`의 빌더와 함께 구조화된 키/값 컨텍스트(문자열, 정수, 부동 소수점, 기간, IP 주소 및 선택적 JSON)를 저장하므로 수동 `String` 맵 없이 로그를 구조화할 수 있습니다.
 - **전송 어댑터.** 선택적 기능은 린 기본 빌드를 오염시키지 않고 Actix/Axum 응답자, `tonic::Status` 변환, WASM/브라우저 로깅 및 OpenAPI 스키마 생성을 제공합니다.
-- **실전 검증된 통합.** `sqlx`, `reqwest`, `redis`, `validator`, `config`, `tokio`, `teloxide`, `multipart`, Telegram WebApp SDK 등을 위한 집중적인 매핑을 활성화하세요. 각각은 텔레메트리가 첨부된 분류 체계로 라이브러리 오류를 변환합니다.
-- **즉시 사용 가능한 기본값.** `turnkey` 모듈은 박스에서 꺼내자마자 일관된 기준선을 원하는 팀을 위해 즉시 사용 가능한 오류 카탈로그, 헬퍼 빌더 및 추적 계측을 제공합니다.
+- **실전 검증된 통합.** `sqlx`, `reqwest`, `redis`, `validator`, `config`, `tokio`, `teloxide`, `multipart`, Telegram init-data 검증 등을 위한 집중적인 매핑을 활성화하세요. 각각은 텔레메트리가 첨부된 분류 체계로 라이브러리 오류를 변환합니다.
+- **즉시 사용 가능한 기본값.** `turnkey` 모듈은 박스에서 꺼내자마자 일관된 기준선을 원하는 팀을 위해 즉시 사용 가능한 오류 카탈로그, 휴리스틱 분류기 및 정규 분류 체계로의 보수적인 매핑을 제공합니다.
 - **타입 기반 제어 흐름 매크로.** `ensure!` 및 `fail!`은 해피 패스에서 할당이나 포매팅 없이 도메인 오류로 함수를 단락합니다.
 
 <div align="right">
@@ -109,12 +111,12 @@ SPDX-License-Identifier: MIT
 
 ## 기능 플래그
 
-필요한 것만 선택하세요; 모든 것이 기본적으로 비활성화되어 있습니다.
+필요한 것만 선택하세요; 기본 기능 세트는 `std`뿐이며, 나머지는 모두 옵트인입니다.
 
 - **웹 전송:** `axum`, `actix`, `multipart`, `openapi`, `serde_json`.
 - **텔레메트리 및 관찰성:** `tracing`, `metrics`, `backtrace`, 컬러 터미널 출력을 위한 `colored`.
 - **비동기 및 IO 통합:** `tokio`, `reqwest`, `sqlx`, `sqlx-migrate`, `redis`, `validator`, `config`.
-- **메시징 및 봇:** `teloxide`, `telegram-webapp-sdk`.
+- **메시징 및 봇:** `teloxide`, `init-data-rs`를 통한 Telegram Mini App init-data 검증을 위한 `init-data`.
 - **프론트엔드 도구:** WASM/브라우저 콘솔 로깅을 위한 `frontend`.
 - **gRPC:** `tonic::Status` 응답을 발행하기 위한 `tonic`.
 - **배터리 포함:** 사전 구축된 분류 체계와 헬퍼를 채택하기 위한 `turnkey`.
@@ -137,15 +139,15 @@ SPDX-License-Identifier: MIT
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.24.19", default-features = false }
-# 또는 기능과 함께:
-# masterror = { version = "0.24.19", features = [
+masterror = { version = "0.28.0", default-features = false }
+# or with features:
+# masterror = { version = "0.28.0", features = [
 #   "std", "axum", "actix", "openapi",
 #   "serde_json", "tracing", "metrics", "backtrace",
-#   "sqlx", "sqlx-migrate", "reqwest", "redis",
-#   "validator", "config", "tokio", "multipart",
-#   "teloxide", "telegram-webapp-sdk", "tonic", "frontend",
-#   "turnkey", "benchmarks"
+#   "colored", "sqlx", "sqlx-migrate", "reqwest",
+#   "redis", "validator", "config", "tokio",
+#   "multipart", "teloxide", "init-data", "tonic",
+#   "frontend", "turnkey", "benchmarks"
 # ] }
 ~~~
 
@@ -171,7 +173,7 @@ cargo bench -F benchmarks --bench error_paths
 
 이 스위트는 두 그룹을 발행합니다:
 
-- `context_into_error/*`는 리덕션 모드와 비리덕션 모드 모두에서 대표적인 메타데이터(문자열, 카운터, 기간, IP)가 포함된 더미 소스 오류를 `Context::into_error`를 통해 승격합니다.
+- `context_into_error/*`는 리덕션 모드와 비리덕션 모드 모두에서 대표적인 메타데이터(문자열, 카운터, 기간, IP)가 포함된 더미 소스 오류를 `ResultExt::ctx`를 통해 승격합니다.
 - `problem_json_from_app_error/*`는 결과 `AppError` 값을 소비하여 `ProblemJson::from_app_error`를 통해 RFC 7807 페이로드를 빌드하며, 메시지 리덕션 및 필드 정책이 직렬화에 미치는 영향을 보여줍니다.
 
 변경 사항을 조사할 때 처리량과 더 엄격한 신뢰 구간 간의 균형을 맞추기 위해 `--` 이후에 Criterion CLI 플래그(예: `--sample-size 200` 또는 `--save-baseline local`)를 조정하세요.
@@ -411,7 +413,9 @@ assert_eq!(
 <details>
   <summary><b>구조화된 텔레메트리 프로바이더 및 AppError 매핑</b></summary>
 
-`#[provide(...)]`는 `std::error::Request`를 통해 타입 기반 컨텍스트를 노출하고, `#[app_error(...)]`는 도메인 오류가 `AppError` 및 `AppCode`로 변환되는 방법을 기록합니다. 파생은 `thiserror`의 구문을 미러링하고 선택적 텔레메트리 전파 및 `masterror` 런타임 타입으로의 직접 변환으로 확장합니다.
+`#[provide(...)]`는 `std::error::Request`를 통해 타입 기반 컨텍스트를 노출하고, `#[app_error(...)]`는 도메인 오류가 `AppError` 및 `AppCode`로 변환되는 방법을 기록합니다. 파생은 `thiserror`의 구문을 미러링합니다. 생성된 `From` 변환은 매핑된 kind와 code만 담은 `AppError`를 생성하며(`message` 플래그가 설정된 경우 `Display` 출력을 공개 메시지로 포함), 원본 도메인 오류는 폐기되므로 그 소스와 텔레메트리 프로바이더는 전달되지 않습니다. 변환하기 전에 도메인 오류에서 텔레메트리를 요청하세요.
+
+`request_ref`/`request_value` 및 `std::error::Request` 메커니즘에는 nightly 툴체인(`error_generic_member_access`)이 필요합니다; 크레이트는 빌드 시점에 컴파일러 지원을 감지하여 사용 가능한 경우에만 프로바이더 통합을 활성화합니다.
 
 ~~~rust
 use std::error::request_ref;
@@ -443,8 +447,7 @@ let snapshot = request_ref::<TelemetrySnapshot>(&err).expect("telemetry");
 assert_eq!(snapshot.value, 42);
 
 let app: AppError = err.into();
-let via_app = request_ref::<TelemetrySnapshot>(&app).expect("telemetry");
-assert_eq!(via_app.name, "db.query");
+assert!(matches!(app.kind, AppErrorKind::Service));
 ~~~
 
 선택적 텔레메트리는 존재할 때만 표시되므로 `None`은 프로바이더를 등록하지 않습니다. 호출자가 소유권을 요청할 때 소유된 스냅샷을 여전히 값으로 제공할 수 있습니다:
@@ -509,11 +512,10 @@ assert!(matches!(app.kind, AppErrorKind::Service));
 
 ~~~rust
 use masterror::{AppError, AppErrorKind, ProblemJson};
-use std::time::Duration;
 
 let problem = ProblemJson::from_app_error(
     AppError::new(AppErrorKind::Unauthorized, "Token expired")
-        .with_retry_after_duration(Duration::from_secs(30))
+        .with_retry_after_secs(30)
         .with_www_authenticate(r#"Bearer realm="api", error="invalid_token""#)
 );
 
@@ -525,86 +527,79 @@ assert_eq!(problem.grpc.expect("grpc").name, "UNAUTHENTICATED");
 </details>
 
 <details>
-  <summary><b>DisplayMode를 통한 환경 인식 오류 포매팅</b></summary>
+  <summary><b>DisplayMode를 통한 환경 감지</b></summary>
 
-`DisplayMode` API를 사용하면 오류 처리 코드를 변경하지 않고도 배포 환경에 따라 오류 출력 포매팅을 제어할 수 있습니다. 세 가지 모드를 사용할 수 있습니다:
+`DisplayMode`는 배포 환경(`Prod`, `Local` 또는 `Staging`)을 감지하여 코드가 이에 따라 분기할 수 있도록 합니다. `DisplayMode::current()`는 다음 순서로 모드를 결정하고 첫 액세스 시 결과를 캐시합니다:
 
-- **`DisplayMode::Prod`** — 프로덕션 로그에 최적화된 최소 필드가 포함된 경량 JSON 출력. `kind`, `code` 및 `message`(리덕션되지 않은 경우)만 포함합니다. 민감한 메타데이터를 자동으로 필터링합니다.
-
-- **`DisplayMode::Local`** — 전체 컨텍스트가 포함된 사람이 읽을 수 있는 여러 줄 출력. 오류 세부 정보, 전체 소스 체인, 모든 메타데이터 및 백트레이스(활성화된 경우)를 표시합니다. 로컬 개발 및 디버깅에 가장 적합합니다.
-
-- **`DisplayMode::Staging`** — 추가 컨텍스트가 포함된 JSON 출력. `kind`, `code`, `message`, 제한된 `source_chain` 및 필터링된 메타데이터를 포함합니다. 더 많은 세부 정보가 포함된 구조화된 로그가 필요한 스테이징 환경에 유용합니다.
-
-**자동 환경 감지:**
-
-모드는 다음 순서로 자동 감지됩니다:
 1. `MASTERROR_ENV` 환경 변수 (`prod`, `local` 또는 `staging`)
-2. `KUBERNETES_SERVICE_HOST` 존재 여부 (`Prod` 모드 트리거)
+2. `KUBERNETES_SERVICE_HOST` 존재 여부 (`Prod` 선택)
 3. 빌드 구성 (`debug_assertions` → `Local`, 릴리스 → `Prod`)
-
-결과는 첫 번째 액세스 시 캐시되어 후속 호출에서 비용이 전혀 발생하지 않습니다.
 
 ~~~rust
 use masterror::DisplayMode;
 
-// 현재 모드 쿼리 (첫 호출 후 캐시됨)
 let mode = DisplayMode::current();
 
 match mode {
-    DisplayMode::Prod => println!("프로덕션 모드에서 실행 중"),
-    DisplayMode::Local => println!("로컬 개발 모드에서 실행 중"),
-    DisplayMode::Staging => println!("스테이징 모드에서 실행 중"),
+    DisplayMode::Prod => println!("Running in production mode"),
+    DisplayMode::Local => println!("Running in local development mode"),
+    DisplayMode::Staging => println!("Running in staging mode"),
 }
 ~~~
 
+참고: `AppError`의 `Display`는 아직 `DisplayMode`를 참조하지 않습니다 — 출력은 모든 모드에서 동일합니다. 현재 유일한 포매팅 분기는 아래에 설명된 `colored` 기능이며, 모드 인식 포매팅은 아직 연결되어 있지 않습니다.
+
 **컬러 터미널 출력:**
 
-로컬 모드에서 향상된 터미널 출력을 위해 `colored` 기능을 활성화하세요:
+향상된 터미널 출력을 위해 `colored` 기능을 활성화하세요. 이 기능이 활성화되어 있으면 감지된 모드와 관계없이 항상 적용됩니다:
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.24.19", features = ["colored"] }
+masterror = { version = "0.28.0", features = ["colored"] }
 ~~~
-
-`colored`가 활성화되면 오류가 구문 강조 표시와 함께 표시됩니다:
-- 굵은 글씨로 표시되는 오류 종류 및 코드
-- 색상으로 표시되는 오류 메시지
-- 들여쓰기된 소스 체인
-- 강조 표시된 메타데이터 키
-
-~~~rust
-use masterror::{AppError, field};
-
-let error = AppError::not_found("사용자를 찾을 수 없음")
-    .with_field(field::str("user_id", "12345"))
-    .with_field(field::str("request_id", "abc-def"));
-
-// 'colored' 없이: 일반 텍스트
-// 'colored' 사용 시: 터미널에서 색상 코딩된 출력
-println!("{}", error);
-~~~
-
-**프로덕션 vs 개발 출력:**
 
 `colored` 기능 없이 오류는 `AppErrorKind` 레이블을 표시합니다:
 ~~~
 NotFound
 ~~~
 
-`colored` 기능 사용 시 컨텍스트가 포함된 전체 여러 줄 형식:
+`colored` 사용 시 컨텍스트가 포함된 전체 여러 줄 형식:
 ~~~
 Error: NotFound
 Code: NOT_FOUND
-Message: 사용자를 찾을 수 없음
+Message: User not found
 
 Context:
   user_id: 12345
   request_id: abc-def
 ~~~
 
-이러한 구분은 프로덕션 로그를 깔끔하게 유지하면서 로컬 디버깅 세션 중에 개발자에게 풍부한 컨텍스트를 제공합니다.
-
 </details>
+
+<div align="right">
+
+<div align="right">
+  <a href="#목차">
+    <img src="https://raw.githubusercontent.com/RAprogramm/masterror/main/images/masterror_go_to_top.png" alt="맨 위로" width="50"/>
+  </a>
+</div>
+
+</div>
+
+---
+
+## 예제
+
+인기 있는 프레임워크와의 masterror 통합을 보여주는 포괄적인 실전 예제:
+
+| 예제 | 설명 | 기능 |
+|---------|-------------|----------|
+| [**axum-rest-api**](examples/axum-rest-api/) | RFC 7807 Problem Details를 사용하는 REST API | HTTP 엔드포인트, 도메인 오류, 통합 테스트 |
+| [**sqlx-database**](examples/sqlx-database/) | SQLx를 사용한 데이터베이스 오류 처리 | 연결 오류, 제약 조건 위반, 트랜잭션 |
+| [**custom-domain-errors**](examples/custom-domain-errors/) | 결제 처리 도메인 오류 | 파생 매크로, 오류 변환, 구조화된 오류 |
+| [**basic-async**](examples/basic-async/) | tokio를 사용한 비동기 오류 처리 | 오류 전파, 타임아웃 처리, Result 타입 |
+
+모든 예제는 실행 가능합니다; axum-rest-api 예제는 추가로 통합 테스트를 함께 제공합니다. 전체 소스 코드와 문서는 [`examples/`](examples/) 디렉터리를 참조하세요.
 
 <div align="right">
 
@@ -655,6 +650,4 @@ Context:
 
 ## 라이선스
 
-MSRV: **1.90** · License: **MIT OR Apache-2.0** · `unsafe` 없음
-
-
+MSRV: **1.96** · License: **MIT** · `unsafe` 없음
