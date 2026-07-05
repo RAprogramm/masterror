@@ -72,7 +72,11 @@
 /// assert!(bounded(2, 3).is_ok());
 /// assert!(bounded(5, 3).is_err());
 /// ```
+///
+/// Clippy format-args lints (such as `clippy::uninlined_format_args`) see
+/// through this macro and lint format arguments passed inside it.
 #[macro_export]
+#[clippy::format_args]
 macro_rules! ensure {
     (cond = $cond:expr, else = $err:expr $(,)?) => {
         $crate::ensure!($cond, $err)
@@ -102,7 +106,11 @@ macro_rules! ensure {
 /// let err = reject().unwrap_err();
 /// assert!(matches!(err.kind, AppErrorKind::Unauthorized));
 /// ```
+///
+/// Clippy format-args lints (such as `clippy::uninlined_format_args`) see
+/// through this macro and lint format arguments passed inside it.
 #[macro_export]
+#[clippy::format_args]
 macro_rules! fail {
     ($err:expr $(,)?) => {
         return Err($err);
@@ -170,7 +178,11 @@ macro_rules! fail {
 ///     AppErrorKind::Unauthorized
 /// ));
 /// ```
+///
+/// Clippy format-args lints (such as `clippy::uninlined_format_args`) see
+/// through this macro and lint the format string and arguments directly.
 #[macro_export]
+#[clippy::format_args]
 macro_rules! app_error {
     ($kind:expr $(,)?) => {
         $crate::AppError::bare($kind)
