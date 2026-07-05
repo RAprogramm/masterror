@@ -13,4 +13,4 @@ publish = false
 [dependencies]
 masterror = { path = "../..", features = ["sqlx", "tracing"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-sqlx = { version = "0.8", features = ["runtime-tokio-native-tls", "sqlite"] }
+sqlx = { version = "0.9", features = ["runtime-tokio", "sqlite"] }

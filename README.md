@@ -14,7 +14,7 @@ SPDX-License-Identifier: MIT
   [![Crates.io](https://img.shields.io/crates/v/masterror)](https://crates.io/crates/masterror)
   [![docs.rs](https://img.shields.io/docsrs/masterror)](https://docs.rs/masterror)
   [![Downloads](https://img.shields.io/crates/d/masterror)](https://crates.io/crates/masterror)
-  ![MSRV](https://img.shields.io/badge/MSRV-1.93-blue)
+  ![MSRV](https://img.shields.io/badge/MSRV-1.96-blue)
   ![License](https://img.shields.io/badge/License-MIT-informational)
   [![REUSE status](https://api.reuse.software/badge/github.com/RAprogramm/masterror)](https://api.reuse.software/info/github.com/RAprogramm/masterror)
   [![codecov](https://codecov.io/gh/RAprogramm/masterror/graph/badge.svg?token=V9JQDTZLXH)](https://codecov.io/gh/RAprogramm/masterror)
@@ -760,6 +760,6 @@ All examples are runnable and include comprehensive tests. See the [`examples/`]
 
 ## License
 
-MSRV: **1.93** · License: **MIT** · No `unsafe`
+MSRV: **1.96** · License: **MIT** · No `unsafe`
 
 
