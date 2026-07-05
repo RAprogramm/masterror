@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-use alloc::{borrow::Cow, boxed::Box, sync::Arc};
+use alloc::{borrow::Cow, boxed::Box};
 use core::error::Error as CoreError;
 
 use crate::app_error::{Context, Error};
@@ -110,7 +110,7 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
                     }
                     enriched.with_context(app_err)
                 }
-                Err(source) => Error::internal(msg.clone()).with_source_arc(Arc::from(source))
+                Err(source) => Error::internal(msg.clone()).with_boxed_source(source)
             }
         })
     }

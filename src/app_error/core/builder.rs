@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-use alloc::{borrow::Cow, string::String, sync::Arc};
+use alloc::{borrow::Cow, boxed::Box, string::String, sync::Arc};
 use core::error::Error as CoreError;
 #[cfg(feature = "backtrace")]
 use std::backtrace::Backtrace;
@@ -14,7 +14,7 @@ use serde_json::{Value as JsonValue, to_value};
 
 use super::{
     error::Error,
-    types::{CapturedBacktrace, ContextAttachment, MessageEditPolicy}
+    types::{CapturedBacktrace, ContextAttachment, MessageEditPolicy, StoredSource}
 };
 use crate::{
     AppCode, AppErrorKind, RetryAdvice,
@@ -240,14 +240,18 @@ impl Error {
             ContextAttachment::Owned(source) => {
                 match source.downcast::<Arc<dyn CoreError + Send + Sync + 'static>>() {
                     Ok(shared) => self.with_source_arc(*shared),
-                    Err(source) => self.with_source_arc(Arc::from(source))
+                    Err(source) => self.with_boxed_source(source)
                 }
             }
             ContextAttachment::Shared(source) => self.with_source_arc(source)
         }
     }
 
-    /// Attach a source error for diagnostics.
+    /// Attach an owned source error for diagnostics.
+    ///
+    /// The source stays exclusively owned by this error, so it can later be
+    /// recovered by value via [`downcast`](Self::downcast) or mutated via
+    /// [`downcast_mut`](Self::downcast_mut).
     ///
     /// Prefer [`with_context`](Self::with_context) when capturing upstream
     /// diagnostics without additional `Arc` allocations.
@@ -264,13 +268,28 @@ impl Error {
     /// # }
     /// ```
     #[must_use]
-    pub fn with_source(mut self, source: impl CoreError + Send + Sync + 'static) -> Self {
-        self.source = Some(Arc::new(source));
+    pub fn with_source(self, source: impl CoreError + Send + Sync + 'static) -> Self {
+        self.with_boxed_source(Box::new(source))
+    }
+
+    /// Attach an already boxed source error without re-boxing.
+    pub(crate) fn with_boxed_source(
+        mut self,
+        source: Box<dyn CoreError + Send + Sync + 'static>
+    ) -> Self {
+        self.source = Some(StoredSource::Owned(source));
         self.mark_dirty();
         self
     }
 
     /// Attach a shared source error without cloning the underlying `Arc`.
+    ///
+    /// A shared source can be borrowed via
+    /// [`downcast_ref`](Self::downcast_ref) but never extracted by value:
+    /// [`downcast`](Self::downcast) returns `Err(self)` for shared sources and
+    /// [`downcast_mut`](Self::downcast_mut) succeeds only while the `Arc` is
+    /// uniquely referenced. Use [`with_source`](Self::with_source) when the
+    /// caller owns the source and may want it back.
     ///
     /// # Examples
     ///
@@ -288,7 +307,7 @@ impl Error {
     /// ```
     #[must_use]
     pub fn with_source_arc(mut self, source: Arc<dyn CoreError + Send + Sync + 'static>) -> Self {
-        self.source = Some(source);
+        self.source = Some(StoredSource::Shared(source));
         self.mark_dirty();
         self
     }

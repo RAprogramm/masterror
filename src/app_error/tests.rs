@@ -843,6 +843,56 @@ fn downcast_ref_returns_none_when_no_source() {
 }
 
 #[test]
+#[cfg(feature = "std")]
+fn downcast_extracts_source_attached_via_with_source() {
+    let io_err = IoError::other("disk offline");
+    let app_err = AppError::internal("db down").with_source(io_err);
+    let extracted = app_err.downcast::<IoError>().expect("owned source");
+    assert_eq!(extracted.to_string(), "disk offline");
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn downcast_extracts_source_attached_via_with_context() {
+    let io_err = IoError::other("disk offline");
+    let app_err = AppError::internal("db down").with_context(io_err);
+    let extracted = app_err.downcast::<IoError>().expect("owned source");
+    assert_eq!(extracted.to_string(), "disk offline");
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn downcast_returns_err_for_shared_arc_attached_via_with_context() {
+    let shared = Arc::new(IoError::other("shared source"));
+    let context: Arc<dyn StdError + Send + Sync + 'static> = shared.clone();
+    let app_err = AppError::internal("db down").with_context(context);
+    let app_err = app_err.downcast::<IoError>().expect_err("shared source");
+    assert!(app_err.is::<IoError>());
+    assert_eq!(Arc::strong_count(&shared), 2);
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn downcast_mut_mutates_source_attached_via_with_source() {
+    let io_err = IoError::other("before");
+    let mut app_err = AppError::internal("db down").with_source(io_err);
+    let source = app_err.downcast_mut::<IoError>().expect("owned source");
+    *source = IoError::other("after");
+    let source = app_err.downcast_ref::<IoError>().expect("io source");
+    assert_eq!(source.to_string(), "after");
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn downcast_mut_returns_none_for_shared_arc_attached_via_with_context() {
+    let shared = Arc::new(IoError::other("shared source"));
+    let context: Arc<dyn StdError + Send + Sync + 'static> = shared.clone();
+    let mut app_err = AppError::internal("db down").with_context(context);
+    assert!(app_err.downcast_mut::<IoError>().is_none());
+    assert!(app_err.downcast_ref::<IoError>().is_some());
+}
+
+#[test]
 #[cfg(feature = "colored")]
 fn colored_display_bare_error_without_message() {
     let err = AppError::bare(AppErrorKind::Internal);

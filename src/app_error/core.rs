@@ -228,20 +228,111 @@ mod tests {
 
     #[cfg(feature = "std")]
     #[test]
-    fn error_downcast_mut_returns_none() {
+    fn error_downcast_mut_returns_source_for_owned_source() {
         use std::io::Error as IoError;
         let io_err = IoError::other("test");
         let mut err = Error::new(AppErrorKind::Internal, "fail").with_context(io_err);
+        let source = err.downcast_mut::<IoError>().expect("owned io source");
+        assert_eq!(source.to_string(), "test");
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn error_downcast_mut_mutation_visible_via_downcast_ref() {
+        use std::io::Error as IoError;
+        let io_err = IoError::other("before");
+        let mut err = Error::new(AppErrorKind::Internal, "fail").with_context(io_err);
+        let source = err.downcast_mut::<IoError>().expect("owned io source");
+        *source = IoError::other("after");
+        let source = err.downcast_ref::<IoError>().expect("io source");
+        assert_eq!(source.to_string(), "after");
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn error_downcast_mut_returns_none_for_wrong_type() {
+        use std::{fmt::Error as FmtError, io::Error as IoError};
+        let io_err = IoError::other("test");
+        let mut err = Error::new(AppErrorKind::Internal, "fail").with_context(io_err);
+        assert!(err.downcast_mut::<FmtError>().is_none());
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn error_downcast_mut_returns_none_without_source() {
+        use std::io::Error as IoError;
+        let mut err = Error::new(AppErrorKind::Internal, "fail");
         assert!(err.downcast_mut::<IoError>().is_none());
     }
 
     #[cfg(feature = "std")]
     #[test]
-    fn error_downcast_returns_err() {
+    fn error_downcast_mut_returns_none_for_shared_arc_source() {
+        use std::{io::Error as IoError, sync::Arc};
+        let shared = Arc::new(IoError::other("shared"));
+        let source: Arc<dyn core::error::Error + Send + Sync + 'static> = shared.clone();
+        let mut err = Error::new(AppErrorKind::Internal, "fail").with_source_arc(source);
+        assert!(err.downcast_mut::<IoError>().is_none());
+        assert_eq!(Arc::strong_count(&shared), 2);
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn error_downcast_mut_returns_source_for_unique_arc_source() {
+        use std::{io::Error as IoError, sync::Arc};
+        let shared: Arc<dyn core::error::Error + Send + Sync + 'static> =
+            Arc::new(IoError::other("unique"));
+        let mut err = Error::new(AppErrorKind::Internal, "fail").with_source_arc(shared);
+        let source = err.downcast_mut::<IoError>().expect("unique arc source");
+        assert_eq!(source.to_string(), "unique");
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn error_downcast_returns_boxed_source_for_owned_source() {
         use std::io::Error as IoError;
         let io_err = IoError::other("test");
         let err = Error::new(AppErrorKind::Internal, "fail").with_context(io_err);
-        assert!(err.downcast::<IoError>().is_err());
+        let source = err.downcast::<IoError>().expect("owned io source");
+        assert_eq!(source.to_string(), "test");
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn error_downcast_returns_err_with_source_intact_for_wrong_type() {
+        use std::{fmt::Error as FmtError, io::Error as IoError};
+        let io_err = IoError::other("test");
+        let err = Error::new(AppErrorKind::Internal, "fail").with_context(io_err);
+        let err = err.downcast::<FmtError>().expect_err("wrong type");
+        assert_eq!(err.kind, AppErrorKind::Internal);
+        assert!(err.is::<IoError>());
+        assert_eq!(
+            err.downcast_ref::<IoError>()
+                .expect("io source")
+                .to_string(),
+            "test"
+        );
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn error_downcast_returns_err_without_source() {
+        use std::io::Error as IoError;
+        let err = Error::new(AppErrorKind::Internal, "fail");
+        let err = err.downcast::<IoError>().expect_err("no source");
+        assert_eq!(err.kind, AppErrorKind::Internal);
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn error_downcast_returns_err_with_source_intact_for_shared_arc() {
+        use std::{io::Error as IoError, sync::Arc};
+        let shared = Arc::new(IoError::other("shared"));
+        let source: Arc<dyn core::error::Error + Send + Sync + 'static> = shared.clone();
+        let err = Error::new(AppErrorKind::Internal, "fail").with_source_arc(source);
+        let err = err.downcast::<IoError>().expect_err("shared source");
+        assert!(err.is::<IoError>());
+        assert_eq!(Arc::strong_count(&shared), 2);
     }
 
     #[test]

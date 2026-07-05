@@ -211,7 +211,7 @@ impl Error {
             }
             if let Some(source) = &self.source {
                 writeln!(f)?;
-                let mut current: &dyn CoreError = source.as_ref();
+                let mut current: &dyn CoreError = source.as_dyn();
                 let mut depth = 0;
                 while depth < 10 {
                     writeln!(
@@ -246,7 +246,7 @@ impl Error {
             }
             if let Some(source) = &self.source {
                 writeln!(f)?;
-                let mut current: &dyn CoreError = source.as_ref();
+                let mut current: &dyn CoreError = source.as_dyn();
                 let mut depth = 0;
                 while depth < 10 {
                     writeln!(f, "  Caused by: {}", current)?;
@@ -300,7 +300,7 @@ impl Error {
         }
         if let Some(source) = &self.source {
             write!(f, r#","source_chain":["#)?;
-            let mut current: &dyn CoreError = source.as_ref();
+            let mut current: &dyn CoreError = source.as_dyn();
             let mut depth = 0;
             let mut first = true;
             while depth < 5 {
