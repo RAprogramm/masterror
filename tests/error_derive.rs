@@ -202,6 +202,24 @@ enum EnumTelemetryError {
     Owned(#[provide(value = TelemetrySnapshot)] TelemetrySnapshot)
 }
 
+#[cfg_attr(not(masterror_has_error_generic_member_access), allow(dead_code))]
+#[derive(Debug, Error)]
+#[error("converted telemetry {snapshot:?}")]
+#[app_error(kind = masterror::AppErrorKind::Service)]
+struct ConvertedTelemetryError {
+    #[provide(ref = TelemetrySnapshot, value = TelemetrySnapshot)]
+    snapshot: TelemetrySnapshot
+}
+
+#[cfg_attr(not(masterror_has_error_generic_member_access), allow(dead_code))]
+#[derive(Debug, Error)]
+#[error("converted backtrace")]
+#[app_error(kind = masterror::AppErrorKind::Internal)]
+struct ConvertedBacktraceError {
+    #[backtrace]
+    trace: std::backtrace::Backtrace
+}
+
 #[derive(Debug, Error)]
 #[error("{source:?}")]
 struct DelegatedBacktraceFromSource {
@@ -540,6 +558,37 @@ fn enum_variants_provide_custom_telemetry() {
     let owned = EnumTelemetryError::Owned(named_snapshot.clone());
     let provided_owned = request_value::<TelemetrySnapshot>(&owned).expect("owned telemetry");
     assert_eq!(provided_owned, named_snapshot);
+}
+
+#[cfg(masterror_has_error_generic_member_access)]
+#[test]
+fn app_error_conversion_forwards_providers() {
+    let snapshot = TelemetrySnapshot {
+        name:  "conversion",
+        value: 3
+    };
+    let err = ConvertedTelemetryError {
+        snapshot: snapshot.clone()
+    };
+    let app: masterror::AppError = err.into();
+    let provided_ref = request_ref::<TelemetrySnapshot>(&app).expect("forwarded reference");
+    assert_eq!(provided_ref, &snapshot);
+    let provided_value = request_value::<TelemetrySnapshot>(&app).expect("forwarded value");
+    assert_eq!(provided_value, snapshot);
+}
+
+#[cfg(masterror_has_error_generic_member_access)]
+#[test]
+fn app_error_conversion_forwards_source_backtrace() {
+    let err = ConvertedBacktraceError {
+        trace: std::backtrace::Backtrace::force_capture()
+    };
+    let app: masterror::AppError = err.into();
+    let source = app
+        .downcast_ref::<ConvertedBacktraceError>()
+        .expect("attached source");
+    let provided = request_ref::<std::backtrace::Backtrace>(&app).expect("forwarded backtrace");
+    assert!(ptr::eq(&source.trace, provided));
 }
 
 #[test]

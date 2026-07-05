@@ -61,12 +61,14 @@ pub struct VariantData {
 
 /// AppError attribute specification.
 ///
-/// Configures error kind, code, and message exposure for app-level errors.
+/// Configures error kind, code, message exposure and source attachment for
+/// app-level errors.
 #[derive(Clone, Debug)]
 pub struct AppErrorSpec {
     pub kind:           ExprPath,
     pub code:           Option<ExprPath>,
     pub expose_message: bool,
+    pub no_source:      bool,
     pub attribute_span: Span
 }
 

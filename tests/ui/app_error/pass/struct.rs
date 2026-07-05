@@ -16,6 +16,8 @@ fn main() {
     let app: AppError = err.into();
     assert!(matches!(app.kind, AppErrorKind::BadRequest));
     assert_eq!(app.message.as_deref(), Some("missing flag: feature"));
+    assert!(app.source_ref().is_some());
+    assert!(app.downcast_ref::<MissingFlag>().is_some());
     let code: AppCode = MissingFlag { name: "other" }.into();
     assert_eq!(code, AppCode::BadRequest);
 }

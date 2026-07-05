@@ -122,7 +122,7 @@ enum EnumError {
 
 ## `#[app_error(...)]` — конверсии в AppError
 
-Описывает, как производная ошибка транслируется в `AppError`/`AppCode`. Опции: `kind` (обязательная), `code` (опциональная), `message` (флаг).
+Описывает, как производная ошибка транслируется в `AppError`/`AppCode`. Опции: `kind` (обязательная), `code` (опциональная), `message` (флаг), `no_source` (флаг).
 
 ```rust
 use masterror::{AppCode, AppError, AppErrorKind, Error};
@@ -144,6 +144,9 @@ assert_eq!(code, AppCode::BadRequest);
 - `kind = ...` выбирает `AppErrorKind`; генерирует `From<T> for AppError`.
 - `code = ...` дополнительно генерирует `From<T> for AppCode`.
 - `message` пробрасывает вывод `Display` как публичное сообщение; опустите его, чтобы сообщение осталось внутренним.
+- `no_source` отключает привязку источника и отбрасывает доменную ошибку при конверсии (для типов, не являющихся `Send + Sync + 'static`).
+
+Сгенерированный `From<T> for AppError` прикрепляет исходную доменную ошибку как source: она остаётся доступной через `downcast_ref`, видна в `chain()`/`root_cause()`, а данные `#[provide]` пробрасываются через `AppError` на тулчейнах с `error_generic_member_access`. Для привязки источника требуется `T: Send + Sync + 'static`.
 
 Enum выбирают отображение для каждого варианта, при этом derive всё равно генерирует единственную реализацию `From<Enum> for AppError`.
 
@@ -169,7 +172,7 @@ struct StructuredTelemetryError {
 }
 ```
 
-Потребители извлекают снимок вызовом `std::error::request_ref::<TelemetrySnapshot>(&err)` на доменной ошибке.
+Потребители извлекают снимок вызовом `std::error::request_ref::<TelemetrySnapshot>(&err)` на доменной ошибке или на сконвертированном `AppError` — конверсия пробрасывает провайдеры через прикреплённый source.
 
 ## `#[derive(Masterror)]` — сквозные доменные ошибки
 

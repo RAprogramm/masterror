@@ -501,12 +501,15 @@ generated [`masterror::Error`].
 
 `#[provide(...)]` exposes typed context through `std::error::Request`, while
 `#[app_error(...)]` records how your domain error translates into `AppError`
-and `AppCode`. The derive mirrors `thiserror`'s syntax. Note that the
-generated `From` conversions produce an `AppError` carrying only the mapped
-kind and code (plus the `Display` output as public message when the `message`
-flag is set) — the original domain error is dropped, so its sources and
-telemetry providers are not forwarded. Request telemetry from the domain
-error before converting.
+and `AppCode`. The derive mirrors `thiserror`'s syntax. The generated `From`
+conversions produce an `AppError` carrying the mapped kind and code (plus the
+`Display` output as public message when the `message` flag is set) and attach
+the original domain error as the source: it stays downcastable via
+`downcast_ref`, shows up in `chain()`/`root_cause()`, and its `#[provide]`
+data is forwarded through the `AppError` on toolchains with
+`error_generic_member_access`. Source attachment requires the domain error to
+be `Send + Sync + 'static`; add the `no_source` flag to `#[app_error(...)]`
+to opt out and drop the domain error during conversion instead.
 
 `request_ref`/`request_value` and the `std::error::Request` machinery require
 a nightly toolchain (`error_generic_member_access`); the crate detects

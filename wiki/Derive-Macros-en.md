@@ -122,7 +122,7 @@ enum EnumError {
 
 ## `#[app_error(...)]` — conversions into AppError
 
-Records how the derived error translates into `AppError`/`AppCode`. Options: `kind` (required), `code` (optional), `message` (flag).
+Records how the derived error translates into `AppError`/`AppCode`. Options: `kind` (required), `code` (optional), `message` (flag), `no_source` (flag).
 
 ```rust
 use masterror::{AppCode, AppError, AppErrorKind, Error};
@@ -144,6 +144,9 @@ assert_eq!(code, AppCode::BadRequest);
 - `kind = ...` selects the `AppErrorKind`; generates `From<T> for AppError`.
 - `code = ...` additionally generates `From<T> for AppCode`.
 - `message` forwards the `Display` output as the public message; omit it to keep the message internal.
+- `no_source` skips source attachment and drops the domain error during conversion (for types that are not `Send + Sync + 'static`).
+
+The generated `From<T> for AppError` attaches the original domain error as the source: it stays downcastable via `downcast_ref`, appears in `chain()`/`root_cause()`, and its `#[provide]` data is forwarded through the `AppError` on toolchains with `error_generic_member_access`. Source attachment requires `T: Send + Sync + 'static`.
 
 Enums choose a mapping per variant, and the derive still emits a single `From<Enum> for AppError`.
 
@@ -169,7 +172,7 @@ struct StructuredTelemetryError {
 }
 ```
 
-Consumers extract the snapshot with `std::error::request_ref::<TelemetrySnapshot>(&err)` on the domain error.
+Consumers extract the snapshot with `std::error::request_ref::<TelemetrySnapshot>(&err)` on the domain error, or on the converted `AppError` — the conversion forwards providers through the attached source.
 
 ## `#[derive(Masterror)]` — end-to-end domain errors
 
