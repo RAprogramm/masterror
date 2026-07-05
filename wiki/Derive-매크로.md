@@ -122,7 +122,7 @@ enum EnumError {
 
 ## `#[app_error(...)]` — AppError로의 변환
 
-파생된 오류가 `AppError`/`AppCode`로 어떻게 변환되는지 기록합니다. 옵션: `kind`(필수), `code`(선택), `message`(플래그).
+파생된 오류가 `AppError`/`AppCode`로 어떻게 변환되는지 기록합니다. 옵션: `kind`(필수), `code`(선택), `message`(플래그), `no_source`(플래그).
 
 ```rust
 use masterror::{AppCode, AppError, AppErrorKind, Error};
@@ -144,6 +144,9 @@ assert_eq!(code, AppCode::BadRequest);
 - `kind = ...`는 `AppErrorKind`를 선택하며 `From<T> for AppError`를 생성합니다.
 - `code = ...`는 추가로 `From<T> for AppCode`를 생성합니다.
 - `message`는 `Display` 출력을 공개 메시지로 전달합니다. 메시지를 내부용으로 유지하려면 생략하세요.
+- `no_source`는 소스 첨부를 생략하고 변환 시 도메인 오류를 폐기합니다(`Send + Sync + 'static`이 아닌 타입용).
+
+생성된 `From<T> for AppError`는 원본 도메인 오류를 소스로 첨부합니다: `downcast_ref`로 다운캐스트할 수 있고 `chain()`/`root_cause()`에 나타나며, `error_generic_member_access`를 지원하는 툴체인에서는 `#[provide]` 데이터가 `AppError`를 통해 전달됩니다. 소스 첨부에는 `T: Send + Sync + 'static`이 필요합니다.
 
 열거형은 변형별로 매핑을 선택하며, 파생은 여전히 단일 `From<Enum> for AppError`를 발행합니다.
 
@@ -169,7 +172,7 @@ struct StructuredTelemetryError {
 }
 ```
 
-소비자는 도메인 오류에 대해 `std::error::request_ref::<TelemetrySnapshot>(&err)`로 스냅샷을 추출합니다.
+소비자는 도메인 오류 또는 변환된 `AppError`에 대해 `std::error::request_ref::<TelemetrySnapshot>(&err)`로 스냅샷을 추출합니다 — 변환은 첨부된 소스를 통해 프로바이더를 전달합니다.
 
 ## `#[derive(Masterror)]` — 엔드투엔드 도메인 오류
 

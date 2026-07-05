@@ -112,6 +112,17 @@ impl CoreError for Error {
             .as_ref()
             .map(|source| source.as_dyn() as &(dyn CoreError + 'static))
     }
+
+    #[cfg(masterror_has_error_generic_member_access)]
+    fn provide<'a>(&'a self, request: &mut core::error::Request<'a>) {
+        #[cfg(feature = "backtrace")]
+        if let Some(backtrace) = self.backtrace.as_deref() {
+            request.provide_ref::<Backtrace>(backtrace);
+        }
+        if let Some(source) = self.source.as_ref() {
+            crate::provide::ThiserrorProvide::thiserror_provide(source.as_dyn(), request);
+        }
+    }
 }
 
 /// Conventional result alias for application code.

@@ -190,6 +190,7 @@ fn parse_app_error_attribute(attr: &Attribute) -> Result<AppErrorSpec, Error> {
         let mut kind = None;
         let mut code = None;
         let mut expose_message = false;
+        let mut no_source = false;
         while !input.is_empty() {
             let ident: Ident = input.parse()?;
             let name = ident.to_string();
@@ -222,6 +223,18 @@ fn parse_app_error_attribute(attr: &Attribute) -> Result<AppErrorSpec, Error> {
                         expose_message = true;
                     }
                 }
+                "no_source" => {
+                    if no_source {
+                        return Err(Error::new(ident.span(), "duplicate no_source flag"));
+                    }
+                    if input.peek(Token![=]) {
+                        input.parse::<Token![=]>()?;
+                        let value: LitBool = input.parse()?;
+                        no_source = value.value;
+                    } else {
+                        no_source = true;
+                    }
+                }
                 other => {
                     return Err(Error::new(
                         ident.span(),
@@ -251,6 +264,7 @@ fn parse_app_error_attribute(attr: &Attribute) -> Result<AppErrorSpec, Error> {
             kind,
             code,
             expose_message,
+            no_source,
             attribute_span: attr.span()
         })
     })
@@ -808,6 +822,45 @@ mod tests {
         let result = parse_app_error_attribute(&attr);
         assert!(result.is_ok());
         assert!(!result.unwrap().expose_message);
+    }
+
+    #[test]
+    fn parse_app_error_attribute_with_no_source_flag() {
+        let attr: Attribute = parse_quote! { #[app_error(kind = K, no_source)] };
+        let result = parse_app_error_attribute(&attr);
+        assert!(result.is_ok());
+        assert!(result.unwrap().no_source);
+    }
+
+    #[test]
+    fn parse_app_error_attribute_with_no_source_true() {
+        let attr: Attribute = parse_quote! { #[app_error(kind = K, no_source = true)] };
+        let result = parse_app_error_attribute(&attr);
+        assert!(result.is_ok());
+        assert!(result.unwrap().no_source);
+    }
+
+    #[test]
+    fn parse_app_error_attribute_with_no_source_false() {
+        let attr: Attribute = parse_quote! { #[app_error(kind = K, no_source = false)] };
+        let result = parse_app_error_attribute(&attr);
+        assert!(result.is_ok());
+        assert!(!result.unwrap().no_source);
+    }
+
+    #[test]
+    fn parse_app_error_attribute_default_no_source() {
+        let attr: Attribute = parse_quote! { #[app_error(kind = K)] };
+        let result = parse_app_error_attribute(&attr);
+        assert!(result.is_ok());
+        assert!(!result.unwrap().no_source);
+    }
+
+    #[test]
+    fn parse_app_error_attribute_duplicate_no_source() {
+        let attr: Attribute = parse_quote! { #[app_error(kind = K, no_source, no_source)] };
+        let result = parse_app_error_attribute(&attr);
+        assert!(result.is_err());
     }
 
     #[test]
