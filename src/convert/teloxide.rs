@@ -111,18 +111,14 @@ fn build_teloxide_context(err: &RequestError) -> (Context, Option<u64>) {
 
 #[cfg(all(test, feature = "teloxide"))]
 mod tests {
-    #[cfg(feature = "reqwest")]
-    use std::time::Duration;
     use std::{io, sync::Arc};
 
-    use teloxide_core::{errors::ApiError, types::Seconds};
-    #[cfg(feature = "reqwest")]
+    use teloxide_core::{Bot, errors::ApiError, requests::Requester, types::Seconds};
     use tokio::runtime::Builder;
+    use url::Url;
 
     use super::*;
-    #[cfg(feature = "reqwest")]
-    use crate::FieldRedaction;
-    use crate::{AppCode, AppErrorKind, FieldValue};
+    use crate::{AppCode, AppErrorKind, FieldRedaction, FieldValue};
 
     #[test]
     fn api_maps_to_external_api() {
@@ -168,26 +164,22 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "reqwest")]
     #[test]
     fn network_detail_is_hashed() {
-        // Use reqwest 0.12 for compatibility with teloxide-core
         let runtime = Builder::new_current_thread()
             .enable_all()
             .build()
             .expect("runtime");
-        let reqwest_err = runtime.block_on(async {
-            reqwest_012::Client::builder()
-                .timeout(Duration::from_millis(10))
-                .build()
-                .expect("client")
-                .get("http://127.0.0.1:65535")
-                .send()
+        let err = runtime.block_on(async {
+            let api_url = Url::parse("http://127.0.0.1:65535").expect("api url");
+            Bot::new("0:test")
+                .set_api_url(api_url)
+                .get_me()
                 .await
-                .expect_err("expected failure")
+                .expect_err("expected network failure")
         });
 
-        let err = RequestError::Network(Arc::new(reqwest_err));
+        assert!(matches!(err, RequestError::Network(_)));
         let app_err: Error = err.into();
         let metadata = app_err.metadata();
         assert_eq!(

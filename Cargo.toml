@@ -162,7 +162,7 @@ trybuild = "1"
 toml = "1"
 tempfile = "3"
 tracing-subscriber = { version = "0.3", features = ["registry"] }
-reqwest = { version = "0.13" }
+url = "2"
 
 [[bench]]
 name = "error_paths"
