@@ -13,4 +13,4 @@ publish = false
 [dependencies]
 masterror = { path = "../..", features = ["tracing"] }
 serde = { version = "1", features = ["derive"] }
-thiserror = "2.0"
+thiserror = "2"
