@@ -6,17 +6,14 @@
 //!
 //! This module provides the main entry point for generating `std::error::Error`
 //! trait implementations for custom error types. It supports both struct and
-//! enum error types, generating appropriate implementations for the `source()`,
-//! `backtrace()`, and `provide()` methods based on the error's structure and
-//! attributes.
+//! enum error types, generating appropriate implementations for the `source()`
+//! and `provide()` methods based on the error's structure and attributes.
 //!
 //! # Architecture
 //!
 //! The error trait implementation is split into focused submodules:
 //!
 //! - [`source`] - Handles `source()` method generation for error cause chains
-//! - [`backtrace`] - Handles `backtrace()` method generation for stack trace
-//!   capture
 //! - [`provide`] - Handles `provide()` method generation for generic member
 //!   access API
 //! - [`binding`] - Utilities for generating field binding identifiers in
@@ -56,20 +53,18 @@ use crate::{
     lint::lifetime_lint_allows
 };
 
-pub mod backtrace;
 pub mod binding;
 pub mod provide;
 pub mod source;
 
-use backtrace::{enum_backtrace_method, struct_backtrace_method};
 use provide::{enum_provide_method, struct_provide_method};
 use source::{struct_source_body, variant_source_arm};
 
 /// Generates Error trait implementation for an error type.
 ///
 /// Dispatches to struct or enum-specific implementations based on the input
-/// data structure. Generates complete trait impl including source, backtrace,
-/// and provide methods as appropriate.
+/// data structure. Generates complete trait impl including source and
+/// provide methods as appropriate.
 ///
 /// # Arguments
 ///
@@ -91,7 +86,7 @@ pub fn expand(input: &ErrorInput) -> Result<TokenStream, Error> {
 
 /// Generates Error trait implementation for struct error types.
 ///
-/// Creates implementation with source, backtrace, and provide methods
+/// Creates implementation with source and provide methods
 /// based on field attributes and display specification.
 ///
 /// # Arguments
@@ -104,10 +99,7 @@ pub fn expand(input: &ErrorInput) -> Result<TokenStream, Error> {
 /// Token stream for struct Error trait impl
 fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, Error> {
     let body = struct_source_body(&data.fields, &data.display);
-    let backtrace_method = struct_backtrace_method(&data.fields);
-    let provide_method = struct_provide_method(&data.fields);
-    let backtrace_method = backtrace_method.unwrap_or_default();
-    let provide_method = provide_method.unwrap_or_default();
+    let provide_method = struct_provide_method(&data.fields).unwrap_or_default();
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
     let lint_allows = lifetime_lint_allows(&input.generics);
@@ -117,7 +109,6 @@ fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, E
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
                 #body
             }
-            #backtrace_method
             #provide_method
         }
     })
@@ -125,8 +116,8 @@ fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, E
 
 /// Generates Error trait implementation for enum error types.
 ///
-/// Creates implementation with pattern matching for source, backtrace,
-/// and provide methods across all variants.
+/// Creates implementation with pattern matching for source and provide
+/// methods across all variants.
 ///
 /// # Arguments
 ///
@@ -141,10 +132,7 @@ fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> Result<TokenStre
     for variant in variants {
         arms.push(variant_source_arm(variant));
     }
-    let backtrace_method = enum_backtrace_method(variants);
-    let provide_method = enum_provide_method(variants);
-    let backtrace_method = backtrace_method.unwrap_or_default();
-    let provide_method = provide_method.unwrap_or_default();
+    let provide_method = enum_provide_method(variants).unwrap_or_default();
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
     let lint_allows = lifetime_lint_allows(&input.generics);
@@ -156,7 +144,6 @@ fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> Result<TokenStre
                     #(#arms),*
                 }
             }
-            #backtrace_method
             #provide_method
         }
     })

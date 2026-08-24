@@ -29,6 +29,6 @@ pub use types::{
     FormatBindingKind, MasterrorSpec, ProvideSpec, RedactSpec, StructData, VariantData
 };
 // Re-export crate-internal utility functions
-pub use utils::{is_arc_type, is_backtrace_storage, option_inner_type};
+pub use utils::{is_arc_type, option_inner_type};
 // Re-export public utility functions
 pub use utils::{is_option_type, placeholder_error};

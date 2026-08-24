@@ -1,11 +1,17 @@
 #![allow(unused_variables, unused_assignments)]
 #![deny(non_shorthand_field_patterns)]
+#![cfg_attr(
+    masterror_requires_error_generic_feature,
+    feature(error_generic_member_access)
+)]
 
 // SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
 use core::ptr::null;
+#[cfg(masterror_has_error_generic_member_access)]
+use std::error::{request_ref, request_value};
 #[cfg(masterror_has_error_generic_member_access)]
 use std::ptr;
 use std::{error::Error as StdError, fmt};
@@ -471,10 +477,8 @@ fn assert_backtrace_interfaces<E>(error: &E, expected: &std::backtrace::Backtrac
 where
     E: StdError + ?Sized
 {
-    let reported = std::error::Error::backtrace(error).expect("backtrace");
-    assert!(ptr::eq(expected, reported));
     let provided = request_ref::<std::backtrace::Backtrace>(error).expect("provided backtrace");
-    assert!(ptr::eq(reported, provided));
+    assert!(ptr::eq(expected, provided));
 }
 
 #[cfg(not(masterror_has_error_generic_member_access))]
@@ -833,7 +837,6 @@ fn optional_source_backtrace_absent_when_none() {
     assert!(StdError::source(&err).is_none());
     #[cfg(masterror_has_error_generic_member_access)]
     {
-        assert!(std::error::Error::backtrace(&err).is_none());
         assert!(std::error::request_ref::<std::backtrace::Backtrace>(&err).is_none());
     }
 }
@@ -856,9 +859,7 @@ fn enum_backtrace_field_is_returned() {
     }
     let unit = EnumWithBacktrace::Unit;
     #[cfg(masterror_has_error_generic_member_access)]
-    {
-        assert!(std::error::Error::backtrace(&unit).is_none());
-    }
+    {}
 }
 
 #[test]
@@ -978,7 +979,6 @@ fn enum_backtrace_is_inferred_without_attribute() {
     #[cfg(masterror_has_error_generic_member_access)]
     {
         let none = AutoBacktraceEnum::Tuple(None);
-        assert!(std::error::Error::backtrace(&none).is_none());
     }
 }
 

@@ -1,4 +1,8 @@
 #![allow(non_shorthand_field_patterns)]
+#![cfg_attr(
+    masterror_requires_error_generic_feature,
+    feature(error_generic_member_access)
+)]
 
 // SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
 //

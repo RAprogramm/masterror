@@ -41,7 +41,7 @@ pub fn struct_provide_method(fields: &Fields) -> Option<TokenStream> {
         needs_trait_import = true;
         let member = &source_field.member;
         statements.push(provide_source_tokens(
-            &quote!(self.#member),
+            &quote!(&self.#member),
             source_field,
             &request
         ));
@@ -53,7 +53,7 @@ pub fn struct_provide_method(fields: &Fields) -> Option<TokenStream> {
     {
         let member = &backtrace.field().member;
         statements.push(provide_backtrace_tokens(
-            &quote!(self.#member),
+            &quote!(&self.#member),
             backtrace.field(),
             &request
         ));
@@ -63,7 +63,7 @@ pub fn struct_provide_method(fields: &Fields) -> Option<TokenStream> {
             continue;
         }
         let member = &field.member;
-        let expr = quote!(self.#member);
+        let expr = quote!(&self.#member);
         for spec in &field.attrs.provides {
             statements.extend(provide_custom_tokens(&expr, field, spec, &request));
         }
@@ -356,7 +356,7 @@ fn provide_custom_ref_tokens(
 ) -> TokenStream {
     if is_option_type(&field.ty) {
         quote! {
-            if let Some(value) = #expr.as_ref() {
+            if let Some(value) = (#expr).as_ref() {
                 #request.provide_ref::<#ty>(value);
             }
         }
@@ -375,13 +375,13 @@ fn provide_custom_value_tokens(
 ) -> TokenStream {
     if is_option_type(&field.ty) {
         quote! {
-            if let Some(value) = #expr.clone() {
+            if let Some(value) = (#expr).clone() {
                 #request.provide_value::<#ty>(value);
             }
         }
     } else {
         quote! {
-            #request.provide_value::<#ty>(#expr.clone());
+            #request.provide_value::<#ty>((#expr).clone());
         }
     }
 }
@@ -393,7 +393,7 @@ pub fn provide_backtrace_tokens(
 ) -> TokenStream {
     if is_option_type(&field.ty) {
         quote! {
-            if let Some(backtrace) = #expr.as_ref() {
+            if let Some(backtrace) = (#expr).as_ref() {
                 #request.provide_ref::<std::backtrace::Backtrace>(backtrace);
             }
         }
@@ -411,13 +411,13 @@ pub fn provide_source_tokens(
 ) -> TokenStream {
     if is_option_type(&field.ty) {
         quote! {
-            if let Some(source) = #expr.as_ref() {
+            if let Some(source) = (#expr).as_ref() {
                 source.thiserror_provide(#request);
             }
         }
     } else {
         quote! {
-            #expr.thiserror_provide(#request);
+            (#expr).thiserror_provide(#request);
         }
     }
 }
