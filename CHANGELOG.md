@@ -11,7 +11,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.29.0...HEAD)
+## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.30.0...HEAD)
+
+### Fixed
+
+- Keep no_std build compiling and run checks on the installed toolchain by [@RAprogramm](https://github.com/RAprogramm) ([fb2fbd5](https://github.com/RAprogramm/masterror/commit/fb2fbd5ffb020a27156d5a19854dd459e61d1605))
+## [0.30.0](https://github.com/RAprogramm/masterror/releases/tag/v0.30.0) - 2026-08-24
+
+### Fixed
+
+- Build teloxide network test through public bot API by [@RAprogramm](https://github.com/RAprogramm) ([9a0c534](https://github.com/RAprogramm/masterror/commit/9a0c534c27736c6b8b696ec5783412522e87f2d2))
+
+### Miscellaneous
+
+- Release 0.30.0 by [@RAprogramm](https://github.com/RAprogramm) ([569337f](https://github.com/RAprogramm/masterror/commit/569337f28d875bcd7700cfdf584959e31c910448))
+- Up deps by [@RAprogramm](https://github.com/RAprogramm) ([4965d0d](https://github.com/RAprogramm/masterror/commit/4965d0daceb6232baf063776e4460cac8547943b))
+
+### Refactored
+
+- Clear high-volume clippy nursery and pedantic warnings by [@RAprogramm](https://github.com/RAprogramm) ([839d198](https://github.com/RAprogramm/masterror/commit/839d1981a91e9f6b6bd4627bcd760b5049e4191d))
+
+**Full Changelog**: [v0.29.0...v0.30.0](https://github.com/RAprogramm/masterror/compare/v0.29.0...v0.30.0)
 ## [0.29.0](https://github.com/RAprogramm/masterror/releases/tag/v0.29.0) - 2026-07-05
 
 **Full Changelog**: [v0.28.0...v0.29.0](https://github.com/RAprogramm/masterror/compare/v0.28.0...v0.29.0)
