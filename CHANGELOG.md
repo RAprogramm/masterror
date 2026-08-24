@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Make derived provide implementation compile on nightly by [@RAprogramm](https://github.com/RAprogramm) ([3d4dd87](https://github.com/RAprogramm/masterror/commit/3d4dd87c241a8b2c0a57773fcd2f87e3ee896aa6))
 - Keep no_std build compiling and run checks on the installed toolchain by [@RAprogramm](https://github.com/RAprogramm) ([fb2fbd5](https://github.com/RAprogramm/masterror/commit/fb2fbd5ffb020a27156d5a19854dd459e61d1605))
 ## [0.30.0](https://github.com/RAprogramm/masterror/releases/tag/v0.30.0) - 2026-08-24
 
