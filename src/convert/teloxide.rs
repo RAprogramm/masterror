@@ -59,10 +59,7 @@ fn build_teloxide_context(err: &RequestError) -> (Context, Option<u64>) {
             let mut context = Context::new(AppErrorKind::ExternalApi)
                 .with(field::str("telegram.reason", "api"))
                 .with(field::str("telegram.api_error", api.to_string()))
-                .with(field::str(
-                    "telegram.api_error_variant",
-                    format!("{:?}", api)
-                ));
+                .with(field::str("telegram.api_error_variant", format!("{api:?}")));
             if matches!(api, ApiError::InvalidToken) {
                 context = context.category(AppErrorKind::Unauthorized);
             }

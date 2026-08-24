@@ -43,7 +43,7 @@ fn display_formats_serialization_error() {
     let err = BrowserConsoleError::Serialization {
         message: "json fail".to_owned()
     };
-    let display = format!("{}", err);
+    let display = format!("{err}");
     assert!(display.contains("failed to serialize"));
     assert!(display.contains("json fail"));
 }
@@ -53,7 +53,7 @@ fn display_formats_console_unavailable() {
     let err = BrowserConsoleError::ConsoleUnavailable {
         message: "no console".to_owned()
     };
-    let display = format!("{}", err);
+    let display = format!("{err}");
     assert!(display.contains("not available"));
     assert!(display.contains("no console"));
 }
@@ -63,7 +63,7 @@ fn display_formats_console_error_unavailable() {
     let err = BrowserConsoleError::ConsoleErrorUnavailable {
         message: "no error fn".to_owned()
     };
-    let display = format!("{}", err);
+    let display = format!("{err}");
     assert!(display.contains("failed to access"));
     assert!(display.contains("no error fn"));
 }
@@ -71,7 +71,7 @@ fn display_formats_console_error_unavailable() {
 #[test]
 fn display_formats_console_method_not_callable() {
     let err = BrowserConsoleError::ConsoleMethodNotCallable;
-    let display = format!("{}", err);
+    let display = format!("{err}");
     assert!(display.contains("not callable"));
 }
 
@@ -80,7 +80,7 @@ fn display_formats_console_invocation_error() {
     let err = BrowserConsoleError::ConsoleInvocation {
         message: "call failed".to_owned()
     };
-    let display = format!("{}", err);
+    let display = format!("{err}");
     assert!(display.contains("failed to invoke"));
     assert!(display.contains("call failed"));
 }
@@ -88,7 +88,7 @@ fn display_formats_console_invocation_error() {
 #[test]
 fn display_formats_unsupported_target() {
     let err = BrowserConsoleError::UnsupportedTarget;
-    let display = format!("{}", err);
+    let display = format!("{err}");
     assert!(display.contains("not supported"));
 }
 
@@ -97,7 +97,7 @@ fn debug_trait_works() {
     let err = BrowserConsoleError::Serialization {
         message: "test".to_owned()
     };
-    let debug = format!("{:?}", err);
+    let debug = format!("{err:?}");
     assert!(debug.contains("Serialization"));
 }
 

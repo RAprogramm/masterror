@@ -15,7 +15,7 @@
 //! - `code` (e.g., `NOT_FOUND`, `VALIDATION`) tells **semantic category**,
 //!   which remains stable even if your transport mapping changes.
 //!
-//! ## Stability and SemVer
+//! ## Stability and `SemVer`
 //! - New built-in constants **may be added in minor releases** (non-breaking).
 //! - The type is marked `#[non_exhaustive]` to allow future metadata additions
 //!   without breaking downstream code.
@@ -40,7 +40,7 @@
 //! assert_eq!(code.as_str(), "VALIDATION");
 //! ```
 //!
-//! Serialize to JSON (uses SCREAMING_SNAKE_CASE):
+//! Serialize to JSON (uses `SCREAMING_SNAKE_CASE)`:
 //!
 //! ```rust
 //! # #[cfg(feature = "serde_json")]

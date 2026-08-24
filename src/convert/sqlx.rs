@@ -194,7 +194,7 @@ fn build_sqlx_context(err: &SqlxError) -> (Context, Option<u64>) {
         other => (
             Context::new(AppErrorKind::Database)
                 .with(field::str("db.reason", "unclassified"))
-                .with(field::str("db.detail", format!("{:?}", other))),
+                .with(field::str("db.detail", format!("{other:?}"))),
             None
         )
     };
@@ -217,7 +217,7 @@ fn classify_database_error(error: &(dyn DatabaseError + 'static)) -> (Context, O
     }
     let mut retry_after = None;
     let mut code_override = None;
-    let code = error.code().map(|code| code.into_owned());
+    let code = error.code().map(std::borrow::Cow::into_owned);
     if let Some(ref sqlstate) = code {
         context = context.with(field::str("db.code", sqlstate.clone()));
         if let Some((_, secs)) = SQLSTATE_RETRY_HINTS
@@ -294,7 +294,7 @@ fn build_migrate_context(err: &MigrateError) -> Context {
 }
 
 #[cfg(feature = "sqlx-migrate")]
-fn is_invalid_mix(err: &MigrateError) -> bool {
+const fn is_invalid_mix(err: &MigrateError) -> bool {
     #[allow(deprecated)]
     {
         matches!(err, MigrateError::InvalidMixReversibleAndSimple)

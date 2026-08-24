@@ -106,10 +106,10 @@ impl Error {
     /// ```
     #[must_use]
     pub fn render_message(&self) -> Cow<'_, str> {
-        match &self.message {
-            Some(msg) => Cow::Borrowed(msg.as_ref()),
-            None => Cow::Borrowed(self.kind.label())
-        }
+        self.message.as_ref().map_or_else(
+            || Cow::Borrowed(self.kind.label()),
+            |msg| Cow::Borrowed(msg.as_ref())
+        )
     }
 
     /// Emit telemetry (`tracing` event, metrics counter, backtrace capture).
@@ -212,7 +212,9 @@ impl Error {
     where
         E: CoreError + 'static
     {
-        self.source_ref().is_some_and(|source| source.is::<E>())
+        self.source_ref().is_some_and(
+            <dyn std::error::Error + std::marker::Send + std::marker::Sync + 'static>::is::<E>
+        )
     }
 
     /// Attempt to take ownership of the source error as a concrete type.

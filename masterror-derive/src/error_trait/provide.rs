@@ -28,7 +28,7 @@ use crate::input::{
 /// # Returns
 ///
 /// Optional token stream for provide method
-pub(crate) fn struct_provide_method(fields: &Fields) -> Option<TokenStream> {
+pub fn struct_provide_method(fields: &Fields) -> Option<TokenStream> {
     let backtrace = fields.backtrace_field();
     let source_field = fields.iter().find(|candidate| candidate.attrs.has_source());
     let request = quote!(request);
@@ -41,7 +41,7 @@ pub(crate) fn struct_provide_method(fields: &Fields) -> Option<TokenStream> {
         needs_trait_import = true;
         let member = &source_field.member;
         statements.push(provide_source_tokens(
-            quote!(self.#member),
+            &quote!(self.#member),
             source_field,
             &request
         ));
@@ -53,7 +53,7 @@ pub(crate) fn struct_provide_method(fields: &Fields) -> Option<TokenStream> {
     {
         let member = &backtrace.field().member;
         statements.push(provide_backtrace_tokens(
-            quote!(self.#member),
+            &quote!(self.#member),
             backtrace.field(),
             &request
         ));
@@ -65,7 +65,7 @@ pub(crate) fn struct_provide_method(fields: &Fields) -> Option<TokenStream> {
         let member = &field.member;
         let expr = quote!(self.#member);
         for spec in &field.attrs.provides {
-            statements.extend(provide_custom_tokens(expr.clone(), field, spec, &request));
+            statements.extend(provide_custom_tokens(&expr, field, spec, &request));
         }
     }
     if statements.is_empty() {
@@ -97,7 +97,7 @@ pub(crate) fn struct_provide_method(fields: &Fields) -> Option<TokenStream> {
 /// # Returns
 ///
 /// Optional token stream for provide method
-pub(crate) fn enum_provide_method(variants: &[VariantData]) -> Option<TokenStream> {
+pub fn enum_provide_method(variants: &[VariantData]) -> Option<TokenStream> {
     let mut has_backtrace = false;
     let mut has_custom_provides = false;
     let mut needs_trait_import = false;
@@ -140,7 +140,7 @@ pub(crate) fn enum_provide_method(variants: &[VariantData]) -> Option<TokenStrea
     })
 }
 
-pub(crate) fn variant_provide_arm_tokens(
+pub fn variant_provide_arm_tokens(
     variant: &VariantData,
     request: &TokenStream,
     needs_trait_import: &mut bool
@@ -169,7 +169,7 @@ pub(crate) fn variant_provide_arm_tokens(
     }
 }
 
-pub(crate) fn variant_provide_named_arm(
+pub fn variant_provide_named_arm(
     variant_ident: &Ident,
     fields: &[Field],
     backtrace: Option<BacktraceField<'_>>,
@@ -220,7 +220,7 @@ pub(crate) fn variant_provide_named_arm(
         *needs_trait_import = true;
         let binding = source_binding.expect("source binding");
         statements.push(provide_source_tokens(
-            quote!(#binding),
+            &quote!(#binding),
             source_field,
             request
         ));
@@ -232,7 +232,7 @@ pub(crate) fn variant_provide_named_arm(
     {
         let binding = backtrace_binding.expect("backtrace binding");
         statements.push(provide_backtrace_tokens(
-            quote!(#binding),
+            &quote!(#binding),
             backtrace_field.field(),
             request
         ));
@@ -240,12 +240,7 @@ pub(crate) fn variant_provide_named_arm(
     for (binding, field) in provide_bindings {
         let binding_expr = quote!(#binding);
         for spec in &field.attrs.provides {
-            statements.extend(provide_custom_tokens(
-                binding_expr.clone(),
-                field,
-                spec,
-                request
-            ));
+            statements.extend(provide_custom_tokens(&binding_expr, field, spec, request));
         }
     }
     let pattern = quote!(Self::#variant_ident { #(#entries),* });
@@ -256,7 +251,7 @@ pub(crate) fn variant_provide_named_arm(
     }
 }
 
-pub(crate) fn variant_provide_unnamed_arm(
+pub fn variant_provide_unnamed_arm(
     variant_ident: &Ident,
     fields: &[Field],
     backtrace: Option<BacktraceField<'_>>,
@@ -302,7 +297,7 @@ pub(crate) fn variant_provide_unnamed_arm(
         *needs_trait_import = true;
         let binding = source_binding.expect("source binding");
         statements.push(provide_source_tokens(
-            quote!(#binding),
+            &quote!(#binding),
             source_field,
             request
         ));
@@ -314,7 +309,7 @@ pub(crate) fn variant_provide_unnamed_arm(
     {
         let binding = backtrace_binding.expect("backtrace binding");
         statements.push(provide_backtrace_tokens(
-            quote!(#binding),
+            &quote!(#binding),
             backtrace_field.field(),
             request
         ));
@@ -322,12 +317,7 @@ pub(crate) fn variant_provide_unnamed_arm(
     for (binding, field) in provide_bindings {
         let binding_expr = quote!(#binding);
         for spec in &field.attrs.provides {
-            statements.extend(provide_custom_tokens(
-                binding_expr.clone(),
-                field,
-                spec,
-                request
-            ));
+            statements.extend(provide_custom_tokens(&binding_expr, field, spec, request));
         }
     }
     let pattern = if elements.is_empty() {
@@ -342,34 +332,24 @@ pub(crate) fn variant_provide_unnamed_arm(
     }
 }
 
-pub(crate) fn provide_custom_tokens(
-    expr: TokenStream,
+pub fn provide_custom_tokens(
+    expr: &TokenStream,
     field: &Field,
     spec: &ProvideSpec,
     request: &TokenStream
 ) -> Vec<TokenStream> {
     let mut tokens = Vec::new();
     if let Some(reference) = &spec.reference {
-        tokens.push(provide_custom_ref_tokens(
-            expr.clone(),
-            field,
-            reference,
-            request
-        ));
+        tokens.push(provide_custom_ref_tokens(expr, field, reference, request));
     }
     if let Some(value) = &spec.value {
-        tokens.push(provide_custom_value_tokens(
-            expr.clone(),
-            field,
-            value,
-            request
-        ));
+        tokens.push(provide_custom_value_tokens(expr, field, value, request));
     }
     tokens
 }
 
 fn provide_custom_ref_tokens(
-    expr: TokenStream,
+    expr: &TokenStream,
     field: &Field,
     ty: &TypePath,
     request: &TokenStream
@@ -388,7 +368,7 @@ fn provide_custom_ref_tokens(
 }
 
 fn provide_custom_value_tokens(
-    expr: TokenStream,
+    expr: &TokenStream,
     field: &Field,
     ty: &TypePath,
     request: &TokenStream
@@ -406,8 +386,8 @@ fn provide_custom_value_tokens(
     }
 }
 
-pub(crate) fn provide_backtrace_tokens(
-    expr: TokenStream,
+pub fn provide_backtrace_tokens(
+    expr: &TokenStream,
     field: &Field,
     request: &TokenStream
 ) -> TokenStream {
@@ -424,8 +404,8 @@ pub(crate) fn provide_backtrace_tokens(
     }
 }
 
-pub(crate) fn provide_source_tokens(
-    expr: TokenStream,
+pub fn provide_source_tokens(
+    expr: &TokenStream,
     field: &Field,
     request: &TokenStream
 ) -> TokenStream {
@@ -450,21 +430,22 @@ mod tests {
 
     use super::*;
     use crate::{
-        input::FieldAttrs,
+        input::{FieldAttrs, FormatArgsSpec},
         template_support::{DisplayTemplate, TemplateSegmentSpec}
     };
 
     fn make_field(ident: Option<&str>, index: usize) -> Field {
         Field {
             ident: ident.map(|s| syn::Ident::new(s, Span::call_site())),
-            member: if let Some(s) = ident {
-                Member::Named(syn::Ident::new(s, Span::call_site()))
-            } else {
-                Member::Unnamed(syn::Index {
-                    index: index as u32,
-                    span:  Span::call_site()
-                })
-            },
+            member: ident.map_or_else(
+                || {
+                    Member::Unnamed(syn::Index {
+                        index: index as u32,
+                        span:  Span::call_site()
+                    })
+                },
+                |s| Member::Named(syn::Ident::new(s, Span::call_site()))
+            ),
             ty: syn::parse_quote!(String),
             index,
             attrs: FieldAttrs::default(),
@@ -488,7 +469,7 @@ mod tests {
             display:     DisplaySpec::Template(DisplayTemplate {
                 segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()
@@ -505,7 +486,7 @@ mod tests {
         };
         let request = quote!(req);
         let expr = quote!(self.source);
-        let result = provide_source_tokens(expr, &field, &request);
+        let result = provide_source_tokens(&expr, &field, &request);
         let output = result.to_string();
         assert!(output.contains("if let Some"));
         assert!(output.contains("thiserror_provide"));
@@ -519,7 +500,7 @@ mod tests {
         };
         let request = quote!(req);
         let expr = quote!(self.source);
-        let result = provide_source_tokens(expr, &field, &request);
+        let result = provide_source_tokens(&expr, &field, &request);
         let output = result.to_string();
         assert!(output.contains("thiserror_provide"));
         assert!(!output.contains("if let"));
@@ -533,7 +514,7 @@ mod tests {
         };
         let request = quote!(req);
         let expr = quote!(self.bt);
-        let result = provide_backtrace_tokens(expr, &field, &request);
+        let result = provide_backtrace_tokens(&expr, &field, &request);
         let output = result.to_string();
         assert!(output.contains("if let Some"));
         assert!(output.contains("provide_ref"));
@@ -547,7 +528,7 @@ mod tests {
         };
         let request = quote!(req);
         let expr = quote!(self.bt);
-        let result = provide_backtrace_tokens(expr, &field, &request);
+        let result = provide_backtrace_tokens(&expr, &field, &request);
         let output = result.to_string();
         assert!(output.contains("provide_ref"));
         assert!(!output.contains("if let"));
@@ -563,7 +544,7 @@ mod tests {
         };
         let request = quote!(req);
         let expr = quote!(self.trace_id);
-        let result = provide_custom_tokens(expr, &field, &spec, &request);
+        let result = provide_custom_tokens(&expr, &field, &spec, &request);
         assert_eq!(result.len(), 1);
         let output = result[0].to_string();
         assert!(output.contains("provide_ref"));
@@ -580,7 +561,7 @@ mod tests {
         };
         let request = quote!(req);
         let expr = quote!(self.span_id);
-        let result = provide_custom_tokens(expr, &field, &spec, &request);
+        let result = provide_custom_tokens(&expr, &field, &spec, &request);
         assert_eq!(result.len(), 1);
         let output = result[0].to_string();
         assert!(output.contains("provide_value"));
@@ -597,7 +578,7 @@ mod tests {
         };
         let request = quote!(req);
         let expr = quote!(self.data);
-        let result = provide_custom_tokens(expr, &field, &spec, &request);
+        let result = provide_custom_tokens(&expr, &field, &spec, &request);
         assert_eq!(result.len(), 2);
         let output0 = result[0].to_string();
         let output1 = result[1].to_string();
@@ -618,7 +599,7 @@ mod tests {
         };
         let request = quote!(req);
         let expr = quote!(self.data);
-        let result = provide_custom_tokens(expr, &field, &spec, &request);
+        let result = provide_custom_tokens(&expr, &field, &spec, &request);
         assert_eq!(result.len(), 1);
         let output = result[0].to_string();
         assert!(output.contains("if let Some"));

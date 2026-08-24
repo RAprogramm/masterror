@@ -169,7 +169,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        input::{DisplaySpec, Fields},
+        input::{DisplaySpec, Fields, FormatArgsSpec},
         template_support::{DisplayTemplate, TemplateSegmentSpec}
     };
 
@@ -183,7 +183,7 @@ mod tests {
                     segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
                 }),
                 masterror:   None,
-                format_args: Default::default(),
+                format_args: FormatArgsSpec::default(),
                 app_error:   None
             }))
         }
@@ -209,7 +209,7 @@ mod tests {
             display:     DisplaySpec::Template(DisplayTemplate {
                 segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()

@@ -67,7 +67,7 @@ pub enum AppErrorKind {
 
     /// State conflict with an existing resource or concurrent update.
     ///
-    /// Typical cases: unique key violation, version mismatch (ETag).
+    /// Typical cases: unique key violation, version mismatch (`ETag`).
     /// Maps to **409 Conflict**.
     Conflict,
 
@@ -245,30 +245,29 @@ impl AppErrorKind {
     /// This mapping is intentionally conservative and stable. It should **not**
     /// leak environment-specific details (e.g. DB driver error codes or HTTP
     /// library errors).
-    pub fn http_status(&self) -> u16 {
+    #[must_use]
+    pub const fn http_status(&self) -> u16 {
         match self {
-            AppErrorKind::NotFound => 404,
-            AppErrorKind::Validation => 422,
-            AppErrorKind::Conflict => 409,
-            AppErrorKind::Unauthorized | AppErrorKind::InvalidJwt | AppErrorKind::TelegramAuth => {
-                401
-            }
-            AppErrorKind::Forbidden => 403,
-            AppErrorKind::NotImplemented => 501,
-            AppErrorKind::BadRequest => 400,
-            AppErrorKind::RateLimited => 429,
-            AppErrorKind::Timeout => 504,
-            AppErrorKind::Network | AppErrorKind::DependencyUnavailable => 503,
-            AppErrorKind::Serialization
-            | AppErrorKind::Deserialization
-            | AppErrorKind::ExternalApi
-            | AppErrorKind::Queue
-            | AppErrorKind::Cache
-            | AppErrorKind::Database
-            | AppErrorKind::Service
-            | AppErrorKind::Config
-            | AppErrorKind::Turnkey
-            | AppErrorKind::Internal => 500
+            Self::NotFound => 404,
+            Self::Validation => 422,
+            Self::Conflict => 409,
+            Self::Unauthorized | Self::InvalidJwt | Self::TelegramAuth => 401,
+            Self::Forbidden => 403,
+            Self::NotImplemented => 501,
+            Self::BadRequest => 400,
+            Self::RateLimited => 429,
+            Self::Timeout => 504,
+            Self::Network | Self::DependencyUnavailable => 503,
+            Self::Serialization
+            | Self::Deserialization
+            | Self::ExternalApi
+            | Self::Queue
+            | Self::Cache
+            | Self::Database
+            | Self::Service
+            | Self::Config
+            | Self::Turnkey
+            | Self::Internal => 500
         }
     }
 
@@ -276,6 +275,7 @@ impl AppErrorKind {
     /// feature).
     #[cfg(feature = "axum")]
     #[cfg_attr(docsrs, doc(cfg(feature = "axum")))]
+    #[must_use]
     pub fn status_code(&self) -> StatusCode {
         StatusCode::from_u16(self.http_status()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
     }
@@ -288,7 +288,7 @@ impl AppErrorKind {
     /// Used for color-coding in terminal output: critical errors are shown in
     /// red, while client errors are shown in yellow.
     #[cfg(feature = "colored")]
-    pub(crate) fn is_critical(&self) -> bool {
+    pub(crate) const fn is_critical(&self) -> bool {
         self.http_status() >= 500
     }
 }

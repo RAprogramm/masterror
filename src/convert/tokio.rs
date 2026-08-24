@@ -117,7 +117,7 @@ mod tests {
             .await
             .expect_err("expect timeout");
         let app_err: Error = err.into();
-        let display = format!("{}", app_err);
+        let display = format!("{app_err}");
         assert!(!display.is_empty());
     }
 
@@ -128,7 +128,7 @@ mod tests {
             .await
             .expect_err("expect timeout");
         let app_err: Error = err.into();
-        let debug = format!("{:?}", app_err);
+        let debug = format!("{app_err:?}");
         assert!(debug.contains("Timeout"));
     }
 

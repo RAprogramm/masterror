@@ -13,7 +13,7 @@ pub struct ErrorResponseFormatter<'a> {
 }
 
 impl<'a> ErrorResponseFormatter<'a> {
-    pub(crate) fn new(inner: &'a ErrorResponse) -> Self {
+    pub(crate) const fn new(inner: &'a ErrorResponse) -> Self {
         Self {
             inner
         }
@@ -46,7 +46,7 @@ pub struct ProblemJsonFormatter<'a> {
 }
 
 impl<'a> ProblemJsonFormatter<'a> {
-    pub(crate) fn new(inner: &'a ProblemJson) -> Self {
+    pub(crate) const fn new(inner: &'a ProblemJson) -> Self {
         Self {
             inner
         }
@@ -116,8 +116,8 @@ mod tests {
     fn error_response_formatter_display_delegates_to_inner() {
         let resp = ErrorResponse::new(400, AppCode::BadRequest, "invalid input").unwrap();
         let formatter = resp.internal();
-        let display_str = format!("{}", formatter);
-        let inner_display_str = format!("{}", resp);
+        let display_str = format!("{formatter}");
+        let inner_display_str = format!("{resp}");
         assert_eq!(display_str, inner_display_str);
     }
 
@@ -126,8 +126,8 @@ mod tests {
         let resp = ErrorResponse::new(500, AppCode::Internal, "error").unwrap();
         let formatter1 = resp.internal();
         let formatter2 = formatter1;
-        let _ = format!("{:?}", formatter1);
-        let _ = format!("{:?}", formatter2);
+        let _ = format!("{formatter1:?}");
+        let _ = format!("{formatter2:?}");
     }
 
     #[test]
@@ -175,8 +175,8 @@ mod tests {
         let problem = ProblemJson::from_app_error(error);
         let formatter1 = problem.internal();
         let formatter2 = formatter1;
-        let _ = format!("{:?}", formatter1);
-        let _ = format!("{:?}", formatter2);
+        let _ = format!("{formatter1:?}");
+        let _ = format!("{formatter2:?}");
     }
 
     #[test]

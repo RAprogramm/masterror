@@ -355,8 +355,8 @@ pub fn placeholder_format_fragment(placeholder: &TemplatePlaceholderSpec) -> Str
 /// Generates the format specification fragment for a formatter.
 ///
 /// Extracts the format specification string from a formatter (e.g., `"?"` for
-/// Debug, `"x"` for LowerHex). Returns `None` for formatters that don't require
-/// a specification.
+/// Debug, `"x"` for `LowerHex`). Returns `None` for formatters that don't
+/// require a specification.
 ///
 /// # Arguments
 ///

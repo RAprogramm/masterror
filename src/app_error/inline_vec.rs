@@ -68,7 +68,7 @@ impl<T> InlineVec<T> {
 
     /// Returns the number of elements in the vector.
     #[must_use]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         match &self.storage {
             Storage::Empty => 0,
             Storage::One(_) => 1,
@@ -81,13 +81,13 @@ impl<T> InlineVec<T> {
 
     /// Returns `true` if the vector contains no elements.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         matches!(&self.storage, Storage::Empty)
     }
 
     /// Returns `true` if elements are stored inline (on stack).
     #[must_use]
-    pub fn is_inline(&self) -> bool {
+    pub const fn is_inline(&self) -> bool {
         !matches!(&self.storage, Storage::Heap(_))
     }
 
@@ -188,7 +188,7 @@ impl<T> InlineVec<T> {
     }
 
     /// Returns an iterator over the elements.
-    pub fn iter(&self) -> Iter<'_, T> {
+    pub const fn iter(&self) -> Iter<'_, T> {
         Iter {
             vec:   self,
             index: 0

@@ -66,7 +66,7 @@ fn build_context(err: &SjError) -> Context {
             Context::new(AppErrorKind::Deserialization)
         }
     }
-    .with(field::str("serde_json.category", format!("{:?}", category)));
+    .with(field::str("serde_json.category", format!("{category:?}")));
     let line = err.line();
     if line != 0 {
         let value = u64::try_from(line).unwrap_or(u64::MAX);

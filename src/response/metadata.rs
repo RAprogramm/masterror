@@ -61,7 +61,7 @@ impl ErrorResponse {
     /// assert_eq!(resp.retry.expect("retry").after_seconds, 120);
     /// ```
     #[must_use]
-    pub fn with_retry_after_secs(mut self, secs: u64) -> Self {
+    pub const fn with_retry_after_secs(mut self, secs: u64) -> Self {
         self.retry = Some(RetryAdvice {
             after_seconds: secs
         });
@@ -86,7 +86,7 @@ impl ErrorResponse {
     /// assert_eq!(resp.retry.expect("retry").after_seconds, 60);
     /// ```
     #[must_use]
-    pub fn with_retry_after_duration(self, dur: Duration) -> Self {
+    pub const fn with_retry_after_duration(self, dur: Duration) -> Self {
         self.with_retry_after_secs(dur.as_secs())
     }
 

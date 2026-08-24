@@ -130,7 +130,7 @@ async fn get_user_returns_200() {
 async fn get_nonexistent_user_returns_404() {
     let server = TestServer::new(create_test_router());
     let fake_id = Uuid::new_v4();
-    let response: axum_test::TestResponse = server.get(&format!("/users/{}", fake_id)).await;
+    let response: axum_test::TestResponse = server.get(&format!("/users/{fake_id}")).await;
     assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
     let body: serde_json::Value = response.json();
     assert_eq!(body["status"], 404);
@@ -166,7 +166,7 @@ async fn update_nonexistent_user_returns_404() {
     let server = TestServer::new(create_test_router());
     let fake_id = Uuid::new_v4();
     let response: axum_test::TestResponse = server
-        .put(&format!("/users/{}", fake_id))
+        .put(&format!("/users/{fake_id}"))
         .json(&json!({
             "name": "Ghost",
             "email": "ghost@example.com"
@@ -198,6 +198,6 @@ async fn delete_user_returns_204() {
 async fn delete_nonexistent_user_returns_404() {
     let server = TestServer::new(create_test_router());
     let fake_id = Uuid::new_v4();
-    let response: axum_test::TestResponse = server.delete(&format!("/users/{}", fake_id)).await;
+    let response: axum_test::TestResponse = server.delete(&format!("/users/{fake_id}")).await;
     assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
 }

@@ -173,10 +173,10 @@ mod tests {
 
     fn make_field(index: usize, ident: Option<&str>, ty: syn::Type, attrs: FieldAttrs) -> Field {
         let ident = ident.map(|s| syn::Ident::new(s, Span::call_site()));
-        let member = match &ident {
-            Some(name) => syn::Member::Named(name.clone()),
-            None => syn::Member::Unnamed(syn::Index::from(index))
-        };
+        let member = ident.as_ref().map_or_else(
+            || syn::Member::Unnamed(syn::Index::from(index)),
+            |name| syn::Member::Named(name.clone())
+        );
         Field {
             ident,
             member,

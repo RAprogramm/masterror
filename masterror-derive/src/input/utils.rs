@@ -17,11 +17,7 @@ use crate::template_support::TemplateIdentifierSpec;
 ///
 /// Ensures only one #[from] field exists and validates companion fields
 /// (source and backtrace fields must be compatible).
-pub(crate) fn validate_from_usage(
-    fields: &Fields,
-    display: &DisplaySpec,
-    errors: &mut Vec<Error>
-) {
+pub fn validate_from_usage(fields: &Fields, display: &DisplaySpec, errors: &mut Vec<Error>) {
     let mut from_fields = fields.iter().filter(|field| field.attrs.from.is_some());
     let first = from_fields.next();
     let second = from_fields.next();
@@ -82,7 +78,7 @@ pub(crate) fn validate_from_usage(
 /// Validates #[backtrace] attribute usage across fields.
 ///
 /// Ensures only one backtrace field exists and validates field types.
-pub(crate) fn validate_backtrace_usage(fields: &Fields, errors: &mut Vec<Error>) {
+pub fn validate_backtrace_usage(fields: &Fields, errors: &mut Vec<Error>) {
     let backtrace_fields: Vec<_> = fields
         .iter()
         .filter(|field| field.attrs.has_backtrace())
@@ -126,7 +122,7 @@ fn validate_backtrace_field_type(field: &Field, errors: &mut Vec<Error>) {
 }
 
 /// Validates transparent attribute requires exactly one field.
-pub(crate) fn validate_transparent(
+pub fn validate_transparent(
     fields: &Fields,
     display: &DisplaySpec,
     errors: &mut Vec<Error>,
@@ -157,12 +153,12 @@ pub(crate) fn validate_transparent(
 }
 
 /// Checks if attribute path matches expected identifier.
-pub(crate) fn path_is(attr: &Attribute, expected: &str) -> bool {
+pub fn path_is(attr: &Attribute, expected: &str) -> bool {
     attr.path().is_ident(expected)
 }
 
 /// Combines multiple errors into a single error.
-pub(crate) fn collect_errors(errors: Vec<Error>) -> Error {
+pub fn collect_errors(errors: Vec<Error>) -> Error {
     let mut iter = errors.into_iter();
     let mut root = iter
         .next()
@@ -189,7 +185,7 @@ pub fn is_option_type(ty: &syn::Type) -> bool {
 }
 
 /// Extracts inner type from Option<T>.
-pub(crate) fn option_inner_type(ty: &syn::Type) -> Option<&syn::Type> {
+pub fn option_inner_type(ty: &syn::Type) -> Option<&syn::Type> {
     let syn::Type::Path(path) = ty else {
         return None;
     };
@@ -210,7 +206,7 @@ pub(crate) fn option_inner_type(ty: &syn::Type) -> Option<&syn::Type> {
 }
 
 /// Checks if type is Arc<T>.
-pub(crate) fn is_arc_type(ty: &syn::Type) -> bool {
+pub fn is_arc_type(ty: &syn::Type) -> bool {
     let syn::Type::Path(path) = ty else {
         return false;
     };
@@ -224,7 +220,7 @@ pub(crate) fn is_arc_type(ty: &syn::Type) -> bool {
 }
 
 /// Checks if type is Backtrace.
-pub(crate) fn is_backtrace_type(ty: &syn::Type) -> bool {
+pub fn is_backtrace_type(ty: &syn::Type) -> bool {
     let syn::Type::Path(path) = ty else {
         return false;
     };
@@ -238,7 +234,7 @@ pub(crate) fn is_backtrace_type(ty: &syn::Type) -> bool {
 }
 
 /// Checks if type can store backtrace (Backtrace or Option<Backtrace>).
-pub(crate) fn is_backtrace_storage(ty: &syn::Type) -> bool {
+pub fn is_backtrace_storage(ty: &syn::Type) -> bool {
     if is_option_type(ty) {
         option_inner_type(ty).is_some_and(is_backtrace_type)
     } else {
@@ -249,14 +245,12 @@ pub(crate) fn is_backtrace_storage(ty: &syn::Type) -> bool {
 /// Creates error for unknown template placeholder.
 pub fn placeholder_error(span: Span, identifier: &TemplateIdentifierSpec) -> Error {
     match identifier {
-        TemplateIdentifierSpec::Named(name) => {
-            Error::new(span, format!("unknown field `{}`", name))
-        }
+        TemplateIdentifierSpec::Named(name) => Error::new(span, format!("unknown field `{name}`")),
         TemplateIdentifierSpec::Positional(index) => {
-            Error::new(span, format!("field `{}` is not available", index))
+            Error::new(span, format!("field `{index}` is not available"))
         }
         TemplateIdentifierSpec::Implicit(index) => {
-            Error::new(span, format!("field `{}` is not available", index))
+            Error::new(span, format!("field `{index}` is not available"))
         }
     }
 }
@@ -270,7 +264,7 @@ mod tests {
 
     fn make_template() -> DisplaySpec {
         let lit: syn::LitStr = parse_quote! { "error message" };
-        let template = parse_display_template(lit).unwrap();
+        let template = parse_display_template(&lit).unwrap();
         DisplaySpec::Template(template)
     }
 

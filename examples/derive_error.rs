@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-//! Derive Error example showing thiserror compatibility and AppError mapping.
+//! Derive Error example showing thiserror compatibility and `AppError` mapping.
 //!
 //! Run with:
 //! ```sh

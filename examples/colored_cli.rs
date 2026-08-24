@@ -52,7 +52,7 @@ fn demo_critical_errors() {
         AppError::network("DNS resolution failed for api.example.com"),
     ];
     for err in errors {
-        eprintln!("{}\n", err);
+        eprintln!("{err}\n");
     }
 }
 
@@ -65,7 +65,7 @@ fn demo_client_errors() {
         AppError::forbidden("Insufficient permissions to access resource"),
     ];
     for err in errors {
-        eprintln!("{}\n", err);
+        eprintln!("{err}\n");
     }
 }
 
@@ -73,7 +73,7 @@ fn demo_error_with_context() {
     println!("--- Error with Source Context ---\n");
     let io_err = IoError::other("Connection reset by peer");
     let err = AppError::network("Failed to fetch user data").with_context(io_err);
-    eprintln!("{}\n", err);
+    eprintln!("{err}\n");
 }
 
 fn demo_error_with_metadata() {
@@ -83,18 +83,18 @@ fn demo_error_with_metadata() {
         .with_field(field::u64("duration_ms", 5432))
         .with_field(field::str("connection_id", "conn_abc123"))
         .with_field(field::u64("retry_count", 3));
-    eprintln!("{}\n", err);
+    eprintln!("{err}\n");
 }
 
 fn demo_error_chain() {
     println!("--- Deep Error Chain ---\n");
     let root = IoError::other("Disk full");
-    let mid = format!("Failed to write log file: {}", root);
+    let mid = format!("Failed to write log file: {root}");
     let top = AppError::internal("Application initialization failed")
         .with_context(IoError::other(mid))
         .with_field(field::str("config_path", "/etc/app/config.toml"))
         .with_field(field::u64("retry_attempt", 3));
-    eprintln!("{}\n", top);
+    eprintln!("{top}\n");
 }
 
 fn demo_all_error_kinds() {
@@ -113,6 +113,6 @@ fn demo_all_error_kinds() {
     ];
     for (kind, msg) in kinds {
         let err = AppError::new(kind, msg);
-        eprintln!("{}\n", err);
+        eprintln!("{err}\n");
     }
 }

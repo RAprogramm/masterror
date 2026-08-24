@@ -110,7 +110,7 @@ pub mod style {
     ///
     /// - TTY: Red text
     /// - Non-TTY: Plain text
-    /// - NO_COLOR=1: Plain text
+    /// - `NO_COLOR=1`: Plain text
     pub fn error_kind_critical(text: impl AsRef<str>) -> String {
         text.as_ref()
             .if_supports_color(Stream::Stderr, |t| t.red())
@@ -136,7 +136,7 @@ pub mod style {
     ///
     /// - TTY: Yellow text
     /// - Non-TTY: Plain text
-    /// - NO_COLOR=1: Plain text
+    /// - `NO_COLOR=1`: Plain text
     pub fn error_kind_warning(text: impl AsRef<str>) -> String {
         text.as_ref()
             .if_supports_color(Stream::Stderr, |t| t.yellow())
@@ -163,7 +163,7 @@ pub mod style {
     ///
     /// - TTY: Cyan text
     /// - Non-TTY: Plain text
-    /// - NO_COLOR=1: Plain text
+    /// - `NO_COLOR=1`: Plain text
     pub fn error_code(text: impl AsRef<str>) -> String {
         text.as_ref()
             .if_supports_color(Stream::Stderr, |t| t.cyan())
@@ -189,7 +189,7 @@ pub mod style {
     ///
     /// - TTY: Bright white text
     /// - Non-TTY: Plain text
-    /// - NO_COLOR=1: Plain text
+    /// - `NO_COLOR=1`: Plain text
     pub fn error_message(text: impl AsRef<str>) -> String {
         text.as_ref()
             .if_supports_color(Stream::Stderr, |t| t.bright_white())
@@ -216,7 +216,7 @@ pub mod style {
     ///
     /// - TTY: Dimmed text
     /// - Non-TTY: Plain text
-    /// - NO_COLOR=1: Plain text
+    /// - `NO_COLOR=1`: Plain text
     pub fn source_context(text: impl AsRef<str>) -> String {
         text.as_ref()
             .if_supports_color(Stream::Stderr, |t| t.dimmed())
@@ -243,7 +243,7 @@ pub mod style {
     ///
     /// - TTY: Green text
     /// - Non-TTY: Plain text
-    /// - NO_COLOR=1: Plain text
+    /// - `NO_COLOR=1`: Plain text
     pub fn metadata_key(text: impl AsRef<str>) -> String {
         text.as_ref()
             .if_supports_color(Stream::Stderr, |t| t.green())

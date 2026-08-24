@@ -16,7 +16,7 @@
 //! - [`TurnkeyErrorKind::Network`] - Network-level errors
 //! - [`TurnkeyErrorKind::Service`] - Generic Turnkey service errors
 //!
-//! # Mapping to AppErrorKind
+//! # Mapping to `AppErrorKind`
 //!
 //! The mapping is intentionally conservative to maintain stability:
 //!
@@ -191,7 +191,7 @@ impl TurnkeyError {
 /// ```
 #[must_use]
 #[inline]
-pub fn map_turnkey_kind(kind: TurnkeyErrorKind) -> AppErrorKind {
+pub const fn map_turnkey_kind(kind: TurnkeyErrorKind) -> AppErrorKind {
     match kind {
         TurnkeyErrorKind::UniqueLabel => AppErrorKind::Conflict,
         TurnkeyErrorKind::RateLimited => AppErrorKind::RateLimited,

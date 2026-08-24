@@ -109,7 +109,7 @@ impl DisplayMode {
     }
 
     /// Converts a cached discriminant back into a mode.
-    fn from_discriminant(value: u8) -> Self {
+    const fn from_discriminant(value: u8) -> Self {
         match value {
             0 => Self::Prod,
             2 => Self::Staging,
@@ -140,7 +140,7 @@ impl DisplayMode {
     }
 
     /// Auto-detects mode based on build configuration.
-    fn detect_auto() -> Self {
+    const fn detect_auto() -> Self {
         if cfg!(debug_assertions) {
             Self::Local
         } else {
@@ -160,7 +160,7 @@ impl DisplayMode {
 ///
 /// * `mode` - `Some(mode)` to force a mode, `None` to clear the override
 #[cfg(test)]
-pub(crate) fn set_display_mode_override(mode: Option<DisplayMode>) {
+pub fn set_display_mode_override(mode: Option<DisplayMode>) {
     test_display_mode_override::set(mode);
     CACHED_MODE.store(MODE_CACHE_UNSET, Ordering::Relaxed);
 }
@@ -171,7 +171,7 @@ pub(crate) fn set_display_mode_override(mode: Option<DisplayMode>) {
 /// call it after overriding the mode, mirroring
 /// `reset_backtrace_preference`.
 #[cfg(test)]
-pub(crate) fn reset_display_mode() {
+pub fn reset_display_mode() {
     test_display_mode_override::set(None);
     CACHED_MODE.store(MODE_CACHE_UNSET, Ordering::Relaxed);
 }
@@ -187,10 +187,7 @@ mod test_display_mode_override {
     static OVERRIDE_STATE: AtomicU8 = AtomicU8::new(OVERRIDE_UNSET);
 
     pub(super) fn set(mode: Option<DisplayMode>) {
-        let state = match mode {
-            Some(mode) => mode as u8,
-            None => OVERRIDE_UNSET
-        };
+        let state = mode.map_or(OVERRIDE_UNSET, |mode| mode as u8);
         OVERRIDE_STATE.store(state, Ordering::Release);
     }
 
@@ -203,7 +200,7 @@ mod test_display_mode_override {
 }
 
 #[cfg(test)]
-pub(crate) use test_support::force_display_mode;
+pub use test_support::force_display_mode;
 
 #[cfg(test)]
 mod test_support {
@@ -214,7 +211,7 @@ mod test_support {
     static DISPLAY_MODE_LOCK: Mutex<()> = Mutex::new(());
 
     /// Guard restoring the default display mode detection on drop.
-    pub(crate) struct DisplayModeGuard {
+    pub struct DisplayModeGuard {
         _lock: MutexGuard<'static, ()>
     }
 
@@ -228,7 +225,7 @@ mod test_support {
     ///
     /// Serializes tests that override the mode so concurrent overrides do
     /// not observe each other.
-    pub(crate) fn force_display_mode(mode: DisplayMode) -> DisplayModeGuard {
+    pub fn force_display_mode(mode: DisplayMode) -> DisplayModeGuard {
         let lock = DISPLAY_MODE_LOCK
             .lock()
             .unwrap_or_else(PoisonError::into_inner);
@@ -394,10 +391,10 @@ fn write_json_metadata_section(f: &mut Formatter<'_>, metadata: &Metadata) -> Fm
             write!(f, r#","metadata":{{"#)?;
             wrote_any = true;
         }
-        write!(f, r#""{}":"#, name)?;
+        write!(f, r#""{name}":"#)?;
         match redaction {
             FieldRedaction::None => write_metadata_value(f, value)?,
-            FieldRedaction::Redact => write!(f, "\"{}\"", REDACTED_PLACEHOLDER)?,
+            FieldRedaction::Redact => write!(f, "\"{REDACTED_PLACEHOLDER}\"")?,
             FieldRedaction::Hash => write!(f, "\"{}\"", hash_field_value(value))?,
             FieldRedaction::Last4 => {
                 write!(f, "\"")?;
@@ -438,9 +435,9 @@ fn write_local_metadata_section(f: &mut Formatter<'_>, metadata: &Metadata) -> F
         #[cfg(not(feature = "colored"))]
         write!(f, "  {}: ", name)?;
         match rendered {
-            LocalFieldValue::Raw(value) => writeln!(f, "{}", value)?,
-            LocalFieldValue::Placeholder => writeln!(f, "{}", REDACTED_PLACEHOLDER)?,
-            LocalFieldValue::Owned(text) => writeln!(f, "{}", text)?
+            LocalFieldValue::Raw(value) => writeln!(f, "{value}")?,
+            LocalFieldValue::Placeholder => writeln!(f, "{REDACTED_PLACEHOLDER}")?,
+            LocalFieldValue::Owned(text) => writeln!(f, "{text}")?
         }
     }
     Ok(())
@@ -456,7 +453,7 @@ fn write_json_escaped(f: &mut Formatter<'_>, s: &str) -> FmtResult {
             '\r' => write!(f, "\\r")?,
             '\t' => write!(f, "\\t")?,
             ch if ch.is_control() => write!(f, "\\u{:04x}", ch as u32)?,
-            ch => write!(f, "{}", ch)?
+            ch => write!(f, "{ch}")?
         }
     }
     Ok(())
@@ -471,17 +468,17 @@ fn write_metadata_value(f: &mut Formatter<'_>, value: &FieldValue) -> FmtResult 
             write_json_escaped(f, s.as_ref())?;
             write!(f, "\"")
         }
-        FieldValue::I64(v) => write!(f, "{}", v),
-        FieldValue::U64(v) => write!(f, "{}", v),
+        FieldValue::I64(v) => write!(f, "{v}"),
+        FieldValue::U64(v) => write!(f, "{v}"),
         FieldValue::F64(v) => {
             if v.is_finite() {
-                write!(f, "{}", v)
+                write!(f, "{v}")
             } else {
                 write!(f, "null")
             }
         }
-        FieldValue::Bool(v) => write!(f, "{}", v),
-        FieldValue::Uuid(v) => write!(f, "\"{}\"", v),
+        FieldValue::Bool(v) => write!(f, "{v}"),
+        FieldValue::Uuid(v) => write!(f, "\"{v}\""),
         FieldValue::Duration(v) => {
             write!(
                 f,
@@ -490,9 +487,9 @@ fn write_metadata_value(f: &mut Formatter<'_>, value: &FieldValue) -> FmtResult 
                 v.subsec_nanos()
             )
         }
-        FieldValue::Ip(v) => write!(f, "\"{}\"", v),
+        FieldValue::Ip(v) => write!(f, "\"{v}\""),
         #[cfg(feature = "serde_json")]
-        FieldValue::Json(v) => write!(f, "{}", v)
+        FieldValue::Json(v) => write!(f, "{v}")
     }
 }
 
@@ -512,7 +509,7 @@ mod tests {
             .finalize()
             .iter()
             .fold(String::with_capacity(64), |mut acc, byte| {
-                let _ = write!(&mut acc, "{:02x}", byte);
+                let _ = write!(&mut acc, "{byte:02x}");
                 acc
             })
     }
@@ -545,7 +542,7 @@ mod tests {
     fn display_dispatches_prod_layout() {
         let _guard = force_display_mode(DisplayMode::Prod);
         let error = AppError::not_found("missing user");
-        let output = format!("{}", error);
+        let output = format!("{error}");
         assert!(output.starts_with(r#"{"kind":"NotFound""#), "{output}");
         assert!(output.contains(r#""code":"NOT_FOUND""#));
         assert!(output.contains(r#""message":"missing user""#));
@@ -558,7 +555,7 @@ mod tests {
         use std::io::Error as IoError;
         let _guard = force_display_mode(DisplayMode::Staging);
         let error = AppError::network("upstream down").with_source(IoError::other("timeout"));
-        let output = format!("{}", error);
+        let output = format!("{error}");
         assert!(output.starts_with(r#"{"kind":"Network""#), "{output}");
         assert!(output.contains(r#""source_chain":["timeout"]"#));
         assert!(!output.contains('\u{1b}'));
@@ -568,7 +565,7 @@ mod tests {
     fn display_dispatches_local_layout() {
         let _guard = force_display_mode(DisplayMode::Local);
         let error = AppError::not_found("missing user");
-        let output = format!("{}", error);
+        let output = format!("{error}");
         assert!(output.contains("Error:"));
         assert!(output.contains("Code: NOT_FOUND"));
         assert!(output.contains("missing user"));
@@ -619,9 +616,9 @@ mod tests {
             assert!(output.contains(&expected), "{output}");
             assert!(!output.contains("super-secret"), "{output}");
         }
-        assert!(prod.contains(&format!(r#""fingerprint":"{}""#, expected)));
-        assert!(staging.contains(&format!(r#""fingerprint":"{}""#, expected)));
-        assert!(local.contains(&format!("fingerprint: {}", expected)));
+        assert!(prod.contains(&format!(r#""fingerprint":"{expected}""#)));
+        assert!(staging.contains(&format!(r#""fingerprint":"{expected}""#)));
+        assert!(local.contains(&format!("fingerprint: {expected}")));
     }
 
     #[test]

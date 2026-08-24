@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: MIT
 
-//! SQLx database error handling example.
+//! `SQLx` database error handling example.
 //!
 //! Demonstrates various database error scenarios and how masterror converts
-//! SQLx errors into appropriate AppError types.
+//! `SQLx` errors into appropriate `AppError` types.
 
 use masterror::AppError;
 use sqlx::{Row, SqlitePool, sqlite::SqliteRow};
@@ -138,7 +138,7 @@ async fn main() -> Result<(), AppError> {
     match create_user(&pool, "alice@example.com", "Alice Duplicate").await {
         Ok(_) => println!("✗ Should have failed with conflict"),
         Err(e) => {
-            println!("✓ Expected error: {}", e);
+            println!("✓ Expected error: {e}");
             println!("  → Kind: {:?}, HTTP: {}", e.kind, e.kind.http_status());
         }
     }
@@ -149,7 +149,7 @@ async fn main() -> Result<(), AppError> {
     match get_user_by_id(&pool, 999).await {
         Ok(_) => println!("✗ Should have failed with not found"),
         Err(e) => {
-            println!("✓ Expected error: {}", e);
+            println!("✓ Expected error: {e}");
             println!("  → Kind: {:?}, HTTP: {}", e.kind, e.kind.http_status());
         }
     }
@@ -161,7 +161,7 @@ async fn main() -> Result<(), AppError> {
     match update_user(&pool, 999, "Ghost").await {
         Ok(_) => println!("✗ Should have failed with not found"),
         Err(e) => {
-            println!("✓ Expected error: {}", e);
+            println!("✓ Expected error: {e}");
             println!("  → Kind: {:?}, HTTP: {}", e.kind, e.kind.http_status());
         }
     }
@@ -178,7 +178,7 @@ async fn main() -> Result<(), AppError> {
     match delete_user(&pool, user2.id).await {
         Ok(_) => println!("✗ Should have failed with not found"),
         Err(e) => {
-            println!("✓ Expected error: {}", e);
+            println!("✓ Expected error: {e}");
             println!("  → Kind: {:?}, HTTP: {}", e.kind, e.kind.http_status());
         }
     }

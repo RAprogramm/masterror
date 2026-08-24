@@ -98,8 +98,8 @@ pub fn sync_readme(manifest_dir: &Path) -> Result<(), ReadmeError> {
 ///
 /// # Returns
 ///
-/// Success or OutOfSync error
-pub(crate) fn verify_readme(manifest_dir: &Path) -> Result<(), ReadmeError> {
+/// Success or `OutOfSync` error
+pub fn verify_readme(manifest_dir: &Path) -> Result<(), ReadmeError> {
     let manifest_path = manifest_dir.join("Cargo.toml");
     let template_path = manifest_dir.join("README.template.md");
     let output_path = manifest_dir.join("README.md");
@@ -125,8 +125,8 @@ pub(crate) fn verify_readme(manifest_dir: &Path) -> Result<(), ReadmeError> {
 ///
 /// # Returns
 ///
-/// Success or OutOfSync error
-pub(crate) fn verify_readme_relaxed(manifest_dir: &Path) -> Result<(), ReadmeError> {
+/// Success or `OutOfSync` error
+pub fn verify_readme_relaxed(manifest_dir: &Path) -> Result<(), ReadmeError> {
     let manifest_path = manifest_dir.join("Cargo.toml");
     let template_path = manifest_dir.join("README.template.md");
     let output_path = manifest_dir.join("README.md");
@@ -163,7 +163,7 @@ fn normalize(s: &str) -> String {
 /// Collects and validates feature documentation from metadata.
 ///
 /// Ensures all features have metadata, no unknown metadata exists,
-/// and feature_order references are valid.
+/// and `feature_order` references are valid.
 ///
 /// # Arguments
 ///

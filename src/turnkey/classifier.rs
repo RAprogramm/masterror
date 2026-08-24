@@ -176,10 +176,9 @@ impl LowercasedNeedle {
 
     #[inline]
     fn as_slice(&self) -> &[u8] {
-        match &self.heap {
-            Some(heap) => heap.as_slice(),
-            None => &self.inline[..self.len]
-        }
+        self.heap
+            .as_ref()
+            .map_or_else(|| &self.inline[..self.len], |heap| heap.as_slice())
     }
 }
 

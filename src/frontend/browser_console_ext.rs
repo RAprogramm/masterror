@@ -173,7 +173,7 @@ fn log_js_value(value: &JsValue) -> AppResult<(), BrowserConsoleError> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn log_js_value(_value: &JsValue) -> AppResult<(), BrowserConsoleError> {
+const fn log_js_value(_value: &JsValue) -> AppResult<(), BrowserConsoleError> {
     Err(BrowserConsoleError::UnsupportedTarget)
 }
 

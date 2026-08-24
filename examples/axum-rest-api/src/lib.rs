@@ -44,7 +44,7 @@ pub struct UpdateUserRequest {
 /// Domain-specific user errors
 ///
 /// These errors represent business logic failures that are converted
-/// into appropriate HTTP responses via AppError.
+/// into appropriate HTTP responses via `AppError`.
 #[derive(Debug, Error, Clone)]
 pub enum UserError {
     /// User with given ID was not found
@@ -64,20 +64,18 @@ pub enum UserError {
     InvalidName
 }
 
-/// Convert domain errors to AppError with appropriate HTTP status codes
+/// Convert domain errors to `AppError` with appropriate HTTP status codes
 impl From<UserError> for AppError {
     fn from(err: UserError) -> Self {
         match err {
-            UserError::NotFound => AppError::not_found(err.to_string()),
-            UserError::DuplicateEmail => AppError::conflict(err.to_string()),
-            UserError::InvalidEmail | UserError::InvalidName => {
-                AppError::validation(err.to_string())
-            }
+            UserError::NotFound => Self::not_found(err.to_string()),
+            UserError::DuplicateEmail => Self::conflict(err.to_string()),
+            UserError::InvalidEmail | UserError::InvalidName => Self::validation(err.to_string())
         }
     }
 }
 
-/// Implement IntoResponse to use UserError directly in handlers
+/// Implement `IntoResponse` to use `UserError` directly in handlers
 impl IntoResponse for UserError {
     fn into_response(self) -> Response {
         let app_error: AppError = self.into();
@@ -92,6 +90,7 @@ pub struct AppState {
 }
 
 impl AppState {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             users: Arc::new(RwLock::new(HashMap::new()))
@@ -115,7 +114,7 @@ fn validate_email(email: &str) -> Result<(), UserError> {
 }
 
 /// Validate user name
-fn validate_name(name: &str) -> Result<(), UserError> {
+const fn validate_name(name: &str) -> Result<(), UserError> {
     if name.len() >= 2 {
         Ok(())
     } else {
@@ -125,7 +124,7 @@ fn validate_name(name: &str) -> Result<(), UserError> {
 
 /// GET /users/:id - Retrieve user by ID
 ///
-/// Returns 404 if user not found, includes user_id in error metadata.
+/// Returns 404 if user not found, includes `user_id` in error metadata.
 pub async fn get_user(
     State(state): State<AppState>,
     Path(user_id): Path<Uuid>

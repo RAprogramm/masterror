@@ -24,7 +24,7 @@ use crate::kind::AppErrorKind;
 
 /// Error returned when parsing [`AppCode`] from a string fails.
 ///
-/// The parser only accepts SCREAMING_SNAKE_CASE values accepted by
+/// The parser only accepts `SCREAMING_SNAKE_CASE` values accepted by
 /// [`AppCode::new`] and [`AppCode::try_new`]. Any other value results in this
 /// error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -40,7 +40,7 @@ impl CoreError for ParseAppCodeError {}
 
 /// Stable machine-readable error code exposed to clients.
 ///
-/// Values are serialized as **SCREAMING_SNAKE_CASE** strings (e.g.,
+/// Values are serialized as **`SCREAMING_SNAKE_CASE`** strings (e.g.,
 /// `"NOT_FOUND"`). This type is part of the public wire contract and supports
 /// both built-in constants and caller-defined codes created via
 /// [`AppCode::new`] or [`AppCode::try_new`].
@@ -114,7 +114,7 @@ impl AppCode {
         }
     }
 
-    fn from_owned(code: String) -> Self {
+    const fn from_owned(code: String) -> Self {
         Self {
             repr: Cow::Owned(code)
         }
@@ -132,7 +132,7 @@ impl AppCode {
     ///
     /// # Panics
     ///
-    /// Panics when the literal is not SCREAMING_SNAKE_CASE. Use
+    /// Panics when the literal is not `SCREAMING_SNAKE_CASE`. Use
     /// [`AppCode::try_new`] to validate dynamic strings at runtime.
     #[must_use]
     pub const fn new(code: &'static str) -> Self {
@@ -144,7 +144,7 @@ impl AppCode {
 
     /// Construct an [`AppCode`] from a dynamically provided string.
     ///
-    /// The input must be SCREAMING_SNAKE_CASE. This constructor allocates to
+    /// The input must be `SCREAMING_SNAKE_CASE`. This constructor allocates to
     /// own the string, making it suitable for runtime-defined codes.
     ///
     /// # Errors
@@ -167,7 +167,7 @@ impl AppCode {
         Ok(Self::from_owned(code))
     }
 
-    /// Get the canonical string form of this code (SCREAMING_SNAKE_CASE).
+    /// Get the canonical string form of this code (`SCREAMING_SNAKE_CASE`).
     ///
     /// This matches the JSON serialization.
     #[must_use]
@@ -202,7 +202,7 @@ impl Display for AppCode {
 ///
 /// # Errors
 ///
-/// Returns [`ParseAppCodeError`] when the input is not SCREAMING_SNAKE_CASE.
+/// Returns [`ParseAppCodeError`] when the input is not `SCREAMING_SNAKE_CASE`.
 ///
 /// # Examples
 /// ```
@@ -319,7 +319,7 @@ impl PartialSchema for AppCode {
 #[cfg(feature = "openapi")]
 impl ToSchema for AppCode {}
 
-fn validate_code(value: &str) -> Result<(), ParseAppCodeError> {
+const fn validate_code(value: &str) -> Result<(), ParseAppCodeError> {
     if !is_valid_literal(value) {
         return Err(ParseAppCodeError);
     }

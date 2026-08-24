@@ -23,7 +23,7 @@ use super::{
     }
 };
 
-/// Parses derive macro input into ErrorInput structure.
+/// Parses derive macro input into `ErrorInput` structure.
 ///
 /// Main entry point for parsing error definitions from syn AST.
 pub fn parse_input(input: DeriveInput) -> Result<ErrorInput, Error> {
@@ -31,7 +31,7 @@ pub fn parse_input(input: DeriveInput) -> Result<ErrorInput, Error> {
     let ident = input.ident;
     let generics = input.generics;
     let data = match input.data {
-        Data::Struct(data) => parse_struct(&ident, &input.attrs, data, &mut errors),
+        Data::Struct(data) => parse_struct(&ident, &input.attrs, &data, &mut errors),
         Data::Enum(data) => parse_enum(&input.attrs, data, &mut errors),
         Data::Union(union) => {
             errors.push(Error::new(
@@ -62,7 +62,7 @@ pub fn parse_input(input: DeriveInput) -> Result<ErrorInput, Error> {
 fn parse_struct(
     ident: &Ident,
     attrs: &[Attribute],
-    data: DataStruct,
+    data: &DataStruct,
     errors: &mut Vec<Error>
 ) -> Result<ErrorData, ()> {
     let display = extract_display_spec(attrs, ident.span(), errors)?;

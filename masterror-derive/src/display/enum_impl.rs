@@ -223,7 +223,7 @@ pub fn render_variant_template(
                 .map(|args| FormatArgumentsEnv::new_variant(args, &variant.fields, &[]));
             let preludes = env
                 .as_ref()
-                .map(|env| env.prelude_tokens())
+                .map(super::format_args::FormatArgumentsEnv::prelude_tokens)
                 .unwrap_or_default();
             let format_arguments = if let Some(env) = env.as_ref() {
                 env.argument_tokens()?
@@ -252,7 +252,7 @@ pub fn render_variant_template(
             let pattern = quote!(Self::#variant_ident(#(#bindings),*));
             let preludes = env
                 .as_ref()
-                .map(|env| env.prelude_tokens())
+                .map(super::format_args::FormatArgumentsEnv::prelude_tokens)
                 .unwrap_or_default();
             let format_arguments = if let Some(env) = env.as_ref() {
                 env.argument_tokens()?
@@ -278,7 +278,7 @@ pub fn render_variant_template(
             let pattern = quote!(Self::#variant_ident { #(#bindings),* });
             let preludes = env
                 .as_ref()
-                .map(|env| env.prelude_tokens())
+                .map(super::format_args::FormatArgumentsEnv::prelude_tokens)
                 .unwrap_or_default();
             let format_arguments = if let Some(env) = env.as_ref() {
                 env.argument_tokens()?
@@ -391,22 +391,24 @@ pub fn variant_named_placeholder(
         return Ok(resolved);
     }
     match &placeholder.identifier {
-        TemplateIdentifierSpec::Named(name) => {
-            if let Some(index) = fields.iter().position(|field| {
+        TemplateIdentifierSpec::Named(name) => fields
+            .iter()
+            .position(|field| {
                 field
                     .ident
                     .as_ref()
                     .is_some_and(|ident| ident.unraw() == name.as_str())
-            }) {
-                let binding = &bindings[index];
-                Ok(ResolvedPlaceholderExpr::with(
-                    quote!(#binding),
-                    needs_pointer_value(&placeholder.formatter)
-                ))
-            } else {
-                Err(placeholder_error(placeholder.span, &placeholder.identifier))
-            }
-        }
+            })
+            .map_or_else(
+                || Err(placeholder_error(placeholder.span, &placeholder.identifier)),
+                |index| {
+                    let binding = &bindings[index];
+                    Ok(ResolvedPlaceholderExpr::with(
+                        quote!(#binding),
+                        needs_pointer_value(&placeholder.formatter)
+                    ))
+                }
+            ),
         TemplateIdentifierSpec::Positional(index) => Err(placeholder_error(
             placeholder.span,
             &TemplateIdentifierSpec::Positional(*index)
@@ -422,7 +424,7 @@ pub fn variant_named_placeholder(
 mod tests {
     use proc_macro2::Span;
     use quote::format_ident;
-    use syn::{Member, parse_quote};
+    use syn::{Generics, Member, parse_quote};
 
     use super::*;
     use crate::{
@@ -470,7 +472,7 @@ mod tests {
     fn make_error_input(ident: &str) -> ErrorInput {
         ErrorInput {
             ident:    format_ident!("{}", ident),
-            generics: Default::default(),
+            generics: Generics::default(),
             data:     ErrorData::Enum(vec![])
         }
     }

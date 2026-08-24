@@ -186,7 +186,7 @@ mod tests {
     fn error_display_shows_kind() {
         let _guard = display::force_display_mode(DisplayMode::Local);
         let err = Error::new(AppErrorKind::Internal, "test");
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Error: Internal server error"));
         assert!(display.contains("Code: INTERNAL"));
         assert!(display.contains("Message: test"));

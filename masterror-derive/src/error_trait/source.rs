@@ -26,32 +26,33 @@ use crate::input::{DisplaySpec, Fields, VariantData, is_option_type};
 /// # Returns
 ///
 /// Token stream for source method body
-pub(crate) fn struct_source_body(fields: &Fields, display: &DisplaySpec) -> TokenStream {
+pub fn struct_source_body(fields: &Fields, display: &DisplaySpec) -> TokenStream {
     match display {
         DisplaySpec::Transparent {
             ..
-        } => {
-            if let Some(field) = fields.iter().next() {
+        } => fields.iter().next().map_or_else(
+            || quote! { None },
+            |field| {
                 let member = &field.member;
                 quote! { std::error::Error::source(&self.#member) }
-            } else {
-                quote! { None }
             }
-        }
+        ),
         DisplaySpec::Template(_)
         | DisplaySpec::TemplateWithArgs {
             ..
         }
         | DisplaySpec::FormatterPath {
             ..
-        } => {
-            if let Some(field) = fields.iter().find(|field| field.attrs.has_source()) {
-                let member = &field.member;
-                field_source_expr(quote!(self.#member), quote!(&self.#member), &field.ty)
-            } else {
-                quote! { None }
-            }
-        }
+        } => fields
+            .iter()
+            .find(|field| field.attrs.has_source())
+            .map_or_else(
+                || quote! { None },
+                |field| {
+                    let member = &field.member;
+                    field_source_expr(&quote!(self.#member), &quote!(&self.#member), &field.ty)
+                }
+            )
     }
 }
 
@@ -66,7 +67,7 @@ pub(crate) fn struct_source_body(fields: &Fields, display: &DisplaySpec) -> Toke
 /// # Returns
 ///
 /// Token stream for variant match arm
-pub(crate) fn variant_source_arm(variant: &VariantData) -> TokenStream {
+pub fn variant_source_arm(variant: &VariantData) -> TokenStream {
     match &variant.display {
         DisplaySpec::Transparent {
             ..
@@ -143,7 +144,7 @@ fn variant_template_source(variant: &VariantData) -> TokenStream {
             } else {
                 quote!(Self::#variant_ident { #field_ident: #binding, .. })
             };
-            let body = field_source_expr(quote!(#binding), quote!(#binding), &field.ty);
+            let body = field_source_expr(&quote!(#binding), &quote!(#binding), &field.ty);
             quote! {
                 #pattern => { #body }
             }
@@ -162,7 +163,7 @@ fn variant_template_source(variant: &VariantData) -> TokenStream {
                     }
                 })
                 .collect();
-            let body = field_source_expr(quote!(#binding), quote!(#binding), &field.ty);
+            let body = field_source_expr(&quote!(#binding), &quote!(#binding), &field.ty);
             quote! {
                 Self::#variant_ident(#(#pattern_elements),*) => { #body }
             }
@@ -171,8 +172,8 @@ fn variant_template_source(variant: &VariantData) -> TokenStream {
 }
 
 fn field_source_expr(
-    owned_expr: TokenStream,
-    referenced_expr: TokenStream,
+    owned_expr: &TokenStream,
+    referenced_expr: &TokenStream,
     ty: &syn::Type
 ) -> TokenStream {
     if is_option_type(ty) {
@@ -190,7 +191,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        input::{DisplaySpec, Field, FieldAttrs},
+        input::{DisplaySpec, Field, FieldAttrs, FormatArgsSpec},
         template_support::{DisplayTemplate, TemplateSegmentSpec}
     };
 
@@ -201,14 +202,15 @@ mod tests {
         }
         Field {
             ident: ident.map(|s| syn::Ident::new(s, Span::call_site())),
-            member: if let Some(s) = ident {
-                Member::Named(syn::Ident::new(s, Span::call_site()))
-            } else {
-                Member::Unnamed(syn::Index {
-                    index: index as u32,
-                    span:  Span::call_site()
-                })
-            },
+            member: ident.map_or_else(
+                || {
+                    Member::Unnamed(syn::Index {
+                        index: index as u32,
+                        span:  Span::call_site()
+                    })
+                },
+                |s| Member::Named(syn::Ident::new(s, Span::call_site()))
+            ),
             ty: syn::parse_quote!(Box<dyn std::error::Error>),
             index,
             attrs,
@@ -271,7 +273,7 @@ mod tests {
             display:     DisplaySpec::Template(DisplayTemplate {
                 segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()
@@ -289,7 +291,7 @@ mod tests {
             display:     DisplaySpec::Transparent {
                 attribute: Box::new(syn::parse_quote!(#[error(transparent)]))
             },
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()
@@ -309,7 +311,7 @@ mod tests {
             display:     DisplaySpec::Transparent {
                 attribute: Box::new(syn::parse_quote!(#[error(transparent)]))
             },
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()
@@ -330,7 +332,7 @@ mod tests {
             display:     DisplaySpec::Transparent {
                 attribute: Box::new(syn::parse_quote!(#[error(transparent)]))
             },
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()
@@ -351,7 +353,7 @@ mod tests {
             display:     DisplaySpec::Template(DisplayTemplate {
                 segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()
@@ -371,7 +373,7 @@ mod tests {
             display:     DisplaySpec::Template(DisplayTemplate {
                 segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()
@@ -392,7 +394,7 @@ mod tests {
             display:     DisplaySpec::Template(DisplayTemplate {
                 segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()
@@ -412,7 +414,7 @@ mod tests {
             display:     DisplaySpec::Template(DisplayTemplate {
                 segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()

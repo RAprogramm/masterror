@@ -99,7 +99,7 @@ impl ErrorResponse {
 
     /// Formatter exposing internals for diagnostic logs.
     #[must_use]
-    pub fn internal(&self) -> crate::response::internal::ErrorResponseFormatter<'_> {
+    pub const fn internal(&self) -> crate::response::internal::ErrorResponseFormatter<'_> {
         crate::response::internal::ErrorResponseFormatter::new(self)
     }
 }

@@ -26,7 +26,7 @@ use super::{error::ReadmeError, types::FeatureDoc};
 /// # Returns
 ///
 /// Rendered README content or error if placeholders unresolved
-pub(crate) fn render_readme(
+pub fn render_readme(
     template: &str,
     version: &str,
     rust_version: &str,
@@ -60,7 +60,7 @@ pub(crate) fn render_readme(
 /// # Returns
 ///
 /// Markdown formatted bullet list
-pub(crate) fn render_feature_bullets(features: &[FeatureDoc]) -> String {
+pub fn render_feature_bullets(features: &[FeatureDoc]) -> String {
     let mut lines = Vec::new();
     for feature in features {
         lines.push(format!("- `{}` — {}", feature.name, feature.description));
@@ -82,7 +82,7 @@ pub(crate) fn render_feature_bullets(features: &[FeatureDoc]) -> String {
 /// # Returns
 ///
 /// Markdown formatted bullet list
-pub(crate) fn render_conversion_bullets(conversions: &[String]) -> String {
+pub fn render_conversion_bullets(conversions: &[String]) -> String {
     conversions
         .iter()
         .map(|e| format!("- {e}"))
@@ -92,7 +92,7 @@ pub(crate) fn render_conversion_bullets(conversions: &[String]) -> String {
 
 /// Renders features as TOML snippet for Cargo.toml dependencies.
 ///
-/// Groups features into lines according to group_size parameter.
+/// Groups features into lines according to `group_size` parameter.
 ///
 /// # Arguments
 ///
@@ -102,7 +102,7 @@ pub(crate) fn render_conversion_bullets(conversions: &[String]) -> String {
 /// # Returns
 ///
 /// Formatted TOML snippet
-pub(crate) fn render_feature_snippet(features: &[FeatureDoc], group_size: usize) -> String {
+pub fn render_feature_snippet(features: &[FeatureDoc], group_size: usize) -> String {
     if features.is_empty() {
         return String::new();
     }
@@ -135,16 +135,13 @@ pub(crate) fn render_feature_snippet(features: &[FeatureDoc], group_size: usize)
 /// # Returns
 ///
 /// Placeholder name or None
-pub(crate) fn find_placeholder(rendered: &str) -> Option<String> {
+pub fn find_placeholder(rendered: &str) -> Option<String> {
     let start = rendered.find("{{")?;
     let after = &rendered[start + 2..];
-    if let Some(end) = after.find("}}") {
-        let name = after[..end].trim();
-        Some(name.to_string())
-    } else {
-        let snippet: String = after.chars().take(32).collect();
-        Some(snippet)
-    }
+    Some(after.find("}}").map_or_else(
+        || after.chars().take(32).collect(),
+        |end| after[..end].trim().to_string()
+    ))
 }
 
 #[cfg(test)]

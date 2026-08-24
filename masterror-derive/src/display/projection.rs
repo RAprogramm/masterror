@@ -71,7 +71,7 @@ fn append_projection_segment(
             };
             quote!((#expr).#index_token)
         }
-        FormatArgProjectionSegment::MethodCall(call) => append_method_call(expr, call)
+        FormatArgProjectionSegment::MethodCall(call) => append_method_call(&expr, call)
     }
 }
 
@@ -100,16 +100,20 @@ fn append_projection_segment(
 /// ```ignore
 /// (expr).method::<T>(args)
 /// ```
-pub fn append_method_call(expr: TokenStream, call: &FormatArgProjectionMethodCall) -> TokenStream {
+pub fn append_method_call(
+    expr: &TokenStream,
+    call: &FormatArgProjectionMethodCall
+) -> TokenStream {
     let method = &call.method;
     let args = &call.args;
-    if let Some(turbofish) = &call.turbofish {
-        let colon2 = turbofish.colon2_token;
-        let generics = &turbofish.generics;
-        quote!((#expr).#method #colon2 #generics (#args))
-    } else {
-        quote!((#expr).#method(#args))
-    }
+    call.turbofish.as_ref().map_or_else(
+        || quote!((#expr).#method(#args)),
+        |turbofish| {
+            let colon2 = turbofish.colon2_token;
+            let generics = &turbofish.generics;
+            quote!((#expr).#method #colon2 #generics (#args))
+        }
+    )
 }
 
 #[cfg(test)]
@@ -297,7 +301,7 @@ mod tests {
             args:      Punctuated::new(),
             span:      Span::call_site()
         };
-        let result = append_method_call(expr, &call);
+        let result = append_method_call(&expr, &call);
         let expected = quote!((value).to_string());
         assert_eq!(result.to_string(), expected.to_string());
     }
@@ -317,7 +321,7 @@ mod tests {
             args,
             span: Span::call_site()
         };
-        let result = append_method_call(expr, &call);
+        let result = append_method_call(&expr, &call);
         let expected = quote!((value).parse::<i32>(5));
         assert_eq!(result.to_string(), expected.to_string());
     }

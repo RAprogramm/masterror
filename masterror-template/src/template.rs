@@ -48,11 +48,13 @@ impl<'a> ErrorTemplate<'a> {
     }
 
     /// Returns the original template string.
+    #[must_use]
     pub const fn source(&self) -> &'a str {
         self.source
     }
 
     /// Returns the parsed segments.
+    #[must_use]
     pub fn segments(&self) -> &[TemplateSegment<'a>] {
         &self.segments
     }
@@ -67,7 +69,7 @@ impl<'a> ErrorTemplate<'a> {
 
     /// Produces a display implementation that delegates placeholder rendering
     /// to the provided resolver.
-    pub fn display_with<F>(&'a self, resolver: F) -> DisplayWith<'a, 'a, F>
+    pub const fn display_with<F>(&'a self, resolver: F) -> DisplayWith<'a, 'a, F>
     where
         F: Fn(&TemplatePlaceholder<'a>, &mut fmt::Formatter<'_>) -> fmt::Result
     {
@@ -125,17 +127,20 @@ pub struct TemplatePlaceholder<'a> {
 impl<'a> TemplatePlaceholder<'a> {
     /// Byte range (inclusive start, exclusive end) of the placeholder within
     /// the original template.
+    #[must_use]
     pub fn span(&self) -> Range<usize> {
         self.span.clone()
     }
 
     /// Returns the parsed identifier.
+    #[must_use]
     pub const fn identifier(&self) -> &TemplateIdentifier<'a> {
         &self.identifier
     }
 
     /// Returns the requested formatter.
-    pub fn formatter(&self) -> &TemplateFormatter {
+    #[must_use]
+    pub const fn formatter(&self) -> &TemplateFormatter {
         &self.formatter
     }
 }
@@ -154,6 +159,7 @@ pub enum TemplateIdentifier<'a> {
 
 impl<'a> TemplateIdentifier<'a> {
     /// Returns the identifier as a string when it is named.
+    #[must_use]
     pub const fn as_str(&self) -> Option<&'a str> {
         match self {
             Self::Named(value) => Some(value),
@@ -215,6 +221,7 @@ impl TemplateFormatterKind {
     /// );
     /// assert_eq!(TemplateFormatterKind::from_specifier('Q'), None);
     /// ```
+    #[must_use]
     pub const fn from_specifier(specifier: char) -> Option<Self> {
         match specifier {
             '?' => Some(Self::Debug),
@@ -242,6 +249,7 @@ impl TemplateFormatterKind {
     /// assert_eq!(TemplateFormatterKind::LowerHex.specifier(), Some('x'));
     /// assert_eq!(TemplateFormatterKind::Display.specifier(), None);
     /// ```
+    #[must_use]
     pub const fn specifier(self) -> Option<char> {
         match self {
             Self::Display => None,
@@ -266,6 +274,7 @@ impl TemplateFormatterKind {
     /// assert!(TemplateFormatterKind::Binary.supports_alternate());
     /// assert!(!TemplateFormatterKind::Display.supports_alternate());
     /// ```
+    #[must_use]
     pub const fn supports_alternate(self) -> bool {
         !matches!(self, Self::Display)
     }
@@ -341,6 +350,7 @@ impl TemplateFormatter {
     ///     }
     /// ));
     /// ```
+    #[must_use]
     pub const fn from_kind(kind: TemplateFormatterKind, alternate: bool) -> Self {
         match kind {
             TemplateFormatterKind::Display => Self::Display {
@@ -386,6 +396,7 @@ impl TemplateFormatter {
     ///
     /// assert_eq!(formatter.kind(), TemplateFormatterKind::Pointer);
     /// ```
+    #[must_use]
     pub const fn kind(&self) -> TemplateFormatterKind {
         match self {
             Self::Display {
@@ -419,6 +430,7 @@ impl TemplateFormatter {
     }
 
     /// Parses a formatting specifier (the portion after `:`) into a formatter.
+    #[must_use]
     pub fn from_format_spec(spec: &str) -> Option<Self> {
         Self::parse_specifier(spec)
     }
@@ -428,6 +440,7 @@ impl TemplateFormatter {
     }
 
     /// Returns the stored display format specifier, if any.
+    #[must_use]
     pub fn display_spec(&self) -> Option<&str> {
         match self {
             Self::Display {
@@ -439,7 +452,8 @@ impl TemplateFormatter {
 
     /// Indicates whether a display formatter carries additional formatting
     /// parameters.
-    pub fn has_display_spec(&self) -> bool {
+    #[must_use]
+    pub const fn has_display_spec(&self) -> bool {
         matches!(
             self,
             Self::Display {
@@ -531,6 +545,7 @@ impl TemplateFormatter {
     }
 
     /// Returns `true` when alternate formatting (`#`) was requested.
+    #[must_use]
     pub const fn is_alternate(&self) -> bool {
         match self {
             Self::Display {
@@ -610,26 +625,25 @@ impl fmt::Display for TemplateError {
             Self::UnmatchedClosingBrace {
                 index
             } => {
-                write!(f, "unmatched closing brace at byte {}", index)
+                write!(f, "unmatched closing brace at byte {index}")
             }
             Self::UnterminatedPlaceholder {
                 start
             } => {
-                write!(f, "placeholder starting at byte {} is not closed", start)
+                write!(f, "placeholder starting at byte {start} is not closed")
             }
             Self::NestedPlaceholder {
                 index
             } => {
                 write!(
                     f,
-                    "nested placeholder starting at byte {} is not supported",
-                    index
+                    "nested placeholder starting at byte {index} is not supported"
                 )
             }
             Self::EmptyPlaceholder {
                 start
             } => {
-                write!(f, "placeholder starting at byte {} is empty", start)
+                write!(f, "placeholder starting at byte {start} is empty")
             }
             Self::InvalidIdentifier {
                 span
@@ -934,9 +948,9 @@ mod tests {
         let rendered = format!(
             "{}",
             template.display_with(|placeholder, f| match placeholder.identifier() {
-                TemplateIdentifier::Named("code") => write!(f, "{}", code),
+                TemplateIdentifier::Named("code") => write!(f, "{code}"),
                 TemplateIdentifier::Named("message") => f.write_str(message),
-                other => panic!("unexpected placeholder: {:?}", other)
+                other => panic!("unexpected placeholder: {other:?}")
             })
         );
         assert_eq!(rendered, "418: I'm a teapot");

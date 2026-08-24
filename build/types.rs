@@ -13,7 +13,7 @@ use serde::Deserialize;
 
 /// Cargo.toml manifest structure.
 #[derive(Debug, Deserialize)]
-pub(crate) struct Manifest {
+pub struct Manifest {
     pub(crate) package:  Package,
     #[serde(default)]
     pub(crate) features: BTreeMap<String, Vec<String>>
@@ -21,7 +21,7 @@ pub(crate) struct Manifest {
 
 /// Package section of Cargo.toml.
 #[derive(Debug, Deserialize)]
-pub(crate) struct Package {
+pub struct Package {
     pub(crate) version:      String,
     #[serde(rename = "rust-version")]
     pub(crate) rust_version: Option<String>,
@@ -31,21 +31,21 @@ pub(crate) struct Package {
 
 /// Package metadata section.
 #[derive(Debug, Deserialize)]
-pub(crate) struct PackageMetadata {
+pub struct PackageMetadata {
     #[serde(default)]
     pub(crate) masterror: Option<MasterrorMetadata>
 }
 
 /// Masterror-specific metadata.
 #[derive(Debug, Deserialize)]
-pub(crate) struct MasterrorMetadata {
+pub struct MasterrorMetadata {
     #[serde(default)]
     pub(crate) readme: Option<ReadmeMetadata>
 }
 
 /// README generation metadata configuration.
 #[derive(Clone, Debug, Deserialize)]
-pub(crate) struct ReadmeMetadata {
+pub struct ReadmeMetadata {
     #[serde(default)]
     pub(crate) feature_order:         Vec<String>,
     #[serde(default)]
@@ -58,7 +58,7 @@ pub(crate) struct ReadmeMetadata {
 
 /// Metadata for a single feature.
 #[derive(Clone, Debug, Deserialize)]
-pub(crate) struct FeatureMetadata {
+pub struct FeatureMetadata {
     pub(crate) description: String,
     #[serde(default)]
     pub(crate) extra:       Vec<String>
@@ -66,7 +66,7 @@ pub(crate) struct FeatureMetadata {
 
 /// Processed feature documentation.
 #[derive(Clone, Debug)]
-pub(crate) struct FeatureDoc {
+pub struct FeatureDoc {
     pub(crate) name:        String,
     pub(crate) description: String,
     pub(crate) extra:       Vec<String>

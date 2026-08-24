@@ -27,7 +27,7 @@ use super::types::{
 /// Parses format arguments from input stream.
 ///
 /// Handles both named and positional arguments with optional leading comma.
-pub(crate) fn parse_format_args(input: ParseStream) -> Result<FormatArgsSpec, Error> {
+pub fn parse_format_args(input: ParseStream) -> Result<FormatArgsSpec, Error> {
     let mut args = FormatArgsSpec::default();
     if input.is_empty() {
         return Ok(args);
@@ -85,7 +85,7 @@ pub(crate) fn parse_format_args(input: ParseStream) -> Result<FormatArgsSpec, Er
 }
 
 /// Raw format argument (named or positional).
-pub(crate) enum RawFormatArg {
+pub enum RawFormatArg {
     Named {
         ident: Ident,
         value: FormatArgValue,

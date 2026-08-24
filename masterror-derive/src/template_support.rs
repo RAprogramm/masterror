@@ -35,9 +35,9 @@ pub enum TemplateIdentifierSpec {
     Implicit(usize)
 }
 
-pub fn parse_display_template(lit: LitStr) -> Result<DisplayTemplate, Error> {
+pub fn parse_display_template(lit: &LitStr) -> Result<DisplayTemplate, Error> {
     let value = lit.value();
-    let parsed = ErrorTemplate::parse(&value).map_err(|err| template_error(&lit, err))?;
+    let parsed = ErrorTemplate::parse(&value).map_err(|err| template_error(lit, &err))?;
     let mut segments = Vec::new();
     for segment in parsed.segments() {
         match segment {
@@ -45,7 +45,7 @@ pub fn parse_display_template(lit: LitStr) -> Result<DisplayTemplate, Error> {
                 segments.push(TemplateSegmentSpec::Literal(text.to_string()));
             }
             TemplateSegment::Placeholder(placeholder) => {
-                let span = placeholder_span(&lit, placeholder.span());
+                let span = placeholder_span(lit, placeholder.span());
                 let identifier = match placeholder.identifier() {
                     TemplateIdentifier::Named(name) => {
                         TemplateIdentifierSpec::Named(name.to_string())
@@ -72,9 +72,9 @@ fn placeholder_span(lit: &LitStr, range: core::ops::Range<usize>) -> Span {
     literal_subspan(lit, range).unwrap_or_else(|| lit.span())
 }
 
-fn template_error(lit: &LitStr, error: TemplateError) -> Error {
+fn template_error(lit: &LitStr, error: &TemplateError) -> Error {
     let message = error.to_string();
-    let span = match &error {
+    let span = match error {
         TemplateError::UnmatchedClosingBrace {
             index
         } => literal_subspan(lit, *index..(*index + 1)),
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn parse_display_template_simple_literal() {
         let lit: LitStr = parse_quote!("hello");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         assert_eq!(template.segments.len(), 1);
@@ -122,7 +122,7 @@ mod tests {
     #[test]
     fn parse_display_template_named_placeholder() {
         let lit: LitStr = parse_quote!("hello {name}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         assert_eq!(template.segments.len(), 2);
@@ -142,7 +142,7 @@ mod tests {
     #[test]
     fn parse_display_template_positional_placeholder() {
         let lit: LitStr = parse_quote!("hello {0}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         assert_eq!(template.segments.len(), 2);
@@ -158,7 +158,7 @@ mod tests {
     #[test]
     fn parse_display_template_implicit_placeholder() {
         let lit: LitStr = parse_quote!("hello {}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         assert_eq!(template.segments.len(), 2);
@@ -174,7 +174,7 @@ mod tests {
     #[test]
     fn parse_display_template_with_formatter() {
         let lit: LitStr = parse_quote!("hello {name:?}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         assert_eq!(template.segments.len(), 2);
@@ -193,7 +193,7 @@ mod tests {
     #[test]
     fn parse_display_template_multiple_placeholders() {
         let lit: LitStr = parse_quote!("hello {0} {name}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         assert_eq!(template.segments.len(), 4);
@@ -224,7 +224,7 @@ mod tests {
     #[test]
     fn parse_display_template_escape_sequences() {
         let lit: LitStr = parse_quote!("hello {{world}}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         assert_eq!(template.segments.len(), 4);
@@ -249,7 +249,7 @@ mod tests {
     #[test]
     fn parse_display_template_unmatched_closing_brace() {
         let lit: LitStr = parse_quote!("hello }");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_err());
         let err = result.err().unwrap();
         let msg = err.to_string();
@@ -259,7 +259,7 @@ mod tests {
     #[test]
     fn parse_display_template_unterminated_placeholder() {
         let lit: LitStr = parse_quote!("hello {name");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_err());
         let err = result.err().unwrap();
         let msg = err.to_string();
@@ -270,7 +270,7 @@ mod tests {
     #[test]
     fn parse_display_template_nested_placeholder() {
         let lit: LitStr = parse_quote!("{foo{bar}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_err());
         let err = result.err().unwrap();
         let msg = err.to_string();
@@ -280,7 +280,7 @@ mod tests {
     #[test]
     fn parse_display_template_invalid_identifier() {
         let lit: LitStr = parse_quote!("hello {invalid-name}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_err());
         let err = result.err().unwrap();
         let msg = err.to_string();
@@ -290,7 +290,7 @@ mod tests {
     #[test]
     fn parse_display_template_with_debug_formatter() {
         let lit: LitStr = parse_quote!("value: {0:?}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         if let TemplateSegmentSpec::Placeholder(p) = &template.segments[1] {
@@ -308,7 +308,7 @@ mod tests {
     #[test]
     fn parse_display_template_with_alternate_debug_formatter() {
         let lit: LitStr = parse_quote!("value: {0:#?}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         if let TemplateSegmentSpec::Placeholder(p) = &template.segments[1] {
@@ -326,7 +326,7 @@ mod tests {
     #[test]
     fn parse_display_template_with_hex_formatter() {
         let lit: LitStr = parse_quote!("value: {val:x}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         if let TemplateSegmentSpec::Placeholder(p) = &template.segments[1] {
@@ -344,7 +344,7 @@ mod tests {
     #[test]
     fn parse_display_template_multiple_implicit_placeholders() {
         let lit: LitStr = parse_quote!("a {} b {} c");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         assert_eq!(template.segments.len(), 5);
@@ -359,7 +359,7 @@ mod tests {
     #[test]
     fn parse_display_template_complex_mixed() {
         let lit: LitStr = parse_quote!("Error: {0} at {location:?} with {1}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         assert!(template.segments.len() > 3);
@@ -368,7 +368,7 @@ mod tests {
     #[test]
     fn parse_display_template_empty_string() {
         let lit: LitStr = parse_quote!("");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         assert_eq!(template.segments.len(), 0);
@@ -377,7 +377,7 @@ mod tests {
     #[test]
     fn parse_display_template_only_placeholder() {
         let lit: LitStr = parse_quote!("{error}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         assert_eq!(template.segments.len(), 1);
@@ -393,7 +393,7 @@ mod tests {
         let error = TemplateError::UnmatchedClosingBrace {
             index: 4
         };
-        let syn_error = template_error(&lit, error);
+        let syn_error = template_error(&lit, &error);
         let msg = syn_error.to_string();
         assert!(msg.contains("unmatched closing brace"));
     }
@@ -404,7 +404,7 @@ mod tests {
         let error = TemplateError::UnterminatedPlaceholder {
             start: 0
         };
-        let syn_error = template_error(&lit, error);
+        let syn_error = template_error(&lit, &error);
         let msg = syn_error.to_string();
         assert!(msg.contains("not closed"));
     }
@@ -415,7 +415,7 @@ mod tests {
         let error = TemplateError::NestedPlaceholder {
             index: 2
         };
-        let syn_error = template_error(&lit, error);
+        let syn_error = template_error(&lit, &error);
         let msg = syn_error.to_string();
         assert!(msg.contains("nested placeholder"));
     }
@@ -426,7 +426,7 @@ mod tests {
         let error = TemplateError::EmptyPlaceholder {
             start: 4
         };
-        let syn_error = template_error(&lit, error);
+        let syn_error = template_error(&lit, &error);
         let msg = syn_error.to_string();
         assert!(msg.contains("empty"));
     }
@@ -437,7 +437,7 @@ mod tests {
         let error = TemplateError::InvalidIdentifier {
             span: 0..12
         };
-        let syn_error = template_error(&lit, error);
+        let syn_error = template_error(&lit, &error);
         let msg = syn_error.to_string();
         assert!(msg.contains("invalid") || msg.contains("identifier"));
     }
@@ -448,7 +448,7 @@ mod tests {
         let error = TemplateError::InvalidIndex {
             span: 0..23
         };
-        let syn_error = template_error(&lit, error);
+        let syn_error = template_error(&lit, &error);
         let msg = syn_error.to_string();
         assert!(msg.contains("not a valid unsigned integer") || msg.contains("Invalid"));
     }
@@ -459,7 +459,7 @@ mod tests {
         let error = TemplateError::InvalidFormatter {
             span: 0..9
         };
-        let syn_error = template_error(&lit, error);
+        let syn_error = template_error(&lit, &error);
         let msg = syn_error.to_string();
         assert!(msg.contains("unsupported formatter") || msg.contains("Invalid"));
     }
@@ -483,7 +483,7 @@ mod tests {
     #[test]
     fn parse_display_template_with_binary_formatter() {
         let lit: LitStr = parse_quote!("{val:b}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         if let TemplateSegmentSpec::Placeholder(p) = &template.segments[0] {
@@ -499,7 +499,7 @@ mod tests {
     #[test]
     fn parse_display_template_with_octal_formatter() {
         let lit: LitStr = parse_quote!("{val:o}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         if let TemplateSegmentSpec::Placeholder(p) = &template.segments[0] {
@@ -515,7 +515,7 @@ mod tests {
     #[test]
     fn parse_display_template_with_pointer_formatter() {
         let lit: LitStr = parse_quote!("{val:p}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         if let TemplateSegmentSpec::Placeholder(p) = &template.segments[0] {
@@ -531,7 +531,7 @@ mod tests {
     #[test]
     fn parse_display_template_with_lower_exp_formatter() {
         let lit: LitStr = parse_quote!("{val:e}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         if let TemplateSegmentSpec::Placeholder(p) = &template.segments[0] {
@@ -547,7 +547,7 @@ mod tests {
     #[test]
     fn parse_display_template_with_upper_exp_formatter() {
         let lit: LitStr = parse_quote!("{val:E}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         if let TemplateSegmentSpec::Placeholder(p) = &template.segments[0] {
@@ -563,7 +563,7 @@ mod tests {
     #[test]
     fn parse_display_template_with_upper_hex_formatter() {
         let lit: LitStr = parse_quote!("{val:X}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         if let TemplateSegmentSpec::Placeholder(p) = &template.segments[0] {
@@ -587,15 +587,15 @@ mod tests {
         ];
         for (template_str, formatter_name) in cases {
             let lit: LitStr = parse_quote!(#template_str);
-            let result = parse_display_template(lit);
-            assert!(result.is_ok(), "Failed for {}", formatter_name);
+            let result = parse_display_template(&lit);
+            assert!(result.is_ok(), "Failed for {formatter_name}");
         }
     }
 
     #[test]
     fn parse_display_template_leading_trailing_braces() {
         let lit: LitStr = parse_quote!("{{prefix}} {val} {{suffix}}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         assert!(template.segments.len() >= 3);
@@ -604,7 +604,7 @@ mod tests {
     #[test]
     fn parse_display_template_consecutive_placeholders() {
         let lit: LitStr = parse_quote!("{a}{b}{c}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         assert_eq!(template.segments.len(), 3);
@@ -625,7 +625,7 @@ mod tests {
     #[test]
     fn parse_display_template_unicode_content() {
         let lit: LitStr = parse_quote!("Error: {msg} 错误");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         assert!(template.segments.len() >= 2);
@@ -634,7 +634,7 @@ mod tests {
     #[test]
     fn parse_display_template_numbers_in_names() {
         let lit: LitStr = parse_quote!("{error1} and {error2}");
-        let result = parse_display_template(lit);
+        let result = parse_display_template(&lit);
         assert!(result.is_ok());
         let template = result.ok().unwrap();
         assert_eq!(template.segments.len(), 3);

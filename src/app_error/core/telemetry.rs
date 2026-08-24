@@ -157,7 +157,7 @@ impl Error {
 ///
 /// * `kind` - The error kind to convert
 #[cfg(any(feature = "metrics", feature = "tracing"))]
-pub(crate) fn kind_label(kind: AppErrorKind) -> &'static str {
+pub const fn kind_label(kind: AppErrorKind) -> &'static str {
     match kind {
         AppErrorKind::NotFound => "NotFound",
         AppErrorKind::Validation => "Validation",

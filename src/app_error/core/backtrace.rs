@@ -28,7 +28,7 @@ static BACKTRACE_STATE: AtomicU8 = AtomicU8::new(BACKTRACE_STATE_UNSET);
 ///
 /// Internal function used for lazy backtrace capture in errors.
 #[cfg(feature = "backtrace")]
-pub(crate) fn capture_backtrace_snapshot() -> Option<Arc<Backtrace>> {
+pub fn capture_backtrace_snapshot() -> Option<Arc<Backtrace>> {
     if should_capture_backtrace() {
         Some(Arc::new(Backtrace::capture()))
     } else {

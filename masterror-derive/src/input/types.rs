@@ -59,7 +59,7 @@ pub struct VariantData {
     pub span:        Span
 }
 
-/// AppError attribute specification.
+/// `AppError` attribute specification.
 ///
 /// Configures error kind, code, message exposure and source attachment for
 /// app-level errors.
@@ -124,7 +124,7 @@ pub enum Fields {
 
 impl Fields {
     /// Returns the number of fields.
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         match self {
             Self::Unit => 0,
             Self::Named(fields) | Self::Unnamed(fields) => fields.len()
@@ -216,7 +216,7 @@ pub struct BacktraceField<'a> {
 
 impl<'a> BacktraceField<'a> {
     /// Creates a new backtrace field reference.
-    pub fn new(field: &'a Field, kind: BacktraceFieldKind) -> Self {
+    pub const fn new(field: &'a Field, kind: BacktraceFieldKind) -> Self {
         Self {
             field,
             kind
@@ -224,12 +224,12 @@ impl<'a> BacktraceField<'a> {
     }
 
     /// Returns the underlying field.
-    pub fn field(&self) -> &'a Field {
+    pub const fn field(&self) -> &'a Field {
         self.field
     }
 
     /// Returns the detection mode.
-    pub fn kind(&self) -> BacktraceFieldKind {
+    pub const fn kind(&self) -> BacktraceFieldKind {
         self.kind
     }
 
@@ -239,7 +239,7 @@ impl<'a> BacktraceField<'a> {
     }
 
     /// Returns the field index.
-    pub fn index(&self) -> usize {
+    pub const fn index(&self) -> usize {
         self.field.index
     }
 }
@@ -276,10 +276,10 @@ impl Field {
     /// Parses field from syn AST.
     pub(crate) fn from_syn(field: &SynField, index: usize, errors: &mut Vec<Error>) -> Self {
         let ident = field.ident.clone();
-        let member = match &ident {
-            Some(name) => syn::Member::Named(name.clone()),
-            None => syn::Member::Unnamed(syn::Index::from(index))
-        };
+        let member = ident.as_ref().map_or_else(
+            || syn::Member::Unnamed(syn::Index::from(index)),
+            |name| syn::Member::Named(name.clone())
+        );
         let attrs = FieldAttrs::from_attrs(&field.attrs, ident.as_ref(), &field.ty, errors);
         Self {
             ident,
@@ -319,7 +319,7 @@ impl FieldAttrs {
         errors: &mut Vec<Error>
     ) -> Self {
         use super::utils::{is_backtrace_type, is_option_type, option_inner_type, path_is};
-        let mut result = FieldAttrs::default();
+        let mut result = Self::default();
         for attr in attrs {
             if path_is(attr, "from") {
                 if let Err(err) = attr.meta.require_path_only() {
@@ -379,17 +379,17 @@ impl FieldAttrs {
     }
 
     /// Checks if field has source attribute.
-    pub fn has_source(&self) -> bool {
+    pub const fn has_source(&self) -> bool {
         self.source.is_some() || self.inferred_source
     }
 
     /// Checks if field has backtrace attribute.
-    pub fn has_backtrace(&self) -> bool {
+    pub const fn has_backtrace(&self) -> bool {
         self.backtrace.is_some() || self.inferred_backtrace
     }
 
     /// Returns backtrace detection kind.
-    pub fn backtrace_kind(&self) -> Option<BacktraceFieldKind> {
+    pub const fn backtrace_kind(&self) -> Option<BacktraceFieldKind> {
         if self.backtrace.is_some() {
             Some(BacktraceFieldKind::Explicit)
         } else if self.inferred_backtrace {
@@ -400,12 +400,12 @@ impl FieldAttrs {
     }
 
     /// Returns source attribute if present.
-    pub fn source_attribute(&self) -> Option<&Attribute> {
+    pub const fn source_attribute(&self) -> Option<&Attribute> {
         self.source.as_ref()
     }
 
     /// Returns backtrace attribute if present.
-    pub fn backtrace_attribute(&self) -> Option<&Attribute> {
+    pub const fn backtrace_attribute(&self) -> Option<&Attribute> {
         self.backtrace.as_ref()
     }
 }
@@ -505,7 +505,7 @@ pub struct FormatArgMethodTurbofish {
 }
 
 /// Method call suffix type alias.
-pub(crate) type MethodCallSuffix = Option<(
+pub type MethodCallSuffix = Option<(
     Option<FormatArgMethodTurbofish>,
     Paren,
     Punctuated<Expr, Token![,]>

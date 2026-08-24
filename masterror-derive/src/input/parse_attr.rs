@@ -26,7 +26,7 @@ use super::{
 use crate::template_support::parse_display_template;
 
 /// Extracts masterror specification from attributes.
-pub(crate) fn extract_masterror_spec(
+pub fn extract_masterror_spec(
     attrs: &[Attribute],
     errors: &mut Vec<Error>
 ) -> Result<Option<MasterrorSpec>, ()> {
@@ -55,8 +55,8 @@ pub(crate) fn extract_masterror_spec(
     if had_error { Err(()) } else { Ok(spec) }
 }
 
-/// Extracts app_error specification from attributes.
-pub(crate) fn extract_app_error_spec(
+/// Extracts `app_error` specification from attributes.
+pub fn extract_app_error_spec(
     attrs: &[Attribute],
     errors: &mut Vec<Error>
 ) -> Result<Option<AppErrorSpec>, ()> {
@@ -86,25 +86,25 @@ pub(crate) fn extract_app_error_spec(
 }
 
 /// Extracts display specification from error attributes.
-pub(crate) fn extract_display_spec(
+pub fn extract_display_spec(
     attrs: &[Attribute],
     missing_span: Span,
     errors: &mut Vec<Error>
 ) -> Result<DisplaySpec, ()> {
-    match extract_display_spec_optional(attrs, errors)? {
-        Some(spec) => Ok(spec),
-        None => {
+    extract_display_spec_optional(attrs, errors)?.map_or_else(
+        || {
             errors.push(Error::new(missing_span, "missing #[error(...)] attribute"));
             Err(())
-        }
-    }
+        },
+        Ok
+    )
 }
 
 /// Extracts display specification when the `#[error]` attribute is optional.
 ///
 /// Returns `Ok(None)` when no `#[error]` attribute is present, allowing the
 /// caller to fall back to an enum-level formatter.
-pub(crate) fn extract_display_spec_optional(
+pub fn extract_display_spec_optional(
     attrs: &[Attribute],
     errors: &mut Vec<Error>
 ) -> Result<Option<DisplaySpec>, ()> {
@@ -136,7 +136,7 @@ pub(crate) fn extract_display_spec_optional(
 /// The enum-level attribute serves as a shared formatter for variants that
 /// do not carry their own `#[error]` attribute. Any other enum-level display
 /// form (template or `transparent`) is rejected.
-pub(crate) fn extract_enum_fmt_spec(
+pub fn extract_enum_fmt_spec(
     attrs: &[Attribute],
     errors: &mut Vec<Error>
 ) -> Result<Option<ExprPath>, ()> {
@@ -184,7 +184,7 @@ pub(crate) fn extract_enum_fmt_spec(
     if had_error { Err(()) } else { Ok(fmt) }
 }
 
-/// Parses #[app_error(...)] attribute contents.
+/// Parses #[`app_error`(...)] attribute contents.
 fn parse_app_error_attribute(attr: &Attribute) -> Result<AppErrorSpec, Error> {
     attr.parse_args_with(|input: ParseStream| {
         let mut kind = None;
@@ -238,7 +238,7 @@ fn parse_app_error_attribute(attr: &Attribute) -> Result<AppErrorSpec, Error> {
                 other => {
                     return Err(Error::new(
                         ident.span(),
-                        format!("unknown #[app_error] option `{}`", other)
+                        format!("unknown #[app_error] option `{other}`")
                     ));
                 }
             }
@@ -547,7 +547,7 @@ fn parse_error_attribute(attr: &Attribute) -> Result<DisplaySpec, Error> {
     attr.parse_args_with(|input: ParseStream| {
         if input.peek(LitStr) {
             let lit: LitStr = input.parse()?;
-            let template = parse_display_template(lit)?;
+            let template = parse_display_template(&lit)?;
             let args = parse_format_args(input)?;
             if !input.is_empty() {
                 return Err(Error::new(
@@ -606,7 +606,7 @@ fn parse_error_attribute(attr: &Attribute) -> Result<DisplaySpec, Error> {
 }
 
 /// Parses #[provide(...)] attribute contents.
-pub(crate) fn parse_provide_attribute(attr: &Attribute) -> Result<ProvideSpec, Error> {
+pub fn parse_provide_attribute(attr: &Attribute) -> Result<ProvideSpec, Error> {
     attr.parse_args_with(|input: ParseStream| {
         let mut reference = None;
         let mut value = None;
@@ -633,7 +633,7 @@ pub(crate) fn parse_provide_attribute(attr: &Attribute) -> Result<ProvideSpec, E
                 other => {
                     return Err(Error::new(
                         ident.span(),
-                        format!("unknown #[provide] option `{}`", other)
+                        format!("unknown #[provide] option `{other}`")
                     ));
                 }
             }

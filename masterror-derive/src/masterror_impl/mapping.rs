@@ -215,17 +215,17 @@ fn mapping_option_tokens(
     category: &ExprPath,
     kind: MappingKind
 ) -> TokenStream {
-    match expr {
-        Some(value) => match kind {
+    expr.map_or_else(
+        || quote!(None),
+        |value| match kind {
             MappingKind::Grpc => {
                 quote!(Some(masterror::mapping::GrpcMapping::new((#code), (#category), (#value))))
             }
             MappingKind::Problem => {
                 quote!(Some(masterror::mapping::ProblemMapping::new((#code), (#category), (#value))))
             }
-        },
-        None => quote!(None)
-    }
+        }
+    )
 }
 
 #[cfg(test)]

@@ -9,7 +9,7 @@
 //!
 //! # Error Variants
 //!
-//! - [`BrowserConsoleError::Serialization`] - Serialization to JsValue failed
+//! - [`BrowserConsoleError::Serialization`] - Serialization to `JsValue` failed
 //! - [`BrowserConsoleError::ConsoleUnavailable`] - Console object not
 //!   accessible
 //! - [`BrowserConsoleError::ConsoleErrorUnavailable`] - console.error not
@@ -175,7 +175,8 @@ impl BrowserConsoleError {
     /// assert_eq!(err.context(), None);
     /// # }
     /// ```
-    pub fn context(&self) -> Option<&str> {
+    #[must_use]
+    pub const fn context(&self) -> Option<&str> {
         match self {
             Self::Serialization {
                 message

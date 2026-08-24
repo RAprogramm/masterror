@@ -81,7 +81,7 @@ struct TrimmedFraction {
     width: u8
 }
 
-fn duration_parts(duration: Duration) -> (u64, Option<TrimmedFraction>) {
+const fn duration_parts(duration: Duration) -> (u64, Option<TrimmedFraction>) {
     let secs = duration.as_secs();
     let nanos = duration.subsec_nanos();
     if nanos == 0 {
@@ -117,11 +117,11 @@ fn format_duration(duration: Duration, f: &mut Formatter<'_>) -> FmtResult {
             width = fraction.width as usize
         )
     } else {
-        write!(f, "{}s", secs)
+        write!(f, "{secs}s")
     }
 }
 
-pub(crate) fn duration_to_string(duration: Duration) -> String {
+pub fn duration_to_string(duration: Duration) -> String {
     let (secs, fraction) = duration_parts(duration);
     let mut output = String::new();
     if let Some(fraction) = fraction {
@@ -133,7 +133,7 @@ pub(crate) fn duration_to_string(duration: Duration) -> String {
             width = fraction.width as usize
         );
     } else {
-        let _ = write!(&mut output, "{}s", secs);
+        let _ = write!(&mut output, "{secs}s");
     }
     output
 }
@@ -178,13 +178,13 @@ impl Field {
 
     /// Override the redaction policy while consuming the field.
     #[must_use]
-    pub fn with_redaction(mut self, redaction: FieldRedaction) -> Self {
+    pub const fn with_redaction(mut self, redaction: FieldRedaction) -> Self {
         self.redaction = redaction;
         self
     }
 
     /// Update the redaction policy in place.
-    pub fn set_redaction(&mut self, redaction: FieldRedaction) {
+    pub const fn set_redaction(&mut self, redaction: FieldRedaction) {
         self.redaction = redaction;
     }
 
@@ -322,13 +322,13 @@ impl Metadata {
 
     /// Number of fields stored in the metadata.
     #[must_use]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.fields.len()
     }
 
     /// Whether the metadata is empty.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.fields.is_empty()
     }
 
@@ -615,8 +615,7 @@ mod tests {
             let field = field::str(name, Cow::Borrowed("value"));
             assert!(
                 matches!(field.redaction(), policy if policy == expected),
-                "expected {:?} for {name}",
-                expected
+                "expected {expected:?} for {name}"
             );
         }
     }

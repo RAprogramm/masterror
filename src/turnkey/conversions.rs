@@ -75,12 +75,12 @@ impl From<TurnkeyError> for AppError {
     #[inline]
     fn from(e: TurnkeyError) -> Self {
         match e.kind {
-            TurnkeyErrorKind::UniqueLabel => AppError::conflict(e.msg),
-            TurnkeyErrorKind::RateLimited => AppError::rate_limited(e.msg),
-            TurnkeyErrorKind::Timeout => AppError::timeout(e.msg),
-            TurnkeyErrorKind::Auth => AppError::unauthorized(e.msg),
-            TurnkeyErrorKind::Network => AppError::network(e.msg),
-            TurnkeyErrorKind::Service => AppError::turnkey(e.msg)
+            TurnkeyErrorKind::UniqueLabel => Self::conflict(e.msg),
+            TurnkeyErrorKind::RateLimited => Self::rate_limited(e.msg),
+            TurnkeyErrorKind::Timeout => Self::timeout(e.msg),
+            TurnkeyErrorKind::Auth => Self::unauthorized(e.msg),
+            TurnkeyErrorKind::Network => Self::network(e.msg),
+            TurnkeyErrorKind::Service => Self::turnkey(e.msg)
         }
     }
 }

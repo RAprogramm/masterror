@@ -426,7 +426,7 @@ fn error_response_serialization_hides_redacted_message() {
 #[test]
 fn display_is_concise_and_does_not_leak_details() {
     let e = ErrorResponse::new(400, AppCode::BadRequest, "bad").expect("status");
-    let s = format!("{}", e);
+    let s = format!("{e}");
     assert!(s.contains("400"), "status should be present");
     assert!(
         s.to_lowercase().contains("badrequest")

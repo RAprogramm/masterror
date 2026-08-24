@@ -36,7 +36,7 @@ use crate::input::Field;
 /// let binding = binding_ident(&unnamed_field);
 /// assert_eq!(binding.to_string(), "__field2");
 /// ```
-pub(crate) fn binding_ident(field: &Field) -> Ident {
+pub fn binding_ident(field: &Field) -> Ident {
     field
         .ident
         .clone()
@@ -54,14 +54,15 @@ mod tests {
     fn make_field(ident: Option<&str>, index: usize) -> Field {
         Field {
             ident: ident.map(|s| syn::Ident::new(s, Span::call_site())),
-            member: if let Some(s) = ident {
-                Member::Named(syn::Ident::new(s, Span::call_site()))
-            } else {
-                Member::Unnamed(syn::Index {
-                    index: index as u32,
-                    span:  Span::call_site()
-                })
-            },
+            member: ident.map_or_else(
+                || {
+                    Member::Unnamed(syn::Index {
+                        index: index as u32,
+                        span:  Span::call_site()
+                    })
+                },
+                |s| Member::Named(syn::Ident::new(s, Span::call_site()))
+            ),
             ty: syn::parse_quote!(String),
             index,
             attrs: FieldAttrs::default(),

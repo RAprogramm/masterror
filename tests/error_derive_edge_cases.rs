@@ -117,7 +117,7 @@ mod hygiene {
     }
 }
 
-fn assert_error_impl<E: StdError + ?Sized>() {}
+const fn assert_error_impl<E: StdError + ?Sized>() {}
 
 #[test]
 fn raw_source_field_is_not_implicit_source() {

@@ -132,7 +132,7 @@ use crate::{AppCode, AppErrorKind, Context, ErrorResponse, ResultExt};
 // --- Helpers -------------------------------------------------------------
 
 /// Assert helper: kind matches and message is Some(s).
-fn assert_err_with_msg(err: AppError, expected: AppErrorKind, msg: &str) {
+fn assert_err_with_msg(err: &AppError, expected: AppErrorKind, msg: &str) {
     assert!(
         matches!(err.kind, k if k == expected),
         "expected kind {:?}, got {:?}",
@@ -143,7 +143,7 @@ fn assert_err_with_msg(err: AppError, expected: AppErrorKind, msg: &str) {
 }
 
 /// Assert helper: kind matches and message is None.
-fn assert_err_bare(err: AppError, expected: AppErrorKind) {
+fn assert_err_bare(err: &AppError, expected: AppErrorKind) {
     assert!(
         matches!(err.kind, k if k == expected),
         "expected kind {:?}, got {:?}",
@@ -156,82 +156,86 @@ fn assert_err_bare(err: AppError, expected: AppErrorKind) {
 #[test]
 fn constructors_match_kinds() {
     assert_err_with_msg(
-        AppError::not_found("missing"),
+        &AppError::not_found("missing"),
         AppErrorKind::NotFound,
         "missing"
     );
     assert_err_with_msg(
-        AppError::validation("invalid"),
+        &AppError::validation("invalid"),
         AppErrorKind::Validation,
         "invalid"
     );
     assert_err_with_msg(
-        AppError::unauthorized("need token"),
+        &AppError::unauthorized("need token"),
         AppErrorKind::Unauthorized,
         "need token"
     );
     assert_err_with_msg(
-        AppError::forbidden("no access"),
+        &AppError::forbidden("no access"),
         AppErrorKind::Forbidden,
         "no access"
     );
-    assert_err_with_msg(AppError::conflict("dup"), AppErrorKind::Conflict, "dup");
+    assert_err_with_msg(&AppError::conflict("dup"), AppErrorKind::Conflict, "dup");
     assert_err_with_msg(
-        AppError::bad_request("bad"),
+        &AppError::bad_request("bad"),
         AppErrorKind::BadRequest,
         "bad"
     );
     assert_err_with_msg(
-        AppError::rate_limited("slow"),
+        &AppError::rate_limited("slow"),
         AppErrorKind::RateLimited,
         "slow"
     );
     assert_err_with_msg(
-        AppError::telegram_auth("fail"),
+        &AppError::telegram_auth("fail"),
         AppErrorKind::TelegramAuth,
         "fail"
     );
-    assert_err_with_msg(AppError::internal("oops"), AppErrorKind::Internal, "oops");
-    assert_err_with_msg(AppError::service("down"), AppErrorKind::Service, "down");
-    assert_err_with_msg(AppError::config("bad cfg"), AppErrorKind::Config, "bad cfg");
+    assert_err_with_msg(&AppError::internal("oops"), AppErrorKind::Internal, "oops");
+    assert_err_with_msg(&AppError::service("down"), AppErrorKind::Service, "down");
     assert_err_with_msg(
-        AppError::turnkey("turnkey"),
+        &AppError::config("bad cfg"),
+        AppErrorKind::Config,
+        "bad cfg"
+    );
+    assert_err_with_msg(
+        &AppError::turnkey("turnkey"),
         AppErrorKind::Turnkey,
         "turnkey"
     );
     assert_err_with_msg(
-        AppError::timeout("timeout"),
+        &AppError::timeout("timeout"),
         AppErrorKind::Timeout,
         "timeout"
     );
-    assert_err_with_msg(AppError::network("net"), AppErrorKind::Network, "net");
+    assert_err_with_msg(&AppError::network("net"), AppErrorKind::Network, "net");
     assert_err_with_msg(
-        AppError::dependency_unavailable("dep"),
+        &AppError::dependency_unavailable("dep"),
         AppErrorKind::DependencyUnavailable,
         "dep"
     );
     assert_err_with_msg(
-        AppError::service_unavailable("dep"),
+        &AppError::service_unavailable("dep"),
         AppErrorKind::DependencyUnavailable,
         "dep"
     );
     assert_err_with_msg(
-        AppError::serialization("ser"),
+        &AppError::serialization("ser"),
         AppErrorKind::Serialization,
         "ser"
     );
     assert_err_with_msg(
-        AppError::deserialization("deser"),
+        &AppError::deserialization("deser"),
         AppErrorKind::Deserialization,
         "deser"
     );
     assert_err_with_msg(
-        AppError::external_api("external"),
+        &AppError::external_api("external"),
         AppErrorKind::ExternalApi,
         "external"
     );
-    assert_err_with_msg(AppError::queue("queue"), AppErrorKind::Queue, "queue");
-    assert_err_with_msg(AppError::cache("cache"), AppErrorKind::Cache, "cache");
+    assert_err_with_msg(&AppError::queue("queue"), AppErrorKind::Queue, "queue");
+    assert_err_with_msg(&AppError::cache("cache"), AppErrorKind::Cache, "cache");
 }
 
 #[cfg(feature = "std")]
@@ -258,17 +262,17 @@ fn with_context_accepts_anyhow_error() {
 #[test]
 fn database_accepts_optional_message() {
     let with_msg = AppError::database_with_message("db down");
-    assert_err_with_msg(with_msg, AppErrorKind::Database, "db down");
+    assert_err_with_msg(&with_msg, AppErrorKind::Database, "db down");
     let via_option = AppError::database(Some(Cow::Borrowed("db down")));
-    assert_err_with_msg(via_option, AppErrorKind::Database, "db down");
+    assert_err_with_msg(&via_option, AppErrorKind::Database, "db down");
     let without = AppError::database(None);
-    assert_err_bare(without, AppErrorKind::Database);
+    assert_err_bare(&without, AppErrorKind::Database);
 }
 
 #[test]
 fn bare_sets_kind_without_message() {
     assert_err_bare(
-        AppError::bare(AppErrorKind::Internal),
+        &AppError::bare(AppErrorKind::Internal),
         AppErrorKind::Internal
     );
 }
@@ -761,7 +765,7 @@ fn error_chain_single_error() {
 #[cfg(feature = "std")]
 fn error_chain_multiple_sources() {
     let root = IoError::new(IoErrorKind::NotFound, "file not found");
-    let wrapped = IoError::other(format!("config error: {}", root));
+    let wrapped = IoError::other(format!("config error: {root}"));
     let app_err = AppError::internal("startup failed").with_context(wrapped);
     let chain: Vec<_> = app_err.chain().collect();
     assert_eq!(chain.len(), 2);
@@ -943,7 +947,7 @@ fn boxed_error_converts_to_internal_app_error() {
 fn local_display_bare_error_without_message() {
     let _guard = force_display_mode(DisplayMode::Local);
     let err = AppError::bare(AppErrorKind::Internal);
-    let output = format!("{}", err);
+    let output = format!("{err}");
     assert!(output.contains("Internal server error"));
     assert!(output.contains("Code:"));
     assert!(output.contains("INTERNAL"));
@@ -978,7 +982,7 @@ fn local_display_deep_error_chain() {
     let top = AppError::internal("operation failed")
         .with_context(mid)
         .with_field(field::str("operation", "backup"));
-    let output = format!("{}", top);
+    let output = format!("{top}");
     assert!(output.contains("Internal server error"));
     assert!(output.contains("INTERNAL"));
     assert!(output.contains("operation failed"));

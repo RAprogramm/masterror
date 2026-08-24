@@ -182,7 +182,7 @@ impl Context {
     /// # }
     /// ```
     #[must_use]
-    pub fn redact(mut self, redact: bool) -> Self {
+    pub const fn redact(mut self, redact: bool) -> Self {
         self.edit_policy = if redact {
             MessageEditPolicy::Redact
         } else {
@@ -194,7 +194,7 @@ impl Context {
     /// Capture caller location and store it as metadata.
     #[must_use]
     #[track_caller]
-    pub fn track_caller(mut self) -> Self {
+    pub const fn track_caller(mut self) -> Self {
         self.caller_location = Some(Location::caller());
         self
     }
@@ -203,7 +203,7 @@ impl Context {
     where
         E: CoreError + Send + Sync + 'static
     {
-        let Context {
+        let Self {
             mut fields,
             field_policies,
             edit_policy,

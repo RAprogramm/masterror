@@ -350,10 +350,7 @@ fn resolve_variant_shorthand(
             let Fields::Named(named_fields) = fields else {
                 return Err(Error::new(
                     ident.span(),
-                    format!(
-                        "named field `{}` is not available for tuple variants",
-                        ident
-                    )
+                    format!("named field `{ident}` is not available for tuple variants")
                 ));
             };
             let position = named_fields.iter().position(|field| {
@@ -365,13 +362,13 @@ fn resolve_variant_shorthand(
             let index = position.ok_or_else(|| {
                 Error::new(
                     ident.span(),
-                    format!("unknown field `{}` in format arguments", ident)
+                    format!("unknown field `{ident}` in format arguments")
                 )
             })?;
             let binding = bindings.get(index).ok_or_else(|| {
                 Error::new(
                     ident.span(),
-                    format!("field `{}` is not available in format arguments", ident)
+                    format!("field `{ident}` is not available in format arguments")
                 )
             })?;
             let expr = if projection.segments.len() == 1 {
@@ -403,7 +400,7 @@ fn resolve_variant_shorthand(
             let binding = bindings.get(*index).ok_or_else(|| {
                 Error::new(
                     *span,
-                    format!("field `{}` is not available in format arguments", index)
+                    format!("field `{index}` is not available in format arguments")
                 )
             })?;
             let expr = if projection.segments.len() == 1 {
@@ -455,10 +452,7 @@ fn resolve_variant_shorthand_argument(
             let Fields::Named(named_fields) = fields else {
                 return Err(Error::new(
                     ident.span(),
-                    format!(
-                        "named field `{}` is not available for tuple variants",
-                        ident
-                    )
+                    format!("named field `{ident}` is not available for tuple variants")
                 ));
             };
             let position = named_fields.iter().position(|field| {
@@ -470,13 +464,13 @@ fn resolve_variant_shorthand_argument(
             let index = position.ok_or_else(|| {
                 Error::new(
                     ident.span(),
-                    format!("unknown field `{}` in format arguments", ident)
+                    format!("unknown field `{ident}` in format arguments")
                 )
             })?;
             let binding = bindings.get(index).ok_or_else(|| {
                 Error::new(
                     ident.span(),
-                    format!("field `{}` is not available in format arguments", ident)
+                    format!("field `{ident}` is not available in format arguments")
                 )
             })?;
             if projection.segments.len() == 1 {
@@ -501,7 +495,7 @@ fn resolve_variant_shorthand_argument(
             let binding = bindings.get(*index).ok_or_else(|| {
                 Error::new(
                     *span,
-                    format!("field `{}` is not available in format arguments", index)
+                    format!("field `{index}` is not available in format arguments")
                 )
             })?;
             if projection.segments.len() == 1 {
@@ -537,7 +531,7 @@ fn struct_projection_expr<'a>(
             let field = fields.get_named(&ident.to_string()).ok_or_else(|| {
                 Error::new(
                     ident.span(),
-                    format!("unknown field `{}` in format arguments", ident)
+                    format!("unknown field `{ident}` in format arguments")
                 )
             })?;
             first_field = Some(field);
@@ -551,14 +545,14 @@ fn struct_projection_expr<'a>(
             let field = fields.get_positional(*index).ok_or_else(|| {
                 Error::new(
                     *span,
-                    format!("field `{}` is not available in format arguments", index)
+                    format!("field `{index}` is not available in format arguments")
                 )
             })?;
             first_field = Some(field);
             let member = &field.member;
             quote!(self.#member)
         }
-        FormatArgProjectionSegment::MethodCall(call) => append_method_call(quote!(self), call)
+        FormatArgProjectionSegment::MethodCall(call) => append_method_call(&quote!(self), call)
     };
     if projection.segments.len() > 1 {
         expr = append_projection_segments(expr, &projection.segments[1..]);

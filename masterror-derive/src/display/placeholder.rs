@@ -34,7 +34,7 @@ impl ResolvedPlaceholderExpr {
     /// # Returns
     ///
     /// A new `ResolvedPlaceholderExpr` configured for reference handling
-    pub fn new(expr: TokenStream) -> Self {
+    pub const fn new(expr: TokenStream) -> Self {
         Self::with(expr, false)
     }
 
@@ -47,7 +47,7 @@ impl ResolvedPlaceholderExpr {
     /// # Returns
     ///
     /// A new `ResolvedPlaceholderExpr` configured for pointer value handling
-    pub fn pointer(expr: TokenStream) -> Self {
+    pub const fn pointer(expr: TokenStream) -> Self {
         Self::with(expr, true)
     }
 
@@ -62,7 +62,7 @@ impl ResolvedPlaceholderExpr {
     /// # Returns
     ///
     /// A new `ResolvedPlaceholderExpr` with the specified configuration
-    pub fn with(expr: TokenStream, pointer_value: bool) -> Self {
+    pub const fn with(expr: TokenStream, pointer_value: bool) -> Self {
         Self {
             expr,
             pointer_value

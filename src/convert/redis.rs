@@ -99,7 +99,7 @@ fn build_context(err: &RedisError) -> (Context, Option<u64>) {
             .with(field::str("redis.redirect_addr", addr.to_owned()))
             .with(field::u64("redis.redirect_slot", u64::from(slot)));
     }
-    let (retry_method_label, retry_after) = retry_method_details(err.retry_method());
+    let (retry_method_label, retry_after) = retry_method_details(&err.retry_method());
     context = context.with(field::str("redis.retry_method", retry_method_label));
     if let Some(secs) = retry_after {
         context = context.with(field::u64("redis.retry_after_hint_secs", secs));
@@ -113,7 +113,7 @@ fn is_busy_loading(err: &RedisError) -> bool {
 }
 
 #[cfg(feature = "redis")]
-const fn retry_method_details(method: RetryMethod) -> (&'static str, Option<u64>) {
+const fn retry_method_details(method: &RetryMethod) -> (&'static str, Option<u64>) {
     match method {
         RetryMethod::NoRetry => ("NoRetry", None),
         RetryMethod::RetryImmediately => ("RetryImmediately", Some(0)),

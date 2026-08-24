@@ -242,20 +242,21 @@ mod tests {
     use syn::parse_quote;
 
     use super::*;
+    use crate::input::{FieldAttrs, FormatArgsSpec};
 
     fn create_test_field(ident: Option<Ident>, index: usize) -> Field {
         let ty = parse_quote!(String);
-        let member = match &ident {
-            Some(name) => syn::Member::Named(name.clone()),
-            None => syn::Member::Unnamed(syn::Index::from(index))
-        };
+        let member = ident.as_ref().map_or_else(
+            || syn::Member::Unnamed(syn::Index::from(index)),
+            |name| syn::Member::Named(name.clone())
+        );
         Field {
             ident,
             member,
             ty,
             index,
             span: Span::call_site(),
-            attrs: Default::default()
+            attrs: FieldAttrs::default()
         }
     }
 
@@ -338,7 +339,7 @@ mod tests {
             display:     DisplaySpec::Template(crate::template_support::DisplayTemplate {
                 segments: vec![]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()
@@ -359,7 +360,7 @@ mod tests {
             display:     DisplaySpec::Template(crate::template_support::DisplayTemplate {
                 segments: vec![]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()
@@ -383,7 +384,7 @@ mod tests {
             display:     DisplaySpec::Template(crate::template_support::DisplayTemplate {
                 segments: vec![]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()

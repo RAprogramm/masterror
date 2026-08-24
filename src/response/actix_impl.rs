@@ -36,7 +36,7 @@ use super::{ErrorResponse, ProblemJson};
 /// // In an Actix handler, ProblemJson implements Responder
 /// // and will automatically use this conversion
 /// ```
-pub(crate) fn respond_with_problem_json(mut problem: ProblemJson) -> HttpResponse {
+pub fn respond_with_problem_json(mut problem: ProblemJson) -> HttpResponse {
     let http_status = problem.status_code();
     let status = actix_web::http::StatusCode::from_u16(http_status.as_u16())
         .unwrap_or(actix_web::http::StatusCode::INTERNAL_SERVER_ERROR);

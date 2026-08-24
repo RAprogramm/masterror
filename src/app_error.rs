@@ -75,15 +75,14 @@ mod context;
 mod core;
 mod inline_vec;
 mod metadata;
-pub(crate) mod redaction;
+pub mod redaction;
 
 pub use core::{AppError, AppResult, DisplayMode, Error, ErrorChain, MessageEditPolicy};
 #[cfg(all(test, feature = "backtrace"))]
-pub(crate) use core::{reset_backtrace_preference, set_backtrace_preference_override};
+pub use core::{reset_backtrace_preference, set_backtrace_preference_override};
 
 pub use context::Context;
-pub(crate) use metadata::duration_to_string;
-pub use metadata::{Field, FieldRedaction, FieldValue, Metadata, field};
+pub use metadata::{Field, FieldRedaction, FieldValue, Metadata, duration_to_string, field};
 
 #[cfg(test)]
 mod tests;

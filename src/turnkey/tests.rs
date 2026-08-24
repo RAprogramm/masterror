@@ -250,7 +250,7 @@ fn map_turnkey_kind_is_inline() {
 #[test]
 fn turnkey_error_debug_format() {
     let err = TurnkeyError::new(TurnkeyErrorKind::UniqueLabel, "duplicate key");
-    let debug = format!("{:?}", err);
+    let debug = format!("{err:?}");
     assert!(debug.contains("TurnkeyError"));
     assert!(debug.contains("UniqueLabel"));
     assert!(debug.contains("duplicate key"));

@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn readme_error_display_formats_io_error() {
         let err = ReadmeError::Io(io::Error::new(io::ErrorKind::NotFound, "file not found"));
-        let formatted = format!("{}", err);
+        let formatted = format!("{err}");
         assert!(formatted.contains("IO error"));
         assert!(formatted.contains("file not found"));
     }
@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn readme_error_display_formats_missing_metadata() {
         let err = ReadmeError::MissingMetadata("package.metadata.masterror");
-        let formatted = format!("{}", err);
+        let formatted = format!("{err}");
         assert!(formatted.contains("Missing metadata section"));
         assert!(formatted.contains("package.metadata.masterror"));
     }
@@ -111,7 +111,7 @@ mod tests {
     #[test]
     fn readme_error_display_formats_unknown_feature() {
         let err = ReadmeError::UnknownFeatureInOrder("unknown_feat".to_string());
-        let formatted = format!("{}", err);
+        let formatted = format!("{err}");
         assert!(formatted.contains("Feature order references unknown feature"));
         assert!(formatted.contains("unknown_feat"));
     }
@@ -119,7 +119,7 @@ mod tests {
     #[test]
     fn readme_error_display_formats_duplicate_feature() {
         let err = ReadmeError::DuplicateFeatureInOrder("duplicate_feat".to_string());
-        let formatted = format!("{}", err);
+        let formatted = format!("{err}");
         assert!(formatted.contains("listed multiple times"));
         assert!(formatted.contains("duplicate_feat"));
     }
@@ -127,7 +127,7 @@ mod tests {
     #[test]
     fn readme_error_display_formats_unresolved_placeholder() {
         let err = ReadmeError::UnresolvedPlaceholder("PLACEHOLDER".to_string());
-        let formatted = format!("{}", err);
+        let formatted = format!("{err}");
         assert!(formatted.contains("{{PLACEHOLDER}}"));
         assert!(formatted.contains("was not substituted"));
     }
@@ -150,7 +150,7 @@ mod tests {
     fn readme_error_display_formats_toml_error() {
         let toml_err = toml::from_str::<Manifest>("invalid").unwrap_err();
         let err = ReadmeError::Toml(toml_err);
-        let formatted = format!("{}", err);
+        let formatted = format!("{err}");
         assert!(formatted.contains("Failed to parse Cargo.toml"));
     }
 
@@ -158,7 +158,7 @@ mod tests {
     fn readme_error_display_formats_missing_feature_metadata() {
         let err =
             ReadmeError::MissingFeatureMetadata(vec!["feat1".to_string(), "feat2".to_string()]);
-        let formatted = format!("{}", err);
+        let formatted = format!("{err}");
         assert!(formatted.contains("Missing metadata for features"));
         assert!(formatted.contains("feat1"));
         assert!(formatted.contains("feat2"));
@@ -167,7 +167,7 @@ mod tests {
     #[test]
     fn readme_error_display_formats_unknown_metadata_feature() {
         let err = ReadmeError::UnknownMetadataFeature(vec!["unknown1".to_string()]);
-        let formatted = format!("{}", err);
+        let formatted = format!("{err}");
         assert!(formatted.contains("Metadata defined for unknown features"));
         assert!(formatted.contains("unknown1"));
     }
@@ -175,7 +175,7 @@ mod tests {
     #[test]
     fn readme_error_display_formats_invalid_snippet_group() {
         let err = ReadmeError::InvalidSnippetGroup;
-        let formatted = format!("{}", err);
+        let formatted = format!("{err}");
         assert!(formatted.contains("feature_snippet_group must be greater than zero"));
     }
 
@@ -185,7 +185,7 @@ mod tests {
         let err = ReadmeError::OutOfSync {
             path
         };
-        let formatted = format!("{}", err);
+        let formatted = format!("{err}");
         assert!(formatted.contains("README at"));
         assert!(formatted.contains("is out of sync"));
         assert!(formatted.contains("cargo build"));

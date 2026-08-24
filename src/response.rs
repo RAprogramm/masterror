@@ -72,7 +72,7 @@ pub mod problem_json;
 mod axum_impl;
 
 #[cfg(feature = "actix")]
-pub(crate) mod actix_impl;
+pub mod actix_impl;
 
 pub use core::{ErrorResponse, RetryAdvice};
 

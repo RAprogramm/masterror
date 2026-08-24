@@ -89,16 +89,19 @@ pub fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStrea
 ///
 /// Token stream containing the Display delegation code
 pub fn render_struct_transparent(fields: &Fields) -> TokenStream {
-    if let Some(field) = fields.iter().next() {
-        let member = &field.member;
-        quote! {
-            core::fmt::Display::fmt(&self.#member, f)
+    fields.iter().next().map_or_else(
+        || {
+            quote! {
+                Ok(())
+            }
+        },
+        |field| {
+            let member = &field.member;
+            quote! {
+                core::fmt::Display::fmt(&self.#member, f)
+            }
         }
-    } else {
-        quote! {
-            Ok(())
-        }
-    }
+    )
 }
 
 /// Generates argument expressions for custom formatter function calls.
@@ -197,13 +200,10 @@ pub fn struct_placeholder_expr(
         return Ok(resolved);
     }
     match &placeholder.identifier {
-        TemplateIdentifierSpec::Named(name) => {
-            if let Some(field) = fields.get_named(name) {
-                Ok(struct_field_expr(field, &placeholder.formatter))
-            } else {
-                Err(placeholder_error(placeholder.span, &placeholder.identifier))
-            }
-        }
+        TemplateIdentifierSpec::Named(name) => fields.get_named(name).map_or_else(
+            || Err(placeholder_error(placeholder.span, &placeholder.identifier)),
+            |field| Ok(struct_field_expr(field, &placeholder.formatter))
+        ),
         TemplateIdentifierSpec::Positional(index) => fields
             .get_positional(*index)
             .map(|field| struct_field_expr(field, &placeholder.formatter))
@@ -263,7 +263,7 @@ pub fn binding_ident(field: &Field) -> Ident {
 mod tests {
     use proc_macro2::Span;
     use quote::format_ident;
-    use syn::{Member, parse_quote};
+    use syn::{Generics, Member, parse_quote};
 
     use super::*;
     use crate::{
@@ -299,7 +299,7 @@ mod tests {
     fn make_error_input(ident: &str) -> ErrorInput {
         ErrorInput {
             ident:    format_ident!("{}", ident),
-            generics: Default::default(),
+            generics: Generics::default(),
             data:     ErrorData::Struct(Box::new(StructData {
                 fields:      Fields::Unit,
                 display:     DisplaySpec::Template(DisplayTemplate {

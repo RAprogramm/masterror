@@ -59,7 +59,8 @@
 //!   `ResponseError` for [`AppError`]
 //! - `tonic` — converts [`struct@Error`] into `tonic::Status` with sanitized
 //!   metadata
-//! - `openapi` — derives an OpenAPI schema for [`ErrorResponse`] (via `utoipa`)
+//! - `openapi` — derives an `OpenAPI` schema for [`ErrorResponse`] (via
+//!   `utoipa`)
 //! - `sqlx` — `From<sqlx_core::Error>` mapping (pulls only `sqlx-core`)
 //! - `sqlx-migrate` — `From<sqlx::migrate::MigrateError>` mapping (pulls full
 //!   `sqlx`)
@@ -338,10 +339,10 @@
 //! let app = Router::new().route("/demo", get(handler));
 //! ```
 //!
-//! # OpenAPI integration
+//! # `OpenAPI` integration
 //!
 //! With the `openapi` feature enabled, [`ErrorResponse`] derives
-//! `utoipa::ToSchema` and can be referenced in OpenAPI operation responses.
+//! `utoipa::ToSchema` and can be referenced in `OpenAPI` operation responses.
 //!
 //! # Versioning policy
 //!

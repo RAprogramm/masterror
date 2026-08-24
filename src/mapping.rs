@@ -34,7 +34,7 @@ impl HttpMapping {
 
     /// Stable machine-readable error code.
     #[must_use]
-    pub fn code(&self) -> &AppCode {
+    pub const fn code(&self) -> &AppCode {
         &self.code
     }
 
@@ -46,7 +46,7 @@ impl HttpMapping {
 
     /// Derive the HTTP status code from the error kind.
     #[must_use]
-    pub fn status(&self) -> u16 {
+    pub const fn status(&self) -> u16 {
         self.kind.http_status()
     }
 }
@@ -74,7 +74,7 @@ impl GrpcMapping {
 
     /// Stable machine-readable error code.
     #[must_use]
-    pub fn code(&self) -> &AppCode {
+    pub const fn code(&self) -> &AppCode {
         &self.code
     }
 
@@ -115,7 +115,7 @@ impl ProblemMapping {
 
     /// Stable machine-readable error code.
     #[must_use]
-    pub fn code(&self) -> &AppCode {
+    pub const fn code(&self) -> &AppCode {
         &self.code
     }
 
@@ -159,7 +159,7 @@ mod tests {
     #[test]
     fn http_mapping_debug_works() {
         let mapping = HttpMapping::new(AppCode::NotFound, AppErrorKind::NotFound);
-        let debug = format!("{:?}", mapping);
+        let debug = format!("{mapping:?}");
         assert!(debug.contains("HttpMapping"));
     }
 
@@ -181,7 +181,7 @@ mod tests {
     #[test]
     fn grpc_mapping_debug_works() {
         let mapping = GrpcMapping::new(AppCode::BadRequest, AppErrorKind::BadRequest, 3);
-        let debug = format!("{:?}", mapping);
+        let debug = format!("{mapping:?}");
         assert!(debug.contains("GrpcMapping"));
     }
 
@@ -215,7 +215,7 @@ mod tests {
             AppErrorKind::BadRequest,
             "https://example.com/errors/bad-request"
         );
-        let debug = format!("{:?}", mapping);
+        let debug = format!("{mapping:?}");
         assert!(debug.contains("ProblemMapping"));
     }
 }

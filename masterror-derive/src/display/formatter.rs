@@ -81,12 +81,12 @@ pub fn format_placeholder(
         TemplateFormatter::Display {
             spec: None
         } => {
-            format_with_formatter_kind(expr, pointer_value, TemplateFormatterKind::Display, false)
+            format_with_formatter_kind(&expr, pointer_value, TemplateFormatterKind::Display, false)
         }
         TemplateFormatter::Debug {
             alternate
         } => format_with_formatter_kind(
-            expr,
+            &expr,
             pointer_value,
             TemplateFormatterKind::Debug,
             alternate
@@ -94,7 +94,7 @@ pub fn format_placeholder(
         TemplateFormatter::LowerHex {
             alternate
         } => format_with_formatter_kind(
-            expr,
+            &expr,
             pointer_value,
             TemplateFormatterKind::LowerHex,
             alternate
@@ -102,7 +102,7 @@ pub fn format_placeholder(
         TemplateFormatter::UpperHex {
             alternate
         } => format_with_formatter_kind(
-            expr,
+            &expr,
             pointer_value,
             TemplateFormatterKind::UpperHex,
             alternate
@@ -110,7 +110,7 @@ pub fn format_placeholder(
         TemplateFormatter::Pointer {
             alternate
         } => format_with_formatter_kind(
-            expr,
+            &expr,
             pointer_value,
             TemplateFormatterKind::Pointer,
             alternate
@@ -118,7 +118,7 @@ pub fn format_placeholder(
         TemplateFormatter::Binary {
             alternate
         } => format_with_formatter_kind(
-            expr,
+            &expr,
             pointer_value,
             TemplateFormatterKind::Binary,
             alternate
@@ -126,7 +126,7 @@ pub fn format_placeholder(
         TemplateFormatter::Octal {
             alternate
         } => format_with_formatter_kind(
-            expr,
+            &expr,
             pointer_value,
             TemplateFormatterKind::Octal,
             alternate
@@ -134,7 +134,7 @@ pub fn format_placeholder(
         TemplateFormatter::LowerExp {
             alternate
         } => format_with_formatter_kind(
-            expr,
+            &expr,
             pointer_value,
             TemplateFormatterKind::LowerExp,
             alternate
@@ -142,7 +142,7 @@ pub fn format_placeholder(
         TemplateFormatter::UpperExp {
             alternate
         } => format_with_formatter_kind(
-            expr,
+            &expr,
             pointer_value,
             TemplateFormatterKind::UpperExp,
             alternate
@@ -151,7 +151,7 @@ pub fn format_placeholder(
 }
 
 fn format_with_formatter_kind(
-    expr: TokenStream,
+    expr: &TokenStream,
     pointer_value: bool,
     kind: TemplateFormatterKind,
     alternate: bool
@@ -162,17 +162,14 @@ fn format_with_formatter_kind(
         TemplateFormatterKind::Pointer => {
             format_pointer(expr, pointer_value, alternate, trait_name)
         }
-        _ => {
-            if let Some(specifier) = formatter_specifier(kind) {
-                format_with_optional_alternate(expr, trait_name, specifier, alternate)
-            } else {
-                format_with_trait(expr, trait_name)
-            }
-        }
+        _ => formatter_specifier(kind).map_or_else(
+            || format_with_trait(expr, trait_name),
+            |specifier| format_with_optional_alternate(expr, trait_name, specifier, alternate)
+        )
     }
 }
 
-fn formatter_trait_name(kind: TemplateFormatterKind) -> &'static str {
+const fn formatter_trait_name(kind: TemplateFormatterKind) -> &'static str {
     match kind {
         TemplateFormatterKind::Display => "Display",
         TemplateFormatterKind::Debug => "Debug",
@@ -186,7 +183,7 @@ fn formatter_trait_name(kind: TemplateFormatterKind) -> &'static str {
     }
 }
 
-fn formatter_specifier(kind: TemplateFormatterKind) -> Option<char> {
+const fn formatter_specifier(kind: TemplateFormatterKind) -> Option<char> {
     match kind {
         TemplateFormatterKind::Display | TemplateFormatterKind::Pointer => None,
         TemplateFormatterKind::Debug => Some('?'),
@@ -199,7 +196,7 @@ fn formatter_specifier(kind: TemplateFormatterKind) -> Option<char> {
     }
 }
 
-fn format_with_trait(expr: TokenStream, trait_name: &str) -> TokenStream {
+fn format_with_trait(expr: &TokenStream, trait_name: &str) -> TokenStream {
     let trait_ident = format_ident!("{}", trait_name);
     quote! {
         ::core::fmt::#trait_ident::fmt(#expr, f)?;
@@ -207,7 +204,7 @@ fn format_with_trait(expr: TokenStream, trait_name: &str) -> TokenStream {
 }
 
 fn format_with_optional_alternate(
-    expr: TokenStream,
+    expr: &TokenStream,
     trait_name: &str,
     specifier: char,
     alternate: bool
@@ -219,15 +216,15 @@ fn format_with_optional_alternate(
     }
 }
 
-fn format_with_alternate(expr: TokenStream, specifier: char) -> TokenStream {
-    let format_string = format!("{{:#{}}}", specifier);
+fn format_with_alternate(expr: &TokenStream, specifier: char) -> TokenStream {
+    let format_string = format!("{{:#{specifier}}}");
     quote! {
         ::core::write!(f, #format_string, #expr)?;
     }
 }
 
 fn format_pointer(
-    expr: TokenStream,
+    expr: &TokenStream,
     pointer_value: bool,
     alternate: bool,
     trait_name: &str

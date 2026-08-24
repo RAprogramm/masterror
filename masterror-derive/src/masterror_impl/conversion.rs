@@ -64,7 +64,7 @@ pub fn struct_conversion_impl(
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
     let code = &spec.code;
     let category = &spec.category;
-    let message_init = message_initialization(spec.expose_message, quote!(&value));
+    let message_init = message_initialization(spec.expose_message, &quote!(&value));
     let (destructure, bound_fields) = bind_struct_fields(ident, &data.fields);
     let field_usage = field_usage_tokens(&bound_fields);
     let telemetry_init = telemetry_initialization(&spec.telemetry);
@@ -172,7 +172,7 @@ pub fn enum_conversion_impl(input: &ErrorInput, variants: &[VariantData]) -> Tok
     }
 }
 
-/// Generates message initialization code based on expose_message setting.
+/// Generates message initialization code based on `expose_message` setting.
 ///
 /// When message exposure is enabled, converts the error value to a String using
 /// the Display trait. Otherwise, initializes message as None.
@@ -180,7 +180,7 @@ pub fn enum_conversion_impl(input: &ErrorInput, variants: &[VariantData]) -> Tok
 /// # Arguments
 ///
 /// * `enabled` - Whether to expose the error message
-/// * `value` - TokenStream representing the error value to convert
+/// * `value` - `TokenStream` representing the error value to convert
 ///
 /// # Returns
 ///
@@ -195,7 +195,7 @@ pub fn enum_conversion_impl(input: &ErrorInput, variants: &[VariantData]) -> Tok
 /// // With expose_message = false:
 /// let __masterror_message: Option<String> = None;
 /// ```
-pub fn message_initialization(enabled: bool, value: TokenStream) -> TokenStream {
+pub fn message_initialization(enabled: bool, value: &TokenStream) -> TokenStream {
     if enabled {
         quote! {
             let __masterror_message = Some(std::string::ToString::to_string(#value));
@@ -249,7 +249,7 @@ pub fn ensure_all_variants_have_masterror(variants: &[VariantData]) -> Result<()
 /// Generates a match arm for message extraction from enum variant.
 ///
 /// Creates pattern matching code to extract Display string from enum variants
-/// when expose_message is enabled.
+/// when `expose_message` is enabled.
 ///
 /// # Arguments
 ///
@@ -316,10 +316,11 @@ mod tests {
     use quote::quote;
 
     use super::*;
+    use crate::input::FormatArgsSpec;
 
     #[test]
     fn test_message_initialization_enabled() {
-        let result = message_initialization(true, quote!(&value));
+        let result = message_initialization(true, &quote!(&value));
         let expected = quote! {
             let __masterror_message = Some(std::string::ToString::to_string(&value));
         };
@@ -328,14 +329,14 @@ mod tests {
 
     #[test]
     fn test_message_initialization_disabled() {
-        let result = message_initialization(false, quote!(&value));
+        let result = message_initialization(false, &quote!(&value));
         let expected = quote! {
             let __masterror_message: Option<String> = None;
         };
         assert_eq!(result.to_string(), expected.to_string());
     }
 
-    /// Tests with empty list since creating mock VariantData structures is
+    /// Tests with empty list since creating mock `VariantData` structures is
     /// complex.
     #[test]
     fn test_ensure_all_variants_have_masterror_valid() {
@@ -355,7 +356,7 @@ mod tests {
             display:     DisplaySpec::Template(crate::template_support::DisplayTemplate {
                 segments: vec![]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()
@@ -387,7 +388,7 @@ mod tests {
             display:     DisplaySpec::Template(crate::template_support::DisplayTemplate {
                 segments: vec![]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()

@@ -215,15 +215,14 @@ mod tests {
     #[test]
     fn status_maps_codes_correctly() {
         for (code, mapping) in CODE_MAPPINGS.iter() {
-            let err = AppError::with(mapping.kind(), format!("{:?}", code));
+            let err = AppError::with(mapping.kind(), format!("{code:?}"));
             let status = Status::from(err);
             assert_eq!(status.code(), Code::from_i32(mapping.grpc().value));
-            let expected_detail = format!("{:?}", code);
+            let expected_detail = format!("{code:?}");
             assert_eq!(
                 status.message(),
                 expected_detail,
-                "unexpected message for {:?}",
-                code
+                "unexpected message for {code:?}"
             );
         }
     }

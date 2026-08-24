@@ -478,7 +478,7 @@ where
 }
 
 #[cfg(not(masterror_has_error_generic_member_access))]
-fn assert_backtrace_interfaces<E>(_error: &E, _expected: &std::backtrace::Backtrace)
+const fn assert_backtrace_interfaces<E>(_error: &E, _expected: &std::backtrace::Backtrace)
 where
     E: StdError + ?Sized
 {
@@ -730,11 +730,11 @@ fn enum_from_variants_generate_impls() {
 fn transparent_struct_delegates_display_and_source() {
     let inner = TransparentInner(LeafError);
     let inner_display = inner.to_string();
-    let inner_source = StdError::source(&inner).map(|err| err.to_string());
+    let inner_source = StdError::source(&inner).map(std::string::ToString::to_string);
     let wrapper = TransparentWrapper(inner);
     assert_eq!(wrapper.to_string(), inner_display);
     assert_eq!(
-        StdError::source(&wrapper).map(|err| err.to_string()),
+        StdError::source(&wrapper).map(std::string::ToString::to_string),
         inner_source
     );
 }
@@ -744,7 +744,7 @@ fn transparent_struct_from_impl() {
     let wrapper = TransparentFromWrapper::from(TransparentInner(LeafError));
     assert_eq!(wrapper.to_string(), "leaf failure");
     assert_eq!(
-        StdError::source(&wrapper).map(|err| err.to_string()),
+        StdError::source(&wrapper).map(std::string::ToString::to_string),
         Some(String::from("leaf failure"))
     );
 }
@@ -756,7 +756,7 @@ fn transparent_enum_variant_from_impl() {
     assert!(matches!(variant, TransparentEnum::TransparentVariant(_)));
     assert_eq!(variant.to_string(), "leaf failure");
     assert_eq!(
-        StdError::source(&variant).map(|err| err.to_string()),
+        StdError::source(&variant).map(std::string::ToString::to_string),
         Some(String::from("leaf failure"))
     );
 }
@@ -768,7 +768,7 @@ fn struct_from_with_backtrace_field_captures_trace() {
     let stored = err.trace.as_ref().expect("trace stored");
     assert_backtrace_interfaces(&err, stored);
     assert_eq!(
-        StdError::source(&err).map(|err| err.to_string()),
+        StdError::source(&err).map(std::string::ToString::to_string),
         Some(String::from("leaf failure"))
     );
 }
@@ -786,7 +786,7 @@ fn enum_from_with_backtrace_field_captures_trace() {
     };
     assert_backtrace_interfaces(&err, trace);
     assert_eq!(
-        StdError::source(&err).map(|err| err.to_string()),
+        StdError::source(&err).map(std::string::ToString::to_string),
         Some(String::from("leaf failure"))
     );
 }
@@ -1043,13 +1043,13 @@ fn formatter_variants_render_expected_output() {
     let lower_hex = LowerHexFormatterError {
         value: HEX_VALUE
     };
-    let lower_hex_expected = format!("lower={value:x} #lower={value:#x}", value = HEX_VALUE);
+    let lower_hex_expected = format!("lower={HEX_VALUE:x} #lower={HEX_VALUE:#x}");
     assert_eq!(lower_hex.to_string(), lower_hex_expected);
     assert_ne!(format!("{HEX_VALUE:x}"), format!("{HEX_VALUE:#x}"));
     let upper_hex = UpperHexFormatterError {
         value: HEX_VALUE
     };
-    let upper_hex_expected = format!("upper={value:X} #upper={value:#X}", value = HEX_VALUE);
+    let upper_hex_expected = format!("upper={HEX_VALUE:X} #upper={HEX_VALUE:#X}");
     assert_eq!(upper_hex.to_string(), upper_hex_expected);
     assert_ne!(format!("{HEX_VALUE:X}"), format!("{HEX_VALUE:#X}"));
     assert_ne!(format!("{HEX_VALUE:x}"), format!("{HEX_VALUE:X}"));
@@ -1057,35 +1057,32 @@ fn formatter_variants_render_expected_output() {
     let binary = BinaryFormatterError {
         value: INTEGER_VALUE
     };
-    let binary_expected = format!("binary={value:b} #binary={value:#b}", value = INTEGER_VALUE);
+    let binary_expected = format!("binary={INTEGER_VALUE:b} #binary={INTEGER_VALUE:#b}");
     assert_eq!(binary.to_string(), binary_expected);
     assert_ne!(format!("{INTEGER_VALUE:b}"), format!("{INTEGER_VALUE:#b}"));
     let octal = OctalFormatterError {
         value: INTEGER_VALUE
     };
-    let octal_expected = format!("octal={value:o} #octal={value:#o}", value = INTEGER_VALUE);
+    let octal_expected = format!("octal={INTEGER_VALUE:o} #octal={INTEGER_VALUE:#o}");
     assert_eq!(octal.to_string(), octal_expected);
     assert_ne!(format!("{INTEGER_VALUE:o}"), format!("{INTEGER_VALUE:#o}"));
     let pointer_value = null::<u32>();
     let pointer = PointerFormatterError {
         value: pointer_value
     };
-    let pointer_expected = format!(
-        "pointer={value:p} #pointer={value:#p}",
-        value = pointer_value
-    );
+    let pointer_expected = format!("pointer={pointer_value:p} #pointer={pointer_value:#p}");
     assert_eq!(pointer.to_string(), pointer_expected);
     assert_ne!(format!("{pointer_value:p}"), format!("{pointer_value:#p}"));
     const FLOAT_VALUE: f64 = 1234.5;
     let lower_exp = LowerExpFormatterError {
         value: FLOAT_VALUE
     };
-    let lower_exp_expected = format!("lower={value:e} #lower={value:#e}", value = FLOAT_VALUE);
+    let lower_exp_expected = format!("lower={FLOAT_VALUE:e} #lower={FLOAT_VALUE:#e}");
     assert_eq!(lower_exp.to_string(), lower_exp_expected);
     let upper_exp = UpperExpFormatterError {
         value: FLOAT_VALUE
     };
-    let upper_exp_expected = format!("upper={value:E} #upper={value:#E}", value = FLOAT_VALUE);
+    let upper_exp_expected = format!("upper={FLOAT_VALUE:E} #upper={FLOAT_VALUE:#E}");
     assert_eq!(upper_exp.to_string(), upper_exp_expected);
     assert_ne!(format!("{FLOAT_VALUE:e}"), format!("{FLOAT_VALUE:E}"));
 }

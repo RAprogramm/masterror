@@ -133,7 +133,7 @@ mod actix_tests {
         let bytes = to_bytes(resp.into_body()).await?;
         let body: serde_json::Value = serde_json::from_slice(&bytes)?;
         assert_eq!(
-            body.get("status").and_then(|value| value.as_u64()),
+            body.get("status").and_then(serde_json::Value::as_u64),
             Some(401)
         );
         assert_eq!(

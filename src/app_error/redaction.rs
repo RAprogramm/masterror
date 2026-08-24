@@ -22,7 +22,7 @@ use super::{duration_to_string, metadata::FieldValue};
 
 /// Placeholder rendered instead of values redacted with
 /// [`FieldRedaction::Redact`](crate::FieldRedaction::Redact).
-pub(crate) const REDACTED_PLACEHOLDER: &str = "[REDACTED]";
+pub const REDACTED_PLACEHOLDER: &str = "[REDACTED]";
 
 /// Fixed-capacity stack buffer used to format short values without
 /// allocating.
@@ -61,7 +61,7 @@ impl<const N: usize> Write for StackBuffer<N> {
 }
 
 /// Hashes a field value with SHA-256 and returns the lowercase hex digest.
-pub(crate) fn hash_field_value(value: &FieldValue) -> String {
+pub fn hash_field_value(value: &FieldValue) -> String {
     let mut hasher = Sha256::new();
     match value {
         FieldValue::Str(value) => hasher.update(value.as_ref().as_bytes()),
@@ -109,7 +109,7 @@ pub(crate) fn hash_field_value(value: &FieldValue) -> String {
     let digest = hasher.finalize();
     let mut hex = String::with_capacity(digest.len() * 2);
     for byte in digest {
-        let _ = write!(&mut hex, "{:02x}", byte);
+        let _ = write!(&mut hex, "{byte:02x}");
     }
     hex
 }
@@ -118,7 +118,7 @@ pub(crate) fn hash_field_value(value: &FieldValue) -> String {
 ///
 /// Returns `None` for values that have no meaningful textual form to mask
 /// (currently booleans), in which case the field must be omitted entirely.
-pub(crate) fn mask_last4_field_value(value: &FieldValue) -> Option<String> {
+pub fn mask_last4_field_value(value: &FieldValue) -> Option<String> {
     match value {
         FieldValue::Str(value) => Some(mask_last4(value.as_ref())),
         FieldValue::I64(value) => {
@@ -157,7 +157,7 @@ pub(crate) fn mask_last4_field_value(value: &FieldValue) -> Option<String> {
 /// Replaces all but the trailing characters of `value` with `*`.
 ///
 /// Values of four characters or fewer keep only the last character.
-pub(crate) fn mask_last4(value: &str) -> String {
+pub fn mask_last4(value: &str) -> String {
     let chars = value.chars();
     let total = chars.clone().count();
     if total == 0 {

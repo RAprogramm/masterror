@@ -113,7 +113,7 @@ fn source_bound_generics(input: &ErrorInput) -> syn::Generics {
 fn app_error_from_impl(
     ident: &syn::Ident,
     generics: &syn::Generics,
-    body: TokenStream
+    body: &TokenStream
 ) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     quote! {
@@ -141,7 +141,7 @@ fn struct_app_error_impl(input: &ErrorInput, spec: &AppErrorSpec) -> TokenStream
                 }
             }
         };
-        return app_error_from_impl(ident, &input.generics, body);
+        return app_error_from_impl(ident, &input.generics, &body);
     }
     let generics = source_bound_generics(input);
     let body = if spec.expose_message {
@@ -154,7 +154,7 @@ fn struct_app_error_impl(input: &ErrorInput, spec: &AppErrorSpec) -> TokenStream
             masterror::AppError::bare(#kind).with_source(value)
         }
     };
-    app_error_from_impl(ident, &generics, body)
+    app_error_from_impl(ident, &generics, &body)
 }
 
 fn struct_app_code_impl(input: &ErrorInput, spec: &AppErrorSpec) -> TokenStream {
@@ -199,14 +199,14 @@ fn enum_app_error_impl(
         }
     };
     if no_source {
-        return Ok(app_error_from_impl(ident, &input.generics, base));
+        return Ok(app_error_from_impl(ident, &input.generics, &base));
     }
     let generics = source_bound_generics(input);
     let body = quote! {
         let base: masterror::AppError = #base;
         base.with_source(value)
     };
-    Ok(app_error_from_impl(ident, &generics, body))
+    Ok(app_error_from_impl(ident, &generics, &body))
 }
 
 fn enum_app_code_impl(input: &ErrorInput, variants: &[VariantData]) -> TokenStream {

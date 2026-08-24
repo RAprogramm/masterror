@@ -166,7 +166,7 @@ pub use self::tonic::StatusConversionError;
 #[cfg(feature = "std")]
 impl From<IoError> for AppError {
     fn from(err: IoError) -> Self {
-        AppError::internal(err.to_string())
+        Self::internal(err.to_string())
     }
 }
 
@@ -190,7 +190,7 @@ impl From<IoError> for AppError {
 /// ```
 impl From<String> for AppError {
     fn from(value: String) -> Self {
-        AppError::bad_request(value)
+        Self::bad_request(value)
     }
 }
 
@@ -213,7 +213,7 @@ impl From<String> for AppError {
 /// ```
 impl From<Box<dyn CoreError + Send + Sync + 'static>> for AppError {
     fn from(source: Box<dyn CoreError + Send + Sync + 'static>) -> Self {
-        AppError::from_boxed(AppErrorKind::Internal, source)
+        Self::from_boxed(AppErrorKind::Internal, source)
     }
 }
 

@@ -287,7 +287,7 @@ impl ProblemJson {
     /// assert_eq!(problem.status_code(), StatusCode::INTERNAL_SERVER_ERROR);
     /// ```
     #[must_use]
-    pub fn status_code(&self) -> StatusCode {
+    pub const fn status_code(&self) -> StatusCode {
         match StatusCode::from_u16(self.status) {
             Ok(status) => status,
             Err(_) => StatusCode::INTERNAL_SERVER_ERROR
@@ -296,7 +296,7 @@ impl ProblemJson {
 
     /// Formatter exposing internals for diagnostic logging.
     #[must_use]
-    pub fn internal(&self) -> crate::response::internal::ProblemJsonFormatter<'_> {
+    pub const fn internal(&self) -> crate::response::internal::ProblemJsonFormatter<'_> {
         crate::response::internal::ProblemJsonFormatter::new(self)
     }
 }
@@ -903,7 +903,7 @@ mod tests {
             .finalize()
             .iter()
             .fold(String::with_capacity(64), |mut acc, byte| {
-                let _ = write!(&mut acc, "{:02x}", byte);
+                let _ = write!(&mut acc, "{byte:02x}");
                 acc
             })
     }
@@ -1155,7 +1155,7 @@ mod tests {
         let expected = digest
             .iter()
             .fold(String::with_capacity(64), |mut acc, byte| {
-                let _ = write!(&mut acc, "{:02x}", byte);
+                let _ = write!(&mut acc, "{byte:02x}");
                 acc
             });
         assert_eq!(hashed, expected);
@@ -1184,7 +1184,7 @@ mod tests {
         for (code, mapping) in CODE_MAPPINGS {
             let status = mapping.http_status();
             let expected = mapping.kind().http_status();
-            assert_eq!(status, expected, "status mismatch for {:?}", code);
+            assert_eq!(status, expected, "status mismatch for {code:?}");
         }
     }
 }

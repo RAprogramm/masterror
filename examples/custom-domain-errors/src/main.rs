@@ -5,7 +5,7 @@
 //! Custom domain errors example for payment processing system.
 //!
 //! Demonstrates creating domain-specific error types using masterror's derive
-//! macro and converting them to AppError.
+//! macro and converting them to `AppError`.
 
 use masterror::{AppError, Error};
 
@@ -135,7 +135,7 @@ pub enum ExternalServiceError {
     }
 }
 
-/// Convert payment errors to HTTP-appropriate AppError
+/// Convert payment errors to HTTP-appropriate `AppError`
 impl From<PaymentError> for AppError {
     fn from(err: PaymentError) -> Self {
         match err {
@@ -144,30 +144,30 @@ impl From<PaymentError> for AppError {
             }
             | PaymentError::PaymentDeclined {
                 ..
-            } => AppError::bad_request(err.to_string()),
-            PaymentError::InvalidAmount(_) => AppError::validation(err.to_string()),
-            PaymentError::ProcessorUnavailable => AppError::external_api(err.to_string()),
+            } => Self::bad_request(err.to_string()),
+            PaymentError::InvalidAmount(_) => Self::validation(err.to_string()),
+            PaymentError::ProcessorUnavailable => Self::external_api(err.to_string()),
             PaymentError::DuplicateTransaction {
                 ..
-            } => AppError::conflict(err.to_string())
+            } => Self::conflict(err.to_string())
         }
     }
 }
 
-/// Convert authentication errors to HTTP-appropriate AppError
+/// Convert authentication errors to HTTP-appropriate `AppError`
 impl From<AuthError> for AppError {
     fn from(err: AuthError) -> Self {
         match err {
-            AuthError::InvalidCredentials => AppError::unauthorized(err.to_string()),
+            AuthError::InvalidCredentials => Self::unauthorized(err.to_string()),
             AuthError::SessionExpired {
                 ..
-            } => AppError::unauthorized(err.to_string()),
+            } => Self::unauthorized(err.to_string()),
             AuthError::Forbidden {
                 ..
-            } => AppError::forbidden(err.to_string()),
+            } => Self::forbidden(err.to_string()),
             AuthError::AccountLocked {
                 ..
-            } => AppError::forbidden(err.to_string())
+            } => Self::forbidden(err.to_string())
         }
     }
 }
@@ -175,23 +175,23 @@ impl From<AuthError> for AppError {
 /// Convert validation errors to HTTP 422 Unprocessable Entity
 impl From<ValidationError> for AppError {
     fn from(err: ValidationError) -> Self {
-        AppError::validation(err.to_string())
+        Self::validation(err.to_string())
     }
 }
 
-/// Convert external service errors to HTTP-appropriate AppError
+/// Convert external service errors to HTTP-appropriate `AppError`
 impl From<ExternalServiceError> for AppError {
     fn from(err: ExternalServiceError) -> Self {
         match err {
             ExternalServiceError::ServiceError {
                 ..
-            } => AppError::external_api(err.to_string()),
+            } => Self::external_api(err.to_string()),
             ExternalServiceError::Timeout {
                 ..
-            } => AppError::timeout(err.to_string()),
+            } => Self::timeout(err.to_string()),
             ExternalServiceError::NetworkError {
                 ..
-            } => AppError::network(err.to_string())
+            } => Self::network(err.to_string())
         }
     }
 }

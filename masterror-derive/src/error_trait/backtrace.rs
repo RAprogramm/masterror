@@ -25,11 +25,11 @@ use crate::input::{Field, Fields, VariantData, is_backtrace_storage, is_option_t
 /// # Returns
 ///
 /// Optional token stream for backtrace method
-pub(crate) fn struct_backtrace_method(fields: &Fields) -> Option<TokenStream> {
+pub fn struct_backtrace_method(fields: &Fields) -> Option<TokenStream> {
     let backtrace = fields.backtrace_field()?;
     let field = backtrace.field();
     let member = &field.member;
-    let body = field_backtrace_expr(quote!(self.#member), quote!(&self.#member), field);
+    let body = field_backtrace_expr(&quote!(self.#member), &quote!(&self.#member), field);
     Some(quote! {
         #[cfg(masterror_has_error_generic_member_access)]
         fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
@@ -50,7 +50,7 @@ pub(crate) fn struct_backtrace_method(fields: &Fields) -> Option<TokenStream> {
 /// # Returns
 ///
 /// Optional token stream for backtrace method
-pub(crate) fn enum_backtrace_method(variants: &[VariantData]) -> Option<TokenStream> {
+pub fn enum_backtrace_method(variants: &[VariantData]) -> Option<TokenStream> {
     let mut has_backtrace = false;
     let mut arms = Vec::new();
     for variant in variants {
@@ -85,7 +85,7 @@ pub(crate) fn enum_backtrace_method(variants: &[VariantData]) -> Option<TokenStr
 /// # Returns
 ///
 /// Token stream for variant match arm
-pub(crate) fn variant_backtrace_arm(variant: &VariantData) -> TokenStream {
+pub fn variant_backtrace_arm(variant: &VariantData) -> TokenStream {
     let variant_ident = &variant.ident;
     let backtrace_field = variant.fields.backtrace_field();
     match (&variant.fields, backtrace_field) {
@@ -105,7 +105,7 @@ pub(crate) fn variant_backtrace_arm(variant: &VariantData) -> TokenStream {
             } else {
                 quote!(Self::#variant_ident { #field_ident: #binding, .. })
             };
-            let body = field_backtrace_expr(quote!(#binding), quote!(#binding), field);
+            let body = field_backtrace_expr(&quote!(#binding), &quote!(#binding), field);
             quote! {
                 #pattern => { #body }
             }
@@ -125,7 +125,7 @@ pub(crate) fn variant_backtrace_arm(variant: &VariantData) -> TokenStream {
                     }
                 })
                 .collect();
-            let body = field_backtrace_expr(quote!(#binding), quote!(#binding), field);
+            let body = field_backtrace_expr(&quote!(#binding), &quote!(#binding), field);
             quote! {
                 Self::#variant_ident(#(#pattern_elements),*) => { #body }
             }
@@ -143,8 +143,8 @@ pub(crate) fn variant_backtrace_arm(variant: &VariantData) -> TokenStream {
 }
 
 fn field_backtrace_expr(
-    owned_expr: TokenStream,
-    referenced_expr: TokenStream,
+    owned_expr: &TokenStream,
+    referenced_expr: &TokenStream,
     field: &Field
 ) -> TokenStream {
     let ty = &field.ty;
@@ -172,7 +172,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        input::{DisplaySpec, FieldAttrs},
+        input::{DisplaySpec, FieldAttrs, FormatArgsSpec},
         template_support::{DisplayTemplate, TemplateSegmentSpec}
     };
 
@@ -181,14 +181,15 @@ mod tests {
         attrs.backtrace = Some(syn::parse_quote!(#[backtrace]));
         Field {
             ident: ident.map(|s| syn::Ident::new(s, Span::call_site())),
-            member: if let Some(s) = ident {
-                Member::Named(syn::Ident::new(s, Span::call_site()))
-            } else {
-                Member::Unnamed(syn::Index {
-                    index: index as u32,
-                    span:  Span::call_site()
-                })
-            },
+            member: ident.map_or_else(
+                || {
+                    Member::Unnamed(syn::Index {
+                        index: index as u32,
+                        span:  Span::call_site()
+                    })
+                },
+                |s| Member::Named(syn::Ident::new(s, Span::call_site()))
+            ),
             ty: syn::parse_quote!(std::backtrace::Backtrace),
             index,
             attrs,
@@ -223,7 +224,7 @@ mod tests {
             display:     DisplaySpec::Template(DisplayTemplate {
                 segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()
@@ -243,7 +244,7 @@ mod tests {
             display:     DisplaySpec::Template(DisplayTemplate {
                 segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()
@@ -260,7 +261,7 @@ mod tests {
             display:     DisplaySpec::Template(DisplayTemplate {
                 segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()
@@ -278,7 +279,7 @@ mod tests {
             display:     DisplaySpec::Template(DisplayTemplate {
                 segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()
@@ -298,7 +299,7 @@ mod tests {
             display:     DisplaySpec::Template(DisplayTemplate {
                 segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()
@@ -329,7 +330,7 @@ mod tests {
             display:     DisplaySpec::Template(DisplayTemplate {
                 segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()
@@ -364,7 +365,7 @@ mod tests {
             display:     DisplaySpec::Template(DisplayTemplate {
                 segments: vec![TemplateSegmentSpec::Literal("error".to_string())]
             }),
-            format_args: Default::default(),
+            format_args: FormatArgsSpec::default(),
             app_error:   None,
             masterror:   None,
             span:        Span::call_site()
