@@ -212,9 +212,7 @@ impl Error {
     where
         E: CoreError + 'static
     {
-        self.source_ref().is_some_and(
-            <dyn std::error::Error + std::marker::Send + std::marker::Sync + 'static>::is::<E>
-        )
+        self.source_ref().is_some_and(|source| source.is::<E>())
     }
 
     /// Attempt to take ownership of the source error as a concrete type.
