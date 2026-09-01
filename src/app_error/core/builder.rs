@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -176,7 +176,8 @@ impl Error {
     /// ```
     #[must_use]
     pub fn redact_field(mut self, name: &'static str, redaction: FieldRedaction) -> Self {
-        self.metadata.set_redaction(name, redaction);
+        let metadata = core::mem::take(&mut self.metadata);
+        self.metadata = metadata.with_redaction(name, redaction);
         self.mark_dirty();
         self
     }
@@ -331,11 +332,11 @@ impl Error {
     pub fn with_backtrace(mut self, backtrace: CapturedBacktrace) -> Self {
         #[cfg(feature = "backtrace")]
         {
-            self.set_backtrace_slot(Arc::new(backtrace));
+            self = self.with_backtrace_slot(Arc::new(backtrace));
         }
         #[cfg(not(feature = "backtrace"))]
         {
-            self.set_backtrace_slot(backtrace);
+            self = self.with_backtrace_slot(backtrace);
         }
         self.mark_dirty();
         self
@@ -346,7 +347,7 @@ impl Error {
     /// Internal method for sharing backtraces between errors.
     #[cfg(feature = "backtrace")]
     pub(crate) fn with_shared_backtrace(mut self, backtrace: Arc<Backtrace>) -> Self {
-        self.set_backtrace_slot(backtrace);
+        self = self.with_backtrace_slot(backtrace);
         self.mark_dirty();
         self
     }
@@ -403,6 +404,11 @@ impl Error {
     /// assert!(err.details.is_some());
     /// # }
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Internal`-message bad-request error when `payload` cannot
+    /// be serialized to JSON.
     #[cfg(feature = "serde_json")]
     #[allow(clippy::result_large_err)]
     pub fn with_details<T>(self, payload: T) -> crate::AppResult<Self>

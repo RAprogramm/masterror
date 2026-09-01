@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -9,18 +9,11 @@ use serde_json::Value as JsonValue;
 #[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 
-use crate::{AppCode, AppError, AppResult};
-
-/// Retry advice intended for API clients.
-///
-/// When present, HTTP adapters set the `Retry-After` header with the number of
-/// seconds.
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
-pub struct RetryAdvice {
-    /// Number of seconds the client should wait before retrying.
-    pub after_seconds: u64
-}
+pub use crate::retry::RetryAdvice;
+use crate::{
+    app_error::core::{AppError, AppResult},
+    code::AppCode
+};
 
 /// Public, wire-level error payload for HTTP APIs.
 ///
@@ -68,12 +61,22 @@ impl ErrorResponse {
     /// Returns [`AppError`] if `status` is not a valid HTTP status code.
     #[allow(clippy::result_large_err)]
     pub fn new(status: u16, code: AppCode, message: impl Into<String>) -> AppResult<Self> {
+        Self::try_build(status, code, message.into())
+    }
+
+    /// Validates `status` and constructs the payload.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AppError`] if `status` is not a valid HTTP status code.
+    #[allow(clippy::result_large_err)]
+    fn try_build(status: u16, code: AppCode, message: String) -> AppResult<Self> {
         StatusCode::from_u16(status)
             .map_err(|_| AppError::bad_request(format!("invalid HTTP status: {status}")))?;
         Ok(Self {
             status,
             code,
-            message: message.into(),
+            message,
             details: None,
             retry: None,
             www_authenticate: None
@@ -129,7 +132,7 @@ mod tests {
         let result = ErrorResponse::new(1000, AppCode::Internal, "bad status");
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert_eq!(err.kind, crate::AppErrorKind::BadRequest);
+        assert_eq!(err.kind, crate::kind::AppErrorKind::BadRequest);
     }
 
     #[test]

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -72,9 +72,17 @@
 
 mod constructors;
 mod context;
-mod core;
+#[allow(
+    clippy::redundant_pub_crate,
+    reason = "modules must be crate-visible for sibling modules despite the private parent"
+)]
+pub(crate) mod core;
 mod inline_vec;
-mod metadata;
+#[allow(
+    clippy::redundant_pub_crate,
+    reason = "modules must be crate-visible for sibling modules despite the private parent"
+)]
+pub(crate) mod metadata;
 pub mod redaction;
 
 pub use core::{AppError, AppResult, DisplayMode, Error, ErrorChain, MessageEditPolicy};
@@ -82,7 +90,7 @@ pub use core::{AppError, AppResult, DisplayMode, Error, ErrorChain, MessageEditP
 pub use core::{reset_backtrace_preference, set_backtrace_preference_override};
 
 pub use context::Context;
-pub use metadata::{Field, FieldRedaction, FieldValue, Metadata, duration_to_string, field};
+pub use metadata::{Field, FieldRedaction, FieldValue, Metadata, field};
 
 #[cfg(test)]
 mod tests;

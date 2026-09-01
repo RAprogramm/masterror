@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -20,10 +20,12 @@ use serde_json::Value as JsonValue;
 #[cfg(not(feature = "backtrace"))]
 use super::types::CapturedBacktrace;
 use super::{
-    display::DisplayMode,
+    display_mode::DisplayMode,
     types::{MessageEditPolicy, StoredSource}
 };
-use crate::{AppCode, AppErrorKind, RetryAdvice, app_error::metadata::Metadata};
+use crate::{
+    app_error::metadata::Metadata, code::AppCode, kind::AppErrorKind, retry::RetryAdvice
+};
 
 /// Internal representation of error state.
 ///
@@ -199,13 +201,16 @@ impl Error {
     ///
     /// * `backtrace` - The backtrace to attach
     #[cfg(feature = "backtrace")]
-    pub(super) fn set_backtrace_slot(&mut self, backtrace: Arc<Backtrace>) {
+    pub(super) fn with_backtrace_slot(mut self, backtrace: Arc<Backtrace>) -> Self {
         self.backtrace = Some(backtrace);
         self.captured_backtrace = OnceLock::new();
+        self
     }
 
     #[cfg(not(feature = "backtrace"))]
-    pub(super) fn set_backtrace_slot(&mut self, _backtrace: CapturedBacktrace) {}
+    pub(super) fn with_backtrace_slot(self, _backtrace: CapturedBacktrace) -> Self {
+        self
+    }
 }
 
 /// Backwards-compatible export using the historical name.

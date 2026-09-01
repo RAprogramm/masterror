@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -61,17 +61,18 @@ pub mod types;
 /// human-readable report, while `Prod` and `Staging` render compact JSON
 /// with redaction-aware metadata.
 pub mod display;
+pub mod display_mode;
 
 #[cfg(all(test, feature = "backtrace"))]
 pub use backtrace::{reset_backtrace_preference, set_backtrace_preference_override};
-pub use display::DisplayMode;
+pub use display_mode::DisplayMode;
 pub use error::{AppError, AppResult, Error};
 pub use types::{ErrorChain, MessageEditPolicy};
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::AppErrorKind;
+    use crate::kind::AppErrorKind;
 
     #[test]
     fn error_new_creates_error_with_message() {
@@ -96,7 +97,7 @@ mod tests {
 
     #[test]
     fn error_with_code_overrides_code() {
-        use crate::AppCode;
+        use crate::code::AppCode;
         let err = Error::new(AppErrorKind::BadRequest, "test").with_code(AppCode::NotFound);
         assert_eq!(err.code, AppCode::NotFound);
     }
@@ -184,7 +185,7 @@ mod tests {
 
     #[test]
     fn error_display_shows_kind() {
-        let _guard = display::force_display_mode(DisplayMode::Local);
+        let _guard = display_mode::force_display_mode(DisplayMode::Local);
         let err = Error::new(AppErrorKind::Internal, "test");
         let display = format!("{err}");
         assert!(display.contains("Error: Internal server error"));

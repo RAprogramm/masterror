@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -121,6 +121,11 @@ fn format_duration(duration: Duration, f: &mut Formatter<'_>) -> FmtResult {
     }
 }
 
+impl FieldRedaction {
+    /// Placeholder rendered in place of redacted values.
+    pub const REDACTED_PLACEHOLDER: &str = "[REDACTED]";
+}
+
 pub fn duration_to_string(duration: Duration) -> String {
     let (secs, fraction) = duration_parts(duration);
     let mut output = String::new();
@@ -181,11 +186,6 @@ impl Field {
     pub const fn with_redaction(mut self, redaction: FieldRedaction) -> Self {
         self.redaction = redaction;
         self
-    }
-
-    /// Update the redaction policy in place.
-    pub const fn set_redaction(&mut self, redaction: FieldRedaction) {
-        self.redaction = redaction;
     }
 
     /// Consume the field and return owned components.
@@ -369,7 +369,7 @@ impl Metadata {
 
     /// Borrow the full field entry by name.
     #[must_use]
-    pub fn get_field(&self, name: &'static str) -> Option<&Field> {
+    pub fn field(&self, name: &'static str) -> Option<&Field> {
         self.fields
             .binary_search_by_key(&name, |f| f.name)
             .ok()
@@ -377,10 +377,12 @@ impl Metadata {
     }
 
     /// Override the redaction policy for a specific field.
-    pub fn set_redaction(&mut self, name: &'static str, redaction: FieldRedaction) {
+    #[must_use]
+    pub fn with_redaction(mut self, name: &'static str, redaction: FieldRedaction) -> Self {
         if let Ok(idx) = self.fields.binary_search_by_key(&name, |f| f.name) {
-            self.fields[idx].set_redaction(redaction);
+            self.fields[idx].redaction = redaction;
         }
+        self
     }
 
     /// Retrieve the redaction policy for a field if present.

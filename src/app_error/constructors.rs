@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -24,7 +24,7 @@ use alloc::{borrow::Cow, boxed::Box};
 use core::error::Error as CoreError;
 
 use super::core::AppError;
-use crate::AppErrorKind;
+use crate::kind::AppErrorKind;
 
 impl AppError {
     // --- Canonical constructors (keep in sync with AppErrorKind) -------------

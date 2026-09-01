@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -42,7 +42,10 @@ use core::{
 };
 
 use super::core::ErrorResponse;
-use crate::{AppCode, AppError};
+use crate::{
+    app_error::core::{Error as AppError, types::MessageEditPolicy},
+    code::AppCode
+};
 
 /// Format [`ErrorResponse`] for logging and debugging.
 ///
@@ -93,17 +96,17 @@ impl From<AppError> for ErrorResponse {
         let policy = err.edit_policy;
         let status = kind.http_status();
         let message = match err.message.take() {
-            Some(msg) if !matches!(policy, crate::MessageEditPolicy::Redact) => msg.into_owned(),
+            Some(msg) if !matches!(policy, MessageEditPolicy::Redact) => msg.into_owned(),
             _ => String::from(kind.label())
         };
         #[cfg(feature = "serde_json")]
-        let details = if matches!(policy, crate::MessageEditPolicy::Redact) {
+        let details = if matches!(policy, MessageEditPolicy::Redact) {
             None
         } else {
             err.details.take()
         };
         #[cfg(not(feature = "serde_json"))]
-        let details = if matches!(policy, crate::MessageEditPolicy::Redact) {
+        let details = if matches!(policy, MessageEditPolicy::Redact) {
             None
         } else {
             err.details.take()
@@ -141,19 +144,19 @@ impl From<AppError> for ErrorResponse {
 impl From<&AppError> for ErrorResponse {
     fn from(err: &AppError) -> Self {
         let status = err.kind.http_status();
-        let message = if matches!(err.edit_policy, crate::MessageEditPolicy::Redact) {
+        let message = if matches!(err.edit_policy, MessageEditPolicy::Redact) {
             String::from(err.kind.label())
         } else {
             err.render_message().into_owned()
         };
         #[cfg(feature = "serde_json")]
-        let details = if matches!(err.edit_policy, crate::MessageEditPolicy::Redact) {
+        let details = if matches!(err.edit_policy, MessageEditPolicy::Redact) {
             None
         } else {
             err.details.clone()
         };
         #[cfg(not(feature = "serde_json"))]
-        let details = if matches!(err.edit_policy, crate::MessageEditPolicy::Redact) {
+        let details = if matches!(err.edit_policy, MessageEditPolicy::Redact) {
             None
         } else {
             err.details.clone()

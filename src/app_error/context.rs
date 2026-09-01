@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -9,7 +9,7 @@ use super::{
     core::{AppError, Error, MessageEditPolicy},
     metadata::{Field, FieldRedaction, FieldValue}
 };
-use crate::{AppCode, AppErrorKind};
+use crate::{code::AppCode, kind::AppErrorKind};
 
 /// Builder describing how to convert an external error into [`AppError`].
 ///
@@ -134,7 +134,7 @@ impl Context {
             .rev()
             .find(|(name, _)| *name == field.name())
         {
-            field.set_redaction(*policy);
+            field = field.with_redaction(*policy);
         }
         self.fields.push(field);
         self
@@ -154,9 +154,8 @@ impl Context {
     /// # }
     /// ```
     #[must_use]
-    pub fn redact_field(mut self, name: &'static str, redaction: FieldRedaction) -> Self {
-        self.set_field_policy(name, redaction);
-        self
+    pub fn redact_field(self, name: &'static str, redaction: FieldRedaction) -> Self {
+        self.with_field_policy(name, redaction)
     }
 
     /// Override the redaction policy for a metadata field in place.
@@ -166,7 +165,7 @@ impl Context {
         name: &'static str,
         redaction: FieldRedaction
     ) -> &mut Self {
-        self.set_field_policy(name, redaction);
+        *self = self.clone().with_field_policy(name, redaction);
         self
     }
 
@@ -259,20 +258,21 @@ impl Context {
                 .rev()
                 .find(|(name, _)| *name == field.name())
             {
-                field.set_redaction(*policy);
+                *field = field.clone().with_redaction(*policy);
             }
         }
     }
 
-    fn set_field_policy(&mut self, name: &'static str, redaction: FieldRedaction) {
+    fn with_field_policy(mut self, name: &'static str, redaction: FieldRedaction) -> Self {
         self.field_policies
             .retain(|(existing, _)| *existing != name);
         self.field_policies.push((name, redaction));
         for field in &mut self.fields {
             if field.name() == name {
-                field.set_redaction(redaction);
+                *field = field.clone().with_redaction(redaction);
             }
         }
+        self
     }
 }
 
@@ -514,9 +514,9 @@ mod tests {
 
     #[test]
     fn context_set_field_policy_removes_duplicate_policies() {
-        let mut ctx = Context::new(AppErrorKind::Service);
-        ctx.set_field_policy("secret", FieldRedaction::Redact);
-        ctx.set_field_policy("secret", FieldRedaction::Hash);
+        let ctx = Context::new(AppErrorKind::Service)
+            .with_field_policy("secret", FieldRedaction::Redact)
+            .with_field_policy("secret", FieldRedaction::Hash);
         assert_eq!(ctx.field_policies.len(), 1);
         assert_eq!(ctx.field_policies[0].1, FieldRedaction::Hash);
     }

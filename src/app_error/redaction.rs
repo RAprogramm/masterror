@@ -18,12 +18,10 @@ use itoa::Buffer as IntegerBuffer;
 use ryu::Buffer as FloatBuffer;
 use sha2::{Digest, Sha256};
 
-use super::{duration_to_string, metadata::FieldValue};
+use super::metadata::{FieldValue, duration_to_string};
 
 /// Placeholder rendered instead of values redacted with
 /// [`FieldRedaction::Redact`](crate::FieldRedaction::Redact).
-pub const REDACTED_PLACEHOLDER: &str = "[REDACTED]";
-
 /// Fixed-capacity stack buffer used to format short values without
 /// allocating.
 struct StackBuffer<const N: usize> {

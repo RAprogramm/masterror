@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -33,10 +33,15 @@ use tonic::{
 };
 
 #[cfg(test)]
-use crate::CODE_MAPPINGS;
+use crate::response::problem_json::CodeMapping;
 use crate::{
-    AppErrorKind, Error, FieldRedaction, FieldValue, MessageEditPolicy, Metadata, RetryAdvice,
-    app_error::duration_to_string, mapping_for_code
+    app_error::{
+        core::{Error, types::MessageEditPolicy},
+        metadata::{FieldRedaction, FieldValue, Metadata, duration_to_string}
+    },
+    kind::AppErrorKind,
+    response::problem_json::mapping_for_code,
+    retry::RetryAdvice
 };
 
 /// Error alias retained for backwards compatibility with 0.20 conversions.
@@ -143,6 +148,10 @@ enum MetadataAscii<'a> {
 }
 
 impl AsRef<str> for MetadataAscii<'_> {
+    #[allow(
+        clippy::match_same_arms,
+        reason = "Static and Buffer bindings have different lifetimes and cannot share an arm"
+    )]
     fn as_ref(&self) -> &str {
         match self {
             Self::Static(text) => text,
@@ -214,7 +223,7 @@ mod tests {
 
     #[test]
     fn status_maps_codes_correctly() {
-        for (code, mapping) in CODE_MAPPINGS.iter() {
+        for (code, mapping) in CodeMapping::TABLE {
             let err = AppError::with(mapping.kind(), format!("{code:?}"));
             let status = Status::from(err);
             assert_eq!(status.code(), Code::from_i32(mapping.grpc().value));

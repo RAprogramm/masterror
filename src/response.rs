@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -61,6 +61,12 @@
 //! provided as a deprecated shim.
 
 mod core;
+
+/// Details payload type used by wire-level structures.
+#[cfg(feature = "serde_json")]
+type ProblemDetails = serde_json::Value;
+#[cfg(not(feature = "serde_json"))]
+type ProblemDetails = String;
 mod details;
 pub mod internal;
 mod legacy;
@@ -74,7 +80,7 @@ mod axum_impl;
 #[cfg(feature = "actix")]
 pub mod actix_impl;
 
-pub use core::{ErrorResponse, RetryAdvice};
+pub use core::ErrorResponse;
 
 pub use problem_json::ProblemJson;
 
