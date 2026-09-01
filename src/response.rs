@@ -66,7 +66,7 @@ mod core;
 #[cfg(feature = "serde_json")]
 type ProblemDetails = serde_json::Value;
 #[cfg(not(feature = "serde_json"))]
-type ProblemDetails = String;
+type ProblemDetails = alloc::string::String;
 mod details;
 pub mod internal;
 mod legacy;
