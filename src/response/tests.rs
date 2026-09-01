@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -410,15 +410,15 @@ fn from_app_error_redacts_message_when_policy_allows() {
 
 #[test]
 fn error_response_serialization_hides_redacted_message() {
-    let secret = "super-secret";
-    let resp: ErrorResponse = AppError::internal(secret).redactable().into();
+    let raw_message = "super-secret";
+    let resp: ErrorResponse = AppError::internal(raw_message).redactable().into();
     let json = serde_json::to_value(&resp).expect("serialize response");
     let fallback = AppErrorKind::Internal.label();
     assert_eq!(
         json.get("message").and_then(|value| value.as_str()),
         Some(fallback)
     );
-    assert!(!json.to_string().contains(secret));
+    assert!(!json.to_string().contains(raw_message));
 }
 
 // --- Display formatting --------------------------------------------------

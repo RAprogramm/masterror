@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -15,7 +15,7 @@ use super::backtrace::capture_backtrace_snapshot;
 use super::types::MessageEditPolicy;
 use super::{error::Error, types::CapturedBacktrace};
 #[cfg(any(feature = "metrics", feature = "tracing"))]
-use crate::AppErrorKind;
+use crate::kind::AppErrorKind;
 
 impl Error {
     /// Marks the error as dirty, requiring telemetry re-emission.
@@ -81,7 +81,7 @@ impl Error {
     }
 
     #[cfg(not(feature = "backtrace"))]
-    pub(super) fn capture_backtrace(&self) -> Option<&CapturedBacktrace> {
+    pub(super) const fn capture_backtrace(&self) -> Option<&CapturedBacktrace> {
         None
     }
 

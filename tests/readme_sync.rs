@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -74,6 +74,6 @@ fn verify_readme_detects_out_of_sync() -> Result<(), Box<dyn Error>> {
             Ok(())
         }
         Err(err) => Err(io::Error::other(format!("unexpected error: {err}")).into()),
-        Ok(_) => Err(io::Error::other("expected mismatch error").into())
+        Ok(()) => Err(io::Error::other("expected mismatch error").into())
     }
 }
