@@ -15,8 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Response no_std by [@RAprogramm](https://github.com/RAprogramm) ([fbbc3b2](https://github.com/RAprogramm/masterror/commit/fbbc3b2e2e9261b2b87bf01cc34a4f9c0422516d))
+- Make no_std test surface compile and stabilize global-state tests by [@RAprogramm](https://github.com/RAprogramm) ([3d39daf](https://github.com/RAprogramm/masterror/commit/3d39daf99a35059320a30d9ab5d8d531791b422a))
 - Make derived provide implementation compile on nightly by [@RAprogramm](https://github.com/RAprogramm) ([3d4dd87](https://github.com/RAprogramm/masterror/commit/3d4dd87c241a8b2c0a57773fcd2f87e3ee896aa6))
 - Keep no_std build compiling and run checks on the installed toolchain by [@RAprogramm](https://github.com/RAprogramm) ([fb2fbd5](https://github.com/RAprogramm/masterror/commit/fb2fbd5ffb020a27156d5a19854dd459e61d1605))
+
+### Refactored
+
+- Finish module import rewiring in telemetry and response tests by [@RAprogramm](https://github.com/RAprogramm) ([cbeb86a](https://github.com/RAprogramm/masterror/commit/cbeb86aee5de034da94e7767114614b5ea4c3af2))
+- Break module dependency cycles and apply rust-manifest structure rules by [@RAprogramm](https://github.com/RAprogramm) ([476f004](https://github.com/RAprogramm/masterror/commit/476f004fa7adf7268716829d23523f7201dee049))
+- Resolve strict clippy pedantic and nursery findings across workspace by [@RAprogramm](https://github.com/RAprogramm) ([efcbeb5](https://github.com/RAprogramm/masterror/commit/efcbeb5ac74b8550ed9f40d83917628b2abdd8b4))
 ## [0.30.0](https://github.com/RAprogramm/masterror/releases/tag/v0.30.0) - 2026-08-24
 
 ### Fixed
