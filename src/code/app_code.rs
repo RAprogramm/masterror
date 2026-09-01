@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -108,16 +108,19 @@ impl AppCode {
     /// Machine code emitted for cache subsystem failures.
     pub const Cache: Self = Self::from_static("CACHE");
 
-    const fn from_static(code: &'static str) -> Self {
+    /// Primary constructor: every other constructor delegates here.
+    const fn from_repr(repr: Cow<'static, str>) -> Self {
         Self {
-            repr: Cow::Borrowed(code)
+            repr
         }
     }
 
+    const fn from_static(code: &'static str) -> Self {
+        Self::from_repr(Cow::Borrowed(code))
+    }
+
     const fn from_owned(code: String) -> Self {
-        Self {
-            repr: Cow::Owned(code)
-        }
+        Self::from_repr(Cow::Owned(code))
     }
 
     /// Construct an [`AppCode`] from a compile-time string literal.
@@ -136,9 +139,10 @@ impl AppCode {
     /// [`AppCode::try_new`] to validate dynamic strings at runtime.
     #[must_use]
     pub const fn new(code: &'static str) -> Self {
-        if !is_valid_literal(code) {
-            panic!("AppCode literals must be SCREAMING_SNAKE_CASE");
-        }
+        assert!(
+            is_valid_literal(code),
+            "AppCode literals must be SCREAMING_SNAKE_CASE"
+        );
         Self::from_static(code)
     }
 
@@ -418,7 +422,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "AppCode literals must be SCREAMING_SNAKE_CASE")]
     fn new_panics_on_invalid_literal() {
         let _ = AppCode::new("not_snake");
     }

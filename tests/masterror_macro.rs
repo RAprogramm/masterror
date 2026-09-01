@@ -1,10 +1,10 @@
-#![allow(non_shorthand_field_patterns)]
+#![allow(non_shorthand_field_patterns, clippy::used_underscore_binding)]
 #![cfg_attr(
     masterror_requires_error_generic_feature,
     feature(error_generic_member_access)
 )]
 
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -23,7 +23,7 @@ use masterror::{
     message,
     redact(message, fields("user_id" = hash)),
     telemetry(
-        Some(masterror::field::str("user_id", user_id.clone())),
+        Some(masterror::field::str("user_id", user_id)),
         attempt.map(|value| masterror::field::u64("attempt", value))
     ),
     map.grpc = 5,
@@ -49,7 +49,6 @@ enum ApiError {
     )]
     BadPayload {
         details: &'static str,
-        #[allow(non_shorthand_field_patterns)]
         #[source]
         _source: std::io::Error
     },
@@ -171,7 +170,7 @@ fn masterror_preserves_arc_source_without_extra_clone() {
         .source_ref()
         .and_then(|src| src.downcast_ref::<ArcLeafError>())
         .expect("arc source");
-    assert!(std::ptr::eq(stored, &*source));
+    assert!(std::ptr::eq(stored, &raw const *source));
 }
 #[derive(Debug)]
 struct ArcLeafError;

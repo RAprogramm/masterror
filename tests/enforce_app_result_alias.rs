@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -44,10 +44,9 @@ fn prohibits_direct_result_app_error_usage() {
             }
         }
     }
-    if !offenders.is_empty() {
-        panic!(
-            "Found direct `Result<_, AppError>` usage; replace with `AppResult<_>`: {}",
-            offenders.join(", ")
-        );
-    }
+    assert!(
+        offenders.is_empty(),
+        "Found direct `Result<_, AppError>` usage; replace with `AppResult<_>`: {}",
+        offenders.join(", ")
+    );
 }

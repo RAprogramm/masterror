@@ -2,7 +2,7 @@
     masterror_requires_error_generic_feature,
     feature(error_generic_member_access)
 )]
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -71,6 +71,10 @@ fn shared_formatter(f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.write_str("shared failure")
 }
 
+#[allow(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "the derive macro invokes format callbacks with field references"
+)]
 fn value_formatter(value: &u8, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(f, "value failure: {value}")
 }

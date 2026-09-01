@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -221,8 +221,7 @@ impl From<Box<dyn CoreError + Send + Sync + 'static>> for AppError {
 mod tests {
     use crate::{AppError, AppErrorKind};
 
-    // --- std::io::Error -> AppError -----------------------------------------
-
+    #[cfg(feature = "std")]
     #[test]
     fn io_error_maps_to_internal_and_preserves_message() {
         use std::io::Error;
@@ -231,9 +230,6 @@ mod tests {
         assert!(matches!(app.kind, AppErrorKind::Internal));
         assert_eq!(app.message.as_deref(), Some("disk said nope"));
     }
-
-    // --- String -> AppError --------------------------------------------------
-
     #[test]
     fn string_maps_to_bad_request_and_preserves_text() {
         let app: AppError = String::from("name must not be empty").into();

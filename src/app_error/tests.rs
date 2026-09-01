@@ -1,13 +1,15 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
+#[cfg(feature = "std")]
+use std::fmt::{Formatter, Result as FmtResult};
 #[cfg(any(feature = "backtrace", feature = "tracing"))]
 use std::sync::Mutex;
 use std::{
     borrow::Cow,
     error::Error as StdError,
-    fmt::{Display, Formatter, Result as FmtResult},
+    fmt::Display,
     io::{Error as IoError, ErrorKind as IoErrorKind},
     sync::Arc
 };
@@ -33,7 +35,7 @@ impl StdError for AnyhowSource {
     }
 }
 
-use super::core::{DisplayMode, display::force_display_mode};
+use super::core::{DisplayMode, display_mode::force_display_mode};
 #[cfg(feature = "backtrace")]
 use super::core::{reset_backtrace_preference, set_backtrace_preference_override};
 
@@ -102,7 +104,7 @@ mod telemetry_support {
         record: &'a mut RecordedEvent
     }
 
-    impl<'a> Visit for EventVisitor<'a> {
+    impl Visit for EventVisitor<'_> {
         fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
             let normalized = normalize_debug(value);
             match field.name() {
@@ -490,7 +492,7 @@ fn source_is_preserved_without_extra_allocation() {
     let stored_dummy = stored
         .downcast_ref::<DummyError>()
         .expect("dummy should be preserved");
-    assert!(std::ptr::eq(stored_dummy, &*source));
+    assert!(std::ptr::eq(stored_dummy, Arc::as_ptr(&source)));
 }
 
 #[test]
@@ -554,19 +556,25 @@ fn redactable_policy_is_exposed() {
 
 /// Smoke test to ensure `log()` is callable; tracing output isn't asserted.
 #[test]
+#[cfg_attr(feature = "tracing", allow(clippy::significant_drop_tightening))]
 fn log_uses_kind_and_code() {
+    #[cfg(feature = "tracing")]
+    let _guard = TELEMETRY_GUARD.lock().expect("telemetry guard");
     let err = AppError::internal("boom");
     err.log();
 }
 
 #[cfg(feature = "tracing")]
 #[test]
+#[allow(
+    clippy::significant_drop_tightening,
+    reason = "assertions intentionally verify the recorded events while the lock is held"
+)]
 fn telemetry_emits_single_tracing_event_with_trace_id() {
-    let _guard = TELEMETRY_GUARD.lock().expect("telemetry guard");
     use telemetry_support::new_recording_dispatch;
     use tracing::{callsite::rebuild_interest_cache, dispatcher};
+    let _guard = TELEMETRY_GUARD.lock().expect("telemetry guard");
     let (dispatch, events) = new_recording_dispatch();
-    let events = events.clone();
     dispatcher::with_default(&dispatch, || {
         rebuild_interest_cache();
         log_mdc::insert("trace_id", "trace-123");
@@ -589,18 +597,21 @@ fn telemetry_emits_single_tracing_event_with_trace_id() {
 
 #[cfg(feature = "tracing")]
 #[test]
+#[allow(
+    clippy::significant_drop_tightening,
+    reason = "assertions intentionally verify the recorded events while the lock is held"
+)]
 fn telemetry_flushes_after_subscriber_install() {
-    let _guard = TELEMETRY_GUARD.lock().expect("telemetry guard");
     use telemetry_support::new_recording_dispatch;
     use tracing::{callsite::rebuild_interest_cache, dispatcher};
+    let _guard = TELEMETRY_GUARD.lock().expect("telemetry guard");
     let (dispatch, events) = new_recording_dispatch();
-    let events_clone = events.clone();
     dispatcher::with_default(&dispatch, || {
         rebuild_interest_cache();
         let err = AppError::internal("boom");
         err.log();
         drop(err);
-        let events = events_clone.lock().expect("events lock");
+        let events = events.lock().expect("events lock");
         assert_eq!(
             events.len(),
             1,
@@ -613,49 +624,57 @@ fn telemetry_flushes_after_subscriber_install() {
 }
 
 #[cfg(feature = "metrics")]
-#[test]
-fn metrics_counter_is_incremented_once() {
+mod metrics_support {
     use std::{
         collections::HashMap,
-        sync::{Arc, Mutex}
+        sync::{Arc, Mutex, OnceLock}
     };
 
     use metrics::{
-        Counter, CounterFn, Gauge, Histogram, Key, KeyName, Metadata, Recorder, SharedString, Unit
+        Counter, CounterFn, Gauge, Histogram, Key, KeyName, Metadata as RecorderMetadata,
+        Recorder, SharedString, Unit
     };
+
     #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-    struct CounterKey {
+    pub(super) struct CounterKey {
         name:   String,
         labels: Vec<(String, String)>
     }
+
     impl CounterKey {
-        fn new(name: String, labels: Vec<(String, String)>) -> Self {
+        pub(super) fn new(name: String, labels: Vec<(String, String)>) -> Self {
             Self {
                 name,
                 labels
             }
         }
     }
+
     type CounterMap = HashMap<CounterKey, u64>;
-    type SharedCounterMap = Arc<Mutex<CounterMap>>;
+    pub(super) type SharedCounterMap = Arc<Mutex<CounterMap>>;
+
     #[derive(Clone)]
     struct MetricsCounterHandle {
         key:    CounterKey,
         counts: SharedCounterMap
     }
+
     impl CounterFn for MetricsCounterHandle {
         fn increment(&self, value: u64) {
             let mut map = self.counts.lock().expect("counter map");
             *map.entry(self.key.clone()).or_default() += value;
         }
+
         fn absolute(&self, value: u64) {
             let mut map = self.counts.lock().expect("counter map");
             map.insert(self.key.clone(), value);
         }
     }
+
     struct CountingRecorder {
         counts: SharedCounterMap
     }
+
     impl Recorder for CountingRecorder {
         fn describe_counter(
             &self,
@@ -664,7 +683,9 @@ fn metrics_counter_is_incremented_once() {
             _description: SharedString
         ) {
         }
+
         fn describe_gauge(&self, _key: KeyName, _unit: Option<Unit>, _description: SharedString) {}
+
         fn describe_histogram(
             &self,
             _key: KeyName,
@@ -672,7 +693,8 @@ fn metrics_counter_is_incremented_once() {
             _description: SharedString
         ) {
         }
-        fn register_counter(&self, key: &Key, _metadata: &Metadata<'_>) -> Counter {
+
+        fn register_counter(&self, key: &Key, _metadata: &RecorderMetadata<'_>) -> Counter {
             let labels = key
                 .labels()
                 .map(|label| (label.key().to_owned(), label.value().to_owned()))
@@ -683,29 +705,45 @@ fn metrics_counter_is_incremented_once() {
                 counts: self.counts.clone()
             }))
         }
-        fn register_gauge(&self, _key: &Key, _metadata: &Metadata<'_>) -> Gauge {
+
+        fn register_gauge(&self, _key: &Key, _metadata: &RecorderMetadata<'_>) -> Gauge {
             Gauge::noop()
         }
-        fn register_histogram(&self, _key: &Key, _metadata: &Metadata<'_>) -> Histogram {
+
+        fn register_histogram(&self, _key: &Key, _metadata: &RecorderMetadata<'_>) -> Histogram {
             Histogram::noop()
         }
     }
-    use std::sync::OnceLock;
+
     static RECORDER_COUNTS: OnceLock<SharedCounterMap> = OnceLock::new();
-    let counts = RECORDER_COUNTS
-        .get_or_init(|| {
-            let counts = Arc::new(Mutex::new(HashMap::new()));
-            metrics::set_global_recorder(CountingRecorder {
-                counts: counts.clone()
+
+    /// Installs the counting recorder once and returns the shared counter map.
+    pub(super) fn shared_counts() -> SharedCounterMap {
+        RECORDER_COUNTS
+            .get_or_init(|| {
+                let counts = Arc::new(Mutex::new(HashMap::new()));
+                metrics::set_global_recorder(CountingRecorder {
+                    counts: counts.clone()
+                })
+                .expect("install recorder");
+                counts
             })
-            .expect("install recorder");
-            counts
-        })
-        .clone();
+            .clone()
+    }
+}
+
+#[cfg(feature = "metrics")]
+#[test]
+fn metrics_counter_is_incremented_once() {
+    let counts = metrics_support::shared_counts();
     counts.lock().expect("counter map").clear();
-    let err = AppError::forbidden("denied");
-    err.log();
-    let key = CounterKey::new(
+    {
+        #[cfg(feature = "tracing")]
+        let _telemetry_guard = TELEMETRY_GUARD.lock().expect("telemetry guard");
+        let err = AppError::forbidden("denied");
+        err.log();
+    }
+    let key = metrics_support::CounterKey::new(
         "error_total".to_owned(),
         vec![
             ("code".to_owned(), AppCode::Forbidden.as_str().to_owned()),
@@ -876,6 +914,10 @@ fn downcast_mut_mutates_source_attached_via_with_source() {
 
 #[test]
 #[cfg(feature = "std")]
+#[allow(
+    clippy::redundant_clone,
+    reason = "the extra strong count is what makes the source shared; moving it would make the source exclusive"
+)]
 fn downcast_mut_returns_none_for_shared_arc_attached_via_with_context() {
     let shared = Arc::new(IoError::other("shared source"));
     let context: Arc<dyn StdError + Send + Sync + 'static> = shared.clone();

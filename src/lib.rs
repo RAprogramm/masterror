@@ -1,8 +1,8 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
-#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
 #![forbid(unsafe_code)]
 #![deny(rustdoc::broken_intra_doc_links)]
 #![warn(
@@ -21,7 +21,7 @@
 //!
 //! # Overview
 //!
-//! A small, pragmatic error model designed for API-heavy services.  
+//! A small, pragmatic error model designed for API-heavy services.\
 //! The core is framework-agnostic; integrations are optional and enabled via
 //! feature flags.
 //!
@@ -260,8 +260,8 @@
 //! # }
 //! ```
 //!
-//! [`AppErrorKind`] controls the default HTTP status mapping.  
-//! [`AppCode`] provides a stable machine-readable code for clients.  
+//! [`AppErrorKind`] controls the default HTTP status mapping.\
+//! [`AppCode`] provides a stable machine-readable code for clients.\
 //! Together, they form the wire contract in [`ErrorResponse`].
 //!
 //! # Wire payload: [`ErrorResponse`]
@@ -381,6 +381,7 @@ pub mod __private {
 }
 mod response;
 mod result_ext;
+mod retry;
 
 #[cfg(feature = "frontend")]
 #[cfg_attr(docsrs, doc(cfg(feature = "frontend")))]
@@ -441,13 +442,13 @@ pub use kind::AppErrorKind;
 /// ```
 pub use masterror_derive::{Error, Masterror};
 pub use response::{
-    ErrorResponse, ProblemJson, RetryAdvice,
+    ErrorResponse, ProblemJson,
     problem_json::{
-        CODE_MAPPINGS, CodeMapping, GrpcCode, ProblemMetadata, ProblemMetadataValue,
-        mapping_for_code
+        CodeMapping, GrpcCode, ProblemMetadata, ProblemMetadataValue, mapping_for_code
     }
 };
 pub use result_ext::ResultExt;
+pub use retry::RetryAdvice;
 
 #[cfg(feature = "tonic")]
 #[cfg_attr(docsrs, doc(cfg(feature = "tonic")))]

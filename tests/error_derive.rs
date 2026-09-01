@@ -5,7 +5,7 @@
     feature(error_generic_member_access)
 )]
 
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -755,7 +755,7 @@ fn transparent_struct_from_impl() {
 
 #[test]
 fn transparent_enum_variant_from_impl() {
-    let _unused = TransparentEnum::Opaque("noop");
+    let _ = TransparentEnum::Opaque("noop");
     let variant = TransparentEnum::from(TransparentInner(LeafError));
     assert!(matches!(variant, TransparentEnum::TransparentVariant(_)));
     assert_eq!(variant.to_string(), "leaf failure");
@@ -1009,6 +1009,9 @@ fn supports_extended_formatters() {
 
 #[test]
 fn formatter_variants_render_expected_output() {
+    const HEX_VALUE: u32 = 0x5A5A;
+    const INTEGER_VALUE: u16 = 0b1010_1100;
+    const FLOAT_VALUE: f64 = 1234.5;
     let display = DisplayFormatterError {
         value: "display"
     };
@@ -1039,7 +1042,6 @@ fn formatter_variants_render_expected_output() {
             }
         )
     );
-    const HEX_VALUE: u32 = 0x5A5A;
     let lower_hex = LowerHexFormatterError {
         value: HEX_VALUE
     };
@@ -1053,7 +1055,6 @@ fn formatter_variants_render_expected_output() {
     assert_eq!(upper_hex.to_string(), upper_hex_expected);
     assert_ne!(format!("{HEX_VALUE:X}"), format!("{HEX_VALUE:#X}"));
     assert_ne!(format!("{HEX_VALUE:x}"), format!("{HEX_VALUE:X}"));
-    const INTEGER_VALUE: u16 = 0b1010_1100;
     let binary = BinaryFormatterError {
         value: INTEGER_VALUE
     };
@@ -1073,7 +1074,6 @@ fn formatter_variants_render_expected_output() {
     let pointer_expected = format!("pointer={pointer_value:p} #pointer={pointer_value:#p}");
     assert_eq!(pointer.to_string(), pointer_expected);
     assert_ne!(format!("{pointer_value:p}"), format!("{pointer_value:#p}"));
-    const FLOAT_VALUE: f64 = 1234.5;
     let lower_exp = LowerExpFormatterError {
         value: FLOAT_VALUE
     };
