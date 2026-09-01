@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -191,6 +191,10 @@ impl TurnkeyError {
 /// ```
 #[must_use]
 #[inline]
+#[allow(
+    clippy::match_same_arms,
+    reason = "the wildcard arm intentionally covers future TurnkeyErrorKind additions with the same fallback"
+)]
 pub const fn map_turnkey_kind(kind: TurnkeyErrorKind) -> AppErrorKind {
     match kind {
         TurnkeyErrorKind::UniqueLabel => AppErrorKind::Conflict,

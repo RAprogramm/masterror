@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -246,10 +246,7 @@ pub fn is_backtrace_storage(ty: &syn::Type) -> bool {
 pub fn placeholder_error(span: Span, identifier: &TemplateIdentifierSpec) -> Error {
     match identifier {
         TemplateIdentifierSpec::Named(name) => Error::new(span, format!("unknown field `{name}`")),
-        TemplateIdentifierSpec::Positional(index) => {
-            Error::new(span, format!("field `{index}` is not available"))
-        }
-        TemplateIdentifierSpec::Implicit(index) => {
+        TemplateIdentifierSpec::Positional(index) | TemplateIdentifierSpec::Implicit(index) => {
             Error::new(span, format!("field `{index}` is not available"))
         }
     }

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -72,6 +72,10 @@ fn placeholder_span(lit: &LitStr, range: core::ops::Range<usize>) -> Span {
     literal_subspan(lit, range).unwrap_or_else(|| lit.span())
 }
 
+#[allow(
+    clippy::match_same_arms,
+    reason = "position-based template errors intentionally map to the same one-character span; the public error variants use distinct field names"
+)]
 fn template_error(lit: &LitStr, error: &TemplateError) -> Error {
     let message = error.to_string();
     let span = match error {
@@ -89,11 +93,11 @@ fn template_error(lit: &LitStr, error: &TemplateError) -> Error {
         } => literal_subspan(lit, *start..(*start + 1)),
         TemplateError::InvalidIdentifier {
             span
-        } => literal_subspan(lit, span.clone()),
-        TemplateError::InvalidIndex {
+        }
+        | TemplateError::InvalidIndex {
             span
-        } => literal_subspan(lit, span.clone()),
-        TemplateError::InvalidFormatter {
+        }
+        | TemplateError::InvalidFormatter {
             span
         } => literal_subspan(lit, span.clone())
     };

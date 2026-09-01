@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -41,11 +41,8 @@ pub fn parse_input(input: DeriveInput) -> Result<ErrorInput, Error> {
             Err(())
         }
     };
-    let data = match data {
-        Ok(value) => value,
-        Err(()) => {
-            return Err(collect_errors(errors));
-        }
+    let Ok(data) = data else {
+        return Err(collect_errors(errors));
     };
     if errors.is_empty() {
         Ok(ErrorInput {
@@ -113,18 +110,16 @@ fn parse_variant(
             ));
         }
     }
-    let display = match extract_display_spec_optional(&variant.attrs, errors)? {
-        Some(spec) => spec,
-        None => match shared_fmt {
-            Some(path) => DisplaySpec::FormatterPath {
-                path: path.clone(),
-                args: FormatArgsSpec::default()
-            },
-            None => {
-                errors.push(Error::new(span, "missing #[error(...)] attribute"));
-                return Err(());
-            }
+    let display = if let Some(spec) = extract_display_spec_optional(&variant.attrs, errors)? {
+        spec
+    } else if let Some(path) = shared_fmt {
+        DisplaySpec::FormatterPath {
+            path: path.clone(),
+            args: FormatArgsSpec::default()
         }
+    } else {
+        errors.push(Error::new(span, "missing #[error(...)] attribute"));
+        return Err(());
     };
     let app_error = extract_app_error_spec(&variant.attrs, errors)?;
     let masterror = extract_masterror_spec(&variant.attrs, errors)?;

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -422,7 +422,7 @@ mod tests {
         let output = result.to_string();
         assert!(output.contains("core :: fmt :: Display :: fmt"));
         assert!(output.contains("self"));
-        assert!(output.contains("0"));
+        assert!(output.contains('0'));
     }
 
     #[test]
@@ -434,9 +434,9 @@ mod tests {
 
     #[test]
     fn test_struct_formatter_arguments_named_fields() {
-        let field1 = make_test_field("name", parse_quote!(String), 0);
-        let field2 = make_test_field("value", parse_quote!(i32), 1);
-        let fields = Fields::Named(vec![field1, field2]);
+        let name_field = make_test_field("name", parse_quote!(String), 0);
+        let value_field = make_test_field("value", parse_quote!(i32), 1);
+        let fields = Fields::Named(vec![name_field, value_field]);
         let result = struct_formatter_arguments(&fields);
         assert_eq!(result.len(), 2);
         assert!(result[0].to_string().contains("self"));
@@ -447,14 +447,14 @@ mod tests {
 
     #[test]
     fn test_struct_formatter_arguments_unnamed_fields() {
-        let field1 = make_test_unnamed_field(parse_quote!(String), 0);
-        let field2 = make_test_unnamed_field(parse_quote!(i32), 1);
-        let fields = Fields::Unnamed(vec![field1, field2]);
+        let string_field = make_test_unnamed_field(parse_quote!(String), 0);
+        let int_field = make_test_unnamed_field(parse_quote!(i32), 1);
+        let fields = Fields::Unnamed(vec![string_field, int_field]);
         let result = struct_formatter_arguments(&fields);
         assert_eq!(result.len(), 2);
         assert!(result[0].to_string().contains("self"));
-        assert!(result[0].to_string().contains("0"));
-        assert!(result[1].to_string().contains("1"));
+        assert!(result[0].to_string().contains('0'));
+        assert!(result[1].to_string().contains('1'));
     }
 
     #[test]
@@ -464,7 +464,7 @@ mod tests {
         let result = formatter_path_call(&path, args);
         let output = result.to_string();
         assert!(output.contains("my_formatter"));
-        assert!(output.contains("f"));
+        assert!(output.contains('f'));
     }
 
     #[test]
@@ -476,7 +476,7 @@ mod tests {
         assert!(output.contains("my_formatter"));
         assert!(output.contains("arg1"));
         assert!(output.contains("arg2"));
-        assert!(output.contains("f"));
+        assert!(output.contains('f'));
     }
 
     #[test]
@@ -486,7 +486,7 @@ mod tests {
         let result = render_struct_formatter_path(&fields, &path);
         let output = result.to_string();
         assert!(output.contains("custom_fmt"));
-        assert!(output.contains("f"));
+        assert!(output.contains('f'));
     }
 
     #[test]
@@ -694,10 +694,10 @@ mod tests {
 
     #[test]
     fn test_struct_formatter_arguments_preserves_order() {
-        let field1 = make_test_field("first", parse_quote!(String), 0);
-        let field2 = make_test_field("second", parse_quote!(i32), 1);
-        let field3 = make_test_field("third", parse_quote!(bool), 2);
-        let fields = Fields::Named(vec![field1, field2, field3]);
+        let first_field = make_test_field("first", parse_quote!(String), 0);
+        let second_field = make_test_field("second", parse_quote!(i32), 1);
+        let third_field = make_test_field("third", parse_quote!(bool), 2);
+        let fields = Fields::Named(vec![first_field, second_field, third_field]);
         let result = struct_formatter_arguments(&fields);
         assert_eq!(result.len(), 3);
         assert!(result[0].to_string().contains("first"));
@@ -715,6 +715,6 @@ mod tests {
         let result = struct_field_expr(&field, &formatter);
         assert!(!result.pointer_value);
         assert!(result.expr.to_string().contains("self"));
-        assert!(result.expr.to_string().contains("0"));
+        assert!(result.expr.to_string().contains('0'));
     }
 }

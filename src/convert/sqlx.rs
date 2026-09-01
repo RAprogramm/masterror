@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -127,6 +127,19 @@ fn build_sqlx_context(err: &SqlxError) -> (Context, Option<u64>) {
                 .with(field::str("db.argument", message.clone())),
             None
         ),
+        other => sqlx_context_fallback(other)
+    };
+    if let Some(secs) = retry_after {
+        context = context.with(field::u64("db.retry_after_hint_secs", secs));
+    }
+    (context, retry_after)
+}
+
+/// Builds context for the remaining `SqlxError` variants that carry their own
+/// classification rules.
+#[cfg(feature = "sqlx")]
+fn sqlx_context_fallback(err: &SqlxError) -> (Context, Option<u64>) {
+    match err {
         SqlxError::ColumnDecode {
             index, ..
         } => (
@@ -197,11 +210,7 @@ fn build_sqlx_context(err: &SqlxError) -> (Context, Option<u64>) {
                 .with(field::str("db.detail", format!("{other:?}"))),
             None
         )
-    };
-    if let Some(secs) = retry_after {
-        context = context.with(field::u64("db.retry_after_hint_secs", secs));
     }
-    (context, retry_after)
 }
 
 #[cfg(feature = "sqlx")]
@@ -234,8 +243,9 @@ fn classify_database_error(error: &(dyn DatabaseError + 'static)) -> (Context, O
         }
     }
     let category = match error.kind() {
-        SqlxErrorKind::UniqueViolation => AppErrorKind::Conflict,
-        SqlxErrorKind::ForeignKeyViolation => AppErrorKind::Conflict,
+        SqlxErrorKind::UniqueViolation | SqlxErrorKind::ForeignKeyViolation => {
+            AppErrorKind::Conflict
+        }
         SqlxErrorKind::NotNullViolation | SqlxErrorKind::CheckViolation => {
             AppErrorKind::Validation
         }
@@ -329,11 +339,13 @@ mod tests_sqlx {
     #[test]
     fn unique_violation_sets_code_override() {
         let db_err = DummyDbError {
-            message:    "duplicate key".into(),
-            code:       Some("23505".into()),
-            constraint: Some("users_email_key".into()),
-            table:      Some("users".into()),
-            kind:       SqlxErrorKind::UniqueViolation
+            message:  "duplicate key".into(),
+            code:     Some("23505".into()),
+            identity: ConstraintIdentity {
+                constraint: Some("users_email_key".into()),
+                table:      Some("users".into())
+            },
+            kind:     SqlxErrorKind::UniqueViolation
         };
         let err: Error = SqlxError::Database(Box::new(db_err)).into();
         assert_eq!(err.kind, AppErrorKind::Conflict);
@@ -348,11 +360,13 @@ mod tests_sqlx {
     #[test]
     fn serialization_failure_carries_retry_hint() {
         let db_err = DummyDbError {
-            message:    "serialization failure".into(),
-            code:       Some("40001".into()),
-            constraint: None,
-            table:      None,
-            kind:       SqlxErrorKind::Other
+            message:  "serialization failure".into(),
+            code:     Some("40001".into()),
+            identity: ConstraintIdentity {
+                constraint: None,
+                table:      None
+            },
+            kind:     SqlxErrorKind::Other
         };
         let err: Error = SqlxError::Database(Box::new(db_err)).into();
         assert_eq!(err.retry.map(|r| r.after_seconds), Some(1));
@@ -362,13 +376,19 @@ mod tests_sqlx {
         );
     }
 
+    /// Constraint identity: the violated constraint and its table.
+    #[derive(Debug)]
+    struct ConstraintIdentity {
+        constraint: Option<String>,
+        table:      Option<String>
+    }
+
     #[derive(Debug)]
     struct DummyDbError {
-        message:    String,
-        code:       Option<String>,
-        constraint: Option<String>,
-        table:      Option<String>,
-        kind:       SqlxErrorKind
+        message:  String,
+        code:     Option<String>,
+        identity: ConstraintIdentity,
+        kind:     SqlxErrorKind
     }
 
     impl fmt::Display for DummyDbError {
@@ -401,13 +421,17 @@ mod tests_sqlx {
         }
 
         fn constraint(&self) -> Option<&str> {
-            self.constraint.as_deref()
+            self.identity.constraint.as_deref()
         }
 
         fn table(&self) -> Option<&str> {
-            self.table.as_deref()
+            self.identity.table.as_deref()
         }
 
+        #[allow(
+            clippy::match_same_arms,
+            reason = "the helper mirrors unit variants one-to-one and cannot borrow self.kind"
+        )]
         fn kind(&self) -> SqlxErrorKind {
             match self.kind {
                 SqlxErrorKind::UniqueViolation => SqlxErrorKind::UniqueViolation,

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -79,6 +79,12 @@ pub trait BrowserConsoleExt {
     ///     ));
     /// }
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BrowserConsoleError::UnsupportedTarget`] off WASM targets and
+    /// [`BrowserConsoleError::Serialization`] when the payload cannot be
+    /// serialized.
     fn to_js_value(&self) -> AppResult<JsValue, BrowserConsoleError>;
 
     /// Emit the error as a structured payload via `console.error`.
@@ -104,6 +110,10 @@ pub trait BrowserConsoleExt {
     ///     ));
     /// }
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Forwards the errors of [`to_js_value`](Self::to_js_value).
     fn log_to_browser_console(&self) -> AppResult<(), BrowserConsoleError> {
         let payload = self.to_js_value()?;
         log_js_value(&payload)

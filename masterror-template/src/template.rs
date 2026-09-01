@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -39,6 +39,11 @@ pub struct ErrorTemplate<'a> {
 
 impl<'a> ErrorTemplate<'a> {
     /// Parses an error display template.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TemplateError`] when the source contains an unterminated or
+    /// malformed placeholder, or an invalid formatter specification.
     pub fn parse(source: &'a str) -> Result<Self, TemplateError> {
         let segments = parser::parse_template(source)?;
         Ok(Self {
@@ -90,7 +95,7 @@ where
     resolver: F
 }
 
-impl<'a, 't, F> fmt::Display for DisplayWith<'a, 't, F>
+impl<'a, F> fmt::Display for DisplayWith<'a, '_, F>
 where
     F: Fn(&TemplatePlaceholder<'a>, &mut fmt::Formatter<'_>) -> fmt::Result
 {
@@ -679,6 +684,10 @@ impl fmt::Display for TemplateError {
 impl std::error::Error for TemplateError {}
 
 #[cfg(test)]
+#[allow(
+    clippy::literal_string_with_formatting_args,
+    reason = "template DSL syntax intentionally looks like format arguments"
+)]
 mod tests {
     use super::*;
 
@@ -874,12 +883,11 @@ mod tests {
             let without_alternate = TemplateFormatter::from_kind(kind, false);
             assert_eq!(with_alternate.kind(), kind);
             assert_eq!(without_alternate.kind(), kind);
+            assert!(!without_alternate.is_alternate());
             if kind.supports_alternate() {
                 assert!(with_alternate.is_alternate());
-                assert!(!without_alternate.is_alternate());
             } else {
                 assert!(!with_alternate.is_alternate());
-                assert!(!without_alternate.is_alternate());
             }
         }
         let display = TemplateFormatter::from_kind(TemplateFormatterKind::Display, true);

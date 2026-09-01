@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -288,7 +288,7 @@ impl AppErrorKind {
     /// Used for color-coding in terminal output: critical errors are shown in
     /// red, while client errors are shown in yellow.
     #[cfg(feature = "colored")]
-    pub(crate) const fn is_critical(&self) -> bool {
+    pub(crate) const fn is_critical(self) -> bool {
         self.http_status() >= 500
     }
 }

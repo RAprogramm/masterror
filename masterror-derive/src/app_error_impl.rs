@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -10,12 +10,12 @@ use crate::input::{AppErrorSpec, ErrorData, ErrorInput, Fields, StructData, Vari
 
 pub fn expand(input: &ErrorInput) -> Result<Vec<TokenStream>, Error> {
     match &input.data {
-        ErrorData::Struct(data) => expand_struct(input, data),
+        ErrorData::Struct(data) => Ok(expand_struct(input, data)),
         ErrorData::Enum(variants) => expand_enum(input, variants)
     }
 }
 
-fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<Vec<TokenStream>, Error> {
+fn expand_struct(input: &ErrorInput, data: &StructData) -> Vec<TokenStream> {
     let mut impls = Vec::new();
     if let Some(spec) = &data.app_error {
         impls.push(struct_app_error_impl(input, spec));
@@ -23,7 +23,7 @@ fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<Vec<TokenStrea
             impls.push(struct_app_code_impl(input, spec));
         }
     }
-    Ok(impls)
+    impls
 }
 
 fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> Result<Vec<TokenStream>, Error> {

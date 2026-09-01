@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -251,14 +251,11 @@ fn parse_app_error_attribute(attr: &Attribute) -> Result<AppErrorSpec, Error> {
                 ));
             }
         }
-        let kind = match kind {
-            Some(kind) => kind,
-            None => {
-                return Err(Error::new(
-                    attr.span(),
-                    "missing `kind = ...` in #[app_error(...)]"
-                ));
-            }
+        let Some(kind) = kind else {
+            return Err(Error::new(
+                attr.span(),
+                "missing `kind = ...` in #[app_error(...)]"
+            ));
         };
         Ok(AppErrorSpec {
             kind,
@@ -322,36 +319,7 @@ fn parse_masterror_attribute(attr: &Attribute) -> Result<MasterrorSpec, Error> {
                 "map" => {
                     input.parse::<Token![.]>()?;
                     let sub: Ident = input.call(Ident::parse_any)?;
-                    match sub.to_string().as_str() {
-                        "grpc" => {
-                            if map_grpc.is_some() {
-                                return Err(Error::new(
-                                    sub.span(),
-                                    "duplicate map.grpc specification"
-                                ));
-                            }
-                            input.parse::<Token![=]>()?;
-                            let value: Expr = input.parse()?;
-                            map_grpc = Some(value);
-                        }
-                        "problem" => {
-                            if map_problem.is_some() {
-                                return Err(Error::new(
-                                    sub.span(),
-                                    "duplicate map.problem specification"
-                                ));
-                            }
-                            input.parse::<Token![=]>()?;
-                            let value: Expr = input.parse()?;
-                            map_problem = Some(value);
-                        }
-                        other => {
-                            return Err(Error::new(
-                                sub.span(),
-                                format!("unknown #[masterror] mapping `map.{other}`")
-                            ));
-                        }
-                    }
+                    parse_masterror_map_target(&sub, input, &mut map_grpc, &mut map_problem)?;
                 }
                 other => {
                     return Err(Error::new(
@@ -369,23 +337,17 @@ fn parse_masterror_attribute(attr: &Attribute) -> Result<MasterrorSpec, Error> {
                 ));
             }
         }
-        let code = match code {
-            Some(value) => value,
-            None => {
-                return Err(Error::new(
-                    attr.span(),
-                    "missing `code = ...` in #[masterror(...)]"
-                ));
-            }
+        let Some(code) = code else {
+            return Err(Error::new(
+                attr.span(),
+                "missing `code = ...` in #[masterror(...)]"
+            ));
         };
-        let category = match category {
-            Some(value) => value,
-            None => {
-                return Err(Error::new(
-                    attr.span(),
-                    "missing `category = ...` in #[masterror(...)]"
-                ));
-            }
+        let Some(category) = category else {
+            return Err(Error::new(
+                attr.span(),
+                "missing `category = ...` in #[masterror(...)]"
+            ));
         };
         Ok(MasterrorSpec {
             code,
@@ -398,6 +360,42 @@ fn parse_masterror_attribute(attr: &Attribute) -> Result<MasterrorSpec, Error> {
             attribute_span: attr.span()
         })
     })
+}
+
+/// Parses the `map.grpc` / `map.problem` mapping target of
+/// `#[masterror(...)]`.
+fn parse_masterror_map_target(
+    sub: &Ident,
+    input: ParseStream,
+    map_grpc: &mut Option<Expr>,
+    map_problem: &mut Option<Expr>
+) -> Result<(), Error> {
+    match sub.to_string().as_str() {
+        "grpc" => {
+            if map_grpc.is_some() {
+                return Err(Error::new(sub.span(), "duplicate map.grpc specification"));
+            }
+            input.parse::<Token![=]>()?;
+            *map_grpc = Some(input.parse()?);
+        }
+        "problem" => {
+            if map_problem.is_some() {
+                return Err(Error::new(
+                    sub.span(),
+                    "duplicate map.problem specification"
+                ));
+            }
+            input.parse::<Token![=]>()?;
+            *map_problem = Some(input.parse()?);
+        }
+        other => {
+            return Err(Error::new(
+                sub.span(),
+                format!("unknown #[masterror] mapping `map.{other}`")
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// Parses boolean flag value (either explicit or implicit true).

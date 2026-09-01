@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -163,6 +163,11 @@ impl Error {
     /// further source, then returns a reference to it. If this error has no
     /// source, it returns a reference to itself.
     ///
+    /// # Panics
+    ///
+    /// Panics only if the chain were empty, which cannot happen because the
+    /// chain always starts with this error itself.
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -212,7 +217,8 @@ impl Error {
     where
         E: CoreError + 'static
     {
-        self.source_ref().is_some_and(|source| source.is::<E>())
+        self.source_ref()
+            .is_some_and(<dyn CoreError + Send + Sync + 'static>::is::<E>)
     }
 
     /// Attempt to take ownership of the source error as a concrete type.

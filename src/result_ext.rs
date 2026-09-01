@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -33,6 +33,11 @@ use crate::app_error::{Context, Error};
 /// ```
 pub trait ResultExt<T, E> {
     /// Convert an error into [`Error`] using [`Context`] supplied by `build`.
+    ///
+    /// # Errors
+    ///
+    /// Yields the enriched [`Error`] as the `Err` variant; the `Ok` value
+    /// passes through unchanged.
     #[allow(clippy::result_large_err)]
     fn ctx(self, build: impl FnOnce() -> Context) -> Result<T, Error>
     where
@@ -46,6 +51,11 @@ pub trait ResultExt<T, E> {
     /// keeps errors unclassified). If the source is already an [`Error`],
     /// its kind, code and metadata are preserved and only the message is
     /// replaced. For control over the category, use [`ctx`](ResultExt::ctx).
+    ///
+    /// # Errors
+    ///
+    /// Yields the enriched [`Error`] as the `Err` variant; the `Ok` value
+    /// passes through unchanged.
     ///
     /// # Examples
     ///
@@ -93,15 +103,10 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
                     enriched.metadata = app_err.metadata.clone();
                     enriched.edit_policy = app_err.edit_policy;
                     enriched.retry = app_err.retry;
-                    enriched.www_authenticate = app_err.www_authenticate.clone();
-                    #[cfg(feature = "serde_json")]
-                    {
-                        enriched.details = app_err.details.clone();
-                    }
-                    #[cfg(not(feature = "serde_json"))]
-                    {
-                        enriched.details = app_err.details.clone();
-                    }
+                    enriched
+                        .www_authenticate
+                        .clone_from(&app_err.www_authenticate);
+                    enriched.details.clone_from(&app_err.details);
                     #[cfg(feature = "backtrace")]
                     let shared_backtrace = app_err.backtrace_shared();
                     #[cfg(feature = "backtrace")]

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -10,7 +10,7 @@
 use masterror::{AppError, Error};
 
 /// Payment processing domain errors
-#[derive(Debug, Error, Clone, PartialEq)]
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum PaymentError {
     /// Insufficient funds in account
     #[error("insufficient funds: balance=${balance}, required=${required}")]
@@ -45,7 +45,7 @@ pub enum PaymentError {
 }
 
 /// Authentication and authorization errors
-#[derive(Debug, Error, Clone, PartialEq)]
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum AuthError {
     /// Invalid username or password
     #[error("invalid credentials")]
@@ -74,7 +74,7 @@ pub enum AuthError {
 }
 
 /// Input validation errors with field-level detail
-#[derive(Debug, Error, Clone, PartialEq)]
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum ValidationError {
     /// Required field is missing
     #[error("field '{field}' is required")]
@@ -105,7 +105,7 @@ pub enum ValidationError {
 }
 
 /// External service integration errors
-#[derive(Debug, Error, Clone, PartialEq)]
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum ExternalServiceError {
     /// Service returned an error response
     #[error("service '{service}' returned error: {message}")]
@@ -158,14 +158,14 @@ impl From<PaymentError> for AppError {
 impl From<AuthError> for AppError {
     fn from(err: AuthError) -> Self {
         match err {
-            AuthError::InvalidCredentials => Self::unauthorized(err.to_string()),
-            AuthError::SessionExpired {
+            AuthError::InvalidCredentials
+            | AuthError::SessionExpired {
                 ..
             } => Self::unauthorized(err.to_string()),
             AuthError::Forbidden {
                 ..
-            } => Self::forbidden(err.to_string()),
-            AuthError::AccountLocked {
+            }
+            | AuthError::AccountLocked {
                 ..
             } => Self::forbidden(err.to_string())
         }
@@ -239,8 +239,7 @@ fn validate_email(email: &str) -> Result<(), ValidationError> {
     Ok(())
 }
 
-fn main() {
-    println!("Custom Domain Errors Example\\n");
+fn demo_payment_processing() {
     println!("=== Payment Processing ===");
     match process_payment(100, 500) {
         Ok(msg) => println!("✓ {msg}"),
@@ -269,6 +268,9 @@ fn main() {
             println!("  → AppError kind: {:?}", app_err.kind);
         }
     }
+}
+
+fn demo_authentication() {
     println!("\\n=== Authentication ===");
     match authenticate("admin", "secret") {
         Ok(msg) => println!("✓ {msg}"),
@@ -296,6 +298,9 @@ fn main() {
         app_err.kind,
         app_err.kind.http_status()
     );
+}
+
+fn demo_validation() {
     println!("\\n=== Validation ===");
     match validate_email("user@example.com") {
         Ok(()) => println!("✓ Email is valid"),
@@ -325,6 +330,9 @@ fn main() {
             );
         }
     }
+}
+
+fn demo_external_service_errors() {
     println!("\\n=== External Service Errors ===");
     let service_err = ExternalServiceError::Timeout {
         service:    "payment-gateway".to_string(),
@@ -348,4 +356,12 @@ fn main() {
         app_err.kind,
         app_err.kind.http_status()
     );
+}
+
+fn main() {
+    println!("Custom Domain Errors Example\\n");
+    demo_payment_processing();
+    demo_authentication();
+    demo_validation();
+    demo_external_service_errors();
 }

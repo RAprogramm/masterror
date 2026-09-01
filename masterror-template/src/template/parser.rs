@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -9,7 +9,7 @@ use super::{
     TemplatePlaceholder, TemplateSegment
 };
 
-pub fn parse_template<'a>(source: &'a str) -> Result<Vec<TemplateSegment<'a>>, TemplateError> {
+pub fn parse_template(source: &str) -> Result<Vec<TemplateSegment<'_>>, TemplateError> {
     let mut segments = Vec::new();
     let mut iter = source.char_indices().peekable();
     let mut literal_start = 0usize;
@@ -156,7 +156,7 @@ fn split_placeholder<'a>(
                 span
             });
         }
-        Some(spec) => parse_formatter(spec, span.clone())?
+        Some(spec) => parse_formatter(spec, span)?
     };
     Ok((identifier, formatter))
 }
@@ -289,170 +289,175 @@ fn next_implicit_identifier<'a>(
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::literal_string_with_formatting_args,
+    reason = "template DSL syntax intentionally looks like format arguments"
+)]
 mod tests {
     use super::*;
 
+    const FORMATTER_CASES: [(&str, TemplateFormatter); 26] = [
+        (
+            "{value:?}",
+            TemplateFormatter::Debug {
+                alternate: false
+            }
+        ),
+        (
+            "{value:#?}",
+            TemplateFormatter::Debug {
+                alternate: true
+            }
+        ),
+        (
+            "{value:*>#?}",
+            TemplateFormatter::Debug {
+                alternate: true
+            }
+        ),
+        (
+            "{value:#>8?}",
+            TemplateFormatter::Debug {
+                alternate: false
+            }
+        ),
+        (
+            "{value:x}",
+            TemplateFormatter::LowerHex {
+                alternate: false
+            }
+        ),
+        (
+            "{value:>08x}",
+            TemplateFormatter::LowerHex {
+                alternate: false
+            }
+        ),
+        (
+            "{value:#x}",
+            TemplateFormatter::LowerHex {
+                alternate: true
+            }
+        ),
+        (
+            "{value:*<#x}",
+            TemplateFormatter::LowerHex {
+                alternate: true
+            }
+        ),
+        (
+            "{value:X}",
+            TemplateFormatter::UpperHex {
+                alternate: false
+            }
+        ),
+        (
+            "{value:*>#X}",
+            TemplateFormatter::UpperHex {
+                alternate: true
+            }
+        ),
+        (
+            "{value:#X}",
+            TemplateFormatter::UpperHex {
+                alternate: true
+            }
+        ),
+        (
+            "{value:p}",
+            TemplateFormatter::Pointer {
+                alternate: false
+            }
+        ),
+        (
+            "{value:>+#18p}",
+            TemplateFormatter::Pointer {
+                alternate: true
+            }
+        ),
+        (
+            "{value:#p}",
+            TemplateFormatter::Pointer {
+                alternate: true
+            }
+        ),
+        (
+            "{value:b}",
+            TemplateFormatter::Binary {
+                alternate: false
+            }
+        ),
+        (
+            "{value:#08b}",
+            TemplateFormatter::Binary {
+                alternate: true
+            }
+        ),
+        (
+            "{value:#b}",
+            TemplateFormatter::Binary {
+                alternate: true
+            }
+        ),
+        (
+            "{value:o}",
+            TemplateFormatter::Octal {
+                alternate: false
+            }
+        ),
+        (
+            "{value:+#o}",
+            TemplateFormatter::Octal {
+                alternate: true
+            }
+        ),
+        (
+            "{value:#o}",
+            TemplateFormatter::Octal {
+                alternate: true
+            }
+        ),
+        (
+            "{value:e}",
+            TemplateFormatter::LowerExp {
+                alternate: false
+            }
+        ),
+        (
+            "{value:#0e}",
+            TemplateFormatter::LowerExp {
+                alternate: true
+            }
+        ),
+        (
+            "{value:#e}",
+            TemplateFormatter::LowerExp {
+                alternate: true
+            }
+        ),
+        (
+            "{value:E}",
+            TemplateFormatter::UpperExp {
+                alternate: false
+            }
+        ),
+        (
+            "{value:#^10E}",
+            TemplateFormatter::UpperExp {
+                alternate: false
+            }
+        ),
+        (
+            "{value:#E}",
+            TemplateFormatter::UpperExp {
+                alternate: true
+            }
+        )
+    ];
+
     #[test]
     fn parses_supported_formatter_specs() {
-        let cases = [
-            (
-                "{value:?}",
-                TemplateFormatter::Debug {
-                    alternate: false
-                }
-            ),
-            (
-                "{value:#?}",
-                TemplateFormatter::Debug {
-                    alternate: true
-                }
-            ),
-            (
-                "{value:*>#?}",
-                TemplateFormatter::Debug {
-                    alternate: true
-                }
-            ),
-            (
-                "{value:#>8?}",
-                TemplateFormatter::Debug {
-                    alternate: false
-                }
-            ),
-            (
-                "{value:x}",
-                TemplateFormatter::LowerHex {
-                    alternate: false
-                }
-            ),
-            (
-                "{value:>08x}",
-                TemplateFormatter::LowerHex {
-                    alternate: false
-                }
-            ),
-            (
-                "{value:#x}",
-                TemplateFormatter::LowerHex {
-                    alternate: true
-                }
-            ),
-            (
-                "{value:*<#x}",
-                TemplateFormatter::LowerHex {
-                    alternate: true
-                }
-            ),
-            (
-                "{value:X}",
-                TemplateFormatter::UpperHex {
-                    alternate: false
-                }
-            ),
-            (
-                "{value:*>#X}",
-                TemplateFormatter::UpperHex {
-                    alternate: true
-                }
-            ),
-            (
-                "{value:#X}",
-                TemplateFormatter::UpperHex {
-                    alternate: true
-                }
-            ),
-            (
-                "{value:p}",
-                TemplateFormatter::Pointer {
-                    alternate: false
-                }
-            ),
-            (
-                "{value:>+#18p}",
-                TemplateFormatter::Pointer {
-                    alternate: true
-                }
-            ),
-            (
-                "{value:#p}",
-                TemplateFormatter::Pointer {
-                    alternate: true
-                }
-            ),
-            (
-                "{value:b}",
-                TemplateFormatter::Binary {
-                    alternate: false
-                }
-            ),
-            (
-                "{value:#08b}",
-                TemplateFormatter::Binary {
-                    alternate: true
-                }
-            ),
-            (
-                "{value:#b}",
-                TemplateFormatter::Binary {
-                    alternate: true
-                }
-            ),
-            (
-                "{value:o}",
-                TemplateFormatter::Octal {
-                    alternate: false
-                }
-            ),
-            (
-                "{value:+#o}",
-                TemplateFormatter::Octal {
-                    alternate: true
-                }
-            ),
-            (
-                "{value:#o}",
-                TemplateFormatter::Octal {
-                    alternate: true
-                }
-            ),
-            (
-                "{value:e}",
-                TemplateFormatter::LowerExp {
-                    alternate: false
-                }
-            ),
-            (
-                "{value:#0e}",
-                TemplateFormatter::LowerExp {
-                    alternate: true
-                }
-            ),
-            (
-                "{value:#e}",
-                TemplateFormatter::LowerExp {
-                    alternate: true
-                }
-            ),
-            (
-                "{value:E}",
-                TemplateFormatter::UpperExp {
-                    alternate: false
-                }
-            ),
-            (
-                "{value:#^10E}",
-                TemplateFormatter::UpperExp {
-                    alternate: false
-                }
-            ),
-            (
-                "{value:#E}",
-                TemplateFormatter::UpperExp {
-                    alternate: true
-                }
-            )
-        ];
-        for (source, expected_formatter) in &cases {
+        for (source, expected_formatter) in &FORMATTER_CASES {
             let segments = parse_template(source).expect("template parsed");
             let placeholder = match segments.first() {
                 Some(TemplateSegment::Placeholder(placeholder)) => placeholder,

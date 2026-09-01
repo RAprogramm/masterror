@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -92,7 +92,7 @@ fn promote_error(context: Context) -> AppError {
     let failing: Result<(), DummyError> = Err(DummyError);
     match failing.ctx(|| context) {
         Err(err) => err,
-        Ok(_) => AppError::internal("benchmark expected error")
+        Ok(()) => AppError::internal("benchmark expected error")
     }
 }
 

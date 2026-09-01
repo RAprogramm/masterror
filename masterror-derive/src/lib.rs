@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -13,6 +13,11 @@
 //! `T: Send + Sync + 'static`; use the `no_source` flag in
 //! `#[app_error(...)]` to opt out and drop the domain error during
 //! conversion instead.
+
+#![allow(
+    clippy::cast_possible_truncation,
+    reason = "syn::Index stores u32; derive inputs never approach u32::MAX"
+)]
 
 mod app_error_impl;
 mod display;
@@ -53,7 +58,7 @@ fn expand(input: DeriveInput) -> Result<proc_macro2::TokenStream, Error> {
     let deprecated = references_deprecated(&input);
     let parsed = input::parse_input(input)?;
     let display_impl = display::expand(&parsed)?;
-    let error_impl = error_trait::expand(&parsed)?;
+    let error_impl = error_trait::expand(&parsed);
     let from_impls = from_impl::expand(&parsed)?;
     let app_error_impls = app_error_impl::expand(&parsed)?;
     Ok(allow_deprecated(
@@ -71,7 +76,7 @@ fn expand_masterror(input: DeriveInput) -> Result<proc_macro2::TokenStream, Erro
     let deprecated = references_deprecated(&input);
     let parsed = input::parse_input(input)?;
     let display_impl = display::expand(&parsed)?;
-    let error_impl = error_trait::expand(&parsed)?;
+    let error_impl = error_trait::expand(&parsed);
     let from_impls = from_impl::expand(&parsed)?;
     let masterror_impl = masterror_impl::expand(&parsed)?;
     Ok(allow_deprecated(

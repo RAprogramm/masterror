@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -85,7 +85,7 @@ pub fn render_variant(variant: &VariantData) -> Result<TokenStream, Error> {
         } => render_variant_template(variant, template, Some(args)),
         DisplaySpec::FormatterPath {
             path, ..
-        } => render_variant_formatter_path(variant, path)
+        } => Ok(render_variant_formatter_path(variant, path))
     }
 }
 
@@ -144,39 +144,36 @@ pub fn render_variant_transparent(variant: &VariantData) -> Result<TokenStream, 
 /// # Returns
 ///
 /// Token stream containing the match arm with formatter function call
-pub fn render_variant_formatter_path(
-    variant: &VariantData,
-    path: &syn::ExprPath
-) -> Result<TokenStream, Error> {
+pub fn render_variant_formatter_path(variant: &VariantData, path: &syn::ExprPath) -> TokenStream {
     let variant_ident = &variant.ident;
     match &variant.fields {
         Fields::Unit => {
             let call = formatter_path_call(path, Vec::new());
-            Ok(quote! {
+            quote! {
                 Self::#variant_ident => {
                     #call
                 }
-            })
+            }
         }
         Fields::Unnamed(fields) => {
             let bindings: Vec<_> = fields.iter().map(binding_ident).collect();
             let pattern = quote!(Self::#variant_ident(#(#bindings),*));
             let call = formatter_path_call(path, variant_formatter_arguments(&bindings));
-            Ok(quote! {
+            quote! {
                 #pattern => {
                     #call
                 }
-            })
+            }
         }
         Fields::Named(fields) => {
             let bindings: Vec<_> = fields.iter().map(binding_ident).collect();
             let pattern = quote!(Self::#variant_ident { #(#bindings),* });
             let call = formatter_path_call(path, variant_formatter_arguments(&bindings));
-            Ok(quote! {
+            quote! {
                 #pattern => {
                     #call
                 }
-            })
+            }
         }
     }
 }
@@ -604,10 +601,7 @@ mod tests {
             }
         );
         let path: syn::ExprPath = parse_quote!(my_formatter);
-        let result = render_variant_formatter_path(&variant, &path);
-        assert!(result.is_ok());
-        let tokens = result.unwrap();
-        let output = tokens.to_string();
+        let output = render_variant_formatter_path(&variant, &path).to_string();
         assert!(output.contains("Self :: MyVariant"));
         assert!(output.contains("my_formatter"));
     }
@@ -625,10 +619,7 @@ mod tests {
             }
         );
         let path: syn::ExprPath = parse_quote!(my_formatter);
-        let result = render_variant_formatter_path(&variant, &path);
-        assert!(result.is_ok());
-        let tokens = result.unwrap();
-        let output = tokens.to_string();
+        let output = render_variant_formatter_path(&variant, &path).to_string();
         assert!(output.contains("Self :: MyVariant"));
         assert!(output.contains("__field0"));
         assert!(output.contains("__field1"));
@@ -647,10 +638,7 @@ mod tests {
             }
         );
         let path: syn::ExprPath = parse_quote!(my_formatter);
-        let result = render_variant_formatter_path(&variant, &path);
-        assert!(result.is_ok());
-        let tokens = result.unwrap();
-        let output = tokens.to_string();
+        let output = render_variant_formatter_path(&variant, &path).to_string();
         assert!(output.contains("Self :: MyVariant"));
         assert!(output.contains("name"));
         assert!(output.contains("value"));

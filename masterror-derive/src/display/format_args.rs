@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -200,7 +200,7 @@ impl<'a> FormatArgumentsEnv<'a> {
     /// `Ok(Some(expr))` if resolved, `Ok(None)` if not found, or `Err` on
     /// resolution error
     pub fn resolve_placeholder(
-        &mut self,
+        &self,
         placeholder: &TemplatePlaceholderSpec
     ) -> Result<Option<ResolvedPlaceholderExpr>, Error> {
         use crate::template_support::TemplateIdentifierSpec;
@@ -211,9 +211,8 @@ impl<'a> FormatArgumentsEnv<'a> {
                 self.implicit.get(*index).and_then(|slot| *slot)
             }
         };
-        let index = match arg_index {
-            Some(index) => index,
-            None => return Ok(None)
+        let Some(index) = arg_index else {
+            return Ok(None);
         };
         let resolved = self.args[index].resolved_expr(self, placeholder)?;
         Ok(Some(resolved))
@@ -258,7 +257,7 @@ impl<'a> FormatArgumentsEnv<'a> {
     }
 }
 
-impl<'a> EnvFormatArg<'a> {
+impl EnvFormatArg<'_> {
     fn prelude_tokens(&self) -> TokenStream {
         match (&self.binding, &self.arg.value) {
             (Some(binding), FormatArgValue::Expr(expr)) => {
@@ -748,7 +747,7 @@ mod tests {
             }]
         };
         let fields = Fields::Unit;
-        let mut env = FormatArgumentsEnv::new_struct(&spec, &fields);
+        let env = FormatArgumentsEnv::new_struct(&spec, &fields);
         let placeholder = TemplatePlaceholderSpec {
             identifier: TemplateIdentifierSpec::Named("test".to_string()),
             formatter:  TemplateFormatter::Display {
@@ -771,7 +770,7 @@ mod tests {
             }]
         };
         let fields = Fields::Unit;
-        let mut env = FormatArgumentsEnv::new_struct(&spec, &fields);
+        let env = FormatArgumentsEnv::new_struct(&spec, &fields);
         let placeholder = TemplatePlaceholderSpec {
             identifier: TemplateIdentifierSpec::Positional(0),
             formatter:  TemplateFormatter::Display {
@@ -794,7 +793,7 @@ mod tests {
             }]
         };
         let fields = Fields::Unit;
-        let mut env = FormatArgumentsEnv::new_struct(&spec, &fields);
+        let env = FormatArgumentsEnv::new_struct(&spec, &fields);
         let placeholder = TemplatePlaceholderSpec {
             identifier: TemplateIdentifierSpec::Implicit(0),
             formatter:  TemplateFormatter::Display {
@@ -813,7 +812,7 @@ mod tests {
             args: vec![]
         };
         let fields = Fields::Unit;
-        let mut env = FormatArgumentsEnv::new_struct(&spec, &fields);
+        let env = FormatArgumentsEnv::new_struct(&spec, &fields);
         let placeholder = TemplatePlaceholderSpec {
             identifier: TemplateIdentifierSpec::Named("nonexistent".to_string()),
             formatter:  TemplateFormatter::Display {
@@ -837,7 +836,7 @@ mod tests {
             }]
         };
         let fields = Fields::Unit;
-        let mut env = FormatArgumentsEnv::new_struct(&spec, &fields);
+        let env = FormatArgumentsEnv::new_struct(&spec, &fields);
         let placeholder = TemplatePlaceholderSpec {
             identifier: TemplateIdentifierSpec::Named("ptr".to_string()),
             formatter:  TemplateFormatter::Pointer {

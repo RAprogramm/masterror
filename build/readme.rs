@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -232,9 +232,8 @@ fn collect_feature_docs(
 fn write_if_changed(path: &Path, contents: &str) -> Result<(), ReadmeError> {
     match fs::read_to_string(path) {
         Ok(existing) if existing == contents => return Ok(()),
-        Ok(_) => {}
         Err(err) if err.kind() != io::ErrorKind::NotFound => return Err(ReadmeError::Io(err)),
-        Err(_) => {}
+        Ok(_) | Err(_) => {}
     }
     fs::write(path, contents)?;
     Ok(())

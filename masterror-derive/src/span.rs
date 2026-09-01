@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -73,7 +73,6 @@ fn escaped_range(repr: &str, value: &str, range: Range<usize>) -> Option<Range<u
             }
             value_pos += produced;
             token_pos += escape_len;
-            mapping[value_pos] = token_pos;
         } else {
             let ch = from_utf8(&bytes[token_pos..content_end])
                 .ok()?
@@ -85,8 +84,8 @@ fn escaped_range(repr: &str, value: &str, range: Range<usize>) -> Option<Range<u
             }
             value_pos += ch.len_utf8();
             token_pos += char_len;
-            mapping[value_pos] = token_pos;
         }
+        mapping[value_pos] = token_pos;
     }
     if value_pos != value.len() {
         return None;
@@ -223,6 +222,10 @@ mod tests {
     }
 
     #[test]
+    #[allow(
+        clippy::needless_raw_string_hashes,
+        reason = "content contains quote-hash sequence; fewer hashes would change the literal"
+    )]
     fn test_raw_range_empty_content_with_hash() {
         let result = raw_range(r##"r#""#"##, 0..0);
         assert_eq!(result, Some(3..3));

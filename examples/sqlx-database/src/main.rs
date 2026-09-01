@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -159,7 +159,7 @@ async fn main() -> Result<(), AppError> {
     println!("✓ Updated user name: {}", updated.name);
     println!("\\n=== Testing Update on Non-existent User ===");
     match update_user(&pool, 999, "Ghost").await {
-        Ok(_) => println!("✗ Should have failed with not found"),
+        Ok(()) => println!("✗ Should have failed with not found"),
         Err(e) => {
             println!("✓ Expected error: {e}");
             println!("  → Kind: {:?}, HTTP: {}", e.kind, e.kind.http_status());
@@ -176,7 +176,7 @@ async fn main() -> Result<(), AppError> {
     delete_user(&pool, user2.id).await?;
     println!("✓ Deleted user with ID: {}", user2.id);
     match delete_user(&pool, user2.id).await {
-        Ok(_) => println!("✗ Should have failed with not found"),
+        Ok(()) => println!("✗ Should have failed with not found"),
         Err(e) => {
             println!("✓ Expected error: {e}");
             println!("  → Kind: {:?}, HTTP: {}", e.kind, e.kind.http_status());

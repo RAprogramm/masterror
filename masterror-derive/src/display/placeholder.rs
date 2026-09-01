@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -101,8 +101,7 @@ pub fn pointer_prefers_value(ty: &syn::Type) -> bool {
             .path
             .segments
             .last()
-            .map(|segment| segment.ident == "NonNull")
-            .unwrap_or(false),
+            .is_some_and(|segment| segment.ident == "NonNull"),
         _ => false
     }
 }

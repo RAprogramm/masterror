@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -41,29 +41,24 @@ impl ErrorResponse {
     /// ```
     #[must_use]
     pub fn new_legacy(status: u16, message: impl Into<String>) -> Self {
-        match StatusCode::from_u16(status) {
-            Ok(_) => {
-                let message = message.into();
-                Self {
-                    status,
-                    code: AppCode::Internal,
-                    message,
-                    details: None,
-                    retry: None,
-                    www_authenticate: None
-                }
-            }
-            Err(_) => {
-                let message = message.into();
-                Self {
-                    status: 500,
-                    code: AppCode::Internal,
-                    message,
-                    details: None,
-                    retry: None,
-                    www_authenticate: None
-                }
-            }
+        let message = message.into();
+        if StatusCode::from_u16(status).is_err() {
+            return Self {
+                status: 500,
+                code: AppCode::Internal,
+                message,
+                details: None,
+                retry: None,
+                www_authenticate: None
+            };
+        }
+        Self {
+            status,
+            code: AppCode::Internal,
+            message,
+            details: None,
+            retry: None,
+            www_authenticate: None
         }
     }
 }

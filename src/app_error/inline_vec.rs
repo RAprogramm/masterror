@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -116,9 +116,8 @@ impl<T> InlineVec<T> {
     #[must_use]
     pub fn get(&self, index: usize) -> Option<&T> {
         match &self.storage {
-            Storage::Empty => None,
             Storage::One(a) if index == 0 => Some(a),
-            Storage::One(_) => None,
+            Storage::Empty | Storage::One(_) => None,
             Storage::Two(arr) => arr.get(index),
             Storage::Three(arr) => arr.get(index),
             Storage::Four(arr) => arr.get(index),
@@ -130,9 +129,8 @@ impl<T> InlineVec<T> {
     #[must_use]
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         match &mut self.storage {
-            Storage::Empty => None,
             Storage::One(a) if index == 0 => Some(a),
-            Storage::One(_) => None,
+            Storage::Empty | Storage::One(_) => None,
             Storage::Two(arr) => arr.get_mut(index),
             Storage::Three(arr) => arr.get_mut(index),
             Storage::Four(arr) => arr.get_mut(index),
@@ -151,7 +149,7 @@ impl<T> InlineVec<T> {
 
         self.storage = match core::mem::take(&mut self.storage) {
             Storage::Empty => {
-                assert!(index == 0);
+                assert_eq!(index, 0);
                 Storage::One(value)
             }
             Storage::One(a) => {

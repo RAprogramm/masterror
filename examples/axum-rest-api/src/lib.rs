@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -125,6 +125,18 @@ const fn validate_name(name: &str) -> Result<(), UserError> {
 /// GET /users/:id - Retrieve user by ID
 ///
 /// Returns 404 if user not found, includes `user_id` in error metadata.
+///
+/// # Errors
+///
+/// Returns [`UserError::NotFound`] when the user does not exist.
+///
+/// # Panics
+///
+/// Panics if the user registry lock is poisoned.
+#[allow(
+    clippy::unused_async,
+    reason = "handlers follow the conventional async axum signature"
+)]
 pub async fn get_user(
     State(state): State<AppState>,
     Path(user_id): Path<Uuid>
@@ -141,6 +153,23 @@ pub async fn get_user(
 ///
 /// Validates email format and checks for duplicates.
 /// Returns 201 Created on success.
+///
+/// # Errors
+///
+/// Returns [`UserError::InvalidEmail`] or [`UserError::InvalidName`] on failed
+/// validation and [`UserError::DuplicateEmail`] when the email is taken.
+///
+/// # Panics
+///
+/// Panics if the user registry lock is poisoned.
+#[allow(
+    clippy::significant_drop_tightening,
+    reason = "the registry must stay locked between the duplicate check and the insert"
+)]
+#[allow(
+    clippy::unused_async,
+    reason = "handlers follow the conventional async axum signature"
+)]
 pub async fn create_user(
     State(state): State<AppState>,
     axum::Json(req): axum::Json<CreateUserRequest>
@@ -165,6 +194,24 @@ pub async fn create_user(
 ///
 /// Returns 404 if user not found.
 /// Validates email format before update.
+///
+/// # Errors
+///
+/// Returns [`UserError::NotFound`] when the user does not exist,
+/// [`UserError::InvalidEmail`] or [`UserError::InvalidName`] on failed
+/// validation and [`UserError::DuplicateEmail`] when the email is taken.
+///
+/// # Panics
+///
+/// Panics if the user registry lock is poisoned.
+#[allow(
+    clippy::significant_drop_tightening,
+    reason = "the registry must stay locked between the lookup and the update"
+)]
+#[allow(
+    clippy::unused_async,
+    reason = "handlers follow the conventional async axum signature"
+)]
 pub async fn update_user(
     State(state): State<AppState>,
     Path(user_id): Path<Uuid>,
@@ -190,6 +237,22 @@ pub async fn update_user(
 /// DELETE /users/:id - Delete user
 ///
 /// Returns 404 if user not found, 204 No Content on success.
+///
+/// # Errors
+///
+/// Returns [`UserError::NotFound`] when the user does not exist.
+///
+/// # Panics
+///
+/// Panics if the user registry lock is poisoned.
+#[allow(
+    clippy::significant_drop_tightening,
+    reason = "the registry must stay locked while the entry is removed"
+)]
+#[allow(
+    clippy::unused_async,
+    reason = "handlers follow the conventional async axum signature"
+)]
 pub async fn delete_user(
     State(state): State<AppState>,
     Path(user_id): Path<Uuid>

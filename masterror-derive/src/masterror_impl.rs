@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -35,6 +35,7 @@
 //! ```
 
 use proc_macro2::TokenStream;
+use quote::quote;
 use syn::Error;
 
 use crate::input::{ErrorData, ErrorInput, StructData, VariantData};
@@ -97,7 +98,6 @@ fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, E
     })?;
     let conversion = struct_conversion_impl(input, data, spec);
     let mappings = struct_mapping_impl(input, spec);
-    use quote::quote;
     Ok(quote! {
         #conversion
         #mappings
@@ -121,7 +121,6 @@ fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> Result<TokenStre
     ensure_all_variants_have_masterror(variants)?;
     let conversion = enum_conversion_impl(input, variants);
     let mappings = enum_mapping_impl(input, variants);
-    use quote::quote;
     Ok(quote! {
         #conversion
         #mappings

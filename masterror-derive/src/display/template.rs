@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -120,13 +120,13 @@ where
                 if placeholder_requires_format_engine(&placeholder.formatter) {
                     requires_format_engine = true;
                 }
-                let resolved = resolver(placeholder)?;
+                let resolved_placeholder = resolver(placeholder)?;
                 format_buffer.push_str(&placeholder_format_fragment(placeholder));
                 segments.push(RenderedSegment::Placeholder(PlaceholderRender {
                     identifier: placeholder.identifier.clone(),
-                    formatter: placeholder.formatter.clone(),
-                    span: placeholder.span,
-                    resolved
+                    formatter:  placeholder.formatter.clone(),
+                    span:       placeholder.span,
+                    resolved:   resolved_placeholder
                 }));
             }
         }
@@ -188,6 +188,18 @@ pub fn build_template_arguments(
     let mut named = Vec::new();
     let mut positional = Vec::new();
     let mut implicit = Vec::new();
+    collect_placeholder_arguments(segments, &mut named, &mut positional, &mut implicit);
+    append_format_arguments(format_args, &mut named, &mut positional, &mut implicit);
+    assemble_arguments(named, positional, implicit)
+}
+
+/// Collects unique placeholder arguments from the rendered template segments.
+fn collect_placeholder_arguments(
+    segments: &[RenderedSegment],
+    named: &mut Vec<NamedArgument>,
+    positional: &mut Vec<IndexedArgument>,
+    implicit: &mut Vec<IndexedArgument>
+) {
     for segment in segments {
         let RenderedSegment::Placeholder(placeholder) = segment else {
             continue;
@@ -232,6 +244,16 @@ pub fn build_template_arguments(
             }
         }
     }
+}
+
+/// Appends explicit format arguments that are not already covered by
+/// placeholders.
+fn append_format_arguments(
+    format_args: Vec<ResolvedFormatArgument>,
+    named: &mut Vec<NamedArgument>,
+    positional: &mut Vec<IndexedArgument>,
+    implicit: &mut Vec<IndexedArgument>
+) {
     for argument in format_args {
         match argument.kind {
             ResolvedFormatArgumentKind::Named(ident) => {
@@ -278,6 +300,15 @@ pub fn build_template_arguments(
             }
         }
     }
+}
+
+/// Assembles the final argument list in `write!` order: positional, implicit,
+/// then named.
+fn assemble_arguments(
+    named: Vec<NamedArgument>,
+    mut positional: Vec<IndexedArgument>,
+    mut implicit: Vec<IndexedArgument>
+) -> Vec<TokenStream> {
     positional.sort_by_key(|argument| argument.index);
     implicit.sort_by_key(|argument| argument.index);
     let mut arguments = Vec::with_capacity(named.len() + positional.len() + implicit.len());
@@ -365,13 +396,17 @@ pub fn placeholder_format_fragment(placeholder: &TemplatePlaceholderSpec) -> Str
 /// # Returns
 ///
 /// The format specification string, or `None` if not applicable
-pub fn formatter_format_fragment<'a>(
-    formatter: &'a masterror_template::template::TemplateFormatter
-) -> Option<Cow<'a, str>> {
+pub fn formatter_format_fragment(
+    formatter: &masterror_template::template::TemplateFormatter
+) -> Option<Cow<'_, str>> {
     formatter.format_fragment()
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::literal_string_with_formatting_args,
+    reason = "asserted fragments intentionally look like format arguments"
+)]
 mod tests {
     use masterror_template::template::TemplateFormatter;
     use proc_macro2::Span;

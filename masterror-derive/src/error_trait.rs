@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -46,7 +46,6 @@
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::Error;
 
 use crate::{
     input::{ErrorData, ErrorInput, StructData, VariantData},
@@ -73,11 +72,7 @@ use source::{struct_source_body, variant_source_arm};
 /// # Returns
 ///
 /// Token stream containing the Error trait implementation
-///
-/// # Errors
-///
-/// Returns error if trait generation fails due to invalid input structure
-pub fn expand(input: &ErrorInput) -> Result<TokenStream, Error> {
+pub fn expand(input: &ErrorInput) -> TokenStream {
     match &input.data {
         ErrorData::Struct(data) => expand_struct(input, data),
         ErrorData::Enum(variants) => expand_enum(input, variants)
@@ -97,13 +92,13 @@ pub fn expand(input: &ErrorInput) -> Result<TokenStream, Error> {
 /// # Returns
 ///
 /// Token stream for struct Error trait impl
-fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, Error> {
+fn expand_struct(input: &ErrorInput, data: &StructData) -> TokenStream {
     let body = struct_source_body(&data.fields, &data.display);
     let provide_method = struct_provide_method(&data.fields).unwrap_or_default();
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
     let lint_allows = lifetime_lint_allows(&input.generics);
-    Ok(quote! {
+    quote! {
         #lint_allows
         impl #impl_generics std::error::Error for #ident #ty_generics #where_clause {
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
@@ -111,7 +106,7 @@ fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, E
             }
             #provide_method
         }
-    })
+    }
 }
 
 /// Generates Error trait implementation for enum error types.
@@ -127,7 +122,7 @@ fn expand_struct(input: &ErrorInput, data: &StructData) -> Result<TokenStream, E
 /// # Returns
 ///
 /// Token stream for enum Error trait impl
-fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> Result<TokenStream, Error> {
+fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> TokenStream {
     let mut arms = Vec::new();
     for variant in variants {
         arms.push(variant_source_arm(variant));
@@ -136,7 +131,7 @@ fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> Result<TokenStre
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
     let lint_allows = lifetime_lint_allows(&input.generics);
-    Ok(quote! {
+    quote! {
         #lint_allows
         impl #impl_generics std::error::Error for #ident #ty_generics #where_clause {
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
@@ -146,7 +141,7 @@ fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> Result<TokenStre
             }
             #provide_method
         }
-    })
+    }
 }
 
 #[cfg(test)]
@@ -179,9 +174,7 @@ mod tests {
     #[test]
     fn test_expand_struct() {
         let input = make_simple_error_input("MyError");
-        let result = expand(&input);
-        assert!(result.is_ok());
-        let tokens = result.expect("valid tokens");
+        let tokens = expand(&input);
         let output = tokens.to_string();
         assert!(output.contains("impl"));
         assert!(output.contains("std :: error :: Error"));
@@ -206,9 +199,7 @@ mod tests {
             generics: parse_quote!(),
             data:     ErrorData::Enum(vec![variant])
         };
-        let result = expand(&input);
-        assert!(result.is_ok());
-        let tokens = result.expect("valid tokens");
+        let tokens = expand(&input);
         let output = tokens.to_string();
         assert!(output.contains("impl"));
         assert!(output.contains("match self"));
@@ -217,9 +208,7 @@ mod tests {
     #[test]
     fn test_expand_struct_generates_source_method() {
         let input = make_simple_error_input("TestError");
-        let result = expand(&input);
-        assert!(result.is_ok());
-        let output = result.expect("tokens").to_string();
+        let output = expand(&input).to_string();
         assert!(output.contains("fn source"));
     }
 }

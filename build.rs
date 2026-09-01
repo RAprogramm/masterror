@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -97,7 +97,7 @@ fn allow_readme_drift() -> bool {
 }
 
 fn has_env(name: &str) -> bool {
-    env::var_os(name).map(|v| !v.is_empty()).unwrap_or(false)
+    env::var_os(name).is_some_and(|v| !v.is_empty())
 }
 
 fn detect_error_generic_member_access()
@@ -140,13 +140,13 @@ fn compile_probe(
     Ok(cmd.status()?)
 }
 
-const STABLE_SNIPPET: &str = r#"use std::error::{Error, Request};
+const STABLE_SNIPPET: &str = r"use std::error::{Error, Request};
 
 pub fn probe(request: &mut Request<'_>, error: &(dyn Error + 'static)) {
     let _ = request;
     let _ = error;
 }
-"#;
+";
 
 const NIGHTLY_SNIPPET: &str = r#"#![feature(error_generic_member_access)]
 
@@ -191,35 +191,35 @@ mod tests {
 
     #[test]
     fn has_env_returns_true_when_var_set() {
-        env::set_var("MASTERROR_TEST_VAR", "1");
+        unsafe { env::set_var("MASTERROR_TEST_VAR", "1") };
         assert!(has_env("MASTERROR_TEST_VAR"));
-        env::remove_var("MASTERROR_TEST_VAR");
+        unsafe { env::remove_var("MASTERROR_TEST_VAR") };
     }
 
     #[test]
     fn has_env_returns_false_when_var_not_set() {
-        env::remove_var("MASTERROR_TEST_VAR_NONEXISTENT");
+        unsafe { env::remove_var("MASTERROR_TEST_VAR_NONEXISTENT") };
         assert!(!has_env("MASTERROR_TEST_VAR_NONEXISTENT"));
     }
 
     #[test]
     fn has_env_returns_false_when_var_empty() {
-        env::set_var("MASTERROR_TEST_VAR_EMPTY", "");
+        unsafe { env::set_var("MASTERROR_TEST_VAR_EMPTY", "") };
         assert!(!has_env("MASTERROR_TEST_VAR_EMPTY"));
-        env::remove_var("MASTERROR_TEST_VAR_EMPTY");
+        unsafe { env::remove_var("MASTERROR_TEST_VAR_EMPTY") };
     }
 
     #[test]
     fn allow_readme_drift_checks_both_vars() {
-        env::remove_var("MASTERROR_ALLOW_README_DRIFT");
-        env::remove_var("MASTERROR_SKIP_README_CHECK");
+        unsafe { env::remove_var("MASTERROR_ALLOW_README_DRIFT") };
+        unsafe { env::remove_var("MASTERROR_SKIP_README_CHECK") };
         assert!(!allow_readme_drift());
-        env::set_var("MASTERROR_ALLOW_README_DRIFT", "1");
+        unsafe { env::set_var("MASTERROR_ALLOW_README_DRIFT", "1") };
         assert!(allow_readme_drift());
-        env::remove_var("MASTERROR_ALLOW_README_DRIFT");
-        env::set_var("MASTERROR_SKIP_README_CHECK", "1");
+        unsafe { env::remove_var("MASTERROR_ALLOW_README_DRIFT") };
+        unsafe { env::set_var("MASTERROR_SKIP_README_CHECK", "1") };
         assert!(allow_readme_drift());
-        env::remove_var("MASTERROR_SKIP_README_CHECK");
+        unsafe { env::remove_var("MASTERROR_SKIP_README_CHECK") };
     }
 
     #[test]

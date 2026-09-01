@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -40,7 +40,7 @@ pub fn append_projection_segments(
     segments: &[FormatArgProjectionSegment]
 ) -> TokenStream {
     for segment in segments {
-        expr = append_projection_segment(expr, segment);
+        expr = append_projection_segment(&expr, segment);
     }
     expr
 }
@@ -56,7 +56,7 @@ pub fn append_projection_segments(
 ///
 /// Token stream with the projection segment applied
 fn append_projection_segment(
-    expr: TokenStream,
+    expr: &TokenStream,
     segment: &FormatArgProjectionSegment
 ) -> TokenStream {
     match segment {
@@ -71,7 +71,7 @@ fn append_projection_segment(
             };
             quote!((#expr).#index_token)
         }
-        FormatArgProjectionSegment::MethodCall(call) => append_method_call(&expr, call)
+        FormatArgProjectionSegment::MethodCall(call) => append_method_call(expr, call)
     }
 }
 

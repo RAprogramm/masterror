@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -338,7 +338,9 @@ mod tests {
             RawFormatArg::Named {
                 ..
             } => {}
-            _ => panic!("expected Named variant")
+            RawFormatArg::Positional {
+                ..
+            } => panic!("expected Named variant")
         }
     }
 
@@ -350,7 +352,9 @@ mod tests {
             RawFormatArg::Positional {
                 ..
             } => {}
-            _ => panic!("expected Positional variant")
+            RawFormatArg::Named {
+                ..
+            } => panic!("expected Positional variant")
         }
     }
 
@@ -360,7 +364,7 @@ mod tests {
         assert!(result.is_ok());
         match result.unwrap() {
             FormatArgValue::Expr(_) => {}
-            _ => panic!("expected Expr variant")
+            FormatArgValue::Shorthand(_) => panic!("expected Expr variant")
         }
     }
 

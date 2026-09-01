@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 //
 // SPDX-License-Identifier: MIT
 
@@ -86,16 +86,15 @@ pub fn source_attachment_tokens(bound_fields: &[BoundField<'_>]) -> TokenStream 
                         __masterror_error = __masterror_error.with_source(source);
                     }
                 };
-            } else {
-                if is_arc_type(ty) {
-                    return quote! {
-                        __masterror_error = __masterror_error.with_source_arc(#binding);
-                    };
-                }
+            }
+            if is_arc_type(ty) {
                 return quote! {
-                    __masterror_error = __masterror_error.with_source(#binding);
+                    __masterror_error = __masterror_error.with_source_arc(#binding);
                 };
             }
+            return quote! {
+                __masterror_error = __masterror_error.with_source(#binding);
+            };
         }
     }
     TokenStream::new()
