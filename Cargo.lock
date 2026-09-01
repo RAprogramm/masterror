@@ -1994,7 +1994,7 @@ checksum = "a94d21414c1f4a51209ad204c1776a3d0765002c76c6abcb602a6f09f1e881c7"
 
 [[package]]
 name = "masterror"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -2038,7 +2038,7 @@ dependencies = [
 
 [[package]]
 name = "masterror-derive"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "masterror-template",
  "proc-macro2",
@@ -2048,7 +2048,7 @@ dependencies = [
 
 [[package]]
 name = "masterror-template"
-version = "0.5.0"
+version = "0.5.1"
 
 [[package]]
 name = "matchers"

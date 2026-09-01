@@ -4,7 +4,7 @@
 
 [package]
 name = "masterror"
-version = "0.30.0"
+version = "0.31.0"
 rust-version = "1.98"
 edition = "2024"
 license = "MIT"
@@ -88,11 +88,11 @@ openapi = ["dep:utoipa", "std"]
 benchmarks = ["std"]
 
 [workspace.dependencies]
-masterror-derive = { version = "0.13" }
-masterror-template = { version = "0.5" }
+masterror-derive = { version = "0.13.1" }
+masterror-template = { version = "0.5.1" }
 
 [dependencies]
-masterror-derive = { version = "0.13" }
+masterror-derive = { version = "0.13.1" }
 masterror-template = { workspace = true }
 tracing = { version = "0.1", optional = true, default-features = false, features = [
   "attributes",
