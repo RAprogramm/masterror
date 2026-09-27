@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.31.0...HEAD)
 
+### Added
+
+- Add release-plz for automated version bumps and releases by [@RAprogramm](https://github.com/RAprogramm) ([577abbd](https://github.com/RAprogramm/masterror/commit/577abbd04a8a829f005bd91f3265eaf2b5022b93))
+
+### Miscellaneous
+
+- Add SPDX header to release-plz.toml by [@RAprogramm](https://github.com/RAprogramm) ([c9877fb](https://github.com/RAprogramm/masterror/commit/c9877fbf89c025f782365dc0751cadce938fc893))
+
 ### Deps
 
 - Update utoipa 5 to 6 and fix no-std compatibility by [@RAprogramm](https://github.com/RAprogramm) ([6bce3e7](https://github.com/RAprogramm/masterror/commit/6bce3e79f295d99e052b28c804a3d28097201382))
