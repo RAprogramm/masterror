@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add release-plz for automated version bumps and releases by [@RAprogramm](https://github.com/RAprogramm) ([577abbd](https://github.com/RAprogramm/masterror/commit/577abbd04a8a829f005bd91f3265eaf2b5022b93))
 
+### CI/CD
+
+- Sync release-plz workflow from twc-rs by [@RAprogramm](https://github.com/RAprogramm) ([cdfb80a](https://github.com/RAprogramm/masterror/commit/cdfb80ab4f83e136055d5c47be77b946e20e86d9))
+- Enable cancel-in-progress for release-plz by [@RAprogramm](https://github.com/RAprogramm) ([4e8c8ab](https://github.com/RAprogramm/masterror/commit/4e8c8abe0d8b88c2f340838ea624171decd94427))
+- Minor workflow formatting by [@RAprogramm](https://github.com/RAprogramm) ([5f1f9f5](https://github.com/RAprogramm/masterror/commit/5f1f9f5525adb20d7e50364193ae3a95bb945a83))
+
 ### Miscellaneous
 
 - Add SPDX header to release-plz.toml by [@RAprogramm](https://github.com/RAprogramm) ([c9877fb](https://github.com/RAprogramm/masterror/commit/c9877fbf89c025f782365dc0751cadce938fc893))
