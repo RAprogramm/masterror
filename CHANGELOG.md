@@ -11,7 +11,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.30.0...HEAD)
+## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.31.0...HEAD)
+
+### Deps
+
+- Update utoipa 5 to 6 and fix no-std compatibility by [@RAprogramm](https://github.com/RAprogramm) ([6bce3e7](https://github.com/RAprogramm/masterror/commit/6bce3e79f295d99e052b28c804a3d28097201382))
+## [0.31.0](https://github.com/RAprogramm/masterror/releases/tag/v0.31.0) - 2026-09-01
 
 ### Fixed
 
@@ -25,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Finish module import rewiring in telemetry and response tests by [@RAprogramm](https://github.com/RAprogramm) ([cbeb86a](https://github.com/RAprogramm/masterror/commit/cbeb86aee5de034da94e7767114614b5ea4c3af2))
 - Break module dependency cycles and apply rust-manifest structure rules by [@RAprogramm](https://github.com/RAprogramm) ([476f004](https://github.com/RAprogramm/masterror/commit/476f004fa7adf7268716829d23523f7201dee049))
 - Resolve strict clippy pedantic and nursery findings across workspace by [@RAprogramm](https://github.com/RAprogramm) ([efcbeb5](https://github.com/RAprogramm/masterror/commit/efcbeb5ac74b8550ed9f40d83917628b2abdd8b4))
+
+**Full Changelog**: [v0.30.0...v0.31.0](https://github.com/RAprogramm/masterror/compare/v0.30.0...v0.31.0)
 ## [0.30.0](https://github.com/RAprogramm/masterror/releases/tag/v0.30.0) - 2026-08-24
 
 ### Fixed
