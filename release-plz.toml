@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
+#
+# SPDX-License-Identifier: MIT
+
 # release-plz configuration — https://release-plz.dev/docs/config
 #
 # The crate uses Conventional Commits (`feat:`/`fix:`/`chore:`/`ci:`/
