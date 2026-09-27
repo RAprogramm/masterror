@@ -1,7 +1,3 @@
-# SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
-#
-# SPDX-License-Identifier: MIT
-
 name: Release-plz
 
 on:
@@ -14,7 +10,7 @@ permissions:
 
 concurrency:
   group: release-plz-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   release-plz-release:
@@ -37,7 +33,7 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.app_token.outputs.token }}
       - name: Install stable Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       - name: Run release-plz
         uses: release-plz/action@2eb1d8bcb770b4c48ccfaad919734b38b51958c9 # v0.5
         with:
@@ -65,7 +61,7 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.app_token.outputs.token }}
       - name: Install stable Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       - name: Run release-plz
         uses: release-plz/action@2eb1d8bcb770b4c48ccfaad919734b38b51958c9 # v0.5
         with:
@@ -85,4 +81,3 @@ jobs:
           else
             echo "no open release PR"
           fi
-# ci fix
