@@ -81,3 +81,4 @@ jobs:
           else
             echo "no open release PR"
           fi
+# trigger release-plz
