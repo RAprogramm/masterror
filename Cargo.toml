@@ -17,7 +17,6 @@ categories = ["rust-patterns", "web-programming", "no-std"]
 keywords = ["error", "api", "framework", "error-handling"]
 include = [
   "Cargo.toml",
-  "Cargo.lock",
   "build.rs",
   "src/**",
   "tests/**",
@@ -32,10 +31,7 @@ include = [
   "idea.md",
   "target.md",
   "build/**",
-  "masterror-derive/**",
-  "masterror-template/**",
   ".cargo/audit.toml",
-  ".cargo/config.toml",
 ]
 
 [workspace]
