@@ -13,6 +13,14 @@
 # type and the changelog keeps the issue cross-reference.
 
 [workspace]
+# Only the three published crates are managed; examples (publish = false)
+# and any future workspace members are ignored unless opted in explicitly.
+release = false
+# cargo-semver-checks stays enabled. It builds the baseline crate through
+# `--manifest-path`, so the `.cargo/config.toml` embedded in the published
+# 0.31.0 package is never loaded and the check passes against it. The failure
+# of 2026-09-27 came from release-plz's own `cargo package` call inside the
+# extracted registry copy, which the 0.3.172 pin avoids.
 semver_check = true
 pr_draft = false
 pr_labels = ["release"]
@@ -80,9 +88,12 @@ commit_parsers = [
 
 [[package]]
 name = "masterror-template"
+release = true
 
 [[package]]
 name = "masterror-derive"
+release = true
 
 [[package]]
 name = "masterror"
+release = true
