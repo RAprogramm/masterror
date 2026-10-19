@@ -19,12 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### CI/CD
 
+- Publish only on version-bump pushes by [@RAprogramm](https://github.com/RAprogramm) ([1a59b18](https://github.com/RAprogramm/masterror/commit/1a59b18ee09dbb8d34f850d59c0a678abff19f55))
+- Add SPDX header and pin release-plz action to 0.3.172 by [@RAprogramm](https://github.com/RAprogramm) ([6062755](https://github.com/RAprogramm/masterror/commit/6062755fcee9151b3fe233cf38f291d59a986c9e))
+- Trigger release-plz by [@RAprogramm](https://github.com/RAprogramm) ([ed20aa1](https://github.com/RAprogramm/masterror/commit/ed20aa1db122165b1c7eecdc8c9c3dc773002d90))
 - Sync release-plz workflow from twc-rs by [@RAprogramm](https://github.com/RAprogramm) ([cdfb80a](https://github.com/RAprogramm/masterror/commit/cdfb80ab4f83e136055d5c47be77b946e20e86d9))
 - Enable cancel-in-progress for release-plz by [@RAprogramm](https://github.com/RAprogramm) ([4e8c8ab](https://github.com/RAprogramm/masterror/commit/4e8c8abe0d8b88c2f340838ea624171decd94427))
 - Minor workflow formatting by [@RAprogramm](https://github.com/RAprogramm) ([5f1f9f5](https://github.com/RAprogramm/masterror/commit/5f1f9f5525adb20d7e50364193ae3a95bb945a83))
 
+### Fixed
+
+- Exclude .cargo/config.toml from the published package by [@RAprogramm](https://github.com/RAprogramm) ([04bcf39](https://github.com/RAprogramm/masterror/commit/04bcf39dbe4ee0eb416a5ce7b9de7473af064a8a))
+
 ### Miscellaneous
 
+- Pin example path dependencies to the crate version by [@RAprogramm](https://github.com/RAprogramm) ([31a84f6](https://github.com/RAprogramm/masterror/commit/31a84f6b01c50d0b4393708ad95c0e4b063ecd89))
+- Scope release-plz to the published crates by [@RAprogramm](https://github.com/RAprogramm) ([fda319e](https://github.com/RAprogramm/masterror/commit/fda319e1331cfa8776dd39a04c042d637080096e))
 - Add SPDX header to release-plz.toml by [@RAprogramm](https://github.com/RAprogramm) ([c9877fb](https://github.com/RAprogramm/masterror/commit/c9877fbf89c025f782365dc0751cadce938fc893))
 
 ### Deps
