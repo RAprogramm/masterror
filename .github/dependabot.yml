@@ -2,10 +2,12 @@
 #
 # SPDX-License-Identifier: MIT
 
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+# Dependabot configuration — https://docs.github.com/code-security/dependabot
+#
+# Two ecosystems are maintained: the crate dependencies and the GitHub
+# Actions used by the workflows. Patch and minor updates are grouped and
+# merged automatically once the required checks pass, major updates are
+# grouped separately and always need a human.
 
 version: 2
 updates:
@@ -13,11 +15,24 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Asia/Ho_Chi_Minh"
+    open-pull-requests-limit: 5
+    # The crate is a published library: keep the version requirement as it is
+    # while it already allows the new release, so patch and minor updates
+    # touch the lockfile only and stay semver invisible to the users.
+    versioning-strategy: "increase-if-necessary"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
     labels:
       - "dependencies"
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
     groups:
-      # Patch and minor updates - safe to batch together
-      minor-and-patch:
+      cargo-minor-and-patch:
         patterns:
           - "*"
         update-types:
@@ -25,11 +40,46 @@ updates:
           - "patch"
         labels:
           - "dependencies"
-      # Major updates get separate PRs (breaking changes)
-      major:
+          - "minor-and-patch"
+      cargo-major:
         patterns:
           - "*"
         update-types:
           - "major"
         labels:
           - "dependencies"
+          - "major"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Asia/Ho_Chi_Minh"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+    cooldown:
+      default-days: 3
+    groups:
+      actions-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+        labels:
+          - "dependencies"
+          - "minor-and-patch"
+      actions-major:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+        labels:
+          - "dependencies"
+          - "major"
