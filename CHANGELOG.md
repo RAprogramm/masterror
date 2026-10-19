@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### CI/CD
 
+- Make the release job idempotent and pin it to the merged commit by [@RAprogramm](https://github.com/RAprogramm) ([d5f413a](https://github.com/RAprogramm/masterror/commit/d5f413ac38ccfbcb94baea748076fbf2cd443122))
+- Single release flow with the release PR, version check and publish by [@RAprogramm](https://github.com/RAprogramm) ([4616b85](https://github.com/RAprogramm/masterror/commit/4616b859e7b6f81f553bd535def23d01f79e296f))
+- Add release workflow publishing after a successful CI run by [@RAprogramm](https://github.com/RAprogramm) ([9a414ae](https://github.com/RAprogramm/masterror/commit/9a414aebe093f46662fa2bc20d657848ce107040))
+- Move publishing out of the CI workflow by [@RAprogramm](https://github.com/RAprogramm) ([da1a21c](https://github.com/RAprogramm/masterror/commit/da1a21cc3fe64f5d5d40f1d66712456c1fd8a90f))
 - Publish only on version-bump pushes by [@RAprogramm](https://github.com/RAprogramm) ([1a59b18](https://github.com/RAprogramm/masterror/commit/1a59b18ee09dbb8d34f850d59c0a678abff19f55))
 - Add SPDX header and pin release-plz action to 0.3.172 by [@RAprogramm](https://github.com/RAprogramm) ([6062755](https://github.com/RAprogramm/masterror/commit/6062755fcee9151b3fe233cf38f291d59a986c9e))
 - Trigger release-plz by [@RAprogramm](https://github.com/RAprogramm) ([ed20aa1](https://github.com/RAprogramm/masterror/commit/ed20aa1db122165b1c7eecdc8c9c3dc773002d90))
@@ -28,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Disable the masterror semver check until a clean package is published by [@RAprogramm](https://github.com/RAprogramm) ([645bfad](https://github.com/RAprogramm/masterror/commit/645bfad2d155a1d7eab5b1a05adc6eba24697105))
 - Exclude .cargo/config.toml from the published package by [@RAprogramm](https://github.com/RAprogramm) ([04bcf39](https://github.com/RAprogramm/masterror/commit/04bcf39dbe4ee0eb416a5ce7b9de7473af064a8a))
 
 ### Miscellaneous
