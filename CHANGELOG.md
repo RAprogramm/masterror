@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Check out a branch for the release PR job by [@RAprogramm](https://github.com/RAprogramm) ([8999e4d](https://github.com/RAprogramm/masterror/commit/8999e4d6f624cbceda4ff703ddfc2df73ace9203))
 - Disable the masterror semver check until a clean package is published by [@RAprogramm](https://github.com/RAprogramm) ([645bfad](https://github.com/RAprogramm/masterror/commit/645bfad2d155a1d7eab5b1a05adc6eba24697105))
 - Exclude .cargo/config.toml from the published package by [@RAprogramm](https://github.com/RAprogramm) ([04bcf39](https://github.com/RAprogramm/masterror/commit/04bcf39dbe4ee0eb416a5ce7b9de7473af064a8a))
 
