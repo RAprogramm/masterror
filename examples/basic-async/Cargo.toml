@@ -11,5 +11,5 @@ license.workspace = true
 publish = false
 
 [dependencies]
-masterror = { path = "../..", features = ["tokio"] }
+masterror = { path = "../..", version = "0.31.0", features = ["tokio"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }

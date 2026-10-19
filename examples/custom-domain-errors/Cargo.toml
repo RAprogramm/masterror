@@ -11,6 +11,6 @@ license.workspace = true
 publish = false
 
 [dependencies]
-masterror = { path = "../..", features = ["tracing"] }
+masterror = { path = "../..", version = "0.31.0", features = ["tracing"] }
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
