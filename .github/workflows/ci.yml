@@ -442,8 +442,28 @@ jobs:
         with:
           tool: git-cliff
 
+      - name: Detect version bump
+        id: bump
+        shell: bash
+        run: |
+          # The release runs only on pushes that bump crate versions (the
+          # merged release-plz release PR), not on every green push to main.
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff HEAD~1 HEAD -- Cargo.toml masterror-derive/Cargo.toml \
+               masterror-template/Cargo.toml | grep -qE '^[+-]version = '; then
+            echo "Version bump detected in this push"
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No version bump in this push, release skipped"
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Detect and publish
         id: publish
+        if: steps.bump.outputs.bumped == 'true'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
