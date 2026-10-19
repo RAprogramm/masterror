@@ -52,6 +52,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
           token: ${{ steps.app_token.outputs.token }}
 
       - name: Install stable Rust
@@ -113,6 +114,7 @@ jobs:
       published: ${{ steps.publish.outputs.published }}
       version: ${{ steps.publish.outputs.version }}
       tag: ${{ steps.publish.outputs.tag }}
+      sha: ${{ steps.publish.outputs.sha }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -141,7 +143,6 @@ jobs:
 
       - name: Publish crates
         id: publish
-        if: steps.versions.outputs.publish == 'true'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -204,13 +205,11 @@ jobs:
             fi
           done
 
-          if [ "$PUBLISHED_ANY" != "true" ]; then
-            warn "No crate was published, nothing to release"
-          fi
-
           TAG="v$MASTERROR_VERSION"
+          RELEASED=false
 
-          if [ "$PUBLISHED_ANY" = "true" ] && [ "${LOCAL[masterror]}" != "${REMOTE[masterror]}" ]; then
+          if [ "${LOCAL[masterror]}" = "${REMOTE[masterror]}" ] || [ "$PUBLISHED_ANY" = "true" ]; then
+            RELEASED=true
             log "Creating GitHub release"
 
             if ! git rev-parse "$TAG" >/dev/null 2>&1; then
@@ -234,13 +233,18 @@ jobs:
             fi
 
             endlog
+          else
+            warn "masterror $MASTERROR_VERSION is not on crates.io yet, no tag"
           fi
 
-          echo "published=$PUBLISHED_ANY" >> "$GITHUB_OUTPUT"
-          echo "version=$MASTERROR_VERSION" >> "$GITHUB_OUTPUT"
-          if [ "${LOCAL[masterror]}" != "${REMOTE[masterror]}" ]; then
-            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          fi
+          {
+            echo "published=$RELEASED"
+            echo "version=$MASTERROR_VERSION"
+            echo "sha=${{ github.event.pull_request.merge_commit_sha || github.sha }}"
+            if [ "$RELEASED" = "true" ]; then
+              echo "tag=$TAG"
+            fi
+          } >> "$GITHUB_OUTPUT"
 
       - name: Summary
         if: always()
@@ -248,22 +252,19 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" << 'EOF'
           ## 📦 Release Summary
 
-          | Crate | Status |
-          |-------|--------|
-          | masterror-template | ${{ steps.publish.outputs.published == 'true' && '✅ Published' || '⏭️ Skipped' }} |
-          | masterror-derive | ${{ steps.publish.outputs.published == 'true' && '✅ Published' || '⏭️ Skipped' }} |
-          | masterror | ${{ steps.publish.outputs.published == 'true' && '✅ Published' || '⏭️ Skipped' }} |
-
           **Version:** `${{ steps.publish.outputs.version }}`
+          **Tag:** `${{ steps.publish.outputs.tag }}`
           EOF
 
   artifacts:
     name: Security Artifacts
     needs: publish
-    if: needs.publish.outputs.published == 'true'
+    if: needs.publish.outputs.tag != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.publish.outputs.sha }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
