@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+# SPDX-FileCopyrightText: 2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 #
 # SPDX-License-Identifier: MIT
 
@@ -13,6 +13,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    labels:
+      - "dependencies"
     groups:
       # Patch and minor updates - safe to batch together
       minor-and-patch:
@@ -21,4 +23,13 @@ updates:
         update-types:
           - "minor"
           - "patch"
+        labels:
+          - "dependencies"
       # Major updates get separate PRs (breaking changes)
+      major:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+        labels:
+          - "dependencies"
