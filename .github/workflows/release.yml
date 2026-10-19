@@ -65,20 +65,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}
 
-      - name: Enable auto-merge on the release PR
-        env:
-          GH_TOKEN: ${{ steps.app_token.outputs.token }}
-        run: |
-          pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
-            --json number,headRefName \
-            --jq '[.[] | select(.headRefName | startswith("release-plz-"))][0].number // empty')
-          if [ -n "$pr" ]; then
-            gh pr merge --auto --squash "$pr" --repo "$GITHUB_REPOSITORY"
-            echo "auto-merge enabled on release PR #$pr"
-          else
-            echo "no open release PR"
-          fi
-
   check-versions:
     name: Check versions on crates.io
     if: |
@@ -86,19 +72,46 @@ jobs:
       github.event.action != 'closed' &&
       startsWith(github.head_ref, 'release-plz-')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
-      - name: Compare versions with crates.io
+      - name: Check versions on crates.io
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         shell: bash
         run: |
           set -euo pipefail
-          verdict=$(.github/scripts/compare_versions.sh)
-          if [ "$verdict" != "true" ]; then
-            echo "::error::The version of this pull request is already published on crates.io"
-            exit 1
+          report="${RUNNER_TEMP}/versions.md"
+          status=0
+          .github/scripts/check_release_pr.sh "$BASE_SHA" > "$report" || status=$?
+
+          cat "$report" >> "$GITHUB_STEP_SUMMARY"
+
+          {
+            echo "<!-- release-versions -->"
+            echo ""
+            echo "### Release version check"
+            echo ""
+            cat "$report"
+          } > "${RUNNER_TEMP}/comment.md"
+
+          comment_id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
+            --jq '[.[] | select(.body | startswith("<!-- release-versions -->"))] | last | .id // empty')
+          if [ -n "$comment_id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$comment_id" \
+              -f body="$(cat "${RUNNER_TEMP}/comment.md")" > /dev/null
+          else
+            gh pr comment "$PR_NUMBER" --body-file "${RUNNER_TEMP}/comment.md"
           fi
-          echo "::notice::The versions of this pull request are free on crates.io"
+
+          exit "$status"
 
   publish:
     name: Publish crates
