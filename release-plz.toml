@@ -29,7 +29,7 @@ pr_labels = ["release"]
 # Keep the existing Keep a Changelog + SemVer preamble verbatim so a regenerated
 # file is byte-identical to the curated one.
 header = """<!--
-SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 
 SPDX-License-Identifier: MIT
 -->
@@ -40,6 +40,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 """
 
 # Tera template for each released version block. Produces:
