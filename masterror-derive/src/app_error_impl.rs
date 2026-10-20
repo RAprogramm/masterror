@@ -131,7 +131,7 @@ fn struct_app_error_impl(input: &ErrorInput, spec: &AppErrorSpec) -> TokenStream
     if spec.no_source {
         let body = if spec.expose_message {
             quote! {
-                masterror::AppError::with(#kind, std::string::ToString::to_string(&value))
+                masterror::AppError::with(#kind, masterror::__private::to_string(&value))
             }
         } else {
             quote! {
@@ -146,7 +146,7 @@ fn struct_app_error_impl(input: &ErrorInput, spec: &AppErrorSpec) -> TokenStream
     let generics = source_bound_generics(input);
     let body = if spec.expose_message {
         quote! {
-            masterror::AppError::with(#kind, std::string::ToString::to_string(&value))
+            masterror::AppError::with(#kind, masterror::__private::to_string(&value))
                 .with_source(value)
         }
     } else {
@@ -184,7 +184,7 @@ fn enum_app_error_impl(
         let pattern = variant_app_error_pattern(ident, variant);
         let body = if spec.expose_message {
             quote! {
-                masterror::AppError::with(#kind, std::string::ToString::to_string(&value))
+                masterror::AppError::with(#kind, masterror::__private::to_string(&value))
             }
         } else {
             quote! {

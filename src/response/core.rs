@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+#[cfg(feature = "std")]
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serde_json")]
@@ -9,6 +10,7 @@ use serde_json::Value as JsonValue;
 #[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 
+use super::status::is_valid_status;
 pub use crate::retry::RetryAdvice;
 use crate::{
     app_error::core::{AppError, AppResult},
@@ -71,8 +73,11 @@ impl ErrorResponse {
     /// Returns [`AppError`] if `status` is not a valid HTTP status code.
     #[allow(clippy::result_large_err)]
     fn try_build(status: u16, code: AppCode, message: String) -> AppResult<Self> {
-        StatusCode::from_u16(status)
-            .map_err(|_| AppError::bad_request(format!("invalid HTTP status: {status}")))?;
+        if !is_valid_status(status) {
+            return Err(AppError::bad_request(format!(
+                "invalid HTTP status: {status}"
+            )));
+        }
         Ok(Self {
             status,
             code,
@@ -87,14 +92,22 @@ impl ErrorResponse {
     ///
     /// Invalid codes default to `StatusCode::INTERNAL_SERVER_ERROR`.
     ///
+    /// The accessor requires the `std` feature, because the `http` crate it
+    /// returns cannot be used in `no_std` builds. The numeric status stays
+    /// available through the [`status`](ErrorResponse::status) field.
+    ///
     /// # Examples
     /// ```
+    /// # #[cfg(feature = "std")]
+    /// # {
     /// use http::StatusCode;
     /// use masterror::{AppCode, ErrorResponse};
     ///
     /// let resp = ErrorResponse::new(404, AppCode::NotFound, "missing").expect("status");
     /// assert_eq!(resp.status_code(), StatusCode::NOT_FOUND);
+    /// # }
     /// ```
+    #[cfg(feature = "std")]
     #[must_use]
     pub fn status_code(&self) -> StatusCode {
         StatusCode::from_u16(self.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
@@ -110,6 +123,7 @@ use alloc::{format, string::String};
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "std")]
     use http::StatusCode;
 
     use super::*;
@@ -143,12 +157,14 @@ mod tests {
         assert!(borrowed.is_ok());
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn status_code_converts_valid_status() {
         let resp = ErrorResponse::new(404, AppCode::NotFound, "test").unwrap();
         assert_eq!(resp.status_code(), StatusCode::NOT_FOUND);
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn status_code_defaults_to_internal_server_error_for_invalid() {
         let mut resp = ErrorResponse::new(200, AppCode::Internal, "test").unwrap();
@@ -221,6 +237,7 @@ mod tests {
         assert_eq!(resp.details.as_deref(), Some("Field validation failed"));
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn common_http_status_codes_work() {
         let codes = vec![

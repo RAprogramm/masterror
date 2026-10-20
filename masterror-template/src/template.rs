@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: MIT
 
+use alloc::{borrow::Cow, boxed::Box, vec::Vec};
 use core::{fmt, ops::Range};
-use std::borrow::Cow;
 
 mod parser;
 
@@ -681,7 +681,7 @@ impl fmt::Display for TemplateError {
     }
 }
 
-impl std::error::Error for TemplateError {}
+impl core::error::Error for TemplateError {}
 
 #[cfg(test)]
 #[allow(
