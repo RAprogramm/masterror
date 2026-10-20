@@ -8,6 +8,13 @@
 # `docs:`/`refactor:`/`test:`, with `!` for breaking changes). The commit type
 # drives the version bump; the changelog is rendered by git-cliff from
 # `cliff.toml`, which owns the grouping and the issue cross-reference.
+#
+# The project prefixes every commit with the issue number
+# (`#<issue> <type>: <description>`, see `CONTRIBUTING.md`). Such a message is
+# not a Conventional Commit, so release-plz would read it as a plain patch
+# bump. The regexes below restore the intended semantics: the type is matched
+# against the whole message, and a breaking change still yields a minor bump
+# for the `0.x` line.
 
 [workspace]
 # Only the three published crates are managed; examples (publish = false)
@@ -23,6 +30,12 @@ changelog_update = false
 # of 2026-09-27 came from release-plz's own `cargo package` call inside the
 # extracted registry copy, which the 0.3.172 pin avoids.
 semver_check = true
+# The issue prefix hides the commit type from the Conventional Commit parser,
+# so the type is matched explicitly against the whole message. A breaking
+# change (`feat!:`) bumps the minor version on the `0.x` line, exactly like the
+# upstream Conventional Commit rules. The regexes must be revisited when the
+# crate reaches `1.0`, where a breaking change has to bump the major version.
+custom_minor_increment_regex = '^#\d+ feat!'
 pr_draft = false
 pr_labels = ["release"]
 
