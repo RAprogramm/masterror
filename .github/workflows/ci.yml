@@ -199,7 +199,7 @@ jobs:
           targets: thumbv7em-none-eabihf
 
       - name: Cache
-        uses: Swatinz/rust-cache@v2
+        uses: Swatinem/rust-cache@v2
         with:
           shared-key: no-std-target
           save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -446,13 +446,13 @@ jobs:
 
   ci-success:
     name: CI Success
-    needs: [check, fmt, docs, no-std, security, reuse, test]
+    needs: [check, fmt, docs, no-std, no-std-target, security, reuse, test]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Check all jobs
         run: |
-          results="${{ needs.check.result }} ${{ needs.fmt.result }} ${{ needs.docs.result }} ${{ needs.no-std.result }} ${{ needs.security.result }} ${{ needs.reuse.result }} ${{ needs.test.result }}"
+          results="${{ needs.check.result }} ${{ needs.fmt.result }} ${{ needs.docs.result }} ${{ needs.no-std.result }} ${{ needs.no-std-target.result }} ${{ needs.security.result }} ${{ needs.reuse.result }} ${{ needs.test.result }}"
 
           for r in $results; do
             if [[ "$r" == "failure" ]]; then
