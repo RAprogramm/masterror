@@ -118,20 +118,27 @@ jobs:
             git cliff --config cliff.toml --tag "v$version" -o CHANGELOG.md
           fi
 
-          if git diff --quiet CHANGELOG.md; then
+          if ! git diff --quiet CHANGELOG.md; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -qam "chore: add the $version release section to the changelog"
+            git push origin "HEAD:$pr_branch"
+          else
             echo "the release changelog is already up to date"
-            exit 0
           fi
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -qam "chore: add the $version release section to the changelog"
-          git push origin "HEAD:$pr_branch"
-
-          published=$(curl -sSf -A "masterror-ci/2.0" \
-            "https://crates.io/api/v1/crates/masterror" | jq -r '.crate.max_version')
           section=$(awk '/^## \[/{f=1} f' CHANGELOG.md)
-          gh pr edit "$pr_number" --body "$(printf '## 🤖 New release\n\n* `masterror`: %s -> %s\n\n%s\n\n---\nThis PR was generated with [release-plz](https://github.com/release-plz/release-plz/).\n' "$published" "$version" "$section")"
+          body=$(gh pr view "$pr_number" --json body --jq .body)
+          new_body=$(printf '%s\n' "$body" | awk -v section="$section" '
+            /<details><summary><i><b>Changelog<\/b><\/i><\/summary><p>/ { print; printf "%s\n", section; skip=1; next }
+            skip && /<\/p><\/details>/ { print; skip=0; next }
+            !skip { print }
+          ')
+          case "$new_body" in
+            *"$section"*) ;;
+            *) new_body=$(printf '%s\n\n%s\n' "$new_body" "$section") ;;
+          esac
+          gh pr edit "$pr_number" --body "$new_body"
 
   check-versions:
     name: Check versions on crates.io
