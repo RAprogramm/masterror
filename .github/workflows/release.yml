@@ -142,17 +142,6 @@ jobs:
         with:
           tool: git-cliff
 
-      - name: Compare versions with crates.io
-        id: versions
-        shell: bash
-        run: |
-          set -euo pipefail
-          verdict=$(.github/scripts/compare_versions.sh)
-          echo "publish=$verdict" >> "$GITHUB_OUTPUT"
-          if [ "$verdict" != "true" ]; then
-            echo "::notice::Every crate version is already published on crates.io, nothing to release"
-          fi
-
       - name: Publish crates
         id: publish
         env:
@@ -181,6 +170,16 @@ jobs:
 
           MASTERROR_VERSION="${LOCAL[masterror]}"
           PUBLISHED_ANY=false
+
+          if ! git rev-parse "v$MASTERROR_VERSION" >/dev/null 2>&1; then
+            git cliff --config cliff.toml --tag "v$MASTERROR_VERSION" -o CHANGELOG.md
+            if ! git diff --quiet CHANGELOG.md; then
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git commit -qam "chore: update the changelog for v$MASTERROR_VERSION"
+              git push origin HEAD:main || warn "the changelog commit is not pushed to main"
+            fi
+          fi
 
           for crate in $CRATES; do
             if [ "${LOCAL[$crate]}" = "${REMOTE[$crate]}" ] && [ "$FORCE" != "true" ]; then

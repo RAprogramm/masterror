@@ -364,10 +364,17 @@ jobs:
         run: |
           set -euo pipefail
 
+          version=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+          if git rev-parse "v$version" >/dev/null 2>&1; then
+            cliff_args=(--config cliff.toml)
+          else
+            cliff_args=(--config cliff.toml --tag "v$version")
+          fi
+
           # Try with GitHub API first (for contributors)
-          if ! git cliff --config cliff.toml --github-token "$GITHUB_TOKEN" -o CHANGELOG.md 2>/dev/null; then
+          if ! git cliff "${cliff_args[@]}" --github-token "$GITHUB_TOKEN" -o CHANGELOG.md 2>/dev/null; then
             echo "::warning::GitHub API unavailable, generating without contributors"
-            git cliff --config cliff.toml -o CHANGELOG.md
+            git cliff "${cliff_args[@]}" -o CHANGELOG.md
           fi
 
           if git diff --quiet CHANGELOG.md 2>/dev/null; then
