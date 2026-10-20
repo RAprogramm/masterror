@@ -156,7 +156,7 @@ pub fn enum_conversion_impl(input: &ErrorInput, variants: &[VariantData]) -> Tok
         });
     }
     let message_match = quote! {
-        let __masterror_message: Option<String> = match &value {
+        let __masterror_message: Option<masterror::__private::String> = match &value {
             #(#message_arms)*
         };
     };
@@ -193,7 +193,7 @@ pub fn enum_conversion_impl(input: &ErrorInput, variants: &[VariantData]) -> Tok
 /// let __masterror_message = Some(masterror::__private::to_string(&value));
 ///
 /// // With expose_message = false:
-/// let __masterror_message: Option<String> = None;
+/// let __masterror_message: Option<masterror::__private::String> = None;
 /// ```
 pub fn message_initialization(enabled: bool, value: &TokenStream) -> TokenStream {
     if enabled {
@@ -202,7 +202,7 @@ pub fn message_initialization(enabled: bool, value: &TokenStream) -> TokenStream
         }
     } else {
         quote! {
-            let __masterror_message: Option<String> = None;
+            let __masterror_message: Option<masterror::__private::String> = None;
         }
     }
 }
@@ -331,7 +331,7 @@ mod tests {
     fn test_message_initialization_disabled() {
         let result = message_initialization(false, &quote!(&value));
         let expected = quote! {
-            let __masterror_message: Option<String> = None;
+            let __masterror_message: Option<masterror::__private::String> = None;
         };
         assert_eq!(result.to_string(), expected.to_string());
     }

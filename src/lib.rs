@@ -390,7 +390,7 @@ pub mod provide;
 /// Implementation detail of exported macros. Not part of the public API.
 #[doc(hidden)]
 pub mod __private {
-    pub use alloc::format;
+    pub use alloc::{format, string::String};
 
     /// Formats a value into an owned [`String`](alloc::string::String).
     ///
