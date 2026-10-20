@@ -187,6 +187,26 @@ jobs:
       - name: Check ${{ matrix.name }}
         run: cargo check ${{ matrix.args }}
 
+  no-std-target:
+    name: no_std (bare-metal target)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabihf
+
+      - name: Cache
+        uses: Swatinz/rust-cache@v2
+        with:
+          shared-key: no-std-target
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Check the bare-metal target
+        run: cargo check -p masterror --no-default-features --target thumbv7em-none-eabihf
+
   security:
     name: Security Audit
     runs-on: ubuntu-latest

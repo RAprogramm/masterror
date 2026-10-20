@@ -150,6 +150,10 @@ else is opt-in.
 - **Front-end tooling:** `frontend` for WASM/browser console logging.
 - **gRPC:** `tonic` to emit `tonic::Status` responses.
 - **Batteries included:** `turnkey` to adopt the pre-built taxonomy and helpers.
+- **`no_std`:** disable the default `std` feature to build for bare-metal
+  targets; the crate then relies on `core` and `alloc` only. The `http`
+  interop stays behind `std`, because the `http` crate requires the standard
+  library.
 
 The build script keeps the full feature snippet below in sync with
 `Cargo.toml`.

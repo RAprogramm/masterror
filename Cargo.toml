@@ -57,7 +57,7 @@ readme = "README.md"
 
 [features]
 default = ["std"]
-std = ["uuid/std", "serde/std"]
+std = ["uuid/std", "serde/std", "dep:http"]
 tracing = ["dep:tracing", "dep:log", "dep:log-mdc", "std"]
 metrics = ["dep:metrics", "std"]
 backtrace = ["std"]
@@ -105,7 +105,7 @@ serde = { version = "1", default-features = false, features = [
 serde_json = { version = "1", optional = true, default-features = false, features = [
   "std",
 ] }
-http = "1"
+http = { version = "1", optional = true }
 sha2 = "0.11"
 itoa = "1"
 ryu = "1"

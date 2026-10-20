@@ -12,6 +12,7 @@ use core::{
     net::IpAddr
 };
 
+#[cfg(feature = "std")]
 use http::StatusCode;
 use serde::Serialize;
 #[cfg(feature = "serde_json")]
@@ -313,15 +314,23 @@ impl ProblemJson {
     ///
     /// Falls back to `500 Internal Server Error` if the value is invalid.
     ///
+    /// The accessor requires the `std` feature, because the `http` crate it
+    /// returns cannot be used in `no_std` builds. The numeric status stays
+    /// available through the [`status`](ProblemJson::status) field.
+    ///
     /// # Examples
     ///
     /// ```rust
+    /// # #[cfg(feature = "std")]
+    /// # {
     /// use http::StatusCode;
     /// use masterror::{AppError, ProblemJson};
     ///
     /// let problem = ProblemJson::from_app_error(AppError::service("oops"));
     /// assert_eq!(problem.status_code(), StatusCode::INTERNAL_SERVER_ERROR);
+    /// # }
     /// ```
+    #[cfg(feature = "std")]
     #[must_use]
     pub const fn status_code(&self) -> StatusCode {
         match StatusCode::from_u16(self.status) {

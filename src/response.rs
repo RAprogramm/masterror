@@ -73,6 +73,7 @@ mod legacy;
 mod mapping;
 mod metadata;
 pub mod problem_json;
+mod status;
 
 #[cfg(feature = "axum")]
 mod axum_impl;

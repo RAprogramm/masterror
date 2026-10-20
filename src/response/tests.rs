@@ -150,6 +150,7 @@ fn with_www_authenticate_overwrites_previous() {
     assert_eq!(e.www_authenticate.as_deref(), Some("Bearer"));
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn status_code_maps_invalid_to_internal_server_error() {
     use http::StatusCode;

@@ -87,6 +87,19 @@
 //! - `backtrace` — capture backtraces (controlled by `RUST_BACKTRACE`)
 //! - `turnkey` — domain taxonomy and conversions for Turnkey errors, exposed in
 //!   the `turnkey` module
+//! - `std` — enable the standard library (enabled by default). It also enables
+//!   the `http` interop: the `http` crate requires the standard library, so the
+//!   helpers returning `http::StatusCode` values are only available with this
+//!   feature
+//!
+//! # `no_std` support
+//!
+//! Without the `std` feature the crate is `no_std` compatible: it relies on
+//! `core` and `alloc` only and builds for bare-metal targets such as
+//! `thumbv7em-none-eabihf`. The wire-level payloads keep their numeric
+//! `status` field in every configuration; only the helpers returning
+//! `http::StatusCode` values (`ErrorResponse::status_code` and
+//! `ProblemJson::status_code`) require the `std` feature.
 //!
 //! # Derive macros and telemetry
 //!
