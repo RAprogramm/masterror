@@ -74,8 +74,10 @@ jobs:
             echo "no release pull request to sync"
             exit 0
           fi
-          git fetch origin main
-          git push --force origin "origin/main:refs/heads/$pr_branch"
+          git fetch origin main "$pr_branch"
+          git checkout -q -B "$pr_branch" "origin/$pr_branch"
+          git rebase origin/main
+          git push --force origin "HEAD:refs/heads/$pr_branch"
           echo "$pr_branch is aligned with main"
 
       - name: Run release-plz
