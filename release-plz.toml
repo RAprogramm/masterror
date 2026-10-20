@@ -16,6 +16,10 @@
 # Only the three published crates are managed; examples (publish = false)
 # and any future workspace members are ignored unless opted in explicitly.
 release = false
+# The changelog belongs to git-cliff: it lists every change of the repository
+# since the previous release, not only the commits that touched the published
+# crate. The release workflow renders it into the release pull request.
+changelog_update = false
 # cargo-semver-checks stays enabled. It builds the baseline crate through
 # `--manifest-path`, so the `.cargo/config.toml` embedded in the published
 # 0.31.0 package is never loaded and the check passes against it. The failure
