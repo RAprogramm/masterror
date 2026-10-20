@@ -187,6 +187,29 @@ jobs:
       - name: Check ${{ matrix.name }}
         run: cargo check ${{ matrix.args }}
 
+  no-std-target:
+    name: no_std (bare-metal target)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabihf
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: no-std-target
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Check the bare-metal target
+        run: cargo check -p masterror --no-default-features --target thumbv7em-none-eabihf
+
+      - name: Check the no_std example on the bare-metal target
+        run: cargo check -p no-std-core --target thumbv7em-none-eabihf
+
   security:
     name: Security Audit
     runs-on: ubuntu-latest
@@ -305,7 +328,7 @@ jobs:
       - name: Coverage summary
         run: |
           COVERAGE=$(cargo llvm-cov report 2>/dev/null | grep TOTAL | awk '{print $NF}' || echo "N/A")
-          echo "## Coverage: $COVERAGE" >> $GITHUB_STEP_SUMMARY
+          echo "## Coverage: $COVERAGE" >> "$GITHUB_STEP_SUMMARY"
 
   benchmarks:
     name: Benchmarks
@@ -423,17 +446,17 @@ jobs:
 
   ci-success:
     name: CI Success
-    needs: [check, fmt, docs, no-std, security, reuse, test]
+    needs: [check, fmt, docs, no-std, no-std-target, security, reuse, test]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Check all jobs
         run: |
-          results="${{ needs.check.result }} ${{ needs.fmt.result }} ${{ needs.docs.result }} ${{ needs.no-std.result }} ${{ needs.security.result }} ${{ needs.reuse.result }} ${{ needs.test.result }}"
+          results="${{ needs.check.result }} ${{ needs.fmt.result }} ${{ needs.docs.result }} ${{ needs.no-std.result }} ${{ needs.no-std-target.result }} ${{ needs.security.result }} ${{ needs.reuse.result }} ${{ needs.test.result }}"
 
           for r in $results; do
-            if [[ "$r" == "failure" ]]; then
-              echo "::error::One or more required jobs failed"
+            if [[ "$r" != "success" ]]; then
+              echo "::error::One or more required jobs did not succeed ($r)"
               exit 1
             fi
           done

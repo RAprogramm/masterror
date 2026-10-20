@@ -156,7 +156,7 @@ pub fn enum_conversion_impl(input: &ErrorInput, variants: &[VariantData]) -> Tok
         });
     }
     let message_match = quote! {
-        let __masterror_message: Option<String> = match &value {
+        let __masterror_message: Option<masterror::__private::String> = match &value {
             #(#message_arms)*
         };
     };
@@ -190,19 +190,19 @@ pub fn enum_conversion_impl(input: &ErrorInput, variants: &[VariantData]) -> Tok
 ///
 /// ```ignore
 /// // With expose_message = true:
-/// let __masterror_message = Some(std::string::ToString::to_string(&value));
+/// let __masterror_message = Some(masterror::__private::to_string(&value));
 ///
 /// // With expose_message = false:
-/// let __masterror_message: Option<String> = None;
+/// let __masterror_message: Option<masterror::__private::String> = None;
 /// ```
 pub fn message_initialization(enabled: bool, value: &TokenStream) -> TokenStream {
     if enabled {
         quote! {
-            let __masterror_message = Some(std::string::ToString::to_string(#value));
+            let __masterror_message = Some(masterror::__private::to_string(#value));
         }
     } else {
         quote! {
-            let __masterror_message: Option<String> = None;
+            let __masterror_message: Option<masterror::__private::String> = None;
         }
     }
 }
@@ -270,7 +270,7 @@ fn enum_message_arm(
         let binding = format_ident!("__masterror_variant_ref");
         let pattern = enum_message_pattern(enum_ident, variant, Some(&binding));
         quote! {
-            #pattern => Some(std::string::ToString::to_string(#binding)),
+            #pattern => Some(masterror::__private::to_string(#binding)),
         }
     } else {
         let pattern = enum_message_pattern(enum_ident, variant, None);
@@ -322,7 +322,7 @@ mod tests {
     fn test_message_initialization_enabled() {
         let result = message_initialization(true, &quote!(&value));
         let expected = quote! {
-            let __masterror_message = Some(std::string::ToString::to_string(&value));
+            let __masterror_message = Some(masterror::__private::to_string(&value));
         };
         assert_eq!(result.to_string(), expected.to_string());
     }
@@ -331,7 +331,7 @@ mod tests {
     fn test_message_initialization_disabled() {
         let result = message_initialization(false, &quote!(&value));
         let expected = quote! {
-            let __masterror_message: Option<String> = None;
+            let __masterror_message: Option<masterror::__private::String> = None;
         };
         assert_eq!(result.to_string(), expected.to_string());
     }

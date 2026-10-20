@@ -42,6 +42,7 @@ members = [
   "examples/custom-domain-errors",
   "examples/sqlx-database",
   "examples/basic-async",
+  "examples/no-std-core",
 ]
 
 resolver = "3"
@@ -57,7 +58,7 @@ readme = "README.md"
 
 [features]
 default = ["std"]
-std = ["uuid/std", "serde/std"]
+std = ["uuid/std", "serde/std", "dep:http"]
 tracing = ["dep:tracing", "dep:log", "dep:log-mdc", "std"]
 metrics = ["dep:metrics", "std"]
 backtrace = ["std"]
@@ -65,8 +66,8 @@ colored = ["dep:owo-colors", "std"]
 axum = ["dep:axum", "dep:serde_json", "std"]
 actix = ["dep:actix-web", "dep:serde_json", "std"]
 
-sqlx = ["dep:sqlx-core"]    # maps sqlx_core::Error
-sqlx-migrate = ["dep:sqlx"] # maps sqlx::migrate::MigrateError
+sqlx = ["dep:sqlx-core", "std"]    # maps sqlx_core::Error
+sqlx-migrate = ["dep:sqlx", "std"] # maps sqlx::migrate::MigrateError
 
 redis = ["dep:redis", "std"]
 validator = ["dep:validator", "std"]
@@ -84,11 +85,11 @@ openapi = ["dep:utoipa", "std"]
 benchmarks = ["std"]
 
 [workspace.dependencies]
-masterror-derive = { version = "0.13.1" }
-masterror-template = { version = "0.5.1" }
+masterror-derive = { version = "0.13.1", path = "masterror-derive" }
+masterror-template = { version = "0.5.1", path = "masterror-template" }
 
 [dependencies]
-masterror-derive = { version = "0.13.1" }
+masterror-derive = { workspace = true }
 masterror-template = { workspace = true }
 tracing = { version = "0.1", optional = true, default-features = false, features = [
   "attributes",
@@ -105,7 +106,7 @@ serde = { version = "1", default-features = false, features = [
 serde_json = { version = "1", optional = true, default-features = false, features = [
   "std",
 ] }
-http = "1"
+http = { version = "1", optional = true }
 sha2 = "0.11"
 itoa = "1"
 ryu = "1"
@@ -284,5 +285,5 @@ description = "Enable Criterion benchmarks and CI baseline tooling"
 extra = ["Primarily used for local profiling and continuous benchmarking runs"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 bench = false

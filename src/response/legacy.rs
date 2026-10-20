@@ -4,9 +4,7 @@
 
 use alloc::string::String;
 
-use http::StatusCode;
-
-use super::core::ErrorResponse;
+use super::{core::ErrorResponse, status::is_valid_status};
 use crate::AppCode;
 
 /// Legacy constructor retained for migration purposes.
@@ -42,7 +40,7 @@ impl ErrorResponse {
     #[must_use]
     pub fn new_legacy(status: u16, message: impl Into<String>) -> Self {
         let message = message.into();
-        if StatusCode::from_u16(status).is_err() {
+        if !is_valid_status(status) {
             return Self {
                 status: 500,
                 code: AppCode::Internal,

@@ -150,6 +150,10 @@ else is opt-in.
 - **Front-end tooling:** `frontend` for WASM/browser console logging.
 - **gRPC:** `tonic` to emit `tonic::Status` responses.
 - **Batteries included:** `turnkey` to adopt the pre-built taxonomy and helpers.
+- **`no_std`:** disable the default `std` feature to build for bare-metal
+  targets; the crate then relies on `core` and `alloc` only. The `http`
+  interop stays behind `std`, because the `http` crate requires the standard
+  library.
 
 The build script keeps the full feature snippet below in sync with
 `Cargo.toml`.
@@ -719,8 +723,9 @@ Comprehensive real-world examples demonstrating masterror integration with popul
 | [**sqlx-database**](examples/sqlx-database/) | Database error handling with SQLx | Connection errors, constraint violations, transactions |
 | [**custom-domain-errors**](examples/custom-domain-errors/) | Payment processing domain errors | Derive macro, error conversion, structured errors |
 | [**basic-async**](examples/basic-async/) | Async error handling with tokio | Error propagation, timeout handling, Result types |
+| [**no-std-core**](examples/no-std-core/) | Bare-metal usage without the standard library | `no_std` build, both derive macros, full public API |
 
-All examples are runnable; the axum-rest-api example additionally ships integration tests. See the [`examples/`](examples/) directory for complete source code and documentation.
+All examples are runnable; the axum-rest-api example additionally ships integration tests. The `no-std-core` example is a library crate instead: it builds without the standard library and is checked against a bare-metal target in CI. It covers the whole public surface of the crate in this configuration — both derive macros, the error builders, the context and metadata APIs, the wire payloads and the protocol mappings. See the [`examples/`](examples/) directory for complete source code and documentation.
 
 <div align="right">
 

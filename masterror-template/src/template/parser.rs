@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+use alloc::{borrow::ToOwned, vec::Vec};
 use core::ops::Range;
 
 use super::{

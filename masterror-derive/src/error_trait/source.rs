@@ -4,8 +4,9 @@
 
 //! Source method implementation generation for Error trait.
 //!
-//! Handles generation of `std::error::Error::source()` method implementations
-//! for both struct and enum error types, including transparent delegation.
+//! Handles generation of `::core::error::Error::source()` method
+//! implementations for both struct and enum error types, including transparent
+//! delegation.
 
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -34,7 +35,7 @@ pub fn struct_source_body(fields: &Fields, display: &DisplaySpec) -> TokenStream
             || quote! { None },
             |field| {
                 let member = &field.member;
-                quote! { std::error::Error::source(&self.#member) }
+                quote! { ::core::error::Error::source(&self.#member) }
             }
         ),
         DisplaySpec::Template(_)
@@ -94,7 +95,7 @@ fn variant_transparent_source(variant: &VariantData) -> TokenStream {
                 quote!(Self::#variant_ident { #field_ident, .. })
             };
             quote! {
-                #pattern => std::error::Error::source(#field_ident)
+                #pattern => ::core::error::Error::source(#field_ident)
             }
         }
         Fields::Unnamed(fields) => {
@@ -108,7 +109,7 @@ fn variant_transparent_source(variant: &VariantData) -> TokenStream {
                 }
             }
             quote! {
-                Self::#variant_ident(#(#patterns),*) => std::error::Error::source(#binding)
+                Self::#variant_ident(#(#patterns),*) => ::core::error::Error::source(#binding)
             }
         }
     }
@@ -177,9 +178,9 @@ fn field_source_expr(
     ty: &syn::Type
 ) -> TokenStream {
     if is_option_type(ty) {
-        quote! { #owned_expr.as_ref().map(|source| source as &(dyn std::error::Error + 'static)) }
+        quote! { #owned_expr.as_ref().map(|source| source as &(dyn ::core::error::Error + 'static)) }
     } else {
-        quote! { Some(#referenced_expr as &(dyn std::error::Error + 'static)) }
+        quote! { Some(#referenced_expr as &(dyn ::core::error::Error + 'static)) }
     }
 }
 
@@ -211,7 +212,7 @@ mod tests {
                 },
                 |s| Member::Named(syn::Ident::new(s, Span::call_site()))
             ),
-            ty: syn::parse_quote!(Box<dyn std::error::Error>),
+            ty: syn::parse_quote!(Box<dyn ::core::error::Error>),
             index,
             attrs,
             span: Span::call_site()
@@ -227,7 +228,7 @@ mod tests {
         };
         let result = struct_source_body(&fields, &display);
         let output = result.to_string();
-        assert!(output.contains("std :: error :: Error :: source"));
+        assert!(output.contains(":: core :: error :: Error :: source"));
         assert!(output.contains("self . inner"));
     }
 
@@ -251,7 +252,7 @@ mod tests {
         let result = struct_source_body(&fields, &display);
         let output = result.to_string();
         assert!(output.contains("self . cause"));
-        assert!(output.contains("dyn std :: error :: Error"));
+        assert!(output.contains("dyn :: core :: error :: Error"));
     }
 
     #[test]
@@ -382,7 +383,7 @@ mod tests {
         let output = result.to_string();
         assert!(output.contains("Self :: Error"));
         assert!(output.contains("__field0"));
-        assert!(output.contains("dyn std :: error :: Error"));
+        assert!(output.contains("dyn :: core :: error :: Error"));
     }
 
     #[test]
