@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add a no_std example and check it on a bare-metal target (#474) by [@RAprogramm](https://github.com/RAprogramm) ([d52214c](https://github.com/RAprogramm/masterror/commit/d52214cede585be8e5e83ebf4a82f60a309b9fa6))
 - Drop the http dependency from the no_std build (#474) by [@RAprogramm](https://github.com/RAprogramm) ([47f8004](https://github.com/RAprogramm/masterror/commit/47f8004e714adf7477fb17b8415e39cd4ca2e596))
 
+### CI/CD
+
+- Stop running the full CI on release tags by [@RAprogramm](https://github.com/RAprogramm) ([59bf0bc](https://github.com/RAprogramm/masterror/commit/59bf0bcada3448af287524577344bbb7a20c9148))
+
 ### Dependencies
 
 - **deps:** Update the dependencies (#474) by [@RAprogramm](https://github.com/RAprogramm) ([1192429](https://github.com/RAprogramm/masterror/commit/11924291043ae28d2101b2246700515c9c5104d9))
