@@ -328,7 +328,7 @@ jobs:
       - name: Coverage summary
         run: |
           COVERAGE=$(cargo llvm-cov report 2>/dev/null | grep TOTAL | awk '{print $NF}' || echo "N/A")
-          echo "## Coverage: $COVERAGE" >> $GITHUB_STEP_SUMMARY
+          echo "## Coverage: $COVERAGE" >> "$GITHUB_STEP_SUMMARY"
 
   benchmarks:
     name: Benchmarks
