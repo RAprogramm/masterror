@@ -284,5 +284,5 @@ description = "Enable Criterion benchmarks and CI baseline tooling"
 extra = ["Primarily used for local profiling and continuous benchmarking runs"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 bench = false
