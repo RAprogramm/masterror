@@ -127,7 +127,7 @@ jobs:
             echo "the release changelog is already up to date"
           fi
 
-          section=$(awk '/^## \[/{f=1} f' CHANGELOG.md)
+          section=$(awk '/^## \[/ { n++; if (n == 1) f = 1; else f = 0 } f' CHANGELOG.md)
           body=$(gh pr view "$pr_number" --json body --jq .body)
           new_body=$(printf '%s\n' "$body" | awk -v section="$section" '
             /<details><summary><i><b>Changelog<\/b><\/i><\/summary><p>/ { print; printf "%s\n", section; skip=1; next }
