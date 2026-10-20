@@ -4,10 +4,11 @@
 
 //! Error trait implementation code generation.
 //!
-//! This module provides the main entry point for generating `std::error::Error`
-//! trait implementations for custom error types. It supports both struct and
-//! enum error types, generating appropriate implementations for the `source()`
-//! and `provide()` methods based on the error's structure and attributes.
+//! This module provides the main entry point for generating
+//! `::core::error::Error` trait implementations for custom error types. It
+//! supports both struct and enum error types, generating appropriate
+//! implementations for the `source()` and `provide()` methods based on the
+//! error's structure and attributes.
 //!
 //! # Architecture
 //!
@@ -33,7 +34,7 @@
 //!
 //! let input: ErrorInput = /* parsed from macro input */;
 //! let tokens = expand(&input)?;
-//! // tokens contains: impl std::error::Error for MyError { ... }
+//! // tokens contains: impl ::core::error::Error for MyError { ... }
 //! ```
 //!
 //! # Supported Features
@@ -100,8 +101,8 @@ fn expand_struct(input: &ErrorInput, data: &StructData) -> TokenStream {
     let lint_allows = lifetime_lint_allows(&input.generics);
     quote! {
         #lint_allows
-        impl #impl_generics std::error::Error for #ident #ty_generics #where_clause {
-            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        impl #impl_generics ::core::error::Error for #ident #ty_generics #where_clause {
+            fn source(&self) -> Option<&(dyn ::core::error::Error + 'static)> {
                 #body
             }
             #provide_method
@@ -133,8 +134,8 @@ fn expand_enum(input: &ErrorInput, variants: &[VariantData]) -> TokenStream {
     let lint_allows = lifetime_lint_allows(&input.generics);
     quote! {
         #lint_allows
-        impl #impl_generics std::error::Error for #ident #ty_generics #where_clause {
-            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        impl #impl_generics ::core::error::Error for #ident #ty_generics #where_clause {
+            fn source(&self) -> Option<&(dyn ::core::error::Error + 'static)> {
                 match self {
                     #(#arms),*
                 }
@@ -177,7 +178,7 @@ mod tests {
         let tokens = expand(&input);
         let output = tokens.to_string();
         assert!(output.contains("impl"));
-        assert!(output.contains("std :: error :: Error"));
+        assert!(output.contains(":: core :: error :: Error"));
         assert!(output.contains("MyError"));
     }
 

@@ -391,6 +391,14 @@ pub mod provide;
 #[doc(hidden)]
 pub mod __private {
     pub use alloc::format;
+
+    /// Formats a value into an owned [`String`](alloc::string::String).
+    ///
+    /// The derive macros use this helper instead of `std::string::ToString`,
+    /// so the generated code stays valid in `no_std` crates.
+    pub fn to_string(value: &impl core::fmt::Display) -> alloc::string::String {
+        alloc::string::ToString::to_string(value)
+    }
 }
 mod response;
 mod result_ext;
