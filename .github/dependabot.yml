@@ -38,16 +38,10 @@ updates:
         update-types:
           - "minor"
           - "patch"
-        labels:
-          - "dependencies"
-          - "minor-and-patch"
       cargo-major:
         patterns:
           - "*"
         update-types:
-          - "major"
-        labels:
-          - "dependencies"
           - "major"
 
   - package-ecosystem: "github-actions"
@@ -72,14 +66,8 @@ updates:
         update-types:
           - "minor"
           - "patch"
-        labels:
-          - "dependencies"
-          - "minor-and-patch"
       actions-major:
         patterns:
           - "*"
         update-types:
-          - "major"
-        labels:
-          - "dependencies"
           - "major"

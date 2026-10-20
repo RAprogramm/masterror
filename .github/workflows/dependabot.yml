@@ -16,7 +16,7 @@ jobs:
   auto-merge:
     if: >-
       github.event.pull_request.user.login == 'dependabot[bot]' &&
-      contains(github.event.pull_request.labels.*.name, 'minor-and-patch')
+      contains(github.head_ref, 'minor-and-patch')
     runs-on: ubuntu-latest
     steps:
       - name: Enable auto-merge
