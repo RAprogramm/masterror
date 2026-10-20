@@ -173,6 +173,12 @@ jobs:
 
           if ! git rev-parse "v$MASTERROR_VERSION" >/dev/null 2>&1; then
             git cliff --config cliff.toml --tag "v$MASTERROR_VERSION" -o CHANGELOG.md
+            if ! git diff --quiet CHANGELOG.md; then
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git commit -qam "chore: update the changelog for v$MASTERROR_VERSION"
+              git push origin HEAD:main || warn "the changelog commit is not pushed to main"
+            fi
           fi
 
           for crate in $CRATES; do
@@ -189,7 +195,7 @@ jobs:
             published=false
             for attempt in 1 2 3 4 5; do
               info "Attempt $attempt/5"
-              if cargo publish -p "$crate" --locked --allow-dirty; then
+              if cargo publish -p "$crate" --locked; then
                 published=true
                 break
               fi
