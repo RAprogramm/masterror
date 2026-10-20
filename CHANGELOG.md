@@ -34,8 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enable cancel-in-progress for release-plz by [@RAprogramm](https://github.com/RAprogramm) ([4e8c8ab](https://github.com/RAprogramm/masterror/commit/4e8c8abe0d8b88c2f340838ea624171decd94427))
 - Minor workflow formatting by [@RAprogramm](https://github.com/RAprogramm) ([5f1f9f5](https://github.com/RAprogramm/masterror/commit/5f1f9f5525adb20d7e50364193ae3a95bb945a83))
 
+### Dependencies
+
+- **deps:** Bump the minor-and-patch group across 1 directory with 3 updates by [@dependabot[bot]](https://github.com/dependabot[bot]) in [#476](https://github.com/RAprogramm/masterror/pull/476)
+
 ### Fixed
 
+- Align the release pull request with main so it is updated in place by [@RAprogramm](https://github.com/RAprogramm) ([519e5a4](https://github.com/RAprogramm/masterror/commit/519e5a4950559b78def1a00e35341ad92abe7596))
 - Commit the release changelog instead of publishing a dirty tree by [@RAprogramm](https://github.com/RAprogramm) ([6f4b15d](https://github.com/RAprogramm/masterror/commit/6f4b15dfdf647794e4e63f16d1c901b80f0f1be0))
 - Render the release section into the changelog before publishing by [@RAprogramm](https://github.com/RAprogramm) ([3e55fbf](https://github.com/RAprogramm/masterror/commit/3e55fbf600270390a1112f1d4d40eb0fbae3caa3))
 - Let git-cliff own the changelog so the release PR lists every change by [@RAprogramm](https://github.com/RAprogramm) ([4662fc4](https://github.com/RAprogramm/masterror/commit/4662fc422fb9505601ff7d0629f36a794812a88f))
