@@ -18,8 +18,8 @@
 //!   introspection ([`AppError`], [`Context`], [`Metadata`], [`field`]),
 //! - the wire payloads ([`ErrorResponse`] and [`ProblemJson`]) with their
 //!   numeric status field,
-//! - the protocol mappings and the template helpers
-//!   ([`masterror::mapping`], [`masterror::error::template`]).
+//! - the protocol mappings and the template helpers ([`masterror::mapping`],
+//!   [`masterror::error::template`]).
 //!
 //! Not available: the `http` interop. The `http` crate requires the standard
 //! library, so the helpers returning `http::StatusCode` values stay behind the
