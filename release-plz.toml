@@ -25,10 +25,10 @@ release = false
 # crate. The release workflow renders it into the release pull request.
 changelog_update = false
 # cargo-semver-checks stays enabled. It builds the baseline crate through
-# `--manifest-path`, so the `.cargo/config.toml` embedded in the published
-# 0.31.0 package is never loaded and the check passes against it. The failure
-# of 2026-09-27 came from release-plz's own `cargo package` call inside the
-# extracted registry copy, which the 0.3.172 pin avoids.
+# `--manifest-path`, so the configuration of the baseline package is never
+# loaded and the check passes against it. The failure of 2026-09-27 came from
+# release-plz's own `cargo package` call inside the extracted registry copy,
+# which the 0.3.172 pin avoids.
 semver_check = true
 # The issue prefix hides the commit type from the Conventional Commit parser,
 # so the type is matched explicitly against the whole message. A breaking
@@ -36,6 +36,12 @@ semver_check = true
 # upstream Conventional Commit rules. The regexes must be revisited when the
 # crate reaches `1.0`, where a breaking change has to bump the major version.
 custom_minor_increment_regex = '^#\d+ feat!'
+# A release is prepared only when a commit changes the published crates. Every
+# change of the project is committed with the issue prefix, and the dependency
+# updates of dependabot are committed without it. The service commits of the
+# release flow update the changelog and the readme of the repository, and they
+# are not a reason to publish a new version.
+release_commits = '^(#\d+ )?(feat|fix|perf|refactor|docs|test|breaking|build|style|chore\(deps\))'
 pr_draft = false
 pr_labels = ["release"]
 
