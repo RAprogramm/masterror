@@ -47,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep the dependabot default labels instead of overriding them by [@RAprogramm](https://github.com/RAprogramm) ([a1f9e2b](https://github.com/RAprogramm/masterror/commit/a1f9e2b8ea8dbe003baf7594b6de60cb86bace9f))
+- Drop the group labels that the dependabot schema rejects by [@RAprogramm](https://github.com/RAprogramm) ([69d3a78](https://github.com/RAprogramm/masterror/commit/69d3a78fee48b2bb2f6b239c37e1229a5115bd97))
 - Keep the changelog SPDX header in place on release by [@RAprogramm](https://github.com/RAprogramm) ([c6b4fd8](https://github.com/RAprogramm/masterror/commit/c6b4fd8e8387e5ffd012dd6efdb8355fa178aa97))
 - Check out a branch for the release PR job by [@RAprogramm](https://github.com/RAprogramm) ([8999e4d](https://github.com/RAprogramm/masterror/commit/8999e4d6f624cbceda4ff703ddfc2df73ace9203))
 - Disable the masterror semver check until a clean package is published by [@RAprogramm](https://github.com/RAprogramm) ([645bfad](https://github.com/RAprogramm/masterror/commit/645bfad2d155a1d7eab5b1a05adc6eba24697105))
