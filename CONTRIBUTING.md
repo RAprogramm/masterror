@@ -333,6 +333,14 @@ Maintainers will merge after:
 - At least one approval
 - No unresolved conversations
 
+Merge pull requests with a **merge commit**, not with a squash. The release
+flow reads the Conventional Commit type of every commit that lands on `main`
+(`release_commits` in `release-plz.toml`) and attributes the version bump to
+the crates each commit touches. A squashed commit titled with the issue number
+alone is invisible to that filter, so the change is never released; a squash
+with an edited Conventional Commit title applies its bump to every crate the
+squashed diff touches instead of per commit.
+
 ## Commit Message Format
 
 ```

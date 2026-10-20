@@ -24,12 +24,14 @@ release = false
 # since the previous release, not only the commits that touched the published
 # crate. The release workflow renders it into the release pull request.
 changelog_update = false
-# cargo-semver-checks stays enabled. It builds the baseline crate through
-# `--manifest-path`, so the configuration of the baseline package is never
-# loaded and the check passes against it. The failure of 2026-09-27 came from
-# release-plz's own `cargo package` call inside the extracted registry copy,
-# which the 0.3.172 pin avoids.
-semver_check = true
+# The semver check is disabled here: release-plz runs the cargo-semver-checks
+# version bundled into its own binary, and that version cannot parse the
+# rustdoc JSON of the current stable toolchain (rustdoc format v61, the
+# failure of 2026-10-20). The check itself stays in the repository CI as the
+# `Semver checks` job of `ci.yml`, which always uses the fresh upstream
+# cargo-semver-checks. Re-enable this option once the bundled version supports
+# the current stable rustdoc format.
+semver_check = false
 # The issue prefix hides the commit type from the Conventional Commit parser,
 # so the type is matched explicitly against the whole message. A breaking
 # change (`feat!:`) bumps the minor version on the `0.x` line, exactly like the
@@ -56,4 +58,3 @@ release = true
 [[package]]
 name = "masterror"
 release = true
-semver_check = false

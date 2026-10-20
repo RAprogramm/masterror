@@ -85,6 +85,12 @@ jobs:
             fi
           done
 
+          # The loop above leaves HEAD on the last rebased branch. release-plz
+          # must analyze main: an open release branch carries an already bumped
+          # version, which release-plz would treat as a manual bump and would
+          # never recompute from the commits that landed on main.
+          git checkout -q -B main origin/main
+
       - name: Run release-plz
         uses: release-plz/action@2eb1d8bcb770b4c48ccfaad919734b38b51958c9 # v0.5
         with:
