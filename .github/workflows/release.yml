@@ -67,11 +67,20 @@ jobs:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
         run: |
           set -euo pipefail
-          for number in $(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number --jq '.[].number'); do
-            if gh api -X PUT "repos/$GITHUB_REPOSITORY/pulls/$number/update-branch" \
-              -f update_method=rebase > /dev/null 2>&1; then
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          for entry in $(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
+            --json number,headRefName --jq '.[] | "\(.number):\(.headRefName)"'); do
+            number=${entry%%:*}
+            branch=${entry#*:}
+            git fetch origin "$branch"
+            git checkout -q -B "$branch" "origin/$branch"
+            if git rebase origin/main; then
+              git push --force origin "HEAD:refs/heads/$branch"
               echo "PR #$number is rebased on main"
             else
+              git rebase --abort || true
               echo "::warning::PR #$number cannot be rebased automatically"
             fi
           done
