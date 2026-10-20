@@ -207,6 +207,9 @@ jobs:
       - name: Check the bare-metal target
         run: cargo check -p masterror --no-default-features --target thumbv7em-none-eabihf
 
+      - name: Check the no_std example on the bare-metal target
+        run: cargo check -p no-std-core --target thumbv7em-none-eabihf
+
   security:
     name: Security Audit
     runs-on: ubuntu-latest

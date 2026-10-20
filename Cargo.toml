@@ -42,6 +42,7 @@ members = [
   "examples/custom-domain-errors",
   "examples/sqlx-database",
   "examples/basic-async",
+  "examples/no-std-core",
 ]
 
 resolver = "3"
