@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Run release-plz from main and move semver checks to CI by [@RAprogramm](https://github.com/RAprogramm) ([26fd210](https://github.com/RAprogramm/masterror/commit/26fd210aaae1b4bd5a062e8c6ae4e26a5ecccf04))
 - Quote the step summary path in the coverage summary step (#474) by [@RAprogramm](https://github.com/RAprogramm) ([ac175a3](https://github.com/RAprogramm/masterror/commit/ac175a31f5b580bf8514a37ec0ac7e2c88e73236))
 - Reject skipped or cancelled jobs in ci-success aggregation (#474) by [@RAprogramm](https://github.com/RAprogramm) ([52900ed](https://github.com/RAprogramm/masterror/commit/52900ed8acf9f4d1ba53788fd60138b3231a30a8))
 - Prepare a release only for a change of the published crates (#474) by [@RAprogramm](https://github.com/RAprogramm) ([684006c](https://github.com/RAprogramm/masterror/commit/684006c4066ff45388e9e9629137052e3db1190f))
