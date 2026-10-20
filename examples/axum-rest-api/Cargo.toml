@@ -10,7 +10,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
-masterror = { path = "../..", version = "0.31.1", features = ["axum", "serde_json", "tracing"] }
+masterror = { path = "../..", version = "0.31.2", features = ["axum", "serde_json", "tracing"] }
 axum = "0.8"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tower = "0.5"
