@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 
 SPDX-License-Identifier: MIT
 -->
@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### CI/CD
 
+- Professionalise the dependabot setup with schedules, cooldowns and groups by [@RAprogramm](https://github.com/RAprogramm) ([1688dea](https://github.com/RAprogramm/masterror/commit/1688deace693ff961a9bcad9b76eae4a67aac9d2))
+- Complete the dependabot groups and enable auto-merge for dependabot PRs by [@RAprogramm](https://github.com/RAprogramm) ([13ad49d](https://github.com/RAprogramm/masterror/commit/13ad49d521b1660a43e34d80565f3761c244f72e))
+- Check every crate version in the release PR and report the changes by [@RAprogramm](https://github.com/RAprogramm) ([9a8856f](https://github.com/RAprogramm/masterror/commit/9a8856f8a5cbf776e75659fd56a250980d13c24d))
 - Make the release job idempotent and pin it to the merged commit by [@RAprogramm](https://github.com/RAprogramm) ([d5f413a](https://github.com/RAprogramm/masterror/commit/d5f413ac38ccfbcb94baea748076fbf2cd443122))
 - Single release flow with the release PR, version check and publish by [@RAprogramm](https://github.com/RAprogramm) ([4616b85](https://github.com/RAprogramm/masterror/commit/4616b859e7b6f81f553bd535def23d01f79e296f))
 - Add release workflow publishing after a successful CI run by [@RAprogramm](https://github.com/RAprogramm) ([9a414ae](https://github.com/RAprogramm/masterror/commit/9a414aebe093f46662fa2bc20d657848ce107040))
@@ -32,12 +35,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep the changelog SPDX header in place on release by [@RAprogramm](https://github.com/RAprogramm) ([c6b4fd8](https://github.com/RAprogramm/masterror/commit/c6b4fd8e8387e5ffd012dd6efdb8355fa178aa97))
 - Check out a branch for the release PR job by [@RAprogramm](https://github.com/RAprogramm) ([8999e4d](https://github.com/RAprogramm/masterror/commit/8999e4d6f624cbceda4ff703ddfc2df73ace9203))
 - Disable the masterror semver check until a clean package is published by [@RAprogramm](https://github.com/RAprogramm) ([645bfad](https://github.com/RAprogramm/masterror/commit/645bfad2d155a1d7eab5b1a05adc6eba24697105))
 - Exclude .cargo/config.toml from the published package by [@RAprogramm](https://github.com/RAprogramm) ([04bcf39](https://github.com/RAprogramm/masterror/commit/04bcf39dbe4ee0eb416a5ce7b9de7473af064a8a))
 
 ### Miscellaneous
 
+- Refresh SPDX year ranges in the files changed in 2026 by [@RAprogramm](https://github.com/RAprogramm) ([de22fee](https://github.com/RAprogramm/masterror/commit/de22feebd9a9102ffd03e156cff720bc434ea2ce))
 - Pin example path dependencies to the crate version by [@RAprogramm](https://github.com/RAprogramm) ([31a84f6](https://github.com/RAprogramm/masterror/commit/31a84f6b01c50d0b4393708ad95c0e4b063ecd89))
 - Scope release-plz to the published crates by [@RAprogramm](https://github.com/RAprogramm) ([fda319e](https://github.com/RAprogramm/masterror/commit/fda319e1331cfa8776dd39a04c042d637080096e))
 - Add SPDX header to release-plz.toml by [@RAprogramm](https://github.com/RAprogramm) ([c9877fb](https://github.com/RAprogramm/masterror/commit/c9877fbf89c025f782365dc0751cadce938fc893))
