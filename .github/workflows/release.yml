@@ -62,25 +62,19 @@ jobs:
         with:
           tool: git-cliff
 
-      - name: Sync the release pull request with main
+      - name: Update the pull request branches
         env:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
         run: |
           set -euo pipefail
-          pr_branch=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
-            --json headRefName \
-            --jq '[.[] | select(.headRefName | startswith("release-plz-"))][0].headRefName // empty')
-          if [ -z "$pr_branch" ]; then
-            echo "no release pull request to sync"
-            exit 0
-          fi
-          git fetch origin main "$pr_branch"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -q -B "$pr_branch" "origin/$pr_branch"
-          git rebase origin/main
-          git push --force origin "HEAD:refs/heads/$pr_branch"
-          echo "$pr_branch is aligned with main"
+          for number in $(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number --jq '.[].number'); do
+            if gh api -X PUT "repos/$GITHUB_REPOSITORY/pulls/$number/update-branch" \
+              -f update_method=rebase > /dev/null 2>&1; then
+              echo "PR #$number is rebased on main"
+            else
+              echo "::warning::PR #$number cannot be rebased automatically"
+            fi
+          done
 
       - name: Run release-plz
         uses: release-plz/action@2eb1d8bcb770b4c48ccfaad919734b38b51958c9 # v0.5
