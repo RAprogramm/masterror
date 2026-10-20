@@ -85,11 +85,11 @@ openapi = ["dep:utoipa", "std"]
 benchmarks = ["std"]
 
 [workspace.dependencies]
-masterror-derive = { version = "0.13.1" }
-masterror-template = { version = "0.5.1" }
+masterror-derive = { version = "0.13.1", path = "masterror-derive" }
+masterror-template = { version = "0.5.1", path = "masterror-template" }
 
 [dependencies]
-masterror-derive = { version = "0.13.1" }
+masterror-derive = { workspace = true }
 masterror-template = { workspace = true }
 tracing = { version = "0.1", optional = true, default-features = false, features = [
   "attributes",
