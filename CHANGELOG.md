@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Take only the new release section for the pull request body by [@RAprogramm](https://github.com/RAprogramm) ([8264dab](https://github.com/RAprogramm/masterror/commit/8264dabddef526957f4554cb372639fe0498fe55))
 - Fill the changelog block in the pull request body by [@RAprogramm](https://github.com/RAprogramm) ([9987b18](https://github.com/RAprogramm/masterror/commit/9987b184181ea2f4fad1e582e1f42028b30749a7))
 - Rebase the pull request branches without merge commits by [@RAprogramm](https://github.com/RAprogramm) ([1a208ba](https://github.com/RAprogramm/masterror/commit/1a208bafb2123430a136bcdacd83a87c9d268bc7))
 - Rebase every open pull request through the update-branch API by [@RAprogramm](https://github.com/RAprogramm) ([fb9ebef](https://github.com/RAprogramm/masterror/commit/fb9ebefd3e54639109bfb67fec57452b4b0811c6))
