@@ -63,8 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous
 
-- Add the 0.31.1 release section to the changelog ([c1c2699](https://github.com/RAprogramm/masterror/commit/c1c2699cc0d6dc61587ef980f1ec2ef0b99351d8))
-- **masterror:** Release v0.31.1 ([4b7f4fc](https://github.com/RAprogramm/masterror/commit/4b7f4fcbf6e67c639b9dfd3d2d30b61121592b9d))
+- Add the 0.31.1 release section to the changelog ([44acb1e](https://github.com/RAprogramm/masterror/commit/44acb1ed993ad8ad3e7d0b4425a1759c17563841))
+- Add the 0.31.1 release section to the changelog ([805c174](https://github.com/RAprogramm/masterror/commit/805c1743f1645ad5f6021d1be8a50c64c66ec02f))
+- **masterror:** Release v0.31.1 ([98a7b01](https://github.com/RAprogramm/masterror/commit/98a7b01c577ea6d568e514f1b242d62b3720aea1))
 - Keep one changelog owner in cliff.toml by [@RAprogramm](https://github.com/RAprogramm) ([892af00](https://github.com/RAprogramm/masterror/commit/892af00a5b7f137650223e2e316f8fc3ec5b659a))
 - Refresh SPDX year ranges in the files changed in 2026 by [@RAprogramm](https://github.com/RAprogramm) ([de22fee](https://github.com/RAprogramm/masterror/commit/de22feebd9a9102ffd03e156cff720bc434ea2ce))
 - Pin example path dependencies to the crate version by [@RAprogramm](https://github.com/RAprogramm) ([31a84f6](https://github.com/RAprogramm/masterror/commit/31a84f6b01c50d0b4393708ad95c0e4b063ecd89))
