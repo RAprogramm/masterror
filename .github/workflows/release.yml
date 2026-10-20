@@ -57,6 +57,11 @@ jobs:
       - name: Install stable Rust
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
 
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
       - name: Sync the release pull request with main
         env:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
@@ -80,6 +85,39 @@ jobs:
           version: 0.3.172
         env:
           GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}
+
+      - name: Add the release section to the changelog
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          set -euo pipefail
+          pr_branch=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
+            --json headRefName \
+            --jq '[.[] | select(.headRefName | startswith("release-plz-"))][0].headRefName // empty')
+          if [ -z "$pr_branch" ]; then
+            echo "no release pull request to update"
+            exit 0
+          fi
+
+          git fetch origin "$pr_branch"
+          git checkout -q -B "$pr_branch" "origin/$pr_branch"
+
+          version=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+          if git rev-parse "v$version" >/dev/null 2>&1; then
+            git cliff --config cliff.toml -o CHANGELOG.md
+          else
+            git cliff --config cliff.toml --tag "v$version" -o CHANGELOG.md
+          fi
+
+          if git diff --quiet CHANGELOG.md; then
+            echo "the release changelog is already up to date"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -qam "chore: add the $version release section to the changelog"
+          git push origin "HEAD:$pr_branch"
 
   check-versions:
     name: Check versions on crates.io
