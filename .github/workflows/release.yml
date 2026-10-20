@@ -171,6 +171,10 @@ jobs:
           MASTERROR_VERSION="${LOCAL[masterror]}"
           PUBLISHED_ANY=false
 
+          if ! git rev-parse "v$MASTERROR_VERSION" >/dev/null 2>&1; then
+            git cliff --config cliff.toml --tag "v$MASTERROR_VERSION" -o CHANGELOG.md
+          fi
+
           for crate in $CRATES; do
             if [ "${LOCAL[$crate]}" = "${REMOTE[$crate]}" ] && [ "$FORCE" != "true" ]; then
               info "$crate: ${LOCAL[$crate]} is already published (skip)"
@@ -185,7 +189,7 @@ jobs:
             published=false
             for attempt in 1 2 3 4 5; do
               info "Attempt $attempt/5"
-              if cargo publish -p "$crate" --locked; then
+              if cargo publish -p "$crate" --locked --allow-dirty; then
                 published=true
                 break
               fi
