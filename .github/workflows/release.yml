@@ -259,7 +259,7 @@ jobs:
             if ! git diff --quiet CHANGELOG.md; then
               git config user.name "github-actions[bot]"
               git config user.email "github-actions[bot]@users.noreply.github.com"
-              git commit -qam "chore: update the changelog for v$MASTERROR_VERSION"
+              git commit -qam "chore: update the changelog for v$MASTERROR_VERSION [skip ci]"
               git push origin HEAD:main || warn "the changelog commit is not pushed to main"
             fi
           fi
