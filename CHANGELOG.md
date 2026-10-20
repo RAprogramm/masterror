@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Rebase the pull request branches without merge commits by [@RAprogramm](https://github.com/RAprogramm) ([1a208ba](https://github.com/RAprogramm/masterror/commit/1a208bafb2123430a136bcdacd83a87c9d268bc7))
+- Rebase every open pull request through the update-branch API by [@RAprogramm](https://github.com/RAprogramm) ([fb9ebef](https://github.com/RAprogramm/masterror/commit/fb9ebefd3e54639109bfb67fec57452b4b0811c6))
 - Set the git identity before rebasing the release pull request by [@RAprogramm](https://github.com/RAprogramm) ([18ce921](https://github.com/RAprogramm/masterror/commit/18ce921fc47dc635a16388361482252c734af5a7))
 - Write the release section into the pull request body by [@RAprogramm](https://github.com/RAprogramm) ([ec52e60](https://github.com/RAprogramm/masterror/commit/ec52e605587a35a722a787e9fd340d82b85af43b))
 - Rebase the release pull request onto main instead of resetting it by [@RAprogramm](https://github.com/RAprogramm) ([3153788](https://github.com/RAprogramm/masterror/commit/315378872b2fe5ec2135ec144d93e77529435745))
