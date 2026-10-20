@@ -11,7 +11,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.31.0...HEAD)
+## [0.31.1](https://github.com/RAprogramm/masterror/releases/tag/v0.31.1) - 2026-10-20
 
 ### Added
 
@@ -63,6 +63,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous
 
+- Add the 0.31.1 release section to the changelog ([1d9c69a](https://github.com/RAprogramm/masterror/commit/1d9c69ab0f134bd90b13a11a40d9c4d7b0309032))
+- Add the 0.31.1 release section to the changelog ([6aa5137](https://github.com/RAprogramm/masterror/commit/6aa5137d78270aabf5f36b96f107a4b21b07d090))
+- Add the 0.31.1 release section to the changelog ([184ffde](https://github.com/RAprogramm/masterror/commit/184ffdedb56b24c9a83272bedc6e863a0fd82864))
+- **masterror:** Release v0.31.1 ([e896b81](https://github.com/RAprogramm/masterror/commit/e896b81744fdb6b7e61ff03ab3189d81e7779e7c))
 - Keep one changelog owner in cliff.toml by [@RAprogramm](https://github.com/RAprogramm) ([892af00](https://github.com/RAprogramm/masterror/commit/892af00a5b7f137650223e2e316f8fc3ec5b659a))
 - Refresh SPDX year ranges in the files changed in 2026 by [@RAprogramm](https://github.com/RAprogramm) ([de22fee](https://github.com/RAprogramm/masterror/commit/de22feebd9a9102ffd03e156cff720bc434ea2ce))
 - Pin example path dependencies to the crate version by [@RAprogramm](https://github.com/RAprogramm) ([31a84f6](https://github.com/RAprogramm/masterror/commit/31a84f6b01c50d0b4393708ad95c0e4b063ecd89))
@@ -72,6 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deps
 
 - Update utoipa 5 to 6 and fix no-std compatibility by [@RAprogramm](https://github.com/RAprogramm) ([6bce3e7](https://github.com/RAprogramm/masterror/commit/6bce3e79f295d99e052b28c804a3d28097201382))
+
+**Full Changelog**: [v0.31.0...v0.31.1](https://github.com/RAprogramm/masterror/compare/v0.31.0...v0.31.1)
 ## [0.31.0](https://github.com/RAprogramm/masterror/releases/tag/v0.31.0) - 2026-09-01
 
 ### Fixed
