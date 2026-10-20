@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous
 
+- Add the 0.31.2 release section to the changelog ([5727d36](https://github.com/RAprogramm/masterror/commit/5727d36cbafa949f3153554e660eedf7ad62d918))
 - **masterror:** Release v0.31.2 ([c400f0d](https://github.com/RAprogramm/masterror/commit/c400f0d1ecea78e7c2cc28f7ed399e9a2627dd5c))
 
 **Full Changelog**: [v0.31.1...v0.31.2](https://github.com/RAprogramm/masterror/compare/v0.31.1...v0.31.2)
