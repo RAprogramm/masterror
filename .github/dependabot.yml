@@ -26,8 +26,6 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
-    labels:
-      - "dependencies"
     cooldown:
       default-days: 3
       semver-major-days: 14
