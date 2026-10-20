@@ -93,13 +93,15 @@ jobs:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
         run: |
           set -euo pipefail
-          pr_branch=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
-            --json headRefName \
-            --jq '[.[] | select(.headRefName | startswith("release-plz-"))][0].headRefName // empty')
-          if [ -z "$pr_branch" ]; then
+          pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
+            --json number,headRefName \
+            --jq '[.[] | select(.headRefName | startswith("release-plz-"))][0] // empty')
+          if [ -z "$pr" ]; then
             echo "no release pull request to update"
             exit 0
           fi
+          pr_number=$(printf '%s' "$pr" | jq -r '.number')
+          pr_branch=$(printf '%s' "$pr" | jq -r '.headRefName')
 
           git fetch origin "$pr_branch"
           git checkout -q -B "$pr_branch" "origin/$pr_branch"
@@ -120,6 +122,11 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git commit -qam "chore: add the $version release section to the changelog"
           git push origin "HEAD:$pr_branch"
+
+          published=$(curl -sSf -A "masterror-ci/2.0" \
+            "https://crates.io/api/v1/crates/masterror" | jq -r '.crate.max_version')
+          section=$(awk '/^## \[/{f=1} f' CHANGELOG.md)
+          gh pr edit "$pr_number" --body "$(printf '## 🤖 New release\n\n* `masterror`: %s -> %s\n\n%s\n\n---\nThis PR was generated with [release-plz](https://github.com/release-plz/release-plz/).\n' "$published" "$version" "$section")"
 
   check-versions:
     name: Check versions on crates.io
