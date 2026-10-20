@@ -98,6 +98,7 @@ jobs:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
         run: |
           set -euo pipefail
+          source .github/scripts/compare_versions.sh
           pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
             --json number,headRefName \
             --jq '[.[] | select(.headRefName | startswith("release-plz-"))][0] // empty')
@@ -128,17 +129,18 @@ jobs:
           fi
 
           section=$(awk '/^## \[/ { n++; if (n == 1) f = 1; else f = 0 } f' CHANGELOG.md)
-          body=$(gh pr view "$pr_number" --json body --jq .body)
-          new_body=$(printf '%s\n' "$body" | awk -v section="$section" '
-            /<details><summary><i><b>Changelog<\/b><\/i><\/summary><p>/ { print; printf "%s\n", section; skip=1; next }
-            skip && /<\/p><\/details>/ { print; skip=0; next }
-            !skip { print }
-          ')
-          case "$new_body" in
-            *"$section"*) ;;
-            *) new_body=$(printf '%s\n\n%s\n' "$new_body" "$section") ;;
-          esac
-          gh pr edit "$pr_number" --body "$new_body"
+          {
+            printf '## 🤖 New release\n\n'
+            for crate in $CRATES; do
+              published=$(published_version "$crate")
+              local_ver=$(local_version "$crate")
+              if [ "$published" != "$local_ver" ]; then
+                printf '* `%s`: %s -> %s\n' "$crate" "$published" "$local_ver"
+              fi
+            done
+            printf '\n%s\n\n---\nThis PR was generated with [release-plz](https://github.com/release-plz/release-plz/).\n' "$section"
+          } > "${RUNNER_TEMP}/body.md"
+          gh pr edit "$pr_number" --body-file "${RUNNER_TEMP}/body.md"
 
   check-versions:
     name: Check versions on crates.io
