@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 
 SPDX-License-Identifier: MIT
 -->
@@ -19,12 +19,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### CI/CD
 
+- Keep a single owner for the changelog and drop the unused actions by [@RAprogramm](https://github.com/RAprogramm) ([9d1f238](https://github.com/RAprogramm/masterror/commit/9d1f23827cbf748ea4e767bb103b5230038d7059))
+- Professionalise the dependabot setup with schedules, cooldowns and groups by [@RAprogramm](https://github.com/RAprogramm) ([1688dea](https://github.com/RAprogramm/masterror/commit/1688deace693ff961a9bcad9b76eae4a67aac9d2))
+- Complete the dependabot groups and enable auto-merge for dependabot PRs by [@RAprogramm](https://github.com/RAprogramm) ([13ad49d](https://github.com/RAprogramm/masterror/commit/13ad49d521b1660a43e34d80565f3761c244f72e))
+- Check every crate version in the release PR and report the changes by [@RAprogramm](https://github.com/RAprogramm) ([9a8856f](https://github.com/RAprogramm/masterror/commit/9a8856f8a5cbf776e75659fd56a250980d13c24d))
+- Make the release job idempotent and pin it to the merged commit by [@RAprogramm](https://github.com/RAprogramm) ([d5f413a](https://github.com/RAprogramm/masterror/commit/d5f413ac38ccfbcb94baea748076fbf2cd443122))
+- Single release flow with the release PR, version check and publish by [@RAprogramm](https://github.com/RAprogramm) ([4616b85](https://github.com/RAprogramm/masterror/commit/4616b859e7b6f81f553bd535def23d01f79e296f))
+- Add release workflow publishing after a successful CI run by [@RAprogramm](https://github.com/RAprogramm) ([9a414ae](https://github.com/RAprogramm/masterror/commit/9a414aebe093f46662fa2bc20d657848ce107040))
+- Move publishing out of the CI workflow by [@RAprogramm](https://github.com/RAprogramm) ([da1a21c](https://github.com/RAprogramm/masterror/commit/da1a21cc3fe64f5d5d40f1d66712456c1fd8a90f))
+- Publish only on version-bump pushes by [@RAprogramm](https://github.com/RAprogramm) ([1a59b18](https://github.com/RAprogramm/masterror/commit/1a59b18ee09dbb8d34f850d59c0a678abff19f55))
+- Add SPDX header and pin release-plz action to 0.3.172 by [@RAprogramm](https://github.com/RAprogramm) ([6062755](https://github.com/RAprogramm/masterror/commit/6062755fcee9151b3fe233cf38f291d59a986c9e))
+- Trigger release-plz by [@RAprogramm](https://github.com/RAprogramm) ([ed20aa1](https://github.com/RAprogramm/masterror/commit/ed20aa1db122165b1c7eecdc8c9c3dc773002d90))
 - Sync release-plz workflow from twc-rs by [@RAprogramm](https://github.com/RAprogramm) ([cdfb80a](https://github.com/RAprogramm/masterror/commit/cdfb80ab4f83e136055d5c47be77b946e20e86d9))
 - Enable cancel-in-progress for release-plz by [@RAprogramm](https://github.com/RAprogramm) ([4e8c8ab](https://github.com/RAprogramm/masterror/commit/4e8c8abe0d8b88c2f340838ea624171decd94427))
 - Minor workflow formatting by [@RAprogramm](https://github.com/RAprogramm) ([5f1f9f5](https://github.com/RAprogramm/masterror/commit/5f1f9f5525adb20d7e50364193ae3a95bb945a83))
 
+### Fixed
+
+- Commit the release changelog instead of publishing a dirty tree by [@RAprogramm](https://github.com/RAprogramm) ([6f4b15d](https://github.com/RAprogramm/masterror/commit/6f4b15dfdf647794e4e63f16d1c901b80f0f1be0))
+- Render the release section into the changelog before publishing by [@RAprogramm](https://github.com/RAprogramm) ([3e55fbf](https://github.com/RAprogramm/masterror/commit/3e55fbf600270390a1112f1d4d40eb0fbae3caa3))
+- Let git-cliff own the changelog so the release PR lists every change by [@RAprogramm](https://github.com/RAprogramm) ([4662fc4](https://github.com/RAprogramm/masterror/commit/4662fc422fb9505601ff7d0629f36a794812a88f))
+- Accumulate every change in the release PR changelog by [@RAprogramm](https://github.com/RAprogramm) ([707aa0d](https://github.com/RAprogramm/masterror/commit/707aa0d55500d37047b1901fd1e196b4c6585177))
+- Keep the dependabot default labels instead of overriding them by [@RAprogramm](https://github.com/RAprogramm) ([a1f9e2b](https://github.com/RAprogramm/masterror/commit/a1f9e2b8ea8dbe003baf7594b6de60cb86bace9f))
+- Drop the group labels that the dependabot schema rejects by [@RAprogramm](https://github.com/RAprogramm) ([69d3a78](https://github.com/RAprogramm/masterror/commit/69d3a78fee48b2bb2f6b239c37e1229a5115bd97))
+- Keep the changelog SPDX header in place on release by [@RAprogramm](https://github.com/RAprogramm) ([c6b4fd8](https://github.com/RAprogramm/masterror/commit/c6b4fd8e8387e5ffd012dd6efdb8355fa178aa97))
+- Check out a branch for the release PR job by [@RAprogramm](https://github.com/RAprogramm) ([8999e4d](https://github.com/RAprogramm/masterror/commit/8999e4d6f624cbceda4ff703ddfc2df73ace9203))
+- Disable the masterror semver check until a clean package is published by [@RAprogramm](https://github.com/RAprogramm) ([645bfad](https://github.com/RAprogramm/masterror/commit/645bfad2d155a1d7eab5b1a05adc6eba24697105))
+- Exclude .cargo/config.toml from the published package by [@RAprogramm](https://github.com/RAprogramm) ([04bcf39](https://github.com/RAprogramm/masterror/commit/04bcf39dbe4ee0eb416a5ce7b9de7473af064a8a))
+
 ### Miscellaneous
 
+- Keep one changelog owner in cliff.toml by [@RAprogramm](https://github.com/RAprogramm) ([892af00](https://github.com/RAprogramm/masterror/commit/892af00a5b7f137650223e2e316f8fc3ec5b659a))
+- Refresh SPDX year ranges in the files changed in 2026 by [@RAprogramm](https://github.com/RAprogramm) ([de22fee](https://github.com/RAprogramm/masterror/commit/de22feebd9a9102ffd03e156cff720bc434ea2ce))
+- Pin example path dependencies to the crate version by [@RAprogramm](https://github.com/RAprogramm) ([31a84f6](https://github.com/RAprogramm/masterror/commit/31a84f6b01c50d0b4393708ad95c0e4b063ecd89))
+- Scope release-plz to the published crates by [@RAprogramm](https://github.com/RAprogramm) ([fda319e](https://github.com/RAprogramm/masterror/commit/fda319e1331cfa8776dd39a04c042d637080096e))
 - Add SPDX header to release-plz.toml by [@RAprogramm](https://github.com/RAprogramm) ([c9877fb](https://github.com/RAprogramm/masterror/commit/c9877fbf89c025f782365dc0751cadce938fc893))
 
 ### Deps

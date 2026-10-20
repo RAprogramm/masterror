@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 RAprogramm <andrey.rozanov.vl@gmail.com>
+# SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
 #
 # SPDX-License-Identifier: MIT
 
@@ -11,5 +11,5 @@ license.workspace = true
 publish = false
 
 [dependencies]
-masterror = { path = "../..", features = ["tokio"] }
+masterror = { path = "../..", version = "0.31.0", features = ["tokio"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }

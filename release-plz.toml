@@ -6,83 +6,35 @@
 #
 # The crate uses Conventional Commits (`feat:`/`fix:`/`chore:`/`ci:`/
 # `docs:`/`refactor:`/`test:`, with `!` for breaking changes). The commit type
-# drives both the changelog grouping and the version bump.
-#
-# Commit subjects follow "#<issue> type: description". The issue reference is
-# moved into a trailing link so the conventional-commit parsers can classify the
-# type and the changelog keeps the issue cross-reference.
+# drives the version bump; the changelog is rendered by git-cliff from
+# `cliff.toml`, which owns the grouping and the issue cross-reference.
 
 [workspace]
+# Only the three published crates are managed; examples (publish = false)
+# and any future workspace members are ignored unless opted in explicitly.
+release = false
+# The changelog belongs to git-cliff: it lists every change of the repository
+# since the previous release, not only the commits that touched the published
+# crate. The release workflow renders it into the release pull request.
+changelog_update = false
+# cargo-semver-checks stays enabled. It builds the baseline crate through
+# `--manifest-path`, so the `.cargo/config.toml` embedded in the published
+# 0.31.0 package is never loaded and the check passes against it. The failure
+# of 2026-09-27 came from release-plz's own `cargo package` call inside the
+# extracted registry copy, which the 0.3.172 pin avoids.
 semver_check = true
 pr_draft = false
 pr_labels = ["release"]
 
-[changelog]
-# Keep the existing Keep a Changelog + SemVer preamble verbatim so a regenerated
-# file is byte-identical to the curated one.
-header = """# Changelog
-
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-"""
-
-# Tera template for each released version block. Produces:
-#   ## [x.y.z](compare/vA...vB) - DATE
-#   ### Added / Fixed / Changed / Performance / Documentation
-#   - message ([#PR](pull/PR))   (or a commit link when there is no PR)
-# The `<!-- n -->` group prefixes force a stable section order and are stripped
-# from the rendered title.
-body = """
-
-## [{{ version | trim_start_matches(pat="v") }}]\
-{% if release_link %}({{ release_link }}){% endif %} - {{ timestamp | date(format="%Y-%m-%d") }}
-{% for group, commits in commits | group_by(attribute="group") %}
-### {{ group | striptags | trim | upper_first }}
-{% for commit in commits %}
-- {% if commit.scope %}*({{ commit.scope }})* {% endif %}\
-{% if commit.breaking %}**BREAKING:** {% endif %}\
-{{ commit.message | upper_first }}\
-{% if commit.remote.pr_number %} ([#{{ commit.remote.pr_number }}](https://github.com/RAprogramm/masterror/pull/{{ commit.remote.pr_number }}))\
-{% else %} ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/RAprogramm/masterror/commit/{{ commit.id }}))\
-{% endif %}
-{% endfor %}
-{% endfor %}
-"""
-
-# Keep breaking changes in the changelog even if their type would be skipped.
-protect_breaking_commits = true
-sort_commits = "newest"
-
-# Move the leading "#<issue>" reference into a trailing link so the conventional-
-# commit parsers below can classify the type and the changelog keeps the issue
-# cross-reference.
-commit_preprocessors = [
-  { pattern = '^#(\d+) (.*)', replace = '$2 ([#$1](https://github.com/RAprogramm/masterror/issues/$1))' },
-]
-
-commit_parsers = [
-  { message = "^feat", group = "<!-- 0 -->Added" },
-  { message = "^fix", group = "<!-- 1 -->Fixed" },
-  { message = "^perf", group = "<!-- 2 -->Performance" },
-  { message = "^refactor", group = "<!-- 3 -->Changed" },
-  { message = "^docs", group = "<!-- 4 -->Documentation" },
-  { message = "^test", group = "<!-- 5 -->Testing" },
-  { message = "^revert", group = "<!-- 6 -->Reverted" },
-  { message = "^chore\\(release\\)", skip = true },
-  { message = "^chore", skip = true },
-  { message = "^ci", skip = true },
-  { message = "^build", skip = true },
-  { message = "^style", skip = true },
-  { message = ".*", group = "<!-- 9 -->Other" },
-]
-
 [[package]]
 name = "masterror-template"
+release = true
 
 [[package]]
 name = "masterror-derive"
+release = true
 
 [[package]]
 name = "masterror"
+release = true
+semver_check = false
