@@ -65,8 +65,8 @@ colored = ["dep:owo-colors", "std"]
 axum = ["dep:axum", "dep:serde_json", "std"]
 actix = ["dep:actix-web", "dep:serde_json", "std"]
 
-sqlx = ["dep:sqlx-core"]    # maps sqlx_core::Error
-sqlx-migrate = ["dep:sqlx"] # maps sqlx::migrate::MigrateError
+sqlx = ["dep:sqlx-core", "std"]    # maps sqlx_core::Error
+sqlx-migrate = ["dep:sqlx", "std"] # maps sqlx::migrate::MigrateError
 
 redis = ["dep:redis", "std"]
 validator = ["dep:validator", "std"]
