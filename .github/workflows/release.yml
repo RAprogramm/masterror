@@ -75,6 +75,8 @@ jobs:
             exit 0
           fi
           git fetch origin main "$pr_branch"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -q -B "$pr_branch" "origin/$pr_branch"
           git rebase origin/main
           git push --force origin "HEAD:refs/heads/$pr_branch"
