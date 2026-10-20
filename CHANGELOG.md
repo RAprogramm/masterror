@@ -11,6 +11,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.31.1](https://github.com/RAprogramm/masterror/compare/masterror-v0.31.0...masterror-v0.31.1) - 2026-10-20
+
+### Fixed
+
+- Exclude .cargo/config.toml from the published package ([04bcf39](https://github.com/RAprogramm/masterror/commit/04bcf39dbe4ee0eb416a5ce7b9de7473af064a8a))
+
+
+### Other
+
+- Update utoipa 5 to 6 and fix no-std compatibility ([6bce3e7](https://github.com/RAprogramm/masterror/commit/6bce3e79f295d99e052b28c804a3d28097201382))
+
 ## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.31.0...HEAD)
 
 ### Added
