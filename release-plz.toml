@@ -6,11 +6,8 @@
 #
 # The crate uses Conventional Commits (`feat:`/`fix:`/`chore:`/`ci:`/
 # `docs:`/`refactor:`/`test:`, with `!` for breaking changes). The commit type
-# drives both the changelog grouping and the version bump.
-#
-# Commit subjects follow "#<issue> type: description". The issue reference is
-# moved into a trailing link so the conventional-commit parsers can classify the
-# type and the changelog keeps the issue cross-reference.
+# drives the version bump; the changelog is rendered by git-cliff from
+# `cliff.toml`, which owns the grouping and the issue cross-reference.
 
 [workspace]
 # Only the three published crates are managed; examples (publish = false)
@@ -28,81 +25,6 @@ changelog_update = false
 semver_check = true
 pr_draft = false
 pr_labels = ["release"]
-
-[changelog]
-# Keep the existing Keep a Changelog + SemVer preamble verbatim so a regenerated
-# file is byte-identical to the curated one.
-header = """<!--
-SPDX-FileCopyrightText: 2025-2026 RAprogramm <andrey.rozanov.vl@gmail.com>
-
-SPDX-License-Identifier: MIT
--->
-
-# Changelog
-
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-"""
-
-# Tera template for each released version block. Produces:
-#   ## [x.y.z](compare/vA...vB) - DATE
-#   ### Added / Fixed / Changed / Performance / Documentation
-#   - message ([#PR](pull/PR))   (or a commit link when there is no PR)
-# The `<!-- n -->` group prefixes force a stable section order and are stripped
-# from the rendered title.
-body = """
-
-## [{{ version | trim_start_matches(pat="v") }}]\
-{% if release_link %}({{ release_link }}){% endif %} - {{ timestamp | date(format="%Y-%m-%d") }}
-{% for group, commits in commits | group_by(attribute="group") %}
-### {{ group | striptags | trim | upper_first }}
-{% for commit in commits %}
-- {% if commit.scope %}*({{ commit.scope }})* {% endif %}\
-{% if commit.breaking %}**BREAKING:** {% endif %}\
-{{ commit.message | upper_first }}\
-{% if commit.remote.pr_number %} ([#{{ commit.remote.pr_number }}](https://github.com/RAprogramm/masterror/pull/{{ commit.remote.pr_number }}))\
-{% else %} ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/RAprogramm/masterror/commit/{{ commit.id }}))\
-{% endif %}
-{% endfor %}
-{% endfor %}
-"""
-
-# Keep breaking changes in the changelog even if their type would be skipped.
-protect_breaking_commits = true
-sort_commits = "newest"
-
-# Move the leading "#<issue>" reference into a trailing link so the conventional-
-# commit parsers below can classify the type and the changelog keeps the issue
-# cross-reference.
-commit_preprocessors = [
-  { pattern = '^#(\d+) (.*)', replace = '$2 ([#$1](https://github.com/RAprogramm/masterror/issues/$1))' },
-]
-
-commit_parsers = [
-  { message = "^feat", group = "<!-- 0 -->Added" },
-  { message = "^add", group = "<!-- 0 -->Added" },
-  { message = "^fix", group = "<!-- 1 -->Fixed" },
-  { message = "^doc", group = "<!-- 2 -->Documentation" },
-  { message = "^perf", group = "<!-- 3 -->Performance" },
-  { message = "^refactor", group = "<!-- 4 -->Refactored" },
-  { message = "^style", group = "<!-- 5 -->Styling" },
-  { message = "^test", group = "<!-- 6 -->Testing" },
-  { message = "^chore\\(release\\)", skip = true },
-  { message = "^chore: update CHANGELOG", skip = true },
-  { message = "^chore\\(deps.*\\)", group = "<!-- 7 -->Dependencies" },
-  { message = "^chore\\(pr\\)", skip = true },
-  { message = "^chore\\(pull\\)", skip = true },
-  { message = "^chore", group = "<!-- 8 -->Miscellaneous" },
-  { message = "^build", group = "<!-- 9 -->Build" },
-  { message = "^ci", group = "<!-- 10 -->CI/CD" },
-  { body = ".*security", group = "<!-- 11 -->Security" },
-  { message = "^revert", group = "<!-- 12 -->Reverted" },
-  { message = "^breaking", group = "<!-- 13 -->Breaking Changes" },
-  { message = ".*", group = "<!-- 14 -->Other" },
-]
 
 [[package]]
 name = "masterror-template"
