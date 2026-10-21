@@ -43,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Declare the std requirement of the sqlx features (#474) by [@RAprogramm](https://github.com/RAprogramm) ([e3a735a](https://github.com/RAprogramm/masterror/commit/e3a735a344d6968ffd5f9f7ddb25908d9d95c644))
 - Make masterror-template no_std compatible (#474) by [@RAprogramm](https://github.com/RAprogramm) ([275ec8b](https://github.com/RAprogramm/masterror/commit/275ec8ba97e6ddcdda175b1e9bb2d0f781a486e1))
 
+### Miscellaneous
+
+- Derive the MSRV in the documentation from the manifest by [@RAprogramm](https://github.com/RAprogramm) ([3de0480](https://github.com/RAprogramm/masterror/commit/3de048082a9f911bf4d6b35546318835f9290d33))
+
 ### Refactored
 
 - Declare the derive dependency in the workspace (#474) by [@RAprogramm](https://github.com/RAprogramm) ([0e7c661](https://github.com/RAprogramm/masterror/commit/0e7c6619883133ba8042638926e11e1b3ab7d0fb))
