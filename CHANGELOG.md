@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### CI/CD
 
+- Check masterror in semver job, drop skip_tests, rebase dependabot auto-merge by [@RAprogramm](https://github.com/RAprogramm) ([f624895](https://github.com/RAprogramm/masterror/commit/f6248958fa4750581da9b5dde4930152ac21d1a7))
 - Skip the redundant CI run on the post-release changelog push by [@RAprogramm](https://github.com/RAprogramm) ([40c33bd](https://github.com/RAprogramm/masterror/commit/40c33bd8305f7761a4953c15c7e1be3c34e14365))
 - Stop running the full CI on release tags by [@RAprogramm](https://github.com/RAprogramm) ([59bf0bc](https://github.com/RAprogramm/masterror/commit/59bf0bcada3448af287524577344bbb7a20c9148))
 
