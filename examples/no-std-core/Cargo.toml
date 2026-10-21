@@ -11,4 +11,4 @@ license.workspace = true
 publish = false
 
 [dependencies]
-masterror = { path = "../..", version = "0.31.1", default-features = false }
+masterror = { path = "../..", version = "0.32.0", default-features = false }
