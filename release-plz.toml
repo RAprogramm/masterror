@@ -29,8 +29,11 @@ changelog_update = false
 # rustdoc JSON of the current stable toolchain (rustdoc format v61, the
 # failure of 2026-10-20). The check itself stays in the repository CI as the
 # `Semver checks` job of `ci.yml`, which always uses the fresh upstream
-# cargo-semver-checks. Re-enable this option once the bundled version supports
-# the current stable rustdoc format.
+# cargo-semver-checks and covers `masterror` and `masterror-template`.
+# `masterror-derive` is a proc-macro crate without a checkable library API:
+# cargo-semver-checks skips it by design, so it is checked by review only.
+# Re-enable this option once the bundled version supports the current stable
+# rustdoc format.
 semver_check = false
 # The issue prefix hides the commit type from the Conventional Commit parser,
 # so the type is matched explicitly against the whole message. A breaking

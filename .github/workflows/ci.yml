@@ -9,11 +9,6 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
-    inputs:
-      skip_tests:
-        description: "Skip test stage (for emergency releases)"
-        type: boolean
-        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -250,7 +245,7 @@ jobs:
       - name: Check semver
         uses: obi1kenobi/cargo-semver-checks-action@v2
         with:
-          package: masterror-template, masterror-derive
+          package: masterror, masterror-template
 
   # ════════════════════════════════════════════════════════════════════════════
   # STAGE 2: TEST (after checks pass)
@@ -259,7 +254,6 @@ jobs:
   test:
     name: Test Suite
     needs: [check, fmt, no-std, security, reuse]
-    if: ${{ !inputs.skip_tests }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
