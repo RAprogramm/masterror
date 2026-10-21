@@ -170,12 +170,12 @@ description = "Run checks and publish the crate (requires TAG and token)"
 
 # ------- Extras -------
 
-[tasks.sync-msrv]
+[tasks.sync-docs]
 category = "Documentation"
 clear = true
-description = "Derive the MSRV in the documentation from Cargo.toml"
+description = "Derive the documentation values from Cargo.toml"
 script_runner = "bash"
-script = ['scripts/sync-msrv.sh']
+script = ['scripts/sync-docs.sh']
 
 [tasks.format]
 category = "Format"

@@ -6,7 +6,7 @@ the only thing standing between you and an embedded/WASM-friendly build:
 
 ```toml
 [dependencies]
-masterror = { version = "0.28", default-features = false }
+masterror = { version = "0.31.1", default-features = false }
 ```
 
 ## alloc is required
@@ -87,7 +87,7 @@ Library crates that want to stay transport-agnostic and `no_std`-compatible:
 
 ```toml
 [dependencies]
-masterror = { version = "0.28", default-features = false }
+masterror = { version = "0.31.1", default-features = false }
 
 [features]
 std = ["masterror/std"]
@@ -98,7 +98,7 @@ needs:
 
 ```toml
 [dependencies]
-masterror = { version = "0.28", features = ["axum", "tracing", "metrics"] }
+masterror = { version = "0.31.1", features = ["axum", "tracing", "metrics"] }
 ```
 
 Because `AppErrorKind`, `AppCode` and the wire types live in the `no_std`

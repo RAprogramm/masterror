@@ -6,10 +6,10 @@
 name = "masterror-template"
 version = "0.5.1"
 rust-version.workspace = true
-edition = "2024"
-repository = "https://github.com/RAprogramm/masterror"
+edition.workspace = true
+repository.workspace = true
 readme = "README.md"
 description = "Template utilities for masterror and its derive macros"
-license = "MIT"
+license.workspace = true
 
 [dependencies]

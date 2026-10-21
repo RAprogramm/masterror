@@ -6,9 +6,9 @@
 name = "masterror"
 version = "0.31.1"
 rust-version.workspace = true
-edition = "2024"
-license = "MIT"
-repository = "https://github.com/RAprogramm/masterror"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 readme = "README.md"
 description = "Application error types and response mapping"
 documentation = "https://docs.rs/masterror"

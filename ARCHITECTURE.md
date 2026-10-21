@@ -627,17 +627,17 @@ CI tests on MSRV (1.99) and stable to prevent accidental newer Rust usage.
 
 **Minimal setup** (library use):
 ```toml
-masterror = { version = "0.24", default-features = false }
+masterror = { version = "0.31.1", default-features = false }
 ```
 
 **HTTP service**:
 ```toml
-masterror = { version = "0.24", features = ["std", "axum", "tracing"] }
+masterror = { version = "0.31.1", features = ["std", "axum", "tracing"] }
 ```
 
 **Full-stack service**:
 ```toml
-masterror = { version = "0.24", features = [
+masterror = { version = "0.31.1", features = [
     "std", "axum", "sqlx", "reqwest", "redis",
     "tracing", "metrics", "backtrace"
 ] }
@@ -645,7 +645,7 @@ masterror = { version = "0.24", features = [
 
 **Rapid prototype**:
 ```toml
-masterror = { version = "0.24", features = ["turnkey"] }
+masterror = { version = "0.31.1", features = ["turnkey"] }
 ```
 
 ### Error Budget

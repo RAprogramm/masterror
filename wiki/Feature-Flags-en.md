@@ -4,9 +4,9 @@
 
 ```toml
 [dependencies]
-masterror = { version = "0.28", default-features = false }
+masterror = { version = "0.31.1", default-features = false }
 # or with features:
-# masterror = { version = "0.28", features = [
+# masterror = { version = "0.31.1", features = [
 #   "std", "axum", "actix", "openapi",
 #   "serde_json", "tracing", "metrics", "backtrace",
 #   "colored", "sqlx", "sqlx-migrate", "reqwest",
@@ -87,37 +87,37 @@ Without any feature flag, `AppError` already converts from:
 REST API on Axum with problem+json, OpenAPI docs and tracing:
 
 ```toml
-masterror = { version = "0.28", features = ["axum", "openapi", "serde_json", "tracing"] }
+masterror = { version = "0.31.1", features = ["axum", "openapi", "serde_json", "tracing"] }
 ```
 
 Database service with sqlx, migrations and metrics:
 
 ```toml
-masterror = { version = "0.28", features = ["sqlx", "sqlx-migrate", "metrics", "tracing"] }
+masterror = { version = "0.31.1", features = ["sqlx", "sqlx-migrate", "metrics", "tracing"] }
 ```
 
 gRPC service:
 
 ```toml
-masterror = { version = "0.28", features = ["tonic", "tracing", "backtrace"] }
+masterror = { version = "0.31.1", features = ["tonic", "tracing", "backtrace"] }
 ```
 
 Telegram bot with Mini App auth:
 
 ```toml
-masterror = { version = "0.28", features = ["teloxide", "init-data", "reqwest", "tokio"] }
+masterror = { version = "0.31.1", features = ["teloxide", "init-data", "reqwest", "tokio"] }
 ```
 
 WASM front-end:
 
 ```toml
-masterror = { version = "0.28", features = ["frontend", "serde_json"] }
+masterror = { version = "0.31.1", features = ["frontend", "serde_json"] }
 ```
 
 `no_std` embedded or library target:
 
 ```toml
-masterror = { version = "0.28", default-features = false }
+masterror = { version = "0.31.1", default-features = false }
 ```
 
 ## Notes

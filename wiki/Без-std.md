@@ -7,7 +7,7 @@
 
 ```toml
 [dependencies]
-masterror = { version = "0.28", default-features = false }
+masterror = { version = "0.31.1", default-features = false }
 ```
 
 ## alloc обязателен
@@ -90,7 +90,7 @@ CI-задача `no_std` (`.github/workflows/ci.yml`) проверяет эти 
 
 ```toml
 [dependencies]
-masterror = { version = "0.28", default-features = false }
+masterror = { version = "0.31.1", default-features = false }
 
 [features]
 std = ["masterror/std"]
@@ -100,7 +100,7 @@ std = ["masterror/std"]
 
 ```toml
 [dependencies]
-masterror = { version = "0.28", features = ["axum", "tracing", "metrics"] }
+masterror = { version = "0.31.1", features = ["axum", "tracing", "metrics"] }
 ```
 
 Поскольку `AppErrorKind`, `AppCode` и типы на проводе живут в ядре `no_std`,

@@ -6,7 +6,7 @@
 
 ```toml
 [dependencies]
-masterror = { version = "0.28", default-features = false }
+masterror = { version = "0.31.1", default-features = false }
 ```
 
 ## alloc 필요
@@ -87,7 +87,7 @@ assert_eq!(err.metadata().len(), 1);
 
 ```toml
 [dependencies]
-masterror = { version = "0.28", default-features = false }
+masterror = { version = "0.31.1", default-features = false }
 
 [features]
 std = ["masterror/std"]
@@ -97,7 +97,7 @@ std = ["masterror/std"]
 
 ```toml
 [dependencies]
-masterror = { version = "0.28", features = ["axum", "tracing", "metrics"] }
+masterror = { version = "0.31.1", features = ["axum", "tracing", "metrics"] }
 ```
 
 `AppErrorKind`, `AppCode` 및 와이어 타입이 `no_std` 코어에 있기 때문에,

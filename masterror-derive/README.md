@@ -22,7 +22,7 @@ Procedural macros that power [`masterror`](https://crates.io/crates/masterror)'s
 
 ```toml
 [dependencies]
-masterror = "0.10"
+masterror = "0.31.1"
 ```
 
 ```rust

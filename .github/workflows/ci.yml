@@ -44,7 +44,7 @@ jobs:
       - name: Extract MSRV from Cargo.toml
         id: msrv
         run: |
-          MSRV=$(scripts/sync-msrv.sh --print)
+          MSRV=$(scripts/sync-docs.sh --print msrv)
           echo "version=$MSRV" >> "$GITHUB_OUTPUT"
           echo "MSRV: $MSRV"
 
@@ -251,8 +251,8 @@ jobs:
   # Derive the MSRV in the documentation from Cargo.toml (single source of truth)
   # ════════════════════════════════════════════════════════════════════════════
 
-  sync-msrv:
-    name: Sync MSRV
+  sync-docs:
+    name: Sync docs
     if: >-
       github.event_name != 'pull_request' ||
       (!startsWith(github.head_ref, 'release-plz-') && !startsWith(github.head_ref, 'dependabot/'))
@@ -267,7 +267,7 @@ jobs:
         run: git fetch origin main && git reset --hard origin/main
 
       - name: Derive the MSRV in the documentation
-        run: scripts/sync-msrv.sh
+        run: scripts/sync-docs.sh
 
       - name: Commit the documentation
         env:
@@ -286,10 +286,10 @@ jobs:
           git add -A
 
           if [ "$EVENT" = "pull_request" ]; then
-            git commit -m "chore: sync the MSRV in the documentation"
+            git commit -m "chore: sync the documentation with the manifest"
             git push origin "HEAD:$HEAD_REF"
           else
-            git commit -m "chore: sync the MSRV in the documentation [skip ci]"
+            git commit -m "chore: sync the documentation with the manifest [skip ci]"
             git push origin HEAD:main
           fi
 
@@ -496,13 +496,13 @@ jobs:
 
   ci-success:
     name: CI Success
-    needs: [check, fmt, docs, no-std, no-std-target, security, reuse, semver, sync-msrv, test]
+    needs: [check, fmt, docs, no-std, no-std-target, security, reuse, semver, sync-docs, test]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Check all jobs
         run: |
-          results="${{ needs.check.result }} ${{ needs.fmt.result }} ${{ needs.docs.result }} ${{ needs.no-std.result }} ${{ needs.no-std-target.result }} ${{ needs.security.result }} ${{ needs.reuse.result }} ${{ needs.semver.result }} ${{ needs.sync-msrv.result }} ${{ needs.test.result }}"
+          results="${{ needs.check.result }} ${{ needs.fmt.result }} ${{ needs.docs.result }} ${{ needs.no-std.result }} ${{ needs.no-std-target.result }} ${{ needs.security.result }} ${{ needs.reuse.result }} ${{ needs.semver.result }} ${{ needs.sync-docs.result }} ${{ needs.test.result }}"
 
           for r in $results; do
             if [[ "$r" != "success" ]]; then

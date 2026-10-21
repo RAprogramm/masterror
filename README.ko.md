@@ -139,9 +139,9 @@ SPDX-License-Identifier: MIT
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.28.0", default-features = false }
+masterror = { version = "0.31.1", default-features = false }
 # or with features:
-# masterror = { version = "0.28.0", features = [
+# masterror = { version = "0.31.1", features = [
 #   "std", "axum", "actix", "openapi",
 #   "serde_json", "tracing", "metrics", "backtrace",
 #   "colored", "sqlx", "sqlx-migrate", "reqwest",
@@ -555,7 +555,7 @@ match mode {
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.28.0", features = ["colored"] }
+masterror = { version = "0.31.1", features = ["colored"] }
 ~~~
 
 `colored` 기능 없이 오류는 `AppErrorKind` 레이블을 표시합니다:
