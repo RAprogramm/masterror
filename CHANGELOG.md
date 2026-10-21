@@ -11,7 +11,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [unreleased](https://github.com/RAprogramm/masterror/compare/v0.31.1...HEAD)
+## [0.32.0](https://github.com/RAprogramm/masterror/releases/tag/v0.32.0) - 2026-10-21
 
 ### Added
 
@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous
 
+- Release ([504d5c2](https://github.com/RAprogramm/masterror/commit/504d5c2bbaab2af45a9d967ba2cb82ffef7457f1))
 - Derive the crate version in the docs and inherit the shared manifest fields by [@RAprogramm](https://github.com/RAprogramm) ([5dadf73](https://github.com/RAprogramm/masterror/commit/5dadf73f014eece3df56bf507dd35f671897c80d))
 - Derive the MSRV in the documentation from the manifest by [@RAprogramm](https://github.com/RAprogramm) ([3de0480](https://github.com/RAprogramm/masterror/commit/3de048082a9f911bf4d6b35546318835f9290d33))
 
@@ -57,6 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Styling
 
 - Format the documentation of the no_std example (#474) by [@RAprogramm](https://github.com/RAprogramm) ([8029307](https://github.com/RAprogramm/masterror/commit/8029307099f171ef51679a85f5a2598c4ebaa090))
+
+**Full Changelog**: [v0.31.1...v0.32.0](https://github.com/RAprogramm/masterror/compare/v0.31.1...v0.32.0)
 ## [0.31.1](https://github.com/RAprogramm/masterror/releases/tag/v0.31.1) - 2026-10-20
 
 ### Added
