@@ -253,9 +253,6 @@ jobs:
 
   sync-docs:
     name: Sync docs
-    if: >-
-      github.event_name != 'pull_request' ||
-      (!startsWith(github.head_ref, 'release-plz-') && !startsWith(github.head_ref, 'dependabot/'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -266,18 +263,28 @@ jobs:
         if: github.event_name == 'push'
         run: git fetch origin main && git reset --hard origin/main
 
-      - name: Derive the MSRV in the documentation
+      - name: Derive the documentation from the manifest
+        if: >-
+          github.event_name != 'pull_request' ||
+          (!startsWith(github.head_ref, 'release-plz-') && !startsWith(github.head_ref, 'dependabot/'))
         run: scripts/sync-docs.sh
 
       - name: Commit the documentation
         env:
           EVENT: ${{ github.event_name }}
           HEAD_REF: ${{ github.head_ref }}
+          READONLY: ${{ startsWith(github.head_ref, 'dependabot/') || github.event.pull_request.head.repo.full_name != github.repository }}
         run: |
           set -euo pipefail
 
           if [ -z "$(git status --porcelain)" ]; then
             echo "The documentation already matches the manifest"
+            exit 0
+          fi
+
+          if [ "$READONLY" = "true" ]; then
+            echo "::warning::The documentation differs from the manifest on $HEAD_REF"
+            git diff --stat
             exit 0
           fi
 
