@@ -110,7 +110,7 @@ masterror = { version = "0.28", features = ["axum", "tracing", "metrics"] }
 
 ## Тулчейн
 
-Крейт нацелен на edition 2024 с `rust-version = "1.96"` в `Cargo.toml`.
+Крейт нацелен на edition 2024 с `rust-version = "1.99"` в `Cargo.toml`.
 `core::error::Error` (основа цепочек источников в `no_std`) стабилен начиная с
 Rust 1.81, поэтому никакие nightly-функции не задействованы.
 

@@ -21,7 +21,7 @@ Add the crate alongside `masterror` if you need direct access to the parser:
 masterror-template = { version = "0.3.8" }
 ```
 
-`masterror-template` targets Rust 1.90 and builds on stable and nightly toolchains alike.
+`masterror-template` targets Rust 1.99 and builds on stable and nightly toolchains alike.
 
 ## Parsing templates
 

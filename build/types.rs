@@ -14,9 +14,11 @@ use serde::Deserialize;
 /// Cargo.toml manifest structure.
 #[derive(Debug, Deserialize)]
 pub struct Manifest {
-    pub(crate) package:  Package,
+    pub(crate) package:   Package,
     #[serde(default)]
-    pub(crate) features: BTreeMap<String, Vec<String>>
+    pub(crate) features:  BTreeMap<String, Vec<String>>,
+    #[serde(default)]
+    pub(crate) workspace: Option<Workspace>
 }
 
 /// Package section of Cargo.toml.
@@ -24,9 +26,40 @@ pub struct Manifest {
 pub struct Package {
     pub(crate) version:      String,
     #[serde(rename = "rust-version")]
-    pub(crate) rust_version: Option<String>,
+    pub(crate) rust_version: Option<RustVersion>,
     #[serde(default)]
     pub(crate) metadata:     Option<PackageMetadata>
+}
+
+/// The `rust-version` field of a package.
+///
+/// The field holds either a literal version or a workspace inheritance.
+///
+/// # Examples
+///
+/// ```toml
+/// rust-version = "1.99"
+/// rust-version.workspace = true
+/// ```
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum RustVersion {
+    Value(String),
+    Inherited { workspace: bool }
+}
+
+/// Workspace section of Cargo.toml.
+#[derive(Debug, Deserialize)]
+pub struct Workspace {
+    #[serde(default)]
+    pub(crate) package: Option<WorkspacePackage>
+}
+
+/// Workspace package defaults.
+#[derive(Debug, Deserialize)]
+pub struct WorkspacePackage {
+    #[serde(rename = "rust-version")]
+    pub(crate) rust_version: Option<String>
 }
 
 /// Package metadata section.

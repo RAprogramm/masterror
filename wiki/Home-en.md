@@ -10,7 +10,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/masterror)](https://crates.io/crates/masterror)
 [![docs.rs](https://img.shields.io/docsrs/masterror)](https://docs.rs/masterror)
-![MSRV](https://img.shields.io/badge/MSRV-1.96-blue)
+![MSRV](https://img.shields.io/badge/MSRV-1.99-blue)
 ![License](https://img.shields.io/badge/License-MIT-informational)
 
 </div>

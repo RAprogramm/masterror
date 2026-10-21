@@ -20,7 +20,7 @@ use std::{
 
 pub use error::ReadmeError;
 use render::render_readme;
-use types::{FeatureDoc, Manifest, Package, ReadmeMetadata};
+use types::{FeatureDoc, Manifest, Package, ReadmeMetadata, RustVersion, Workspace};
 
 /// Generates README content from manifest and template files.
 ///
@@ -40,7 +40,8 @@ pub fn generate_readme(manifest_path: &Path, template_path: &Path) -> Result<Str
     let manifest: Manifest = toml::from_str(&manifest_raw)?;
     let Manifest {
         package,
-        features
+        features,
+        workspace
     } = manifest;
     let Package {
         version,
@@ -58,15 +59,46 @@ pub fn generate_readme(manifest_path: &Path, template_path: &Path) -> Result<Str
     if snippet_group == 0 {
         return Err(ReadmeError::InvalidSnippetGroup);
     }
+    let rust_version = resolve_rust_version(rust_version, workspace.as_ref());
     let template_raw = fs::read_to_string(template_path)?;
     render_readme(
         &template_raw,
         &version,
-        rust_version.as_deref().unwrap_or("unknown"),
+        &rust_version,
         &feature_docs,
         snippet_group,
         &readme_meta.conversion_lines
     )
+}
+
+/// Resolves the effective MSRV of the package.
+///
+/// A literal `rust-version` is used as is; the workspace inheritance is
+/// resolved from the `[workspace.package]` section of the same manifest,
+/// which is the single source of truth for the whole workspace.
+///
+/// # Arguments
+///
+/// * `rust_version` - The `rust-version` field of the package
+/// * `workspace` - The workspace section of the manifest
+///
+/// # Returns
+///
+/// The MSRV as a string, or `unknown` when it cannot be resolved
+fn resolve_rust_version(
+    rust_version: Option<RustVersion>,
+    workspace: Option<&Workspace>
+) -> String {
+    match rust_version {
+        Some(RustVersion::Value(value)) => value,
+        Some(RustVersion::Inherited {
+            workspace: true
+        }) => workspace
+            .and_then(|section| section.package.as_ref())
+            .and_then(|package| package.rust_version.clone())
+            .unwrap_or_else(|| "unknown".to_string()),
+        _ => "unknown".to_string()
+    }
 }
 
 /// Writes README.md if content differs from existing file.
@@ -243,7 +275,49 @@ fn write_if_changed(path: &Path, contents: &str) -> Result<(), ReadmeError> {
 mod tests {
     use std::collections::BTreeMap;
 
-    use super::{types::FeatureMetadata, *};
+    use super::{
+        types::{FeatureMetadata, WorkspacePackage},
+        *
+    };
+
+    #[test]
+    fn resolve_rust_version_returns_the_literal_value() {
+        let resolved = resolve_rust_version(Some(RustVersion::Value("1.99".to_string())), None);
+        assert_eq!(resolved, "1.99");
+    }
+
+    #[test]
+    fn resolve_rust_version_resolves_the_workspace_inheritance() {
+        let workspace = Workspace {
+            package: Some(WorkspacePackage {
+                rust_version: Some("1.99".to_string())
+            })
+        };
+        let resolved = resolve_rust_version(
+            Some(RustVersion::Inherited {
+                workspace: true
+            }),
+            Some(&workspace)
+        );
+        assert_eq!(resolved, "1.99");
+    }
+
+    #[test]
+    fn resolve_rust_version_reports_unknown_without_a_workspace_value() {
+        let resolved = resolve_rust_version(
+            Some(RustVersion::Inherited {
+                workspace: true
+            }),
+            None
+        );
+        assert_eq!(resolved, "unknown");
+    }
+
+    #[test]
+    fn resolve_rust_version_reports_unknown_without_a_rust_version() {
+        let resolved = resolve_rust_version(None, None);
+        assert_eq!(resolved, "unknown");
+    }
 
     #[test]
     fn normalize_converts_crlf_to_lf() {

@@ -108,7 +108,7 @@ while the HTTP mapping happens only in the service crate — see
 
 ## Toolchain
 
-The crate targets edition 2024 with `rust-version = "1.96"` in `Cargo.toml`.
+The crate targets edition 2024 with `rust-version = "1.99"` in `Cargo.toml`.
 `core::error::Error` (the foundation of `no_std` source chains) has been
 stable since Rust 1.81, so no nightly features are involved.
 

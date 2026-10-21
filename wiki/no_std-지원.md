@@ -107,7 +107,7 @@ masterror = { version = "0.28", features = ["axum", "tracing", "metrics"] }
 
 ## 툴체인
 
-크레이트는 `Cargo.toml`에서 `rust-version = "1.96"`으로 에디션 2024를
+크레이트는 `Cargo.toml`에서 `rust-version = "1.99"`으로 에디션 2024를
 대상으로 합니다. `no_std` 소스 체인의 기반인 `core::error::Error`는
 Rust 1.81부터 안정화되었으므로 nightly 기능은 전혀 사용되지 않습니다.
 

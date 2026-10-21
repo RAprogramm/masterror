@@ -619,7 +619,7 @@ features: [
 
 ### 6. MSRV Guarantees
 
-CI tests on MSRV (1.90) and stable to prevent accidental newer Rust usage.
+CI tests on MSRV (1.99) and stable to prevent accidental newer Rust usage.
 
 ## Deployment Considerations
 

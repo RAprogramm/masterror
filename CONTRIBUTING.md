@@ -25,7 +25,7 @@ Thank you for considering contributing to masterror. This document outlines the 
 
 ### Prerequisites
 
-- **Rust**: MSRV 1.90 (stable and nightly toolchains recommended)
+- **Rust**: MSRV 1.99 (stable and nightly toolchains recommended)
 - **Tools**: `cargo-audit`, `cargo-deny`, `cargo-tarpaulin` or `cargo-llvm-cov` (for coverage)
 - **GitHub CLI**: `gh` (optional but recommended for workflow management)
 

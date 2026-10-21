@@ -208,7 +208,7 @@ Modern Rust services require consistent, observable error handling across multip
 
 ### 4.4 Compatibility
 
-**NFR-015**: System SHALL support MSRV 1.90
+**NFR-015**: System SHALL support MSRV 1.99
 **NFR-016**: System SHALL support Rust edition 2024
 **NFR-017**: System SHALL support no_std environments (with alloc)
 **NFR-018**: System SHALL support WASM targets (with frontend feature)
@@ -337,7 +337,7 @@ Modern Rust services require consistent, observable error handling across multip
 
 **Status**: Accepted
 **Context**: Balance modern Rust features with ecosystem compatibility
-**Decision**: MSRV 1.90 with edition 2024 support
+**Decision**: MSRV 1.99 with edition 2024 support
 **Consequences**:
 - Positive: Access to latest stable features
 - Positive: Future-proof for edition migration

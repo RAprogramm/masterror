@@ -4,7 +4,7 @@
 
 [package]
 name = "masterror-derive"
-rust-version = "1.98"
+rust-version.workspace = true
 version = "0.13.1"
 edition = "2024"
 license = "MIT"

@@ -18,7 +18,7 @@ Enable integrations as you need them (see [Feature Flags](Feature-Flags-en) for 
 masterror = { version = "0.28", features = ["axum", "serde_json", "tracing"] }
 ```
 
-MSRV is **1.96**. The crate forbids `unsafe` and supports `no_std` when built with `default-features = false`.
+MSRV is **1.99**. The crate forbids `unsafe` and supports `no_std` when built with `default-features = false`.
 
 ## Your first error
 
