@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous
 
+- Update the changelog for v0.32.0 [skip ci] by [@github-actions[bot]](https://github.com/github-actions[bot]) ([aff5e68](https://github.com/RAprogramm/masterror/commit/aff5e680dd4c034621949822a44fcff2d011c50f))
 - Add the 0.32.0 release section to the changelog by [@github-actions[bot]](https://github.com/github-actions[bot]) ([c4c0da7](https://github.com/RAprogramm/masterror/commit/c4c0da75a757d44f82d6d9d1845d20b5d9ec3fdc))
 - Release by [@release-plz-yew-nav-link[bot]](https://github.com/release-plz-yew-nav-link[bot]) ([504d5c2](https://github.com/RAprogramm/masterror/commit/504d5c2bbaab2af45a9d967ba2cb82ffef7457f1))
 - Derive the crate version in the docs and inherit the shared manifest fields by [@RAprogramm](https://github.com/RAprogramm) ([5dadf73](https://github.com/RAprogramm/masterror/commit/5dadf73f014eece3df56bf507dd35f671897c80d))
