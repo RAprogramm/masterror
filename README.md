@@ -20,6 +20,7 @@ SPDX-License-Identifier: MIT
   [![codecov](https://codecov.io/gh/RAprogramm/masterror/graph/badge.svg?token=V9JQDTZLXH)](https://codecov.io/gh/RAprogramm/masterror)
 
   [![CI](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RAprogramm/masterror/actions/workflows/ci.yml?query=branch%3Amain)
+  [![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/RAprogramm/masterror?utm_source=badge)
   [![Hits-of-Code](https://hitsofcode.com/github/RAprogramm/masterror?branch=main&exclude=Cargo.lock,.gitignore,CHANGELOG.md)](https://hitsofcode.com/github/RAprogramm/masterror/view?branch=main&exclude=Cargo.lock,.gitignore,CHANGELOG.md)
   [![IMIR](https://raw.githubusercontent.com/RAprogramm/infra-metrics-insight-renderer/main/assets/badges/imir-badge-simple-public.svg)](https://github.com/RAprogramm/infra-metrics-insight-renderer)
 
@@ -174,9 +175,9 @@ The build script keeps the full feature snippet below in sync with
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.31.1", default-features = false }
+masterror = { version = "0.32.0", default-features = false }
 # or with features:
-# masterror = { version = "0.31.1", features = [
+# masterror = { version = "0.32.0", features = [
 #   "std", "axum", "actix", "openapi",
 #   "serde_json", "tracing", "metrics", "backtrace",
 #   "colored", "sqlx", "sqlx-migrate", "reqwest",
@@ -701,7 +702,7 @@ never contains escape sequences:
 
 ~~~toml
 [dependencies]
-masterror = { version = "0.31.1", features = ["colored"] }
+masterror = { version = "0.32.0", features = ["colored"] }
 ~~~
 
 </details>

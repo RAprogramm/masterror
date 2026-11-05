@@ -17,7 +17,7 @@ You rarely call anything manually.
 
 ```toml
 [dependencies]
-masterror = { version = "0.31.1", features = ["tracing", "metrics", "backtrace"] }
+masterror = { version = "0.32.0", features = ["tracing", "metrics", "backtrace"] }
 ```
 
 ## Tracing

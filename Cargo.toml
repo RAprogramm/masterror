@@ -146,7 +146,7 @@ owo-colors = { version = "4", optional = true, default-features = false, feature
 
 [dev-dependencies]
 anyhow = { version = "1", default-features = false, features = ["std"] }
-criterion = "0.8"
+criterion = { version = "6.0.0", package = "codspeed-criterion-compat" }
 serde_json = "1"
 thiserror = "2"
 tokio = { version = "1", features = [
@@ -167,6 +167,10 @@ harness = false
 
 [[bench]]
 name = "comparison"
+harness = false
+
+[[bench]]
+name = "response_mapping"
 harness = false
 
 [build-dependencies]
