@@ -8,14 +8,14 @@ The default build enables only the `std` feature — no web framework, no teleme
 
 ```toml
 [dependencies]
-masterror = "0.31.1"
+masterror = "0.32.0"
 ```
 
 Enable integrations as you need them (see [Feature Flags](Feature-Flags-en) for the full list):
 
 ```toml
 [dependencies]
-masterror = { version = "0.31.1", features = ["axum", "serde_json", "tracing"] }
+masterror = { version = "0.32.0", features = ["axum", "serde_json", "tracing"] }
 ```
 
 MSRV is **1.99**. The crate forbids `unsafe` and supports `no_std` when built with `default-features = false`.
